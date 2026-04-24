@@ -119,3 +119,13 @@ Deferred package READMEs noted in Deferred follow-ups below.
 - **`HulumiHardeningPack` and `CisV5Pack` cannot be imported into the same Node process** (one-PolicyPack-per-process constraint from @pulumi/policy). Users point their `PulumiPolicy.yaml` at one pack at a time. Documented in `packages/policies/src/index.ts` module header and at the top of both pack entrypoint files. Interfaces.md §2 still lists both symbols as `stable` — that remains true; only the simultaneous-import is constrained.
 - **Pulumi V2 resource deprecation warnings** appear on every test run. Cosmetic; tracked under M5 interface-lock review.
 - **`packages/*/README.md` files** intentionally omitted — see Deferred follow-ups.
+
+## /slo-verify close-out (appended 2026-04-24)
+
+- Runtime verification pass completed via `/slo-verify M2`. No bugs found.
+- All 15 BDD rows + tier-delta schema test + 4 mappings-sync tests + 1 smoke test exercised at runtime via vitest under `pulumi.runtime.setMocks()`.
+- Exact-pin-guard drift test manually re-verified during /slo-verify (sed-tamper → FAIL exit=1; restore → OK exit=0). License-boundary-lint re-run post `pnpm -r build`: OK across source + dist.
+- Skill CLI rendering regression re-verified: s3 scenario output has 0 `v0.2+` hits for SecureBucket + HulumiHardeningPack; DriftClassifier retains its `v0.4+` forward-reference (correct).
+- Verify report: [docs/verify/hulumi-m2.md](../verify/hulumi-m2.md).
+- Self-Review Gate: all 10 checkboxes pass. No TODO/FIXME/XXX in production src; no debug console.log; no test mocks leaked into src/; forbidden shortcuts from Contract Block verified absent (a)-(g).
+- Milestone Tracker confirmed `done` with 2026-04-24 completion date and pointers to this doc + the lessons file.

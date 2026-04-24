@@ -102,3 +102,11 @@ Total: **19 tests, all green.**
 - **`SKILL.md` frontmatter schema validation** is line-regex-based, not full YAML-parsed. If Claude Code's SKILL spec evolves in ways that can't be captured by simple line regexes (e.g. nested schemas), we'll need to pull a YAML parser as a dev dep. Out of scope for M1.
 - **License-boundary lint fixture list is short** (7 entries). Maintenance discipline in `CONTRIBUTING.md` — add only small, highly-distinctive fragments with documented rationale. We accept that a determined adversary could paraphrase just enough to evade, but the lint's goal is to catch inadvertent copy-paste, not adversarial evasion.
 - **Partial-failure fallback** (mapping file unreadable) uses minimal bundled stubs — citations in fallback mode have the framework's default URL, not the per-ID URL. The output remains valid but less precise. Documented in the output's Open Questions section when fallback fires.
+
+## /slo-verify close-out (appended 2026-04-24)
+
+- Runtime verification pass completed via `/slo-verify M1`. No bugs found. All 10 BDD rows + all 5 E2E runtime scenarios exercised end-to-end; full pipeline (`pnpm install --frozen-lockfile`, `pnpm -r test`, `pnpm -r lint`, `pnpm -r typecheck`, `pnpm run lint:license-boundary`, `pnpm run format:check`) green.
+- Verify report: [docs/verify/hulumi-m1.md](../verify/hulumi-m1.md).
+- Evidence Log in [docs/runbook-milestones/hulumi-m1.md](../runbook-milestones/hulumi-m1.md#evidence-log) filled with actual command outputs from the verify run.
+- Self-Review Gate: all 10 checkboxes pass. No TODO/FIXME/XXX in production source; no unresolvable console.log; no exec/eval in skill scripts; no verbatim framework prose.
+- Milestone Tracker confirmed `done` with the 2026-04-24 ship date and paths to this file + the lessons file.

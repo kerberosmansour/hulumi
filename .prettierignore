@@ -5,6 +5,9 @@ coverage/
 .hulumi/
 .pnpm-store/
 
+# Lockfile (machine-managed; format-checking it is pointless churn).
+pnpm-lock.yaml
+
 # LICENSE files should not be reformatted (legal text, must be verbatim)
 LICENSE
 CODE_OF_CONDUCT.md

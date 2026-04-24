@@ -1,0 +1,3 @@
+name: hulumi-policies
+description: Hulumi policy packs — HulumiHardeningPack + CisV5Pack (bucket stub).
+runtime: nodejs

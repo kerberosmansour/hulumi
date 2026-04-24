@@ -125,8 +125,8 @@ An engineer needs to create an S3 bucket that stores user-uploaded files, audit 
 
 ## Recommended Hulumi Components
 
-- `hulumi.baseline.aws.SecureBucket` (available in Hulumi v0.2+) — The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events).
-- `hulumi.policies.aws.HulumiHardeningPack` (available in Hulumi v0.2+) — H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`.
+- `hulumi.baseline.aws.SecureBucket` (available in Hulumi v0.2) — The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events). Shipped in M2.
+- `hulumi.policies.aws.HulumiHardeningPack` (available in Hulumi v0.2) — H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`. H3 (iac-role tag) is advisory in v0.2, mandatory in v1.0 once the SCP template ships. Shipped in M2.
 - `hulumi.drift.DriftClassifier` (available in Hulumi v0.4+) — If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals.
 
 ## Open Questions

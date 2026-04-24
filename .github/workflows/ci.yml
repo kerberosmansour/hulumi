@@ -22,11 +22,62 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint:exact-pin-guard
+      - run: pnpm -r build
       - run: pnpm -r typecheck
       - run: pnpm -r test
       - run: pnpm -r lint
       - run: pnpm run lint:license-boundary
       - run: pnpm run format:check
+
+  baseline-test:
+    name: "@hulumi/baseline unit tests (mocks only)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/baseline build
+      - run: pnpm run test:baseline
+
+  policies-test:
+    name: "@hulumi/policies unit tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/policies build
+      - run: pnpm run test:policies
+
+  examples-typecheck:
+    name: "examples/* typecheck (mocks only)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/baseline build
+      - run: pnpm --filter @hulumi-examples/secure-bucket-smoke typecheck
+      - run: pnpm --filter @hulumi-examples/secure-bucket-smoke test
 
   dco:
     name: DCO sign-off

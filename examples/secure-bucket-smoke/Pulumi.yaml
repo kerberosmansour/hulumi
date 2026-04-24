@@ -1,0 +1,6 @@
+name: secure-bucket-smoke
+description: M2 end-to-end smoke test for @hulumi/baseline.aws.SecureBucket. Exercises both tiers under mocked @pulumi/aws; not intended to be deployed to a real AWS account.
+runtime:
+  name: nodejs
+  options:
+    typescript: true

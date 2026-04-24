@@ -30,8 +30,11 @@ const SCAN_ROOTS = ["skills", "packages"];
 // Files to scan (by extension).
 const SCAN_EXTS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".md"]);
 
-// Paths to skip inside the scan roots.
-const SKIP_DIRS = new Set(["node_modules", "dist", "build", "coverage", ".vitest"]);
+// Paths to skip inside the scan roots. Note: `dist/` is NOT skipped — M2's
+// BDD row "License-boundary lint on built dist" requires the lint to catch
+// verbatim prose in shipped artifacts, not just in source. Source-map
+// sidecars (`*.map`) aren't in SCAN_EXTS so they're already excluded.
+const SKIP_DIRS = new Set(["node_modules", "build", "coverage", ".vitest"]);
 
 // Distinctive verbatim-prose fixtures. Each is a substring whose presence in
 // source would constitute unlicensed embedding. Sourced from the public

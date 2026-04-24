@@ -32,6 +32,10 @@ export default [
         Buffer: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        setImmediate: "readonly",
+        clearImmediate: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
       },
     },
     plugins: {
@@ -59,6 +63,10 @@ export default [
         Buffer: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        setImmediate: "readonly",
+        clearImmediate: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
       },
     },
     rules: {

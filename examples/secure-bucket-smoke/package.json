@@ -1,0 +1,22 @@
+{
+  "name": "@hulumi-examples/secure-bucket-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal Pulumi program exercising both SecureBucket tiers under mocked @pulumi/aws. Serves as the M2 end-to-end smoke test.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hulumi/baseline": "workspace:*",
+    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.27.0"
+  },
+  "devDependencies": {
+    "@pulumi/policy": "1.20.0",
+    "@types/node": "20.14.10",
+    "typescript": "5.5.4",
+    "vitest": "1.6.0"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@hulumi/baseline",
+  "version": "0.1.0",
+  "description": "Hardened Pulumi baseline components for AWS — SecureBucket and forthcoming AccountFoundation.",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./aws": {
+      "types": "./dist/aws/index.d.ts",
+      "default": "./dist/aws/index.js"
+    },
+    "./mappings": {
+      "types": "./dist/mappings/index.d.ts",
+      "default": "./dist/mappings/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "peerDependencies": {
+    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.27.0"
+  },
+  "devDependencies": {
+    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.27.0",
+    "@types/node": "20.14.10",
+    "typescript": "5.5.4",
+    "vitest": "1.6.0"
+  }
+}

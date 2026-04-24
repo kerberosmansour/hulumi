@@ -14,9 +14,13 @@
     "tests/*"
   ],
   "scripts": {
+    "build": "pnpm -r --stream build",
     "test": "pnpm -r --stream test",
+    "test:baseline": "pnpm --filter @hulumi/baseline test",
+    "test:policies": "pnpm --filter @hulumi/policies test",
     "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",
     "lint:license-boundary": "node scripts/license-boundary-lint.mjs",
+    "lint:exact-pin-guard": "node scripts/exact-pin-guard.mjs",
     "typecheck": "pnpm -r --stream typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -6,6 +6,8 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+packages/*/dist/
+examples/*/node_modules/
 
 # Test output
 coverage/
@@ -40,3 +42,10 @@ coverage/
 # Environment
 .env
 .env.local
+
+# Pulumi checkpoints + local state (examples directory + ad-hoc scratch stacks).
+# Committed stack configs (Pulumi.<stackName>.yaml) remain tracked; only
+# generated / ephemeral state is ignored.
+.pulumi/
+**/*.pulumi.backup
+Pulumi.*.yaml.bak

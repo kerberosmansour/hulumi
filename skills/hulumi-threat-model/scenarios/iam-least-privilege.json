@@ -1,0 +1,84 @@
+{
+  "id": "iam-least-privilege",
+  "title": "IAM Least Privilege — password policy, role scoping, access analyzer, MFA",
+  "description": "An engineer is standing up IAM baselines for a new AWS account: password policy, Access Analyzer, role scoping for IaC and application workloads, MFA enforcement, and the `hulumi:iac-role=true` tag convention that the drift classifier depends on. Target end state matches Hulumi's `AccountFoundation.iamBaseline` — no inline admin policies, no wildcard `Resource: '*'` outside `iam:List*` / `iam:Get*` reads, Access Analyzer archive rules for Hulumi-tagged principals.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-AWS-v5.0.0"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, authoring IaC)",
+    "External Attacker (via stolen IAM access key)",
+    "Compromised CI runner (semi-trusted, could exfil if over-scoped)"
+  ],
+  "assets": [
+    "IAM user passwords and access keys",
+    "IAM roles and their assume-role trust policies",
+    "IAM policies attached to roles",
+    "`hulumi:iac-role=true` tag — load-bearing for drift attribution"
+  ],
+  "stride": [
+    {
+      "type": "E",
+      "name": "Wildcard IAM policy elevation",
+      "description": "An LLM-authored or human-authored policy grants `Action: '*' / Resource: '*'` to a workload role. A compromised workload becomes effectively admin. Hulumi's HardeningPack refuses such policies at preview time outside narrow `iam:*` read namespaces.",
+      "controls": [
+        "CCM:IAM-07",
+        "CIS-AWS-v5.0.0:1.22",
+        "NIST-800-53-r5:AC-3",
+        "NIST-800-53-r5:AC-6"
+      ]
+    },
+    {
+      "type": "S",
+      "name": "Assume-role trust spoofing",
+      "description": "An IAM role trust policy allows `Principal: '*'` (or a too-broad principal set) to assume it. External account principals can escalate via assume-role chains. Mitigation: explicit principal ARNs, `sts:ExternalId` conditions for cross-account.",
+      "controls": ["CCM:IAM-10", "CIS-AWS-v5.0.0:1.15", "NIST-800-53-r5:IA-2"]
+    },
+    {
+      "type": "R",
+      "name": "Untagged IaC role breaks attribution",
+      "description": "If the IaC deploy role lacks `hulumi:iac-role=true`, the drift classifier's CloudTrailAdapter cannot distinguish IaC-originated from human-console changes, corrupting every subsequent drift verdict. Tag is advisory in v0.2–v0.4 and mandatory in v1.0.0 (paired with the SCP template shipping in M5).",
+      "controls": ["CCM:IAM-06", "NIST-800-53-r5:AC-2", "NIST-800-53-r5:AU-12"]
+    },
+    {
+      "type": "T",
+      "name": "Tag tampering on the IaC role",
+      "description": "A principal with `iam:TagRole` can add `hulumi:iac-role=true` to an attacker-controlled role, making their CloudTrail events look like IaC. The v1.0.0 SCP template (M5) denies `iam:TagRole` with that key from non-IaC principals.",
+      "controls": ["CCM:IAM-06", "NIST-800-53-r5:CM-2"]
+    },
+    {
+      "type": "I",
+      "name": "Access Analyzer disabled — external access blind spot",
+      "description": "Without Access Analyzer, external-access findings on roles, buckets, KMS keys, and Secrets Manager are invisible. Sandbox tier is advisory; Startup-Hardened enables Access Analyzer in account-local or organization mode.",
+      "controls": ["CCM:IAM-01", "NIST-800-53-r5:AC-3", "NIST-800-53-r5:SI-4"]
+    },
+    {
+      "type": "D",
+      "name": "Agent-driven credential brute force",
+      "description": "AI-agent-driven attacks can automate credential-stuffing against IAM users. MFA enforcement + IAM password policy (14+ chars, complexity, rotation) + IA-5 authenticator management are the baseline.",
+      "controls": [
+        "CCM:IAM-02",
+        "CIS-AWS-v5.0.0:1.8",
+        "CIS-AWS-v5.0.0:1.12",
+        "NIST-800-53-r5:IA-5",
+        "ATLAS:AML.T0051"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "hulumi.baseline.aws.AccountFoundation.iamBaseline",
+      "availability": "v0.3+",
+      "rationale": "Password policy, Access Analyzer (Startup-Hardened), archive rules for Hulumi-tagged principals, no inline admin."
+    },
+    {
+      "name": "hulumi.policies.aws.HulumiHardeningPack (H3 rule: iac-role tag present)",
+      "availability": "v0.2+ (advisory), v1.0.0 (mandatory + SCP-paired)",
+      "rationale": "Detects missing `hulumi:iac-role=true` tag at preview time. SCP template `docs/deployment/scp.json` (M5) enforces tag-integrity server-side."
+    },
+    {
+      "name": "hulumi.policies.aws.CisV5Pack (section 1 — IAM)",
+      "availability": "v0.3+",
+      "rationale": "CIS v5.0 section-1 rules enforce password policy, MFA, credential rotation, and wildcard-scoping preventive checks."
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "id": "aws-multi-account-baseline",
+  "title": "AWS Multi-Account Baseline — Day-Zero Account Foundation",
+  "description": "A platform engineer stands up a new AWS account (or a collection of accounts under an Organization) with Hulumi. The target end state: CloudTrail centralised, AWS Config recording, GuardDuty enabled, Security Hub enabled with CIS AWS Foundations v5.0 subscribed, IAM baseline (password policy, no inline admin), and a KMS key ring with automatic rotation. Cross-account topology uses org-delegated services for GuardDuty and Security Hub.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-AWS-v5.0.0", "NIST-800-218"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, authoring IaC via Claude Code)",
+    "External Attacker (untrusted)",
+    "Malicious Insider (semi-trusted)"
+  ],
+  "assets": [
+    "AWS Organization root credentials",
+    "Member account IAM roles",
+    "CloudTrail log bucket and KMS key",
+    "Config aggregator data",
+    "Security Hub findings"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "Root credential spoofing",
+      "description": "An external attacker acquires an AWS root account credential (e.g., via phishing a maintainer) and assumes that identity to reconfigure services out-of-band.",
+      "controls": [
+        "CCM:IAM-01",
+        "CCM:IAM-10",
+        "CIS-AWS-v5.0.0:1.4",
+        "CIS-AWS-v5.0.0:1.5",
+        "NIST-800-53-r5:IA-2"
+      ]
+    },
+    {
+      "type": "T",
+      "name": "CloudTrail tampering",
+      "description": "A privileged principal (or a compromised IAM role) disables CloudTrail or modifies trail configuration to blind the incident-response pipeline. Prevention: multi-region CloudTrail with log-file validation and CMK-encrypted destination bucket.",
+      "controls": [
+        "CCM:LOG-02",
+        "CIS-AWS-v5.0.0:3.1",
+        "CIS-AWS-v5.0.0:3.2",
+        "CIS-AWS-v5.0.0:3.7",
+        "NIST-800-53-r5:AU-9",
+        "NIST-800-53-r5:AU-12"
+      ]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via untagged IaC principal",
+      "description": "An IaC action appears in CloudTrail but the assumed role does not carry a distinguishing Hulumi tag (`hulumi:iac-role=true`). Without the tag, console break-glass looks identical to IaC deploys, degrading forensic attribution.",
+      "controls": ["CCM:IAM-06", "NIST-800-53-r5:AU-12"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via misconfigured KMS policies",
+      "description": "An overly permissive KMS key policy lets a broader principal set decrypt data encrypted at rest. Hulumi's `AccountFoundation` KMS ring (shipping in v0.3) applies `deny-without-tag` policies in Startup-Hardened tier.",
+      "controls": [
+        "CCM:CEK-03",
+        "CCM:CEK-04",
+        "CIS-AWS-v5.0.0:3.7",
+        "CIS-AWS-v5.0.0:3.8",
+        "NIST-800-53-r5:SC-12",
+        "NIST-800-53-r5:SC-28"
+      ]
+    },
+    {
+      "type": "D",
+      "name": "Denial-of-service via unchecked resource creation",
+      "description": "A compromised IAM role creates thousands of expensive resources (EC2, NAT gateways, SageMaker endpoints), racking up cost and exhausting service quotas. Mitigations: budget alerts, SCPs restricting resource types, Security Hub findings reviewed promptly.",
+      "controls": ["CCM:LOG-04", "NIST-800-53-r5:SI-4"]
+    },
+    {
+      "type": "E",
+      "name": "LLM-authored elevation via stale AWS API knowledge",
+      "description": "Claude Code or another AI agent produces IaC that applies broad IAM permissions (`Resource: *`, `Action: *`) because its training data predates newer least-privilege defaults. Hulumi's baseline components cap these defaults; the `HulumiHardeningPack` (shipping v0.2) blocks wildcard IAM policies at preview time.",
+      "controls": [
+        "CCM:IAM-07",
+        "CIS-AWS-v5.0.0:1.22",
+        "NIST-800-53-r5:AC-6",
+        "ATLAS:AML.T0080",
+        "ATLAS:AML.T0099",
+        "NIST-800-218A:RV.1.1"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "hulumi.baseline.aws.AccountFoundation",
+      "availability": "v0.3+",
+      "rationale": "Composes CloudTrail + Config + GuardDuty + Security Hub + IAM baseline + KMS ring with tier-differentiated defaults (Sandbox / Startup-Hardened). Delivers this scenario's target end state as a single ComponentResource invocation."
+    },
+    {
+      "name": "hulumi.policies.aws.CisV5Pack",
+      "availability": "v0.3+ (bucket stub in v0.2; sections 1–3 full in v0.3)",
+      "rationale": "CrossGuard policy pack subscribing to CIS AWS Foundations v5.0.0. Provides preventive policy checks complementing Security Hub's detective findings."
+    },
+    {
+      "name": "hulumi.policies.aws.HulumiHardeningPack",
+      "availability": "v0.2+",
+      "rationale": "Blocks raw `aws.s3.BucketV2`, file:// state backends, and IAM policies with `Resource: '*'` outside `iam:*` reads. The `hulumi:iac-role=true` tag check (advisory in v0.2, mandatory in v1.0.0) is the compensating control for the repudiation threat above."
+    },
+    {
+      "name": "hulumi.drift.DriftClassifier",
+      "availability": "v0.4+",
+      "rationale": "Post-deployment drift triage — distinguishes provider-API churn from console break-glass from genuine IaC drift using four pluggable local adapters. TLA+-verified verdict matrix."
+    }
+  ]
+}

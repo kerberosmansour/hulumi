@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test output
+coverage/
+.vitest/
+*.log
+
+# TLA+ / TLC generated artifacts (keep specs and .cfg, ignore caches and traces)
+**/*_TTrace_*.tla
+**/*_TTrace_*.bin
+**/states/
+**/*-run.log
+**/MC.out
+**/MC.cfg
+**/*.dot
+**/*.toolbox/
+
+# SLSA attestation staging paths (M5 release workflow writes here during build)
+.attestations/
+*.intoto.jsonl
+*.sigstore
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+!.vscode/settings.json
+
+# Drift classifier cache (users decide their own policy; we ignore in this repo)
+.hulumi/
+
+# Environment
+.env
+.env.local

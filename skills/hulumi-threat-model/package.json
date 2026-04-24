@@ -1,0 +1,17 @@
+{
+  "name": "@hulumi/skill-hulumi-threat-model",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code skill: interactive AWS cloud threat modeling with framework ID-only citations. Distributed via git clone into ~/.claude/skills/ or gh skill install.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "echo 'skill has no internal tests; tests live in tests/skill-bdd/' && exit 0"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "typescript": "5.5.4"
+  }
+}

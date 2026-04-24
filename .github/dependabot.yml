@@ -1,0 +1,27 @@
+# Dependabot — M1 stub. Full configuration with @pulumi/* cooling-off grouping
+# (72h minor/major, 24h patch) lands in M5 alongside the release pipeline.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+    # Conservative grouping for M1 (dev deps only; no @pulumi/* yet).
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
+      - "dependencies"

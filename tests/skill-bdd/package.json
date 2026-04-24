@@ -10,8 +10,8 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@types/node": "20.14.10",
-    "typescript": "5.5.4",
-    "vitest": "1.6.0"
+    "@types/node": "20.19.39",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
   }
 }

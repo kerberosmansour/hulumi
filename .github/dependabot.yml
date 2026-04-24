@@ -1,5 +1,12 @@
-# Dependabot — M1 stub. Full configuration with @pulumi/* cooling-off grouping
-# (72h minor/major, 24h patch) lands in M5 alongside the release pipeline.
+# Dependabot — M1 stub (tightened post-M2 first-CI-run).
+# Full configuration with @pulumi/* cooling-off grouping (72h minor/major,
+# 24h patch) lands in M5 alongside the release pipeline.
+#
+# Major-version bumps on the toolchain below are conscious migrations with
+# code-level fallout (e.g. TypeScript 6's moduleResolution=node10
+# deprecation, ESLint 10's flat-config tightening, Vitest 4's runtime
+# changes). Keep them out of Dependabot's auto-PR stream until an explicit
+# upgrade window — the list is small enough to revisit during M5.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -15,6 +22,22 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    ignore:
+      # Toolchain majors stay out of auto-PRs. Minor/patch flow normally.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint/eslint-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint/parser"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prettier"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

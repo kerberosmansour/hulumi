@@ -1,0 +1,21 @@
+# Dependencies + build
+node_modules/
+dist/
+coverage/
+.hulumi/
+.pnpm-store/
+
+# LICENSE files should not be reformatted (legal text, must be verbatim)
+LICENSE
+CODE_OF_CONDUCT.md
+
+# Generated threat-model example outputs — regenerated from the template, so
+# reformatting them would make them diverge from what the generator produces.
+docs/threat-model-examples/
+
+# The skill's template contains table structures that prettier breaks by
+# inserting blank lines between the header-separator and the placeholder
+# {{STRIDE_ROWS}} / {{CITATION_ROWS}} injection points. The placeholders are
+# intentionally adjacent to the table separator; prettier does not understand
+# that.
+skills/hulumi-threat-model/templates/

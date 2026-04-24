@@ -1,0 +1,20 @@
+# Hulumi CODEOWNERS — every PR requires an owner's review before merge.
+
+# Default owner — Hulumi maintainers
+*                                  @kerberosmansour
+
+# Skills pack
+/skills/                           @kerberosmansour
+
+# Framework mapping tables (ID-only; licensing-sensitive — see docs/mappings/licensing.md)
+/docs/mappings/                    @kerberosmansour
+
+# Tests
+/tests/                            @kerberosmansour
+
+# Release pipeline + supply-chain posture (SECURITY.md, SLSA workflows)
+/.github/workflows/                @kerberosmansour
+/SECURITY.md                       @kerberosmansour
+
+# This CODEOWNERS file itself requires owner review
+/CODEOWNERS                        @kerberosmansour

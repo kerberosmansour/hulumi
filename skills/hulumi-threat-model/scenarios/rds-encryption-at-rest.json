@@ -1,0 +1,83 @@
+{
+  "id": "rds-encryption-at-rest",
+  "title": "RDS Encryption at Rest — CMK policy, backup encryption, parameter-group defaults",
+  "description": "An engineer is provisioning an RDS instance (or Aurora cluster) for a production workload. Target end state: storage encryption with a customer-managed KMS CMK, backup encryption using the same CMK, TLS-in-transit enforced at the parameter group, IAM database authentication enabled for appropriate engines, deletion protection on, and logs (general / error / slow / audit depending on engine) exported to CloudWatch Logs encrypted with a separate CMK.",
+  "requiredFrameworks": ["CCM", "CIS-AWS-v5.0.0", "NIST-800-53-r5", "ATLAS"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "Application workload (semi-trusted — acts on behalf of end users)",
+    "External Attacker (untrusted, targeting data)",
+    "Backup operator (trusted, but scoped)"
+  ],
+  "assets": [
+    "RDS instance storage",
+    "Automated and manual snapshots",
+    "Database logs (may contain PII in query strings)",
+    "KMS CMK encrypting storage + snapshots"
+  ],
+  "stride": [
+    {
+      "type": "I",
+      "name": "Unencrypted storage disclosure",
+      "description": "An RDS instance created without storage encryption leaves the underlying EBS plaintext; a snapshot sharing attack (or account compromise) reveals all data. Hulumi components (shipping v0.3+) default to SSE-KMS with the `AccountFoundation` data-key CMK.",
+      "controls": [
+        "CCM:CEK-04",
+        "CIS-AWS-v5.0.0:2.3.1",
+        "NIST-800-53-r5:SC-28",
+        "NIST-800-53-r5:SC-12"
+      ]
+    },
+    {
+      "type": "I",
+      "name": "Unencrypted backup disclosure",
+      "description": "Even with encrypted primary storage, automated/manual snapshots may be created without encryption if the CMK policy excludes the backup service principal. Mitigation: KMS key policy explicitly grants `kms:CreateGrant` to `backup.rds.amazonaws.com` and deny any non-encrypted snapshot creation via SCP.",
+      "controls": [
+        "CCM:CEK-03",
+        "CIS-AWS-v5.0.0:3.7",
+        "NIST-800-53-r5:CP-9",
+        "NIST-800-53-r5:SC-28"
+      ]
+    },
+    {
+      "type": "T",
+      "name": "Plaintext TLS-in-transit bypass",
+      "description": "Without parameter-group-enforced TLS, application clients may connect over plaintext. Mitigation: parameter group sets `rds.force_ssl=1` (PostgreSQL) / equivalent per engine; Hulumi baseline applies the engine-appropriate flag.",
+      "controls": ["CCM:CEK-01", "NIST-800-53-r5:SC-8"]
+    },
+    {
+      "type": "E",
+      "name": "Overly broad DB authentication",
+      "description": "Without IAM database authentication (where supported: MySQL, PostgreSQL, MariaDB), credentials live in Secrets Manager / app code. IAM auth + Secrets Manager rotation is the hardened path; `AccountFoundation.secretsManager` namespace supports rotation hooks.",
+      "controls": ["CCM:IAM-07", "NIST-800-53-r5:IA-2", "NIST-800-53-r5:AC-6"]
+    },
+    {
+      "type": "R",
+      "name": "Missing audit logs",
+      "description": "RDS audit logs (PostgreSQL `pgaudit` / MySQL general log / Aurora audit) are off by default. Without them, SQL-level attribution is impossible. Hulumi Startup-Hardened tier flips audit on and exports to CloudWatch Logs with CMK encryption.",
+      "controls": ["CCM:LOG-01", "CCM:LOG-02", "NIST-800-53-r5:AU-2", "NIST-800-53-r5:AU-12"]
+    },
+    {
+      "type": "D",
+      "name": "Accidental drop via IaC bug",
+      "description": "Deletion protection off + a broken `pulumi refresh` could propose a destroy for an RDS instance. Mitigation: deletion protection on in both tiers; Hulumi `DriftClassifier` (v0.4+) flags the provider-plan diff before apply.",
+      "controls": ["CCM:BCR-01", "NIST-800-53-r5:CP-9"]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "hulumi.baseline.aws.SecureRds",
+      "availability": "v1.1+ (post-v1.0.0; not in v1 scope)",
+      "rationale": "Planned ComponentResource covering storage encryption, backup CMK, TLS parameter group, IAM auth, deletion protection. For v1 users, compose raw `aws.rds.Instance` with the KMS keys from `AccountFoundation.kmsRing` as an interim pattern."
+    },
+    {
+      "name": "hulumi.baseline.aws.AccountFoundation.kmsRing",
+      "availability": "v0.3+",
+      "rationale": "Per-service CMKs (`data`, `logs`, `secrets`, `config`). The RDS instance consumes the `data` key; its CloudWatch logs consume the `logs` key."
+    },
+    {
+      "name": "hulumi.policies.aws.CisV5Pack",
+      "availability": "v0.3+",
+      "rationale": "Includes CIS v5.0.0 §2.3 (RDS encryption at rest) as a preventive CrossGuard check, complementing Security Hub's detective finding."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "hulumi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hardened Pulumi for the AI-agent era — baseline components, CrossGuard pack, drift classifier, Claude Code skill pack.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "workspaces": [
+    "skills/*",
+    "tests/*"
+  ],
+  "scripts": {
+    "test": "pnpm -r --stream test",
+    "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",
+    "lint:license-boundary": "node scripts/license-boundary-lint.mjs",
+    "typecheck": "pnpm -r --stream typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@typescript-eslint/eslint-plugin": "8.0.0",
+    "@typescript-eslint/parser": "8.0.0",
+    "eslint": "9.7.0",
+    "prettier": "3.3.3",
+    "typescript": "5.5.4",
+    "vitest": "1.6.0"
+  }
+}

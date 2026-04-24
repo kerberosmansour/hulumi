@@ -1,0 +1,84 @@
+{
+  "id": "s3-public-bucket-hardening",
+  "title": "S3 Bucket Hardening — public-access-block, SSE-KMS, versioning, TLS-only, object-lock",
+  "description": "An engineer needs to create an S3 bucket that stores user-uploaded files, audit logs, or a Pulumi state backend. The target end state: block-public-access on all four account-level levers, SSE-KMS with a customer-managed CMK, BucketOwnerEnforced ownership, versioning enabled, TLS-only bucket policy, and — for the Startup-Hardened tier — object-lock in governance mode and mandatory access-logging to a sibling log bucket.",
+  "requiredFrameworks": ["CCM", "CIS-AWS-v5.0.0", "NIST-800-53-r5", "ATLAS"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, authoring IaC)",
+    "External Attacker (untrusted)",
+    "Data Scraper / Crawler (untrusted, automated)"
+  ],
+  "assets": [
+    "Bucket object data (may include PII or secrets)",
+    "KMS CMK used to encrypt objects",
+    "Bucket access logs",
+    "Bucket metadata (names enumerable via S3 public endpoint if misconfigured)"
+  ],
+  "stride": [
+    {
+      "type": "I",
+      "name": "Bucket-listing information disclosure",
+      "description": "A bucket created without public-access-block set on all four levers (BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, RestrictPublicBuckets) risks being enumerable via unauthenticated S3 API calls. Mitigation: Hulumi `SecureBucket` defaults all four to true; the policy pack rejects raw buckets.",
+      "controls": [
+        "CCM:DSP-01",
+        "CIS-AWS-v5.0.0:2.1.2",
+        "CIS-AWS-v5.0.0:2.1.4",
+        "NIST-800-53-r5:AC-3"
+      ]
+    },
+    {
+      "type": "I",
+      "name": "Unencrypted-at-rest disclosure",
+      "description": "Without SSE-KMS, an attacker with raw S3 access (e.g. via a leaked access key) reads plaintext objects. `SecureBucket` mandates SSE-KMS and associates a customer-managed CMK by default; the CMK's key policy restricts decrypt to the set of principals owning the bucket's logical domain.",
+      "controls": [
+        "CCM:CEK-04",
+        "CIS-AWS-v5.0.0:2.1.1",
+        "NIST-800-53-r5:SC-28",
+        "NIST-800-53-r5:SC-12",
+        "NIST-800-53-r5:SC-13"
+      ]
+    },
+    {
+      "type": "T",
+      "name": "Object tampering via non-TLS transport",
+      "description": "Without a TLS-only bucket policy, data in transit to/from S3 can travel unencrypted if the caller uses HTTP. `SecureBucket` applies a bucket policy denying any `aws:SecureTransport=false` request.",
+      "controls": ["CCM:CEK-01", "CIS-AWS-v5.0.0:2.1.5", "NIST-800-53-r5:SC-8"]
+    },
+    {
+      "type": "T",
+      "name": "Silent object overwrite",
+      "description": "Without versioning, an attacker who obtains write credentials can overwrite objects and the previous content is lost. `SecureBucket` enables versioning in both tiers.",
+      "controls": ["CCM:DSP-17", "CIS-AWS-v5.0.0:2.1.6", "NIST-800-53-r5:CP-9"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via missing access logs",
+      "description": "Startup-Hardened tier mandates server-access-logging to a supplied log bucket. Without logs, forensic attribution of a breach is blocked. Advisory in Sandbox tier.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-2", "NIST-800-53-r5:AU-12"]
+    },
+    {
+      "type": "E",
+      "name": "Bucket name squatting across accounts",
+      "description": "S3 bucket names are globally unique. An attacker may pre-register a name the LLM is about to create, then social-engineer the engineer to hand over control via a support ticket. Mitigation: prefix bucket names with an organisation-specific token, never expose bucket names in public URLs (CloudFront / pre-signed URLs instead).",
+      "controls": ["ATLAS:AML.T0001", "NIST-800-53-r5:CM-2"]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "hulumi.baseline.aws.SecureBucket",
+      "availability": "v0.2+",
+      "rationale": "The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events)."
+    },
+    {
+      "name": "hulumi.policies.aws.HulumiHardeningPack",
+      "availability": "v0.2+",
+      "rationale": "H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`."
+    },
+    {
+      "name": "hulumi.drift.DriftClassifier",
+      "availability": "v0.4+",
+      "rationale": "If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals."
+    }
+  ]
+}

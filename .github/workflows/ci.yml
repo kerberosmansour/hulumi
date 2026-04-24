@@ -1,0 +1,51 @@
+name: ci
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test + typecheck + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+      - run: pnpm -r lint
+      - run: pnpm run lint:license-boundary
+      - run: pnpm run format:check
+
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check DCO sign-off on every commit in the PR
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          MISSING=$(git log --format='%H %s' "$BASE_SHA..$HEAD_SHA" | while read sha _; do
+            git log -1 --format=%B "$sha" | grep -qE '^Signed-off-by: .+' || echo "$sha"
+          done)
+          if [ -n "$MISSING" ]; then
+            echo "::error::The following commits lack a Signed-off-by trailer (DCO):"
+            echo "$MISSING"
+            exit 1
+          fi
+          echo "All commits carry DCO sign-off."

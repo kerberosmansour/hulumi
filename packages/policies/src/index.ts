@@ -22,7 +22,26 @@ export {
   IAM_ROLE_TYPE,
 } from "./aws/hulumi-hardening-pack";
 
-export { cisV5PackMetadata, cisAwsV5_2_1_1_ssePresent } from "./aws/cis-v5-bucket";
+export {
+  cisV5PackMetadata,
+  cisAwsV5_2_1_1_ssePresent,
+  cisV5Section1Iam,
+  cisV5Section2Storage,
+  cisV5Section3Logging,
+  cisV5Section4StubAdvisory,
+  cisV5Section5StubAdvisory,
+  cis_1_6_passwordPolicyMinLength,
+  cis_1_9_passwordReusePrevention,
+  cis_1_16_noFullAdminPolicy,
+  cis_1_19_accessAnalyzerEnabled,
+  cis_2_1_1_ssePresent,
+  cis_2_1_5_tlsOnly,
+  cis_2_3_1_rdsEncryption,
+  cis_3_1_cloudTrailEnabled,
+  cis_3_2_logFileValidation,
+  cis_3_7_cloudTrailKmsCmk,
+  cis_3_8_kmsRotationEnabled,
+} from "./aws/cis-v5-pack";
 
 export type { PackMetadata, RuleMetadata, Severity, EnforcementLevel } from "./metadata";
 

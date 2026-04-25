@@ -49,3 +49,9 @@ coverage/
 .pulumi/
 **/*.pulumi.backup
 Pulumi.*.yaml.bak
+
+# Integration test scratch (M3): Pulumi Automation API operates in temp
+# workspaces, but if developer-tools resolve them under packages/baseline/
+# we ignore the Pulumi state directory there.
+packages/baseline/**/.pulumi/
+packages/baseline/tests/integration/.tmp/

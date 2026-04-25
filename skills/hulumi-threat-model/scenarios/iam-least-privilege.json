@@ -67,18 +67,18 @@
   "recommendedComponents": [
     {
       "name": "hulumi.baseline.aws.AccountFoundation.iamBaseline",
-      "availability": "v0.3+",
-      "rationale": "Password policy, Access Analyzer (Startup-Hardened), archive rules for Hulumi-tagged principals, no inline admin."
+      "availability": "v0.3",
+      "rationale": "Password policy (CIS §1.6/1.8/1.9), Access Analyzer (Startup-Hardened, CIS §1.19), archive rules for Hulumi-tagged principals, no inline admin. Shipped in M3."
     },
     {
       "name": "hulumi.policies.aws.HulumiHardeningPack (H3 rule: iac-role tag present)",
-      "availability": "v0.2+ (advisory), v1.0.0 (mandatory + SCP-paired)",
-      "rationale": "Detects missing `hulumi:iac-role=true` tag at preview time. SCP template `docs/deployment/scp.json` (M5) enforces tag-integrity server-side."
+      "availability": "v0.2 (advisory), v1.0 (mandatory + SCP-paired)",
+      "rationale": "Detects missing `hulumi:iac-role=true` tag at preview time. SCP template `docs/deployment/scp.json` (M5) enforces tag-integrity server-side. Shipped in M2."
     },
     {
       "name": "hulumi.policies.aws.CisV5Pack (section 1 — IAM)",
-      "availability": "v0.3+",
-      "rationale": "CIS v5.0 section-1 rules enforce password policy, MFA, credential rotation, and wildcard-scoping preventive checks."
+      "availability": "v0.3",
+      "rationale": "CIS v5.0 section-1 rules enforce password policy, MFA, credential rotation, and wildcard-scoping preventive checks. Shipped in M3."
     }
   ]
 }

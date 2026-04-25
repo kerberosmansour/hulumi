@@ -132,6 +132,56 @@ jobs:
       - run: pnpm --filter @hulumi/drift build
       - run: pnpm run test:drift
 
+  pulumi-cooling-off:
+    name: pulumi cooling-off (72h minor/major / 24h patch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Diff lockfile + check cooling-off
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE_SHA:pnpm-lock.yaml" > /tmp/base-lock.yaml || echo "" > /tmp/base-lock.yaml
+          node scripts/cooling-off-diff.mjs /tmp/base-lock.yaml pnpm-lock.yaml
+
+  attestation-dry-run:
+    name: SLSA attestation dry-run (pre-tag)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - name: Build tarballs (dry-run, no publish)
+        run: |
+          mkdir -p .release-artifacts
+          ABS_DEST="$(pwd)/.release-artifacts"
+          for pkg in baseline policies drift; do
+            (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
+          done
+          ls -la .release-artifacts/
+      - name: Attest provenance (dry-run; not consumed)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ".release-artifacts/*.tgz"
+
   dco:
     name: DCO sign-off
     runs-on: ubuntu-latest

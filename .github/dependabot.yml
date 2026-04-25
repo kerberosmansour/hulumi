@@ -1,6 +1,9 @@
-# Dependabot — M1 stub (tightened post-M2 first-CI-run).
-# Full configuration with @pulumi/* cooling-off grouping (72h minor/major,
-# 24h patch) lands in M5 alongside the release pipeline.
+# Dependabot — v1.0.0 (M5).
+# Pulumi cooling-off (72h minor/major, 24h patch) is enforced by
+# .github/workflows/pulumi-cooling-off.yml on every PR — Dependabot
+# proposes the bump, the cooling-off CI gate decides whether the PR
+# can merge. @pulumi/* deps are grouped so a coherent bump stays
+# atomic across the three Hulumi packages.
 #
 # Major-version bumps on the toolchain below are conscious migrations with
 # code-level fallout (e.g. TypeScript 6's moduleResolution=node10
@@ -18,10 +21,16 @@ updates:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
-    # Conservative grouping for M1 (dev deps only; no @pulumi/* yet).
+    # Group @pulumi/* together so cooling-off stays atomic across the
+    # three Hulumi packages; group remaining dev deps for noise control.
     groups:
+      pulumi-runtime:
+        patterns:
+          - "@pulumi/*"
       dev-dependencies:
         dependency-type: "development"
+        exclude-patterns:
+          - "@pulumi/*"
     ignore:
       # Toolchain majors stay out of auto-PRs. Minor/patch flow normally.
       - dependency-name: "typescript"

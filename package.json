@@ -26,12 +26,12 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@types/node": "20.14.10",
-    "@typescript-eslint/eslint-plugin": "8.0.0",
-    "@typescript-eslint/parser": "8.0.0",
-    "eslint": "9.7.0",
-    "prettier": "3.3.3",
-    "typescript": "5.5.4",
-    "vitest": "1.6.0"
+    "@types/node": "20.19.39",
+    "@typescript-eslint/eslint-plugin": "8.59.0",
+    "@typescript-eslint/parser": "8.59.0",
+    "eslint": "9.39.4",
+    "prettier": "3.8.3",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
   }
 }

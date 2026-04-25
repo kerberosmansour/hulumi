@@ -129,3 +129,10 @@ after the `AccountFoundation` stage's teardown.
   template.
 - **v1.1+**: `/hulumi-drift` Claude Code skill wrapping the
   classifier; standalone `hulumi` CLI.
+
+## Further reading
+
+- [Drift detection that actually tells you what happened](../papers/drift-detection-narrative.md) — narrative tour of the classifier. Reads start-to-finish; builds intuition for the verdict matrix and the TLA+ verification through analogies. Good if this is your first time reading about the classifier.
+- [TLA+-Verified Drift Detection for Pulumi](../papers/drift-detection.md) — the reference paper. Same material in dense citation form with code-line links and a §-by-§ index. Good when you want to trace a property to its source.
+- [Drift detection cookbook](../cookbooks/drift-detection.md) — task-shaped recipe for wiring the classifier into a CI workflow.
+- [Drift classifier deployment](../drift-classifier-deployment.md) — operator runbook (auth, probe sentinel, cache TTL, SCP pointer, failure modes).

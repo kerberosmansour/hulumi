@@ -1,0 +1,6 @@
+name: account-foundation-smoke
+description: M3 end-to-end smoke test for @hulumi/baseline.aws.AccountFoundation. Exercises both tiers under mocked @pulumi/aws; not intended to be deployed unattended without the weekly integration workflow's OIDC + cleanup harness.
+runtime:
+  name: nodejs
+  options:
+    typescript: true

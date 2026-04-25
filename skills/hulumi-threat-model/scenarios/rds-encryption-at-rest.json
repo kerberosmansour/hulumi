@@ -71,13 +71,13 @@
     },
     {
       "name": "hulumi.baseline.aws.AccountFoundation.kmsRing",
-      "availability": "v0.3+",
-      "rationale": "Per-service CMKs (`data`, `logs`, `secrets`, `config`). The RDS instance consumes the `data` key; its CloudWatch logs consume the `logs` key."
+      "availability": "v0.3",
+      "rationale": "Per-service CMKs (`data`, `logs`, `secrets`, `config`). The RDS instance consumes the `data` key; its CloudWatch logs consume the `logs` key. Shipped in M3."
     },
     {
       "name": "hulumi.policies.aws.CisV5Pack",
-      "availability": "v0.3+",
-      "rationale": "Includes CIS v5.0.0 §2.3 (RDS encryption at rest) as a preventive CrossGuard check, complementing Security Hub's detective finding."
+      "availability": "v0.3",
+      "rationale": "Includes CIS v5.0.0 §2.3.1 (RDS encryption at rest) as a preventive CrossGuard check, complementing Security Hub's detective finding. Shipped in M3."
     }
   ]
 }

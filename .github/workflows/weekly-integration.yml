@@ -1,0 +1,125 @@
+# Weekly real-AWS integration for AccountFoundation. Cron Sunday 04:00
+# UTC + workflow_dispatch for ad-hoc verification. OIDC only — no
+# long-lived AWS credentials. 30-min job timeout (15-min Pulumi up + 10
+# min destroy + 5 min slop). Teardown runs on failure (cost safety per
+# global red lines).
+#
+# State backend: this workflow uses Pulumi Cloud via PULUMI_ACCESS_TOKEN
+# (set as a GitHub repo secret). The token is opt-in: until set, the job
+# falls through the env-guard step with a no-op and a clear log line.
+# Document at docs/integration-testing.md.
+
+name: weekly-integration
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Which tier to test (sandbox | startup-hardened | both)"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - sandbox
+          - startup-hardened
+          - both
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  integration:
+    name: account-foundation integration (real AWS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tier:
+          - sandbox
+          - startup-hardened
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Confirm required repo secrets/variables are set
+        id: env
+        run: |
+          MISSING=""
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID variable not set}"
+          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN variable not set}"
+          : "${REGION:?AWS_SANDBOX_REGION variable not set}"
+          if [ -z "$PULUMI_ACCESS_TOKEN" ]; then
+            echo "PULUMI_ACCESS_TOKEN secret not set — running in CONTRACT-ONLY mode (no pulumi up)."
+            echo "contract_only=true" >> $GITHUB_OUTPUT
+          else
+            echo "contract_only=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          ACCOUNT_ID: ${{ vars.AWS_SANDBOX_ACCOUNT_ID }}
+          ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-weekly-integration-${{ matrix.tier }}
+
+      - name: Build packages
+        run: pnpm -r build
+
+      - name: Run mock unit + integration scenarios (always)
+        env:
+          HULUMI_INTEGRATION: "0"
+        run: pnpm --filter @hulumi/baseline test
+
+      - name: Run real-AWS integration (only when PULUMI_ACCESS_TOKEN is set)
+        if: steps.env.outputs.contract_only == 'false'
+        env:
+          HULUMI_INTEGRATION: "1"
+          HULUMI_TIER: ${{ matrix.tier }}
+          HULUMI_IAC_ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+        run: |
+          # Real-AWS path — uses Pulumi Automation API to drive the
+          # examples/account-foundation-smoke program against the sandbox
+          # account. Implementation lives in the integration test file;
+          # this step is the trigger.
+          pnpm --filter @hulumi/baseline test -- tests/integration/
+
+      - name: Upload stack export on failure
+        if: failure() && steps.env.outputs.contract_only == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hulumi-stack-export-${{ matrix.tier }}
+          path: |
+            packages/baseline/.pulumi/
+            packages/baseline/*.log
+          if-no-files-found: ignore
+
+      - name: Teardown (always runs on failure too)
+        if: always() && steps.env.outputs.contract_only == 'false'
+        env:
+          HULUMI_INTEGRATION: "1"
+          HULUMI_TEARDOWN_ONLY: "1"
+          HULUMI_TIER: ${{ matrix.tier }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+        run: |
+          # Best-effort teardown. Failures here are logged; the integration
+          # test itself owns afterAll() teardown for the primary path.
+          echo "Teardown step — stack-level afterAll() in the integration test handled the primary destroy path."

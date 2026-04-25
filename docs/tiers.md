@@ -53,6 +53,43 @@ new SecureBucket("scratch", { tier: "sandbox" });
 
 All six sandbox sub-resources get hardened defaults. No logging, no object-lock, no CloudTrail data-events: this tier is for temporary or non-production workloads where audit-trail requirements are out of scope.
 
+## AccountFoundation — tier matrix
+
+`@hulumi/baseline.aws.AccountFoundation` (M3) composes CloudTrail +
+Config + GuardDuty + Security Hub + IAM baseline + KMS ring. Sandbox
+gets each at the basic level; Startup-Hardened adds **4 distinct
+sub-resource kinds** beyond Sandbox (the load-bearing tier delta the
+AST test asserts).
+
+| Sub-resource                                                                   | Sandbox | Startup-Hardened | Notes                                                                                                                                                      |
+| ------------------------------------------------------------------------------ | :-----: | :--------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aws:kms/key:Key` × 4 (logs, data, secrets, config)                            |    ✓    |        ✓         | Rotation enabled (CIS §3.8). Startup-Hardened + `orgAccountIds` adds deny-without-tag policy.                                                              |
+| `aws:kms/alias:Alias` × 4                                                      |    ✓    |        ✓         | One per CMK.                                                                                                                                               |
+| `aws:iam/accountPasswordPolicy:AccountPasswordPolicy`                          |    ✓    |        ✓         | min length 14, reuse 24, complexity (CIS §1.6/1.8/1.9).                                                                                                    |
+| `aws:cloudtrail/trail:Trail`                                                   |    ✓    |        ✓         | Sandbox: single-region, basic management events. Startup-Hardened: **multi-region + log-file validation + S3 data events** on log bucket (CIS §3.1, §3.2). |
+| `aws:cfg/recorder:Recorder` + `aws:cfg/deliveryChannel:DeliveryChannel`        |    ✓    |        ✓         | Recorder roleArn = `iacRoleArn`; delivery to log bucket.                                                                                                   |
+| `aws:guardduty/detector:Detector`                                              |    ✓    |        ✓         | 15-minute publishing frequency.                                                                                                                            |
+| `aws:securityhub/account:Account`                                              |    ✓    |        ✓         | `enableDefaultStandards: false`.                                                                                                                           |
+| `aws:securityhub/standardsSubscription:StandardsSubscription` (CIS v5.0)       |    ✓    |        ✓         | Subscribed to AWS Security Hub's CIS AWS Foundations v5.0 standard.                                                                                        |
+| **`aws:accessanalyzer/analyzer:Analyzer`**                                     |         |        ✓         | Account-level Access Analyzer (CIS §1.19).                                                                                                                 |
+| **`aws:guardduty/detectorFeature:DetectorFeature`** × 5                        |         |        ✓         | S3 data events, EKS audit logs, EBS malware protection, RDS login events, runtime monitoring.                                                              |
+| **`aws:cfg/configurationAggregator:ConfigurationAggregator`**                  |         |        ✓         | Aggregates Config from `orgAccountIds`. Skipped without `orgAccountIds`.                                                                                   |
+| **`aws:cloudwatch/logGroup:LogGroup`**                                         |         |        ✓         | CloudTrail integration with CloudWatch Logs (CIS §3.4).                                                                                                    |
+| `aws:securityhub/standardsSubscription:StandardsSubscription` (NIST 800-53 r5) |         |        ✓         | Same TYPE as CIS subscription (so the AST set-difference doesn't double-count it as a delta), but a 2nd instance.                                          |
+
+Four **Startup-Hardened only** rows (bold) form the load-bearing AST
+delta.
+
+### Eventual-consistency contract
+
+`aws.securityhub.Account` and both `StandardsSubscription` resources
+declare explicit `dependsOn` on the GuardDuty `Detector` and every
+`DetectorFeature`. AWS's `CreateDetector` API call resolves only when
+the detector is `ENABLED`, so the dependsOn chain provides the
+ordering Security Hub needs without a polling probe. See
+[components/account-foundation.md § Eventual-consistency contract](components/account-foundation.md#eventual-consistency-contract)
+for the full rationale.
+
 ## HulumiHardeningPack — rule matrix
 
 | Rule   | Severity | Enforcement (M2) | Enforcement (M5) | What it blocks                                                       |

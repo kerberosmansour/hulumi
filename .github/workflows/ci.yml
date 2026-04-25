@@ -78,6 +78,40 @@ jobs:
       - run: pnpm --filter @hulumi/baseline build
       - run: pnpm --filter @hulumi-examples/secure-bucket-smoke typecheck
       - run: pnpm --filter @hulumi-examples/secure-bucket-smoke test
+      - run: pnpm --filter @hulumi-examples/account-foundation-smoke typecheck
+      - run: pnpm --filter @hulumi-examples/account-foundation-smoke test
+
+  account-foundation-mocks:
+    name: "@hulumi/baseline AccountFoundation mocks"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/baseline build
+      - run: pnpm --filter @hulumi/baseline test -- tests/account-foundation.test.ts
+
+  cis-v5-pack-tests:
+    name: "@hulumi/policies CisV5Pack tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/policies build
+      - run: pnpm --filter @hulumi/policies test -- tests/cis-v5-pack.test.ts
 
   dco:
     name: DCO sign-off

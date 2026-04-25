@@ -36,7 +36,7 @@
     {
       "type": "R",
       "name": "Untagged IaC role breaks attribution",
-      "description": "If the IaC deploy role lacks `hulumi:iac-role=true`, the drift classifier's CloudTrailAdapter cannot distinguish IaC-originated from human-console changes, corrupting every subsequent drift verdict. Tag is advisory in v0.2–v0.4 and mandatory in v1.0.0 (paired with the SCP template shipping in M5).",
+      "description": "If the IaC deploy role lacks `hulumi:iac-role=true`, the drift classifier's CloudTrailAdapter cannot distinguish IaC-originated from human-console changes, corrupting every subsequent drift verdict. Tag was advisory through M2–M4 and is mandatory at v1.0.0 (paired with the SCP template shipped in M5).",
       "controls": ["CCM:IAM-06", "NIST-800-53-r5:AC-2", "NIST-800-53-r5:AU-12"]
     },
     {
@@ -67,18 +67,18 @@
   "recommendedComponents": [
     {
       "name": "hulumi.baseline.aws.AccountFoundation.iamBaseline",
-      "availability": "v0.3",
-      "rationale": "Password policy (CIS §1.6/1.8/1.9), Access Analyzer (Startup-Hardened, CIS §1.19), archive rules for Hulumi-tagged principals, no inline admin. Shipped in M3."
+      "availability": "Shipped in M3 (v0.3)",
+      "rationale": "Password policy (CIS §1.6/1.8/1.9), Access Analyzer (Startup-Hardened, CIS §1.19), archive rules for Hulumi-tagged principals, no inline admin."
     },
     {
       "name": "hulumi.policies.aws.HulumiHardeningPack (H3 rule: iac-role tag present)",
-      "availability": "v0.2 (advisory), v1.0 (mandatory + SCP-paired)",
-      "rationale": "Detects missing `hulumi:iac-role=true` tag at preview time. SCP template `docs/deployment/scp.json` (M5) enforces tag-integrity server-side. Shipped in M2."
+      "availability": "Shipped in M2 advisory; mandatory at v1.0 (M5) + SCP-paired",
+      "rationale": "Detects missing `hulumi:iac-role=true` tag at preview time. SCP template `docs/deployment/scp.json` (shipped in M5) enforces tag-integrity server-side."
     },
     {
       "name": "hulumi.policies.aws.CisV5Pack (section 1 — IAM)",
-      "availability": "v0.3",
-      "rationale": "CIS v5.0 section-1 rules enforce password policy, MFA, credential rotation, and wildcard-scoping preventive checks. Shipped in M3."
+      "availability": "Shipped in M3 (v0.3)",
+      "rationale": "CIS v5.0 section-1 rules enforce password policy, MFA, credential rotation, and wildcard-scoping preventive checks."
     }
   ]
 }

@@ -67,18 +67,18 @@
   "recommendedComponents": [
     {
       "name": "hulumi.baseline.aws.SecureBucket",
-      "availability": "v0.2",
-      "rationale": "The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events). Shipped in M2."
+      "availability": "Shipped in M2 (v0.2)",
+      "rationale": "The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events)."
     },
     {
       "name": "hulumi.policies.aws.HulumiHardeningPack",
-      "availability": "v0.2",
-      "rationale": "H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`. H3 (iac-role tag) is advisory in v0.2, mandatory in v1.0 once the SCP template ships. Shipped in M2."
+      "availability": "Shipped in M2 (v0.2; H3 iac-role-tag rule mandatory at v1.0)",
+      "rationale": "H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`. H3 (iac-role tag) shipped advisory in M2 and flipped to mandatory at v1.0 once the SCP template shipped."
     },
     {
       "name": "hulumi.drift.DriftClassifier",
-      "availability": "v0.4",
-      "rationale": "If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals. TLA+-bound verdict matrix; cache mode 0600; rate-limited via cache TTL. Shipped in M4."
+      "availability": "Shipped in M4 (v0.4)",
+      "rationale": "If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals. TLA+-bound verdict matrix; cache mode 0600; rate-limited via cache TTL."
     }
   ]
 }

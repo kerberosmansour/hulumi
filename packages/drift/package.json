@@ -1,0 +1,41 @@
+{
+  "name": "@hulumi/drift",
+  "version": "0.1.0",
+  "description": "Local-first drift classifier — distinguishes provider-API churn from console break-glass from genuine IaC drift via 4 pluggable adapters; verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly.",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "peerDependencies": {
+    "@pulumi/pulumi": "3.232.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudtrail": "3.1037.0",
+    "@aws-sdk/client-sts": "3.1037.0",
+    "@aws-sdk/credential-providers": "3.1037.0",
+    "p-timeout": "7.0.1",
+    "simple-git": "3.36.0"
+  },
+  "devDependencies": {
+    "@pulumi/pulumi": "3.232.0",
+    "@types/node": "20.19.39",
+    "memfs": "4.17.2",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}

@@ -99,8 +99,8 @@
     },
     {
       "name": "hulumi.drift.DriftClassifier",
-      "availability": "v0.4+",
-      "rationale": "Post-deployment drift triage — distinguishes provider-API churn from console break-glass from genuine IaC drift using four pluggable local adapters. TLA+-verified verdict matrix."
+      "availability": "v0.4",
+      "rationale": "Post-deployment drift triage — distinguishes provider-API churn from console break-glass from genuine IaC drift using four pluggable local adapters. TLA+-verified verdict matrix; cache file mode 0600; CloudTrail filter requires hulumi:iac-role=true (full namespace). Shipped in M4."
     }
   ]
 }

@@ -36,6 +36,9 @@ export default [
         clearImmediate: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        AbortController: "readonly",
+        AbortSignal: "readonly",
+        require: "readonly",
       },
     },
     plugins: {

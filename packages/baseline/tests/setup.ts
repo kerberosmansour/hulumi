@@ -38,7 +38,23 @@ pulumi.runtime.setMocks({
       state: baseState,
     };
   },
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+  call: (args: pulumi.runtime.MockCallArgs) => {
+    if (args.token === "aws:index/getCallerIdentity:getCallerIdentity") {
+      return {
+        accountId: "111122223333",
+        arn: "arn:aws:iam::111122223333:user/mock",
+        userId: "MOCKID",
+      };
+    }
+    if (args.token === "aws:index/getRegion:getRegion") {
+      return {
+        name: "us-east-1",
+        description: "US East (N. Virginia)",
+        endpoint: "ec2.us-east-1.amazonaws.com",
+      };
+    }
+    return args.inputs;
+  },
 });
 
 export function resetRegistrations(): void {

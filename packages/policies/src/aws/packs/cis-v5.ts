@@ -5,8 +5,21 @@
 
 import { PolicyPack } from "@pulumi/policy";
 
-import { cisV5PackMetadata, cisAwsV5_2_1_1_ssePresent } from "../cis-v5-bucket";
+import {
+  cisV5PackMetadata,
+  cisV5Section1Iam,
+  cisV5Section2Storage,
+  cisV5Section3Logging,
+  cisV5Section4StubAdvisory,
+  cisV5Section5StubAdvisory,
+} from "../cis-v5-pack";
 
 export const CisV5Pack = new PolicyPack(cisV5PackMetadata.id, {
-  policies: [cisAwsV5_2_1_1_ssePresent],
+  policies: [
+    ...cisV5Section1Iam,
+    ...cisV5Section2Storage,
+    ...cisV5Section3Logging,
+    cisV5Section4StubAdvisory,
+    cisV5Section5StubAdvisory,
+  ],
 });

@@ -1,0 +1,22 @@
+{
+  "name": "@hulumi-examples/account-foundation-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal Pulumi program exercising both AccountFoundation tiers under mocked @pulumi/aws. Ships as the M3 end-to-end mocks-only smoke test.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hulumi/baseline": "workspace:*",
+    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.27.0"
+  },
+  "devDependencies": {
+    "@pulumi/policy": "1.20.0",
+    "@types/node": "20.19.39",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}

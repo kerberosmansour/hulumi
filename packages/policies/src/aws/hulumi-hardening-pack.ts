@@ -20,9 +20,12 @@ export const HULUMI_SECURE_BUCKET_TYPE = "hulumi:baseline:aws:SecureBucket";
 export const RAW_S3_BUCKET_TYPES = ["aws:s3/bucket:Bucket", "aws:s3/bucketV2:BucketV2"] as const;
 export const IAM_ROLE_TYPE = "aws:iam/role:Role";
 
-// M2 enforcement phase. M5 flips H3 to "mandatory" alongside the SCP
-// template.
-export const H3_ENFORCEMENT_LEVEL: EnforcementLevel = "advisory";
+// M5 enforcement phase: H3 is now "mandatory" — paired with the SCP
+// template at docs/deployment/scp.json. The SCP makes the
+// `hulumi:iac-role=true` tag tamper-evident at AWS Organizations level;
+// H3 enforces it at preview time. Documented as a v1.0.0 breaking
+// change in CHANGELOG.md with migration steps (add tag OR apply SCP).
+export const H3_ENFORCEMENT_LEVEL: EnforcementLevel = "mandatory";
 
 const DOCS_BASE =
   "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/secure-bucket.md";

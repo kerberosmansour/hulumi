@@ -1,6 +1,10 @@
 {
   "name": "@hulumi/drift",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "description": "Local-first drift classifier — distinguishes provider-API churn from console break-glass from genuine IaC drift via 4 pluggable adapters; verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly.",
   "license": "Apache-2.0",
   "type": "commonjs",

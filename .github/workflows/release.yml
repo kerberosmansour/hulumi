@@ -65,9 +65,11 @@ jobs:
       - name: Generate tarballs
         run: |
           mkdir -p .release-artifacts
+          ABS_DEST="$(pwd)/.release-artifacts"
           for pkg in baseline policies drift; do
-            pnpm --filter @hulumi/$pkg pack --pack-destination ../../.release-artifacts
+            (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
+          ls -la .release-artifacts/
 
       - name: Generate SBOMs (CycloneDX)
         run: |

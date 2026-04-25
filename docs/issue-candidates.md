@@ -15,6 +15,23 @@ When you file one, please:
 2. Tag the issue with the suggested labels.
 3. If you're filing several at once, prefer one issue per atomic concern over a single mega-issue — Hulumi's milestones have shown atomic units close faster.
 
+## Filed status (2026-04-25)
+
+All 20 candidates below have been filed as GitHub issues #15–#34. The `v1.1` milestone (#1 in `gh api`) groups items #18 and #29 (candidates §4 and §15). Each entry retains its original text plus a **Filed as** pointer.
+
+| Candidate | Issue                                                      | Candidate | Issue                                                      |
+| --------- | ---------------------------------------------------------- | --------- | ---------------------------------------------------------- |
+| §1        | [#15](https://github.com/kerberosmansour/hulumi/issues/15) | §11       | [#25](https://github.com/kerberosmansour/hulumi/issues/25) |
+| §2        | [#16](https://github.com/kerberosmansour/hulumi/issues/16) | §12       | [#26](https://github.com/kerberosmansour/hulumi/issues/26) |
+| §3        | [#17](https://github.com/kerberosmansour/hulumi/issues/17) | §13       | [#27](https://github.com/kerberosmansour/hulumi/issues/27) |
+| §4        | [#18](https://github.com/kerberosmansour/hulumi/issues/18) | §14       | [#28](https://github.com/kerberosmansour/hulumi/issues/28) |
+| §5        | [#19](https://github.com/kerberosmansour/hulumi/issues/19) | §15       | [#29](https://github.com/kerberosmansour/hulumi/issues/29) |
+| §6        | [#20](https://github.com/kerberosmansour/hulumi/issues/20) | §16       | [#30](https://github.com/kerberosmansour/hulumi/issues/30) |
+| §7        | [#21](https://github.com/kerberosmansour/hulumi/issues/21) | §17       | [#31](https://github.com/kerberosmansour/hulumi/issues/31) |
+| §8        | [#22](https://github.com/kerberosmansour/hulumi/issues/22) | §18       | [#32](https://github.com/kerberosmansour/hulumi/issues/32) |
+| §9        | [#23](https://github.com/kerberosmansour/hulumi/issues/23) | §19       | [#33](https://github.com/kerberosmansour/hulumi/issues/33) |
+| §10       | [#24](https://github.com/kerberosmansour/hulumi/issues/24) | §20       | [#34](https://github.com/kerberosmansour/hulumi/issues/34) |
+
 ---
 
 ## Documentation gaps

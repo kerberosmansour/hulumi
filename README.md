@@ -1,10 +1,30 @@
-# Hulumi — hardened Pulumi for the AI-agent era
+# Hulumi
 
-> Apache-2.0. v1.0.0 ships the complete library, CrossGuard pack, drift classifier, and SLSA Build L3 attestation.
+> Hardened-by-default AWS infrastructure-as-code for Pulumi. Apache-2.0. v1.0.0.
 
-Hulumi is a set of hardened-by-default Pulumi `ComponentResource`s, a CrossGuard policy pack, a local-first drift classifier (TLA+-verified), and a Claude Code skill pack — all shipped together under a single Apache-2.0 license.
+## What is Hulumi?
 
-The ambition is that **a platform engineer authoring AWS infrastructure with Claude Code should be able to stand up a defensible cloud account on day one**, without hand-rolling the controls every time, without embedding a CSA commercial license, and without a hosted-service dependency.
+Hulumi is an open-source toolkit that ships secure-by-default AWS infrastructure components for [Pulumi](https://www.pulumi.com/), so platform engineers (and the AI agents helping them) can stand up a defensible cloud account on day one instead of re-deriving the same hardening checklist on every project.
+
+It bundles four things under a single Apache-2.0 license:
+
+- **Hardened components** — drop-in replacements for raw AWS resources (`SecureBucket`, `AccountFoundation`) with public-access blocks, SSE-KMS, TLS-only policies, CloudTrail, GuardDuty, Security Hub, etc. all wired up correctly out of the box.
+- **A policy pack** — Pulumi CrossGuard rules that catch the things the components can't (e.g. a PR that bypasses `SecureBucket` and reaches for raw `aws.s3.BucketV2`, or a state backend pointed at `file://`).
+- **A local-first drift classifier** — distinguishes "a teammate clicked in the AWS console" from "the `@pulumi/aws` provider released a renamed field" from "real out-of-band drift," with a TLA+-verified verdict matrix.
+- **A Claude Code skill** — `/hulumi-threat-model` writes a structured, framework-cited AWS threat model into your project before you write any IaC.
+
+## What problem does it solve?
+
+Provisioning a defensible AWS account today usually means one of:
+
+- **Hand-rolling the same hardening boilerplate on every project.** Bucket public-access blocks, SSE-KMS keys, CloudTrail multi-region with log-file validation, GuardDuty extended features, Security Hub standards subscriptions, IAM password policies, KMS rotation… the list is long, and you re-discover the gotchas every time.
+- **Bolting on a SaaS scanner after the fact.** CSPMs catch misconfigurations _after_ they hit your account. Hulumi's components are misconfiguration-resistant _at IaC authoring time_.
+- **Quoting framework prose you can't legally redistribute.** CSA's CCM/AICM/CAIQ and CIS's Benchmarks all forbid embedding control text without a commercial license. Hulumi cites framework controls **by ID only** (with upstream URLs), so the whole stack — components, policies, skill outputs — stays Apache-2.0 across the board.
+- **Drift detection that conflates console clicks with provider releases.** Generic drift checks tell you something changed; Hulumi tells you _who_ changed it and how much you should trust the verdict.
+
+The pain compounds when an AI coding agent is in the loop — it'll happily generate plausible-looking but unhardened IaC unless something opinionated stops it. Hulumi is that opinionated thing.
+
+For the longer "why" with design tradeoffs and when _not_ to use Hulumi, see [docs/why-hulumi.md](./docs/why-hulumi.md).
 
 ## Documentation
 

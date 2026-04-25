@@ -1,0 +1,66 @@
+# One-off OIDC verification.
+#
+# Trigger: workflow_dispatch only (no schedule, no push hooks).
+# Goal: prove that GitHub Actions can assume AWS_SANDBOX_OIDC_ROLE_ARN in the
+# kerberosmansour/hulumi repo via the OIDC trust we set up for M3. Creates
+# zero AWS resources — just calls sts:GetCallerIdentity.
+#
+# Delete this workflow as soon as the M3 weekly-integration workflow
+# supersedes it (one-off; not part of the long-term CI surface).
+
+name: oidc-verify
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # required for the OIDC JWT
+  contents: read
+
+jobs:
+  verify:
+    name: assume-role + sts:GetCallerIdentity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Confirm required repo variables are set
+        run: |
+          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN repo variable is empty or unset}"
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID repo variable is empty or unset}"
+          : "${REGION:?AWS_SANDBOX_REGION repo variable is empty or unset}"
+          echo "Will assume: $ROLE_ARN"
+          echo "Expected account: $ACCOUNT_ID"
+          echo "Region: $REGION"
+        env:
+          ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          ACCOUNT_ID: ${{ vars.AWS_SANDBOX_ACCOUNT_ID }}
+          REGION: ${{ vars.AWS_SANDBOX_REGION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-oidc-verify
+
+      - name: sts:GetCallerIdentity
+        run: aws sts get-caller-identity --output json | tee caller.json
+
+      - name: Assert assumed account matches AWS_SANDBOX_ACCOUNT_ID
+        run: |
+          ACTUAL=$(jq -r .Account caller.json)
+          EXPECTED="${{ vars.AWS_SANDBOX_ACCOUNT_ID }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Assumed account mismatch — expected $EXPECTED, got $ACTUAL"
+            exit 1
+          fi
+          echo "OIDC verification OK. Assumed account: $ACTUAL"
+
+      - name: Assert assumed identity is a Hulumi IaC role
+        run: |
+          ARN=$(jq -r .Arn caller.json)
+          if ! echo "$ARN" | grep -q 'hulumi-sandbox-iac-role'; then
+            echo "::error::Assumed-role ARN does not look like a Hulumi IaC role: $ARN"
+            exit 1
+          fi
+          echo "Identity OK: $ARN"

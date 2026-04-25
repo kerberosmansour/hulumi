@@ -77,8 +77,8 @@
     },
     {
       "name": "hulumi.drift.DriftClassifier",
-      "availability": "v0.4+",
-      "rationale": "If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals."
+      "availability": "v0.4",
+      "rationale": "If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals. TLA+-bound verdict matrix; cache mode 0600; rate-limited via cache TTL. Shipped in M4."
     }
   ]
 }

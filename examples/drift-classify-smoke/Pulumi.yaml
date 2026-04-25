@@ -1,0 +1,6 @@
+name: drift-classify-smoke
+description: M4 end-to-end smoke test for @hulumi/drift.DriftClassifier. Two deliberate drifts (mocked CloudTrail console event + mocked provider-version delta).
+runtime:
+  name: nodejs
+  options:
+    typescript: true

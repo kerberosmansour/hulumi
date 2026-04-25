@@ -101,6 +101,14 @@ jobs:
           # this step is the trigger.
           pnpm --filter @hulumi/baseline test -- tests/integration/
 
+      - name: Run drift-classify integration (after AccountFoundation up)
+        if: steps.env.outputs.contract_only == 'false'
+        env:
+          HULUMI_INTEGRATION: "1"
+          HULUMI_TIER: ${{ matrix.tier }}
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+        run: pnpm --filter @hulumi/drift test -- tests/integration/
+
       - name: Upload stack export on failure
         if: failure() && steps.env.outputs.contract_only == 'false'
         uses: actions/upload-artifact@v4

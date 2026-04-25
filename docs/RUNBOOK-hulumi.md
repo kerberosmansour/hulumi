@@ -45,7 +45,7 @@ Update this table as each milestone is completed. This is the single source of t
 | 1   | `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap                             | `done`        | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m1.md](./lessons/hulumi-m1.md) | [docs/completion/hulumi-m1.md](./completion/hulumi-m1.md) |
 | 2   | `SecureBucket` component + tiered defaults + `HulumiHardeningPack`                           | `done`        | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m2.md](./lessons/hulumi-m2.md) | [docs/completion/hulumi-m2.md](./completion/hulumi-m2.md) |
 | 3   | `AccountFoundation` component + full `CisV5Pack` (sections 1–3) + weekly sandbox integration | `done`        | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m3.md](./lessons/hulumi-m3.md) | [docs/completion/hulumi-m3.md](./completion/hulumi-m3.md) |
-| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `not_started` |            |            |                                                     |                                                           |
+| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `done`        | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m4.md](./lessons/hulumi-m4.md) | [docs/completion/hulumi-m4.md](./completion/hulumi-m4.md) |
 | 5   | SLSA-L3 release + launch readiness                                                           | `not_started` |            |            |                                                     |                                                           |
 
 <!-- Status values: not_started | in_progress | blocked | done -->

@@ -1,0 +1,97 @@
+# Release — atomic three-package npm publish with SLSA Build L3
+# attestation + SBOM generation + signed GitHub release.
+#
+# Trigger: tag v*.*.* on main. The release is atomic — any step
+# failure aborts before any `npm publish`. There is NO long-lived
+# NPM_TOKEN; npm trusted publishing via OIDC is the only auth path.
+
+name: release
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  preflight:
+    name: pre-flight (build + test + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint:exact-pin-guard
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+      - run: pnpm -r lint
+      - run: pnpm run lint:license-boundary
+      - run: pnpm run format:check
+
+  attest-and-publish:
+    name: SLSA attest + npm publish (atomic)
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+
+      - name: Generate tarballs
+        run: |
+          mkdir -p .release-artifacts
+          for pkg in baseline policies drift; do
+            pnpm --filter @hulumi/$pkg pack --pack-destination ../../.release-artifacts
+          done
+
+      - name: Generate SBOMs (CycloneDX)
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@2.1.0 --output-format json --output-file .release-artifacts/sbom-baseline.cdx.json packages/baseline
+          npx --yes @cyclonedx/cyclonedx-npm@2.1.0 --output-format json --output-file .release-artifacts/sbom-policies.cdx.json packages/policies
+          npx --yes @cyclonedx/cyclonedx-npm@2.1.0 --output-format json --output-file .release-artifacts/sbom-drift.cdx.json packages/drift
+
+      - name: Attest provenance for tarballs
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ".release-artifacts/*.tgz"
+
+      - name: npm publish (atomic — any failure aborts before subsequent publishes)
+        run: |
+          set -euo pipefail
+          pnpm --filter @hulumi/baseline publish --no-git-checks --provenance --access public
+          pnpm --filter @hulumi/policies publish --no-git-checks --provenance --access public
+          pnpm --filter @hulumi/drift publish --no-git-checks --provenance --access public
+
+      - name: Create GitHub release with SBOMs + tarballs
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            .release-artifacts/*.tgz
+            .release-artifacts/sbom-*.cdx.json
+          generate_release_notes: true
+          fail_on_unmatched_files: true

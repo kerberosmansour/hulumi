@@ -1,8 +1,12 @@
 {
   "name": "@hulumi/baseline",
-  "version": "0.1.0",
-  "description": "Hardened Pulumi baseline components for AWS — SecureBucket and forthcoming AccountFoundation.",
+  "version": "1.0.0",
+  "description": "Hardened Pulumi baseline components for AWS — SecureBucket and AccountFoundation, with SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

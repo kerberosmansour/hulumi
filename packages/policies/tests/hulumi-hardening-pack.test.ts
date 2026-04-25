@@ -230,7 +230,7 @@ describe("HulumiHardeningPack H2 — blocks file:// state backend and unencrypte
   });
 });
 
-describe("HulumiHardeningPack H3 — advisory on IAM role missing hulumi:iac-role=true tag", () => {
+describe("HulumiHardeningPack H3 — MANDATORY (M5 flip) on IAM role missing hulumi:iac-role=true tag", () => {
   let violations: string[];
   const report = (msg: string): void => {
     violations.push(msg);
@@ -240,9 +240,9 @@ describe("HulumiHardeningPack H3 — advisory on IAM role missing hulumi:iac-rol
     violations = [];
   });
 
-  it("is declared at enforcementLevel=advisory in M2 (flips to mandatory in M5)", () => {
-    expect(H3_ENFORCEMENT_LEVEL).toBe("advisory");
-    expect(h3AdvisoryIacRoleTag.enforcementLevel).toBe("advisory");
+  it("h3_prior_advisory_behavior_removed — H3 is now MANDATORY in v1.0.0 (paired with docs/deployment/scp.json)", () => {
+    expect(H3_ENFORCEMENT_LEVEL).toBe("mandatory");
+    expect(h3AdvisoryIacRoleTag.enforcementLevel).toBe("mandatory");
   });
 
   it("reports HULUMI-H3 when an IAM role has no tags at all", () => {
@@ -426,7 +426,7 @@ describe("PackMetadata — shape is stable per interfaces.md §2", () => {
     const ids = hulumiHardeningPackMetadata.rules.map((r) => r.id);
     expect(ids).toEqual(["HULUMI-H1", "HULUMI-H2", "HULUMI-H3", "HULUMI-H4"]);
     const h3 = hulumiHardeningPackMetadata.rules.find((r) => r.id === "HULUMI-H3")!;
-    expect(h3.enforcement).toBe("advisory");
+    expect(h3.enforcement).toBe("mandatory");
     for (const id of ["HULUMI-H1", "HULUMI-H2", "HULUMI-H4"]) {
       const r = hulumiHardeningPackMetadata.rules.find((x) => x.id === id)!;
       expect(r.enforcement).toBe("mandatory");

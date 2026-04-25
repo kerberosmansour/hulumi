@@ -1,0 +1,45 @@
+# Pulumi cooling-off — refuses PRs that bump @pulumi/* pins to a
+# version published less than 72h (minor/major) or 24h (patch) ago.
+#
+# Triggered on PRs touching pnpm-lock.yaml. The script diffs the
+# lockfile against the base branch's, detects @pulumi/* version
+# changes, looks up the upstream publish timestamp via the npm
+# registry, and fails if the publish is younger than the threshold.
+
+name: pulumi-cooling-off
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pnpm-lock.yaml"
+      - "packages/**/package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: cooling-off threshold check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Diff lockfile for @pulumi/* version changes
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Extract @pulumi/* version pins from BOTH lockfiles, find
+          # bumps. Output a JSON array of {name, oldVersion, newVersion}.
+          git show "$BASE_SHA:pnpm-lock.yaml" > /tmp/base-lock.yaml || echo "" > /tmp/base-lock.yaml
+          node scripts/cooling-off-diff.mjs /tmp/base-lock.yaml pnpm-lock.yaml
+
+  # The actual cooling-off check is in scripts/cooling-off-check.mjs
+  # which the diff job calls. This workflow is the entry point;
+  # keeping it minimal so the script is the unit of change.

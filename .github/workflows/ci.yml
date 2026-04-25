@@ -178,7 +178,7 @@ jobs:
           ls -la .release-artifacts/
       - name: Attest provenance (dry-run; not consumed)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ".release-artifacts/*.tgz"
 

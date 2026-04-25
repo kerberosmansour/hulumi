@@ -90,7 +90,7 @@ jobs:
           pnpm --filter @hulumi/drift publish --no-git-checks --provenance --access public
 
       - name: Create GitHub release with SBOMs + tarballs
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             .release-artifacts/*.tgz

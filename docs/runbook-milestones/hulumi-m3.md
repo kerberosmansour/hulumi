@@ -30,7 +30,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 - No drift classifier — M4.
 - No SLSA release — M5.
 - No SCP template — M5.
-- No UDM binding — M5.
+- No dogfood adoption work — sunlit-guardian's own runbook handles that on its own timeline; not a Hulumi deliverable.
 - No CIS sections 4 (Monitoring) or 5 (Networking) — stubs only with "not implemented in v1" advisory.
 - No CIS v7.0 pack — staged; `cisVersion: "v7.0.0"` accepted with compile-time warning.
 - No Control Tower integration — LZA is complementary.

@@ -1,0 +1,20 @@
+{
+  "name": "@hulumi-examples/drift-classify-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal classify() runner exercising the DriftClassifier under mocks.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hulumi/drift": "workspace:*",
+    "@pulumi/pulumi": "3.232.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.39",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}

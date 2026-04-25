@@ -32,7 +32,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md). Read the runbook
 - No drift classifier, no AWS adapters — M4.
 - No SLSA release pipeline, no npm publish — M5.
 - No SCP template — M5.
-- No TauriMobile UDM binding edits — M5.
+- No dogfood adoption work — sunlit-guardian's own runbook handles that on its own timeline; not a Hulumi deliverable in any milestone.
 - No CLI tool — v1.1+.
 - No dashboard, no web UI — not in v1 at all.
 

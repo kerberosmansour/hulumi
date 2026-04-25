@@ -80,6 +80,9 @@ jobs:
       - run: pnpm --filter @hulumi-examples/secure-bucket-smoke test
       - run: pnpm --filter @hulumi-examples/account-foundation-smoke typecheck
       - run: pnpm --filter @hulumi-examples/account-foundation-smoke test
+      - run: pnpm --filter @hulumi/drift build
+      - run: pnpm --filter @hulumi-examples/drift-classify-smoke typecheck
+      - run: pnpm --filter @hulumi-examples/drift-classify-smoke test
 
   account-foundation-mocks:
     name: "@hulumi/baseline AccountFoundation mocks"
@@ -112,6 +115,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @hulumi/policies build
       - run: pnpm --filter @hulumi/policies test -- tests/cis-v5-pack.test.ts
+
+  drift-mocks:
+    name: "@hulumi/drift mocks (verdict matrix + 6 security BDDs + TLA+ alignment)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/drift build
+      - run: pnpm run test:drift
 
   dco:
     name: DCO sign-off

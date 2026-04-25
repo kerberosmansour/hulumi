@@ -1,6 +1,6 @@
 # Hulumi v1 — AI-First Runbook v3
 
-> **Purpose**: Deliver Hulumi v1 — a hardened-Pulumi library + CrossGuard pack + drift classifier + Claude Code skill — from greenfield bootstrap to SLSA-L3-attested npm release, with cross-repo UDM dogfood binding, in five milestones.
+> **Purpose**: Deliver Hulumi v1 — a hardened-Pulumi library + CrossGuard pack + drift classifier + Claude Code skill — from greenfield bootstrap to SLSA-L3-attested npm release, in five milestones. Hulumi v1 ships standalone; the dogfood adoption story (the [sunlit-guardian](https://github.com/sherifmansour/sunlit-guardian) monorepo's migration runbook consuming Hulumi components) is owned by that repo and progresses on its own milestones.
 > **Audience**: AI coding agents first, humans second. This document is written to reduce ambiguity, prevent scope drift, and improve code quality with the same model capability.
 > **How to use**: Work through milestones sequentially. Before starting any milestone, read its full section and the Global Execution Rules. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope.
 > **Prerequisite reading — Hulumi planning corpus**: The authoritative pre-implementation artifacts (idea doc, research dossier with 140+ sources, architecture, stack decision, interfaces, TLA+ spec and verified-design, critique) were produced in the upstream planning repo before Hulumi was bootstrapped in M1. They are not checked into this repo as of v0.1 (M1 allow-list scoped-out); importing them into this repo (or publishing to a dedicated archive) is tracked as an M5 follow-up. Maintainers executing later milestones MUST read: `docs/idea/hulumi.md`, `docs/research/hulumi/{dossier,sources,synthesis}.md`, `docs/design/hulumi/{ARCHITECTURE,stack-decision,interfaces,hulumi-overview}.md`, `docs/TLAdocs/hulumi/{HulumiDrift.tla,HulumiDrift.trace.md,HulumiDrift-verified.md}`, `docs/critique/hulumi.md` from the upstream corpus before opening a PR that materially changes architecture. Each milestone file under [`docs/runbook-milestones/`](./runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
@@ -45,8 +45,8 @@ Update this table as each milestone is completed. This is the single source of t
 | 1   | `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap                             | `done`        | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m1.md](./lessons/hulumi-m1.md) | [docs/completion/hulumi-m1.md](./completion/hulumi-m1.md) |
 | 2   | `SecureBucket` component + tiered defaults + `HulumiHardeningPack`                           | `done`        | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m2.md](./lessons/hulumi-m2.md) | [docs/completion/hulumi-m2.md](./completion/hulumi-m2.md) |
 | 3   | `AccountFoundation` component + full `CisV5Pack` (sections 1–3) + weekly sandbox integration | `done`        | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m3.md](./lessons/hulumi-m3.md) | [docs/completion/hulumi-m3.md](./completion/hulumi-m3.md) |
-| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `not_started` |            |            |                                                     |                                                           |
-| 5   | SLSA-L3 release + launch readiness + cross-repo UDM binding                                  | `not_started` |            |            |                                                     |                                                           |
+| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `done`        | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m4.md](./lessons/hulumi-m4.md) | [docs/completion/hulumi-m4.md](./completion/hulumi-m4.md) |
+| 5   | SLSA-L3 release + launch readiness                                                           | `not_started` |            |            |                                                     |                                                           |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 <!-- Lessons files go in docs/lessons/hulumi-m<N>.md -->
@@ -92,8 +92,8 @@ flowchart TB
         GHReleases[(GitHub Releases + SBOMs)]
     end
 
-    subgraph Dogfood["Dogfood (cross-repo)"]
-        UDMRunbook[TauriMobile: SUNLIT-GUARDIAN-UNIFIED-MIGRATION-RUNBOOK.md requires SecureBucket]
+    subgraph Dogfood["External dogfood consumer (sunlit-guardian, separate repo)"]
+        UDMRunbook[sunlit-guardian: migration runbook — adopts Hulumi components organically as its own milestones progress; Hulumi does not edit this file]
     end
 
     Eng -->|prompts| CC
@@ -124,7 +124,7 @@ flowchart TB
     NpmRegistry -.->|SLSA L3 attestations| Drift
     GHReleases -.->|SBOMs| NpmRegistry
 
-    Baseline -->|SecureBucket consumed| UDMRunbook
+    UDMRunbook -.->|imports SecureBucket from npm| Baseline
 
     classDef built fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e
     classDef exists fill:#fef3c7,stroke:#b45309,color:#78350f
@@ -132,22 +132,22 @@ flowchart TB
     classDef actor fill:#fae8ff,stroke:#7e22ce,color:#581c87
 
     class Eng actor
-    class CC,PulumiCLI,CrossGuard,AutomationApi,PulumiAws,NpmRegistry,GHReleases exists
-    class Skill,Baseline,Policies,Drift,IAC,SCP,UDMRunbook built
+    class CC,PulumiCLI,CrossGuard,AutomationApi,PulumiAws,NpmRegistry,GHReleases,UDMRunbook exists
+    class Skill,Baseline,Policies,Drift,IAC,SCP built
     class Git,DriftCache,StateBackend,Resources,CTLog persist
 ```
 
 ### Component Summary Table
 
-| Component                                    | Milestone                                | Purpose                                                                               |
-| -------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------- |
-| `/hulumi-threat-model` skill                 | M1                                       | Interactive cloud threat-modeling in Claude Code with CCM/NIST/ATLAS/CIS ID citations |
-| `@hulumi/baseline.aws.SecureBucket`          | M2                                       | Hardened S3 bucket ComponentResource with Sandbox/Startup-Hardened tiers              |
-| `@hulumi/policies.HulumiHardeningPack`       | M2 (H1/H2/H4), M5 (H3 mandatory)         | CrossGuard pack enforcing Hulumi invariants                                           |
-| `@hulumi/baseline.aws.AccountFoundation`     | M3                                       | CloudTrail+Config+GuardDuty+SecHub+IAM+KMS composed with tier-differentiated config   |
-| `@hulumi/policies.CisV5Pack`                 | M2 (bucket stub), M3 (sections 1–3 full) | CIS AWS Foundations v5.0.0 CrossGuard rules                                           |
-| `@hulumi/drift.DriftClassifier` + 4 adapters | M4                                       | TLA+-verified 4-signal drift classifier, local-first                                  |
-| SLSA-L3 release pipeline + SCP + UDM dogfood | M5                                       | npm launch, launch-readiness outreach, cross-repo UDM binding                         |
+| Component                                    | Milestone                                | Purpose                                                                                     |
+| -------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `/hulumi-threat-model` skill                 | M1                                       | Interactive cloud threat-modeling in Claude Code with CCM/NIST/ATLAS/CIS ID citations       |
+| `@hulumi/baseline.aws.SecureBucket`          | M2                                       | Hardened S3 bucket ComponentResource with Sandbox/Startup-Hardened tiers                    |
+| `@hulumi/policies.HulumiHardeningPack`       | M2 (H1/H2/H4), M5 (H3 mandatory)         | CrossGuard pack enforcing Hulumi invariants                                                 |
+| `@hulumi/baseline.aws.AccountFoundation`     | M3                                       | CloudTrail+Config+GuardDuty+SecHub+IAM+KMS composed with tier-differentiated config         |
+| `@hulumi/policies.CisV5Pack`                 | M2 (bucket stub), M3 (sections 1–3 full) | CIS AWS Foundations v5.0.0 CrossGuard rules                                                 |
+| `@hulumi/drift.DriftClassifier` + 4 adapters | M4                                       | TLA+-verified 4-signal drift classifier, local-first                                        |
+| SLSA-L3 release pipeline + SCP               | M5                                       | npm launch, launch-readiness outreach. (Dogfood adoption is sunlit-guardian's own runbook.) |
 
 ### Data Flow Summary
 
@@ -197,7 +197,7 @@ Nine explicit simplifications enumerated in [HulumiDrift-verified.md §Simplific
 
 ### 1) Stay inside scope
 
-Every change must fall inside the current milestone's Contract Block's file allow-list. Cross-repo edits require explicit allow-list entries (M5 is the only cross-repo milestone in v1).
+Every change must fall inside the current milestone's Contract Block's file allow-list. Hulumi v1 has no cross-repo edits — the sunlit-guardian dogfood adoption is owned by that repo and is not part of any Hulumi milestone's deliverables.
 
 ### 2) Tests define the contract
 
@@ -251,7 +251,7 @@ TLA+ scratch (`states/`, `**/*_TTrace_*.{tla,bin}`, `*-run.log`), Pulumi checkpo
 
 ### Current State
 
-Greenfield. The Hulumi repo does not yet exist; M1 bootstraps it at `~/Documents/Dev/GitHub/Hulumi/`. Planning artifacts (idea, research, design, TLA+, critique) live in the TauriMobile repo's `docs/` tree and move or are referenced from the Hulumi repo after M1.
+Greenfield. The Hulumi repo does not yet exist; M1 bootstraps it at `~/Documents/Dev/GitHub/Hulumi/`. Planning artifacts (idea, research, design, TLA+, critique) live in the upstream planning corpus's `docs/` tree and are referenced from the Hulumi repo after M1.
 
 ### Problem
 
@@ -282,7 +282,7 @@ Not applicable — greenfield.
 
 ### What to Change
 
-Not applicable — greenfield. (M5 does edit TauriMobile's UDM runbook; see M5 Contract.)
+Not applicable — greenfield. Hulumi v1 has no cross-repo edits.
 
 ### Global Red Lines
 
@@ -470,32 +470,31 @@ CloudTrail + Config + GuardDuty + Security Hub + IAM + KMS composed with ≥4 pe
 
 `@hulumi/drift` with 4 pluggable adapters. TypeScript `HardenedVerdict` mirrors TLA+ `HardenedVerdict` exactly; a verdict-matrix BDD walks the 5-row matrix from [HulumiDrift.trace.md](TLAdocs/hulumi/HulumiDrift.trace.md). Six security BDDs: cache 0600 perms, shell-injection refusal, shallow-clone guard, probe-timeout degradation, namespace-rejection, rate-limit.
 
-### [Milestone 5 — SLSA-L3 release + launch readiness + cross-repo UDM binding](runbook-milestones/hulumi-m5.md)
+### [Milestone 5 — SLSA-L3 release + launch readiness](runbook-milestones/hulumi-m5.md)
 
-v1.0.0 to npm with SLSA Build L3 attestation on every package (atomic three-package release). Full SECURITY.md, Dependabot 72h/24h cooling-off (CI-enforced), `docs/deployment/scp.json` ready-to-apply SCP, H3 advisory→mandatory flip, five launch-readiness drafts, TauriMobile UDM runbook edited to require `SecureBucket`.
+v1.0.0 to npm with SLSA Build L3 attestation on every package (atomic three-package release). Full SECURITY.md, Dependabot 72h/24h cooling-off (CI-enforced), `docs/deployment/scp.json` ready-to-apply SCP, H3 advisory→mandatory flip, five launch-readiness drafts. Hulumi v1 ships standalone — adoption by the [sunlit-guardian](https://github.com/sherifmansour/sunlit-guardian) monorepo (the planned dogfood consumer) is that repo's responsibility on its own runbook timeline; Hulumi does not gate on that adoption.
 
 ---
 
 ## Documentation Update Table
 
-| Doc                                                             | Updated in            | Change                                                  |
-| --------------------------------------------------------------- | --------------------- | ------------------------------------------------------- |
-| `docs/idea/hulumi.md`                                           | pre-runbook           | Authoritative idea doc                                  |
-| `docs/research/hulumi/`                                         | pre-runbook           | Research dossier (140+ sources)                         |
-| `docs/design/hulumi/`                                           | pre-runbook           | Architecture, stack decision, interfaces, overview      |
-| `docs/TLAdocs/hulumi/`                                          | pre-runbook           | TLA+ spec + verified design + trace                     |
-| `docs/critique/hulumi.md`                                       | pre-runbook           | 18-finding critique                                     |
-| Hulumi repo `ARCHITECTURE.md`                                   | M1 → M4 (progressive) | Reflects shipped components per milestone               |
-| Hulumi repo `README.md`                                         | every milestone       | Quick-start for shipped components                      |
-| `docs/components/*.md`                                          | M2, M3, M4            | Per-component docs                                      |
-| `docs/tiers.md`                                                 | M2, M3                | Tier matrix for shipped components                      |
-| `docs/integration-testing.md`                                   | M3                    | Weekly integration workflow                             |
-| `docs/deployment/sandbox-account.md`                            | M3                    | Sandbox setup                                           |
-| `docs/deployment/scp.json` + `scp-guide.md`                     | M5                    | SCP template + guide                                    |
-| `SECURITY.md`                                                   | M1 (stub) → M5 (full) | Disclosure, cooling-off, provenance gap, typosquat, SCP |
-| `CHANGELOG.md`                                                  | M5                    | v1.0.0 release notes with breaking changes              |
-| `docs/launch/`                                                  | M5                    | CSA outreach, Pulumi Discussion, CFPs, blog pitch       |
-| TauriMobile `docs/SUNLIT-GUARDIAN-UNIFIED-MIGRATION-RUNBOOK.md` | M5 (cross-repo)       | IaC Component Requirements section                      |
+| Doc                                         | Updated in            | Change                                                  |
+| ------------------------------------------- | --------------------- | ------------------------------------------------------- |
+| `docs/idea/hulumi.md`                       | pre-runbook           | Authoritative idea doc                                  |
+| `docs/research/hulumi/`                     | pre-runbook           | Research dossier (140+ sources)                         |
+| `docs/design/hulumi/`                       | pre-runbook           | Architecture, stack decision, interfaces, overview      |
+| `docs/TLAdocs/hulumi/`                      | pre-runbook           | TLA+ spec + verified design + trace                     |
+| `docs/critique/hulumi.md`                   | pre-runbook           | 18-finding critique                                     |
+| Hulumi repo `ARCHITECTURE.md`               | M1 → M4 (progressive) | Reflects shipped components per milestone               |
+| Hulumi repo `README.md`                     | every milestone       | Quick-start for shipped components                      |
+| `docs/components/*.md`                      | M2, M3, M4            | Per-component docs                                      |
+| `docs/tiers.md`                             | M2, M3                | Tier matrix for shipped components                      |
+| `docs/integration-testing.md`               | M3                    | Weekly integration workflow                             |
+| `docs/deployment/sandbox-account.md`        | M3                    | Sandbox setup                                           |
+| `docs/deployment/scp.json` + `scp-guide.md` | M5                    | SCP template + guide                                    |
+| `SECURITY.md`                               | M1 (stub) → M5 (full) | Disclosure, cooling-off, provenance gap, typosquat, SCP |
+| `CHANGELOG.md`                              | M5                    | v1.0.0 release notes with breaking changes              |
+| `docs/launch/`                              | M5                    | CSA outreach, Pulumi Discussion, CFPs, blog pitch       |
 
 ---
 

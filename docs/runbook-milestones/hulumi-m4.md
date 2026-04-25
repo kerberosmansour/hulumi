@@ -31,7 +31,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 - No `hulumi-check` skill — v1.1+.
 - No standalone `hulumi` CLI — v1.1+.
 - No SLSA release, no npm publish — M5.
-- No SCP template, no UDM binding — M5.
+- No SCP template — M5. Dogfood adoption is sunlit-guardian's runbook, not part of any Hulumi milestone.
 - No auto-remediation — verified-design §Simplifications #5 excludes it.
 - No Azure/GCP adapters.
 - No cross-stack drift aggregation — per-stack only in v1.
@@ -238,7 +238,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 
 ## Post-Flight
 
-- **ARCHITECTURE.md** (Hulumi): update Key Components + Data Flow with `@hulumi/drift` + 4 adapters; note M5 adds SLSA-L3 + SCP + UDM binding.
+- **ARCHITECTURE.md** (Hulumi): update Key Components + Data Flow with `@hulumi/drift` + 4 adapters; note M5 adds SLSA-L3 + SCP.
 - **README.md**: quick-start for drift classification; link to docs + TLA+ verified-design.
 - **Other docs**: `docs/deployment/README.md` pointer to `drift-classifier-deployment.md`.
 

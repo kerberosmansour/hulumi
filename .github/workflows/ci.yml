@@ -171,9 +171,11 @@ jobs:
       - name: Build tarballs (dry-run, no publish)
         run: |
           mkdir -p .release-artifacts
+          ABS_DEST="$(pwd)/.release-artifacts"
           for pkg in baseline policies drift; do
-            pnpm --filter @hulumi/$pkg pack --pack-destination ../../.release-artifacts
+            (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
+          ls -la .release-artifacts/
       - name: Attest provenance (dry-run; not consumed)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@v2

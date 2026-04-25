@@ -49,11 +49,20 @@ The pain compounds when an AI agent writes the first cut of `index.ts` against `
 
 ## Recommendation
 
-**Approach B**, with a hard scope contract pinned in the runbook's Global Execution Rules: **the I in IaC is Infrastructure**. The runbook will treat as in-scope: anything declarable through Pulumi / GitHub REST / GraphQL that configures the GitHub platform itself (repo settings, ruleset, org settings, GHAS configuration object, OIDC trust, secret-scanning *enablement*, push-protection *enablement*, Dependabot *enablement*, security-config attachment, Actions allowlist, environments, deploy keys). Out of scope and explicitly non-goals: authoring CodeQL queries, authoring Semgrep rules, triaging Dependabot/CodeQL findings, per-PR scanning workflows, custom secret-scanning patterns that imply rule maintenance, anything that requires reading users' source code to function. The drift classifier inclusion in M1 scope is conditional on `/slo-research` confirming Team-tier or below users have *some* audit-log surface; if Enterprise-only, drift classifier defers to v1.1 and M4 fills with provenance hardening for the GitHub release pipeline instead.
+**Approach B**, with a hard scope contract pinned in the runbook's Global Execution Rules: **the I in IaC is Infrastructure**. The runbook will treat as in-scope: anything declarable through Pulumi / GitHub REST / GraphQL that configures the GitHub platform itself (repo settings, ruleset, org settings, GHAS configuration object, OIDC trust, secret-scanning *enablement*, push-protection *enablement*, Dependabot *enablement*, security-config attachment, Actions allowlist, environments, deploy keys). Out of scope and explicitly non-goals: authoring CodeQL queries, authoring Semgrep rules, triaging Dependabot/CodeQL findings, per-PR scanning workflows, custom secret-scanning patterns that imply rule maintenance, anything that requires reading users' source code to function.
 
 The week-one wedge is `SecureRepository` shipped behind an integration test that creates and destroys a real repo in a sandbox GitHub org, mirroring the M2 AWS sandbox pattern from the existing runbook.
 
-Did I hear that right? Specifically — is "Approach B with infra-only contract, drift classifier conditional on research" the call you wanted, or do you want to bias toward A (smaller scope, faster ship) or C (skill-first to validate demand before component investment)?
+### Tier decision (resolved 2026-04-26 after `/slo-research`)
+
+The wedge persona is **Team / Pro tier (no GitHub Enterprise Cloud)**, confirmed by the requester. This collapses the architecture choice cleanly:
+
+- **Drift adapter strategy**: webhook-fallback adapter (push-model, six confirmed event types: `branch_protection_rule`, `repository_ruleset`, `secret_scanning_alert`, `dependabot_alert`, `code_scanning_alert` (GHAS-licensed only on private), `member`, plus org-only `organization`) is **in M1 scope**. The classic-PAT-authed audit-log REST adapter is **deferred to v1.1** because (a) the API is GHEC-only and the wedge persona has no GHEC, and (b) the auth-mode constraint (classic PAT only, no GitHub App, no fine-grained PAT) forces an unusual two-provider configuration that earns no value at the wedge tier.
+- **Verdict matrix**: drift classifier exposes `tier-degraded: true` and `feature-not-licensed` as first-class verdicts (e.g., private-repo `code_scanning_alert` requires GHAS, and Hulumi must say so honestly rather than emit a `no-drift` false negative).
+- **`OrgFoundation` audit-log streaming**: not implemented in v1; the audit-log streams REST escape hatch is documented as a v1.1 follow-up. `EnterpriseSecurityAnalysisSettings` is similarly out of scope at the wedge tier.
+- **`OrganizationSettings`-based hardening**: in scope, with the GitHub-flagged "endpoint closing down notice" on the flat `*_enabled_for_new_repositories` fields treated as a known forward risk — `OrgFoundation` encapsulates org-level security defaults behind an internal abstraction so the Code Security Configurations REST escape hatch can flip in as a backend without a public API break.
+
+This is consistent with `docs/research/hulumi-github/synthesis.md`'s Option B + Option C composition recommendation.
 
 ## Open questions for /slo-research
 

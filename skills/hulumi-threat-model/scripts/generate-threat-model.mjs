@@ -374,9 +374,7 @@ function renderComponents(components) {
   if (!Array.isArray(components) || components.length === 0) {
     return "- _(No Hulumi components recommended for this scenario yet. See the roadmap in the README for v1.1+ components.)_";
   }
-  return components
-    .map((c) => `- \`${c.name}\` (available in Hulumi ${c.availability}) — ${c.rationale}`)
-    .join("\n");
+  return components.map((c) => `- \`${c.name}\` — ${c.availability}. ${c.rationale}`).join("\n");
 }
 
 /**

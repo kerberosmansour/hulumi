@@ -1,7 +1,7 @@
 ---
 name: threat-model-s3-public-bucket-hardening
 scenario: s3-public-bucket-hardening
-generated_at: 2026-04-24T18:08:58.626Z
+generated_at: 2026-04-25T19:26:35.546Z
 citations:
   - framework: CCM
     id: CCM:DSP-01
@@ -125,9 +125,9 @@ An engineer needs to create an S3 bucket that stores user-uploaded files, audit 
 
 ## Recommended Hulumi Components
 
-- `hulumi.baseline.aws.SecureBucket` (available in Hulumi v0.2) — The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events). Shipped in M2.
-- `hulumi.policies.aws.HulumiHardeningPack` (available in Hulumi v0.2) — H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`. H3 (iac-role tag) is advisory in v0.2, mandatory in v1.0 once the SCP template ships. Shipped in M2.
-- `hulumi.drift.DriftClassifier` (available in Hulumi v0.4+) — If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals.
+- `hulumi.baseline.aws.SecureBucket` — Shipped in M2 (v0.2). The ComponentResource that delivers this scenario's target end state. Two tiers: Sandbox (public-access-block + SSE-KMS + versioning + TLS-only + BucketOwnerEnforced) and Startup-Hardened (adds object-lock governance mode + mandatory access-logging + CloudTrail data-events).
+- `hulumi.policies.aws.HulumiHardeningPack` — Shipped in M2 (v0.2; H3 iac-role-tag rule mandatory at v1.0). H1 rule blocks any raw `aws.s3.BucketV2`; H2 blocks file:// state backend; H4 ensures Startup-Hardened instances carry a `logBucketArn`. H3 (iac-role tag) shipped advisory in M2 and flipped to mandatory at v1.0 once the SCP template shipped.
+- `hulumi.drift.DriftClassifier` — Shipped in M4 (v0.4). If the bucket is later modified out-of-band (tag change, policy edit), the classifier distinguishes console break-glass from Pulumi-originated change using CloudTrail + git-log + provider-version signals. TLA+-bound verdict matrix; cache mode 0600; rate-limited via cache TTL.
 
 ## Open Questions
 
@@ -135,4 +135,4 @@ An engineer needs to create an S3 bucket that stores user-uploaded files, audit 
 
 ---
 
-_Generated `2026-04-24T18:08:58.626Z` by `/hulumi-threat-model s3-public-bucket-hardening`. Audit footer: this document was produced without embedding verbatim framework text; any framework prose above is paraphrase authored by Hulumi maintainers._
+_Generated `2026-04-25T19:26:35.546Z` by `/hulumi-threat-model s3-public-bucket-hardening`. Audit footer: this document was produced without embedding verbatim framework text; any framework prose above is paraphrase authored by Hulumi maintainers._

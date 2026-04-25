@@ -64,7 +64,9 @@ The full v1.0 changelog lives in [CHANGELOG.md](./CHANGELOG.md). Every published
 
 Per-milestone specs live in [`docs/runbook-milestones/`](./docs/runbook-milestones/) and lessons-learned in [`docs/lessons/`](./docs/lessons/). The master runbook is [`docs/RUNBOOK-hulumi.md`](./docs/RUNBOOK-hulumi.md).
 
-## Install
+## Canonical install
+
+Hulumi lives at a single canonical GitHub path: **`kerberosmansour/hulumi`**. Any other path is unofficial; see [SECURITY.md](./SECURITY.md) for typosquat reporting. Every published `@hulumi/*` tarball ships with SLSA Build L3 attestation — verify before installing per [verify-provenance.md](./docs/cookbooks/verify-provenance.md) (`gh attestation verify ...`).
 
 ### Pulumi packages (npm)
 
@@ -78,8 +80,6 @@ pnpm add @hulumi/drift   # if you want the drift classifier
 The exact `@pulumi/*` versions match Hulumi's `peerDependencies` pins. Bumps go through a 72h/24h cooling-off CI gate — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
 
 ### Claude Code skill (`/hulumi-threat-model`)
-
-Hulumi lives at a single canonical GitHub path: **`kerberosmansour/hulumi`**. Any other path is unofficial; see [SECURITY.md](./SECURITY.md) for typosquat reporting.
 
 ```bash
 git clone https://github.com/kerberosmansour/hulumi ~/.claude/skills/hulumi-threat-model-src

@@ -19,7 +19,7 @@
     {
       "type": "I",
       "name": "Unencrypted storage disclosure",
-      "description": "An RDS instance created without storage encryption leaves the underlying EBS plaintext; a snapshot sharing attack (or account compromise) reveals all data. Hulumi components (shipping v0.3+) default to SSE-KMS with the `AccountFoundation` data-key CMK.",
+      "description": "An RDS instance created without storage encryption leaves the underlying EBS plaintext; a snapshot sharing attack (or account compromise) reveals all data. Hulumi components (shipped in M3) default to SSE-KMS with the `AccountFoundation` data-key CMK.",
       "controls": [
         "CCM:CEK-04",
         "CIS-AWS-v5.0.0:2.3.1",
@@ -59,25 +59,25 @@
     {
       "type": "D",
       "name": "Accidental drop via IaC bug",
-      "description": "Deletion protection off + a broken `pulumi refresh` could propose a destroy for an RDS instance. Mitigation: deletion protection on in both tiers; Hulumi `DriftClassifier` (v0.4+) flags the provider-plan diff before apply.",
+      "description": "Deletion protection off + a broken `pulumi refresh` could propose a destroy for an RDS instance. Mitigation: deletion protection on in both tiers; Hulumi `DriftClassifier` (shipped in M4) flags the provider-plan diff before apply.",
       "controls": ["CCM:BCR-01", "NIST-800-53-r5:CP-9"]
     }
   ],
   "recommendedComponents": [
     {
       "name": "hulumi.baseline.aws.SecureRds",
-      "availability": "v1.1+ (post-v1.0.0; not in v1 scope)",
+      "availability": "Planned for v1.1+ (post-v1.0.0; not yet shipped)",
       "rationale": "Planned ComponentResource covering storage encryption, backup CMK, TLS parameter group, IAM auth, deletion protection. For v1 users, compose raw `aws.rds.Instance` with the KMS keys from `AccountFoundation.kmsRing` as an interim pattern."
     },
     {
       "name": "hulumi.baseline.aws.AccountFoundation.kmsRing",
-      "availability": "v0.3",
-      "rationale": "Per-service CMKs (`data`, `logs`, `secrets`, `config`). The RDS instance consumes the `data` key; its CloudWatch logs consume the `logs` key. Shipped in M3."
+      "availability": "Shipped in M3 (v0.3)",
+      "rationale": "Per-service CMKs (`data`, `logs`, `secrets`, `config`). The RDS instance consumes the `data` key; its CloudWatch logs consume the `logs` key."
     },
     {
       "name": "hulumi.policies.aws.CisV5Pack",
-      "availability": "v0.3",
-      "rationale": "Includes CIS v5.0.0 §2.3.1 (RDS encryption at rest) as a preventive CrossGuard check, complementing Security Hub's detective finding. Shipped in M3."
+      "availability": "Shipped in M3 (v0.3)",
+      "rationale": "Includes CIS v5.0.0 §2.3.1 (RDS encryption at rest) as a preventive CrossGuard check, complementing Security Hub's detective finding."
     }
   ]
 }

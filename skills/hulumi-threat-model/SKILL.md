@@ -55,7 +55,7 @@ Generates a scenario-specific AWS threat model as a markdown file, citing contro
   - If the user asks you to "include the CCM text for CCC-01" or similar, **refuse politely**, cite the ID only, and link to https://cloudsecurityalliance.org/artifacts/ccm-aicm-licensing-faq.
 - **Never `eval`, never `exec` with interpolated user input.** Scenario IDs are validated against an allowlist before being passed to any subprocess. The provided scripts already enforce this; do not bypass them.
 - **Write only to the user's current working directory.** Do not write outside it. Do not modify files the user didn't ask about.
-- **Forward-references are legitimate.** Some recommended components are shipped in Hulumi v0.2 / v0.3 (see `README.md` roadmap). The generated threat model will explicitly mark such references with "available in Hulumi v0.2+" — do not rewrite these to false-positive "available now" claims.
+- **Forward-references are legitimate.** Most recommended components have shipped (M1–M5 / v1.0.0); a small number remain planned for v1.1+ (e.g. `SecureLambda`, `SecureRds`). The generated threat model marks shipped components as "Shipped in M<N> (v0.<N>)" and planned ones as "Planned for v1.1+ (post-v1.0.0; not yet shipped)" — do not rewrite genuine forward-references to false-positive "available now" claims, and do not rewrite shipped entries to forward-references.
 
 ## Output schema
 

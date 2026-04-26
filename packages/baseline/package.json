@@ -1,8 +1,9 @@
 {
   "name": "@hulumi/baseline",
-  "version": "1.0.0",
-  "description": "Hardened Pulumi baseline components for AWS — SecureBucket and AccountFoundation, with SLSA Build L3 attestation on every release.",
+  "version": "1.1.0",
+  "description": "Hardened Pulumi baseline components for AWS and GitHub — SecureBucket, AccountFoundation, SecureRepository, OrgFoundation. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
+  "private": true,
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -19,6 +20,10 @@
       "types": "./dist/aws/index.d.ts",
       "default": "./dist/aws/index.js"
     },
+    "./github": {
+      "types": "./dist/github/index.d.ts",
+      "default": "./dist/github/index.js"
+    },
     "./mappings": {
       "types": "./dist/mappings/index.d.ts",
       "default": "./dist/mappings/index.js"
@@ -34,12 +39,14 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/pulumi": "3.232.0",
-    "@pulumi/aws": "7.27.0"
+    "@pulumi/aws": "7.27.0",
+    "@pulumi/github": "6.13.0",
+    "@pulumi/pulumi": "3.232.0"
   },
   "devDependencies": {
-    "@pulumi/pulumi": "3.232.0",
     "@pulumi/aws": "7.27.0",
+    "@pulumi/github": "6.13.0",
+    "@pulumi/pulumi": "3.232.0",
     "@types/node": "20.19.39",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

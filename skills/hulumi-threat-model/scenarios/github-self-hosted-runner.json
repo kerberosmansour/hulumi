@@ -1,0 +1,89 @@
+{
+  "id": "github-self-hosted-runner",
+  "title": "Self-hosted runner risk — ephemeral runners, runner-image hardening, runner-group scoping, exfil-via-runner threat model",
+  "description": "A platform engineer adopts self-hosted runners for the org's GitHub Actions workloads (cost optimization or specialized hardware). Self-hosted runners are a known backdoor surface — Sysdig's November 2025 report on self-hosted-runner backdoors and Praetorian's TensorFlow analysis both demonstrate that long-lived runners with broad access become persistent C2 endpoints once compromised. Hulumi recommends ephemeral runners (one-job-per-runner-image), runner-image hardening (locked-down container or VM image), and runner-group scoping (no public-fork access by default).",
+  "requiredFrameworks": [
+    "CCM",
+    "NIST-SSDF-v1.1",
+    "OpenSSF-Scorecard",
+    "MITRE-ATTCK",
+    "GitHub-Well-Architected",
+    "CIS-GitHub-v1.2.0"
+  ],
+  "actors": [
+    "Platform Engineer (trusted, provisions and maintains the runner pool)",
+    "Workflow Author (semi-trusted, picks runner labels — could pick a sensitive label by mistake)",
+    "Compromised Pull-Request Author (untrusted, runs code on the runner via PR-triggered workflow)",
+    "Runner Image Maintainer (trusted; the runner OS image is itself a supply-chain surface)"
+  ],
+  "assets": [
+    "Self-hosted runner machine / container",
+    "Runner registration token (short-lived, used at runner-pool join time)",
+    "`ActionsRunnerGroup` configuration (which workflows can target this group)",
+    "Filesystem state on the runner between jobs (if not ephemeral)",
+    "Network access from the runner (private VPC vs public Internet)"
+  ],
+  "stride": [
+    {
+      "type": "T",
+      "name": "Persistent backdoor on long-lived runner (Sysdig pattern)",
+      "description": "A PR-triggered workflow runs attacker-controlled code on a long-lived self-hosted runner; the code drops a backdoor in the runner's filesystem (e.g. modifies `~/.bashrc` or installs a cron job). Subsequent legitimate jobs run on the same runner, where the backdoor exfils secrets or build artifacts. Mitigation: ephemeral runners (one job per runner image, then destroy); never reuse a runner across two jobs.",
+      "controls": [
+        "CCM:DSI-01",
+        "NIST-SSDF-v1.1:PW.6",
+        "OpenSSF-Scorecard:Maintained",
+        "MITRE-ATTCK:T1195",
+        "GitHub-Well-Architected:PO.5"
+      ]
+    },
+    {
+      "type": "I",
+      "name": "Network exfil via runner with broad VPC access",
+      "description": "A self-hosted runner has access to the full VPC for legitimate reasons (e.g., to talk to private databases for integration tests). A compromised job uses that access to scan / exfil internal services. Mitigation: runner-pool scoping by workflow purpose (a PR-validation runner pool has zero VPC access; a deploy-runner pool has scoped access to deploy targets only); egress allowlist at the network layer.",
+      "controls": [
+        "CCM:IVS-09",
+        "NIST-SSDF-v1.1:PO.5",
+        "GitHub-Well-Architected:PW.5"
+      ]
+    },
+    {
+      "type": "E",
+      "name": "Runner-group misconfiguration grants broader workflow access",
+      "description": "An `ActionsRunnerGroup` is configured with `allowsPublic: true` (or analogous), letting fork PRs from outside the org target the runner. An attacker fork PR triggers a workflow on a runner that should not have been reachable. Mitigation: `OrgFoundation` defaults runner groups to `allowsPublic: false` at startup-hardened; explicit `Suppression` required to override.",
+      "controls": [
+        "CCM:IAM-07",
+        "NIST-SSDF-v1.1:PO.3",
+        "GitHub-Well-Architected:PO.3",
+        "CIS-GitHub-v1.2.0:PENDING-WORKBENCH"
+      ]
+    },
+    {
+      "type": "S",
+      "name": "Runner-registration-token leak → rogue runner joins the pool",
+      "description": "The runner registration token is leaked (e.g., via a misconfigured Terraform output, a logged secret, or a typo in a Pulumi `pulumi.Output` print). An attacker registers a rogue runner in the org's pool; the rogue runner picks up legitimate jobs and exfils their content. Mitigation: short-lived registration tokens (default ~1h); audit-log monitoring for runner-registered events (M4 webhook fallback adapter listens to `member` events as a proxy at non-GHEC tiers).",
+      "controls": [
+        "CCM:IAM-10",
+        "NIST-SSDF-v1.1:PW.7",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "MITRE-ATTCK:T1195"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "@hulumi/baseline.github.OrgFoundation",
+      "availability": "Shipped in Hulumi v1.1.0 M2",
+      "rationale": "Provisions `ActionsRunnerGroup` resources with `allowsPublic: false` defaults at startup-hardened tier; runtime rejects misconfigured groups."
+    },
+    {
+      "name": "@hulumi/policies.github.HulumiGithubHardeningPack",
+      "availability": "Shipped in Hulumi v1.1.0 M3",
+      "rationale": "Declaratively rejects runner-group configurations that loosen the safe default at preview-time."
+    },
+    {
+      "name": "@hulumi/drift.adapters.GithubWebhookFallbackAdapter",
+      "availability": "Shipped in Hulumi v1.1.0 M4",
+      "rationale": "Listens to `member` and `organization` webhook events to detect rogue-runner registrations on non-GHEC tiers; audit-log REST adapter (v1.1+ deferral) gives full fidelity on GHEC."
+    }
+  ]
+}

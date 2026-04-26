@@ -17,6 +17,20 @@
 
 **Target milestone**: v1.1 M1 (treat as a fresh single-milestone runbook `hulumi-github-v1.1-audit-log`).
 
+## D1.5 — Real REST hooks for the Code Security Configurations backend
+
+**Surface**: `packages/baseline/src/github/org-security-defaults.ts` — `CodeSecurityConfigurationsBackend` issues real `POST/PATCH/DELETE` against `/orgs/{org}/code-security/configurations` and `…/{config_id}/attach` via `pulumi.dynamic.Resource` with proper REST hooks.
+
+**Trigger condition**: M2 shipped a thin `pulumi.ComponentResource` placeholder for the CSC backend because `pulumi.dynamic.Resource` triggers `ERR_TRACE_EVENTS_UNAVAILABLE` under vitest's worker pool (the AWS-side documented gotcha). Real REST integration ships once either (a) the dynamic-resource pattern is wired with a vitest-compatible mock fence, or (b) GitHub publishes a first-class `@pulumi/github` resource for Code Security Configurations (currently absent in v6.13.0; tracked upstream in `pulumi/pulumi-github`).
+
+**Acceptance criteria**:
+- Real `pulumi.dynamic.ResourceProvider` create / update / delete hooks issuing REST calls.
+- Errors surface with HTTP status + endpoint (per M2 forbidden shortcut b: never silent fallback to flat-fields).
+- Token-redaction layer (M2 `redactTokens`) applies to error messages.
+- Integration test exercises a real sandbox-org CSC create + attach + destroy round-trip.
+
+**Target milestone**: v1.1 M1 (alongside D1's audit-log adapter, since both rely on REST escape-hatch infrastructure).
+
 ## D2 — `EnterpriseSecurityAnalysisSettings` enforcement (GHEC only)
 
 **Surface**: `@hulumi/baseline.github.OrgFoundation` extension to set `EnterpriseSecurityAnalysisSettings` when tier is GHEC.

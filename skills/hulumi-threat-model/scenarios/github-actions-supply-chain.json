@@ -1,0 +1,89 @@
+{
+  "id": "github-actions-supply-chain",
+  "title": "GitHub Actions supply-chain risk — third-party Action ingestion, SHA-pinning, pwn-request, cache poisoning",
+  "description": "A platform engineer adopts third-party Actions in CI workflows. Recent incidents — trivy-action March 2026 (75/76 tags compromised), tj-actions/changed-files (~23k repos affected), Sysdig Shai-Hulund worm (November 2025), Wiz prt-scan campaign — have all exploited the same primitive: workflows referencing Actions by mutable tag rather than commit SHA, and orgs without an allow-list policy. Hulumi's `OrgFoundation` (M2) ships the SHA-pin-required Actions allowlist policy at startup-hardened tier; M3's `HulumiGithubHardeningPack` enforces this declaratively at preview-time.",
+  "requiredFrameworks": [
+    "CCM",
+    "NIST-SSDF-v1.1",
+    "OpenSSF-Scorecard",
+    "MITRE-ATTCK",
+    "GitHub-Well-Architected",
+    "CIS-GitHub-v1.2.0"
+  ],
+  "actors": [
+    "Platform Engineer (trusted, configures the org-level allowlist)",
+    "Workflow Author (semi-trusted, picks Actions from the allow-listed set)",
+    "Compromised Maintainer of a third-party Action (untrusted, primary attacker)",
+    "AI Coding Agent (trusted, authoring workflows; could be tricked into citing mutable tags)"
+  ],
+  "assets": [
+    "Workflow YAML files referencing third-party Actions",
+    "Organization-level Actions allowlist (`ActionsOrganizationPermissions`)",
+    "Repository secrets accessible to the workflow",
+    "Build artifacts produced by the workflow",
+    "Cache entries in `actions/cache`"
+  ],
+  "stride": [
+    {
+      "type": "T",
+      "name": "Third-party Action repo compromise (trivy-action / tj-actions pattern)",
+      "description": "The maintainer's account is compromised (phishing, credential stuffing, or a separate supply-chain reach); attacker pushes a malicious commit to the Action's source repo and re-tags `v1` to point at it. Workflows referencing the Action by mutable tag pick up the malicious version on the next run. Mitigation: SHA-pin every external Action; org-level `ActionsOrganizationPermissions` policy with `shaPinningRequired: true` at startup-hardened tier.",
+      "controls": [
+        "CCM:DSI-04",
+        "NIST-SSDF-v1.1:PO.3",
+        "OpenSSF-Scorecard:Pinned-Dependencies",
+        "MITRE-ATTCK:T1195",
+        "GitHub-Well-Architected:PW.5"
+      ]
+    },
+    {
+      "type": "S",
+      "name": "Cache poisoning via Action with cache-write capability",
+      "description": "A compromised Action with `actions/cache` write access poisons the cache for a subsequent legitimate run. The legitimate run consumes the poisoned cache and ships compromised artifacts. Mitigation: cache scoping by branch + workflow; scope-limit Actions with cache-write to the minimum branch set.",
+      "controls": [
+        "CCM:DSI-02",
+        "NIST-SSDF-v1.1:PW.6",
+        "MITRE-ATTCK:T1195",
+        "GitHub-Well-Architected:PW.6"
+      ]
+    },
+    {
+      "type": "E",
+      "name": "Pwn-request via PR diff content reaching write context",
+      "description": "A pull-request workflow runs against attacker-controlled PR diff content with `pull_request_target` (which carries the base-repo's secret context). Attacker scripts in the diff exfiltrate secrets to an attacker-controlled endpoint. Mitigation: minimize secret access on PR workflows; ensure `permissions: contents: read` default at workflow level (`OrganizationSettings.defaultWorkflowPermissions`).",
+      "controls": [
+        "CCM:IAM-07",
+        "NIST-SSDF-v1.1:PW.7",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "GitHub-Well-Architected:PS.2"
+      ]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via runner exfil after Action compromise",
+      "description": "A compromised Action running on the org's runner reads environment, secrets, or filesystem state and exfils to an attacker-controlled URL. Step-Security Maintained Actions or octo-sts-style short-lived token exchange limit blast radius.",
+      "controls": [
+        "CCM:DSI-03",
+        "NIST-SSDF-v1.1:PO.5",
+        "MITRE-ATTCK:T1195"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "@hulumi/baseline.github.OrgFoundation",
+      "availability": "Shipped in Hulumi v1.1.0 M2",
+      "rationale": "Provisions the org-level `ActionsOrganizationPermissions` with `shaPinningRequired: true` at startup-hardened tier; configures the Actions allowlist (selectedActionsPatterns)."
+    },
+    {
+      "name": "@hulumi/policies.github.HulumiGithubHardeningPack",
+      "availability": "Shipped in Hulumi v1.1.0 M3",
+      "rationale": "H1 declaratively rejects raw `github.Repository` not wrapped in `SecureRepository`; H2/H3/H4 enforce ruleset, OIDC, and tier-monotonicity invariants."
+    },
+    {
+      "name": "@hulumi/drift.adapters.GithubWebhookFallbackAdapter",
+      "availability": "Shipped in Hulumi v1.1.0 M4",
+      "rationale": "Detects org-level allowlist drift via the `repository_ruleset` and `organization` webhook events; surfaces `tier-degraded` honestly for non-GHEC tiers."
+    }
+  ]
+}

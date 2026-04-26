@@ -1,0 +1,90 @@
+{
+  "id": "github-app-token-exposure",
+  "title": "GitHub App / installation-token exposure — rotation, scope minimization, octo-sts short-lived exchange",
+  "description": "A platform engineer adopts GitHub App authentication for IaC (the recommended Hulumi default for the `pulumi-github` provider). Recent incidents — OpenAI Codex token-stealing branch-name injection (patched February 2026) and the Vercel April 2026 compromise — have demonstrated that App installation tokens with broad org-admin permissions create blast-radius equivalent to (or worse than) classic PATs. Hulumi recommends App tokens scoped to the minimum set of permissions required for IaC, rotated on a deterministic cadence; the `octo-sts/app` operational dependency offers OIDC-exchanged short-lived tokens as a defense-in-depth layer.",
+  "requiredFrameworks": [
+    "CCM",
+    "NIST-SSDF-v1.1",
+    "OpenSSF-Scorecard",
+    "MITRE-ATTCK",
+    "GitHub-Well-Architected",
+    "CIS-GitHub-v1.2.0"
+  ],
+  "actors": [
+    "Platform Engineer (trusted, installs the IaC GitHub App)",
+    "GitHub App Maintainer (trusted; could be compromised — Vercel April 2026 pattern)",
+    "External Attacker (untrusted, exfils a leaked installation token)",
+    "Compromised CI runner (semi-trusted; if a token reaches a runner, it can be re-used elsewhere)"
+  ],
+  "assets": [
+    "GitHub App installation token (short-lived, ~1h TTL by default)",
+    "GitHub App private key (long-lived; manufactures installation tokens)",
+    "App permissions surface (which org-level / repo-level scopes the App has)",
+    "Pulumi state and secrets that the App-authenticated `pulumi up` writes / reads"
+  ],
+  "stride": [
+    {
+      "type": "I",
+      "name": "Installation token leaked via runner logs or stack traces",
+      "description": "The IaC `pulumi up` runs on a CI runner; an error log emits an HTTP error response that includes `Authorization: Bearer ghs_...` echoed back from a 401 response. The CI logs ship to a log-aggregation tier with broader access than the IaC role; an SRE who shouldn't have IaC creds can now confirm the App token's prefix. Mitigation: token-redaction layer in `OrgFoundation`'s audit-event emitter (per Hulumi-for-GitHub critique S2: strip `/ghs_|ghp_|github_pat_|gho_|ghu_|Bearer\\s+\\S+/g` before any audit row is emitted).",
+      "controls": [
+        "CCM:IVS-09",
+        "NIST-SSDF-v1.1:PW.7",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "MITRE-ATTCK:T1195",
+        "GitHub-Well-Architected:RV.1"
+      ]
+    },
+    {
+      "type": "T",
+      "name": "App private-key compromise → arbitrary installation tokens",
+      "description": "The App's private key is exfiltrated (via the Vercel April 2026 pattern: a compromised maintainer or a misconfigured secret store). The attacker manufactures arbitrary installation tokens for any org that has installed the App. Mitigation: store the private key in a hardware-backed KMS; rotate on a deterministic cadence; emit a `security_event.app_private_key_rotation_due` audit row when rotation is overdue.",
+      "controls": [
+        "CCM:CEK-04",
+        "NIST-SSDF-v1.1:PO.5",
+        "GitHub-Well-Architected:PO.5",
+        "MITRE-ATTCK:T1195",
+        "CIS-GitHub-v1.2.0:PENDING-WORKBENCH"
+      ]
+    },
+    {
+      "type": "E",
+      "name": "Over-broad App permissions → privilege escalation on token leak",
+      "description": "The IaC App was installed with `org-admin: write` for convenience (a one-time bootstrap need that became permanent). Any leaked installation token now grants org-admin powers beyond the IaC need. Mitigation: scope-minimize App permissions to the IaC actual use; track the permission set in `OrgFoundationOutputs` and emit drift signals when permissions widen; document `octo-sts/app` as a short-lived-token alternative for elevated-permission operations.",
+      "controls": [
+        "CCM:IAM-07",
+        "NIST-SSDF-v1.1:PO.3",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "GitHub-Well-Architected:PO.3"
+      ]
+    },
+    {
+      "type": "S",
+      "name": "App impersonation via OIDC misconfiguration",
+      "description": "The IaC App's installation token is fetched from a GitHub Actions workflow assuming a cloud role via OIDC. If the OIDC trust policy uses wildcard `sub` (UNC6426 pattern), an attacker-controlled workflow in the same org can mint tokens that look IaC-originated. Mitigation: see `github-oidc-trust-cloud-account` scenario; `G_OIDC_1` enforces three-axis safe `sub` declaratively.",
+      "controls": [
+        "CCM:IAM-10",
+        "NIST-SSDF-v1.1:PO.5",
+        "GitHub-Well-Architected:PO.3",
+        "MITRE-ATTCK:T1195"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "@hulumi/baseline.github.OrgFoundation",
+      "availability": "Shipped in Hulumi v1.1.0 M2",
+      "rationale": "Disables classic-PAT auth at startup-hardened tier (`disableClassicPats: true`); ships token-redaction layer in audit-event emitter (per critique S2)."
+    },
+    {
+      "name": "@hulumi/policies.github.HulumiGithubHardeningPack",
+      "availability": "Shipped in Hulumi v1.1.0 M3",
+      "rationale": "H1–H4 enforce hardened defaults declaratively at preview-time; reject configurations that would broaden App permission scope without an explicit `Suppression` justification."
+    },
+    {
+      "name": "octo-sts/app",
+      "availability": "External operational dependency (Chainguard, Apache-2.0)",
+      "rationale": "STS-style OIDC token exchange replaces classic PATs and long-lived installation tokens with short-lived tokens. Recommended companion auth pattern; do not vendor."
+    }
+  ]
+}

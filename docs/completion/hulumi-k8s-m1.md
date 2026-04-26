@@ -51,14 +51,14 @@ Total: **27 tests passing** in the new package; 0 failures; 0 skipped.
 
 ## Repo-wide regression sweep
 
-| Check | Result |
-| --- | --- |
-| `pnpm -r build` | green (4 packages: baseline, drift, k8s-baseline, policies) |
-| `pnpm -r test` | green (10 workspace projects, 0 failures) |
-| `pnpm -r typecheck` | green |
-| `pnpm -r lint` | green |
-| `pnpm run lint:license-boundary` | OK |
-| `pnpm run lint:exact-pin-guard` | OK (5 `@pulumi/*` deps match pinned hashes) |
+| Check                            | Result                                                      |
+| -------------------------------- | ----------------------------------------------------------- |
+| `pnpm -r build`                  | green (4 packages: baseline, drift, k8s-baseline, policies) |
+| `pnpm -r test`                   | green (10 workspace projects, 0 failures)                   |
+| `pnpm -r typecheck`              | green                                                       |
+| `pnpm -r lint`                   | green                                                       |
+| `pnpm run lint:license-boundary` | OK                                                          |
+| `pnpm run lint:exact-pin-guard`  | OK (5 `@pulumi/*` deps match pinned hashes)                 |
 
 ## Issues closed / progressed
 

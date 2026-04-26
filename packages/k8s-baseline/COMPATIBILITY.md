@@ -6,9 +6,9 @@ When `HardenedHelmRelease` (or any Hulumi K8s component installing a Helm chart)
 
 When this list is updated, update `src/compatibility.ts` in lockstep.
 
-| Chart                  | Repository                                            | Tested versions | Last verified | Notes                                               |
-| ---------------------- | ----------------------------------------------------- | --------------- | ------------- | --------------------------------------------------- |
-| _none yet at M1_       | _per-chart entries land in M2 with `IstioFoundation`_ | _—_             | _—_           | M1 ships the wrapper + warn machinery only.         |
+| Chart            | Repository                                            | Tested versions | Last verified | Notes                                       |
+| ---------------- | ----------------------------------------------------- | --------------- | ------------- | ------------------------------------------- |
+| _none yet at M1_ | _per-chart entries land in M2 with `IstioFoundation`_ | _—_             | _—_           | M1 ships the wrapper + warn machinery only. |
 
 ## How to add a chart entry
 

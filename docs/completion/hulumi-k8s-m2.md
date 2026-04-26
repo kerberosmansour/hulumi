@@ -25,14 +25,14 @@ Total: **41 tests passing** in the K8s package; 0 failures; 0 skipped.
 
 ## Repo-wide regression sweep
 
-| Check | Result |
-| --- | --- |
-| `pnpm -r build` | green (4 packages) |
-| `pnpm -r test` | green (10 workspace projects, 41 K8s tests + existing AWS/GitHub/policies/drift suites) |
-| `pnpm -r typecheck` | green |
-| `pnpm -r lint` | green |
-| `pnpm run lint:license-boundary` | OK |
-| `pnpm run lint:exact-pin-guard` | OK |
+| Check                            | Result                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------- |
+| `pnpm -r build`                  | green (4 packages)                                                                      |
+| `pnpm -r test`                   | green (10 workspace projects, 41 K8s tests + existing AWS/GitHub/policies/drift suites) |
+| `pnpm -r typecheck`              | green                                                                                   |
+| `pnpm -r lint`                   | green                                                                                   |
+| `pnpm run lint:license-boundary` | OK                                                                                      |
+| `pnpm run lint:exact-pin-guard`  | OK                                                                                      |
 
 ## Issues closed / progressed
 

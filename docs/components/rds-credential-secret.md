@@ -9,14 +9,14 @@ description: Convenience wrapper on KubernetesSecretFromAwsSecretsManager shaped
 
 Default key mapping (load-bearing — renaming any breaks consumer apps):
 
-| SM JSON key             | K8s Secret data key     |
-| ----------------------- | ----------------------- |
-| `username`              | `username`              |
-| `password`              | `password`              |
-| `host`                  | `host`                  |
-| `port`                  | `port`                  |
-| `engine`                | `engine`                |
-| `dbClusterIdentifier`   | `dbClusterIdentifier`   |
+| SM JSON key           | K8s Secret data key   |
+| --------------------- | --------------------- |
+| `username`            | `username`            |
+| `password`            | `password`            |
+| `host`                | `host`                |
+| `port`                | `port`                |
+| `engine`              | `engine`              |
+| `dbClusterIdentifier` | `dbClusterIdentifier` |
 
 Override via the optional `keyMapping` arg (e.g., `{ password: "DB_PASSWORD" }`). Override is _additive_ — supplied keys override defaults; unsupplied defaults remain.
 

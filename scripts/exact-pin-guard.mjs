@@ -48,6 +48,25 @@ const ALLOWED = [
     integrity:
       "sha512-VoQEHG7oAm7IWGwNCOKZl0FELTch9gtOBbyMLRHZgPIwyF+xxXwXomnEyAkell/PzfjuHl9HYZeOQPMS9doUaw==",
   },
+  // Added in Hulumi v1.2.0 M1 (Hulumi-for-K8s runbook). Mandatory baseline for
+  // HardenedHelmRelease (M1) + IstioFoundation (M2) + every K8s-side component.
+  // Bumps subject to the same cooling-off gate as the rest.
+  {
+    name: "@pulumi/kubernetes",
+    version: "4.30.0",
+    integrity:
+      "sha512-ZCS4HwBvcxfdPDw44L1/SCqoIttCVugx/FZzqRFRq+leKRIfigAYt4sILXlqulNtX6XjlWVzZO8zva3Ygk7hGA==",
+  },
+  // Added in Hulumi v1.2.0 M4 (Hulumi-for-K8s runbook). Runtime dep of
+  // KubernetesSecretFromAwsSecretsManager + RdsCredentialSecret. Treated as a
+  // pinned dep even though it's an @aws-sdk/* (not @pulumi/*) because its
+  // integrity hash is part of the supply-chain story for the K8s package.
+  {
+    name: "@aws-sdk/client-secrets-manager",
+    version: "3.1037.0",
+    integrity:
+      "sha512-SBXVNgXdzFeiuUod1AZXJexTDndPcpSTGOrVDe5Ny81Xq7d3r18th7ZTzvnc7BsD9MQa8SckNgOYscvi/fYZhw==",
+  },
 ];
 
 function resolveFromLockfile(lock, name, version) {

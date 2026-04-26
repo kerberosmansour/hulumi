@@ -19,8 +19,11 @@ export interface OrgFoundationOutputs {
   oidcTemplateId: pulumi.Output<string>;
   securityDefaults: pulumi.Output<SecurityDefaultsOutput>;
   /**
-   * Comma-joined `hulumi:controls` tag value — added in M3 (2026-04-26)
-   * as the staged-migration completion. Contents are the union of
+   * `hulumi:controls` value — added in M3 (2026-04-26) as the
+   * staged-migration completion. Surfaced as an array (not a joined
+   * string) so consumers don't depend on a separator convention; the
+   * AWS-side tag-value form joins with `+` (per #36 — S3 tag values
+   * disallow `,`). Contents are the union of
    * `cisGithub.{orgFoundation,orgRulesets,orgActions,orgOidcTemplate,orgSecurityDefaults}`
    * and `nistSsdfV11.{...}` from the mapping tables (no hand-edited IDs).
    * Consumers (M5 cookbooks, audit-trail tooling) can read this output to

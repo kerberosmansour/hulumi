@@ -50,9 +50,12 @@ function buildDescription(
       "hulumi:component=SecureRepository",
       `hulumi:tier=${tier}`,
       // hulumi:controls added in M3 (2026-04-26) — the staged-migration
-      // completion. Value is the comma-separated mapping union so the
-      // citation-ID validation meta-test can cross-check.
-      `hulumi:controls=${CONTROLS_CLAIMED_BY_SECURE_REPOSITORY.join(",")}`,
+      // completion. Joined with `+` to match the AWS-side separator
+      // convention (per #36 fix — AWS S3 tag values disallow `,`; GitHub
+      // descriptions accept commas but Hulumi uses `+` uniformly so log
+      // parsers / mapping cross-checks can use one separator across the
+      // entire fleet).
+      `hulumi:controls=${CONTROLS_CLAIMED_BY_SECURE_REPOSITORY.join("+")}`,
     ];
     if (publicJustification !== undefined) {
       // The justification value is sanitized to avoid breaking the

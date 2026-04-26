@@ -186,7 +186,8 @@ describe("SecureBucket — tags emitted on all sub-resources (compatibility)", (
     expect(tags["hulumi:component"]).toBe("SecureBucket");
     expect(tags["hulumi:tier"]).toBe("startup-hardened");
     expect(tags["hulumi:controls"]).toBeDefined();
-    const controlCount = tags["hulumi:controls"].split(",").filter((s) => s.length > 0).length;
+    // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
+    const controlCount = tags["hulumi:controls"].split("+").filter((s) => s.length > 0).length;
     expect(controlCount).toBeGreaterThanOrEqual(5);
   });
 });

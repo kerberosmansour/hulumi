@@ -1,6 +1,6 @@
 # Hulumi
 
-> Hardened-by-default AWS infrastructure-as-code for Pulumi. Apache-2.0. v1.0.0.
+> Hardened-by-default AWS + GitHub infrastructure-as-code for Pulumi. Apache-2.0. v1.1.0.
 
 ## What is Hulumi?
 
@@ -41,14 +41,16 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Are wiring drift detection into CI                                 | [Drift detection cookbook](./docs/cookbooks/drift-detection.md)     |
 | Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                          |
 
-## What's in the box (v1.0.0)
+## What's in the box (v1.1.0)
 
-| Package                                  | What it gives you                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `@hulumi/baseline`                       | `SecureBucket` + `AccountFoundation` — Sandbox / Startup-Hardened tiers, hardened defaults. |
-| `@hulumi/policies`                       | `HulumiHardeningPack` (H1–H4) + full `CisV5Pack` sections 1–3 + `Suppression` API.          |
-| `@hulumi/drift`                          | `DriftClassifier` with 4 pluggable adapters; verdict matrix mirrors TLA+ spec exactly.      |
-| `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios; writes a structured, citation-only threat-model markdown.         |
+| Package                                  | What it gives you                                                                                                                                  |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub** (new in v1.1): `SecureRepository` (with `acknowledgePublic` opt-in) + `OrgFoundation` (with switchable Code Security Configurations backend). Sandbox / Startup-Hardened tiers throughout. |
+| `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H4) + `CisV5Pack` sections 1–3. **GitHub** (new in v1.1): `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack` (placeholder pending CIS WorkBench access). `Suppression` API.                            |
+| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors TLA+ spec exactly. v1.1 adds `tierDegraded` + `featureNotLicensed` non-suppressible verdict fields. Cache schema v2 with explicit migration. |
+| `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios + 4 prebuilt GitHub scenarios (v1.1: OIDC trust, Actions supply-chain, App tokens, self-hosted runners). Citation-only threat-model markdown.                                                                                |
+
+For the GitHub variant: see [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md), [`docs/cookbooks/github-webhook-drift.md`](./docs/cookbooks/github-webhook-drift.md), and [`examples/secure-repository-smoke/`](./examples/secure-repository-smoke/) for the wedge surface. The Hulumi-for-GitHub project lives under a hard infra-only scope contract — see Global Execution Rule 0 in the runbook for the boundary.
 
 The full v1.0 changelog lives in [CHANGELOG.md](./CHANGELOG.md). Every published tarball ships with SLSA Build L3 provenance — see [verify-provenance.md](./docs/cookbooks/verify-provenance.md).
 

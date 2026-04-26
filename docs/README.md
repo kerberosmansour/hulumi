@@ -48,6 +48,13 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 - [Lessons learned](./lessons/) — per-milestone notes capturing design decisions and surprises.
 - [Launch artifacts](./launch/) — outreach drafts, blog pitches, CFP submissions.
 
+## Papers
+
+Two formats of the same material on the drift classifier. Pick whichever fits how you want to read it.
+
+- [Drift detection that actually tells you what happened](./papers/drift-detection-narrative.md) — narrative tour. Reads start-to-finish; uses analogies; explains the verdict matrix, the TLA+ verification, the probe, and the guardrails by building intuition first. Good as a blog draft, a handout, or a reading list entry.
+- [TLA+-Verified Drift Detection for Pulumi](./papers/drift-detection.md) — reference paper. Same content in dense citation form with code-line links, file paths, and a §-by-§ index. Good when you want to point at a specific test or trace a property to its source.
+
 ## Conventions used in these docs
 
 - **IDs only.** Every reference to CCM, AICM, CIS, CAIQ, NIST, or ATLAS controls is by ID with a link to the upstream. We never embed verbatim control text in `skills/` or `packages/` source. See [licensing.md](./mappings/licensing.md) for the rationale.

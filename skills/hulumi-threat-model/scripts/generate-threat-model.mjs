@@ -70,6 +70,43 @@ const BUNDLED_STUBS = {
     defaultUrl: "https://atlas.mitre.org/",
     ids: {},
   },
+  // GitHub-specific framework prefixes added in v1.1 M1 (Hulumi-for-GitHub,
+  // 2026-04-26). Full ID tables (cis-github.ts + nist-ssdf-v1.1.ts) ship in
+  // M3 of the same runbook per the staged-migration discipline; the
+  // bundled-stub defaultUrl entries here let the four GitHub scenarios cite
+  // these framework prefixes without fabricating IDs. License-boundary lint
+  // continues to enforce the IDs-only-and-no-verbatim-prose rule against
+  // the eventual mapping files.
+  "CIS-GitHub-v1.2.0": {
+    // CIS GitHub Benchmark v1.2.0 (March 2026 cohort). Section numbering is
+    // gated behind CIS WorkBench member access — citations here use the
+    // benchmark-level URL until M3 lands the WorkBench-resolved IDs.
+    defaultUrl: "https://www.cisecurity.org/benchmark/github",
+    ids: {},
+  },
+  "NIST-SSDF-v1.1": {
+    // NIST SSDF v1.1 (SP 800-218 final, 2022-02-03). v1.2 IPD remains in
+    // public draft as of 2026-04-26; v1.1 is the safe binding target.
+    defaultUrl: "https://csrc.nist.gov/pubs/sp/800/218/final",
+    ids: {},
+  },
+  "OpenSSF-Scorecard": {
+    defaultUrl: "https://scorecard.dev/",
+    ids: {},
+  },
+  // MITRE ATT&CK is parsed before the colon. The canonical project name uses
+  // an ampersand which markdown table parsing tolerates poorly; the framework
+  // identifier is a stable string with no metacharacters: "MITRE-ATTCK".
+  "MITRE-ATTCK": {
+    defaultUrl: "https://attack.mitre.org/techniques/T1195/",
+    ids: {},
+  },
+  "GitHub-Well-Architected": {
+    // GitHub's Well-Architected SSDF mapping — the cleanest infra-vs-workflow
+    // split available for the GitHub IaC surface.
+    defaultUrl: "https://wellarchitected.github.com/library/scenarios/nist-ssdf-implementation/",
+    ids: {},
+  },
 };
 
 // ---- Types (JSDoc) -------------------------------------------------------

@@ -1,0 +1,13 @@
+name: hulumi-secure-repository-smoke
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+    typescriptOptions:
+      target: es2022
+description: >
+  Hulumi-for-GitHub v1.1 smoke example — provisions one Sandbox-tier and one
+  Startup-Hardened-tier SecureRepository against a sandbox GitHub org.
+config:
+  hulumi-secure-repository-smoke:org:
+    description: GitHub org slug to provision repos under

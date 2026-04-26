@@ -15,10 +15,29 @@ import { dirname, join } from "node:path";
 
 import type { DriftVerdict } from "./types";
 
-export const CACHE_SCHEMA_VERSION = 1 as const;
+// v1 → v2 schema bump in v1.1.0 M4 (Hulumi-for-GitHub, 2026-04-26).
+// v2 envelope adds an optional `githubWebhookCache` field for the M4
+// webhook-fallback adapter's idempotency cache. Migration runs on first
+// read of a v1 file; backed-up v1 file is preserved at `<cache>.v1.backup`
+// for one rotation. `migrateV1ToV2` is the atomic entry point — never
+// v2-write before backup-write.
+export const CACHE_SCHEMA_VERSION = 2 as const;
+export const CACHE_SCHEMA_V1_LEGACY = 1 as const;
 
 export interface CacheEnvelope {
   schemaVersion: typeof CACHE_SCHEMA_VERSION;
+  writtenAt: string;
+  verdict: DriftVerdict;
+  /** Added in v2; opaque to the cache module — owned by the GitHub adapter. */
+  githubWebhookCache?: Record<string, { ingestedAt: string }>;
+}
+
+/**
+ * Legacy v1 envelope shape, kept for migration only. Tests that seed a v1
+ * file should use this type to construct the seed.
+ */
+export interface CacheEnvelopeV1 {
+  schemaVersion: typeof CACHE_SCHEMA_V1_LEGACY;
   writtenAt: string;
   verdict: DriftVerdict;
 }
@@ -86,4 +105,58 @@ export async function invalidateCache(path: string): Promise<void> {
   } catch {
     // missing → fine
   }
+}
+
+/**
+ * Migrate a v1 cache file to v2 in-place. Atomic write order:
+ *   1. read v1 file
+ *   2. write `<path>.v1.backup` preserving original bytes
+ *   3. construct v2 envelope (adds optional `githubWebhookCache: {}`)
+ *   4. atomic write to `<path>` with mode 0o600
+ *
+ * Failure modes are loud — malformed v1 files fail with a clear message
+ * and no v2 file is written (so subsequent reads still see the v1 input
+ * and the migration can be retried after the operator inspects the
+ * malformed file).
+ *
+ * Per critique S5 + M4 design rule: never v2-write before backup-write.
+ */
+export async function migrateV1ToV2(path: string): Promise<void> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(path, "utf8");
+  } catch {
+    throw new Error(`migrateV1ToV2: cannot read v1 cache file at ${path}`);
+  }
+  let parsed: CacheEnvelopeV1;
+  try {
+    parsed = JSON.parse(raw) as CacheEnvelopeV1;
+  } catch (err) {
+    throw new Error(
+      `migrateV1ToV2: cannot parse v1 cache file at ${path}: ${String(err)}; original file untouched`,
+    );
+  }
+  if (parsed.schemaVersion !== CACHE_SCHEMA_V1_LEGACY) {
+    throw new Error(
+      `migrateV1ToV2: unexpected schemaVersion ${String(parsed.schemaVersion)} at ${path}; expected v1=${CACHE_SCHEMA_V1_LEGACY}`,
+    );
+  }
+  // Step 1 of the atomic order: backup-then-v2-write. The backup is the
+  // raw bytes (preserves any whitespace / formatting) so the operator
+  // can diff vs the v2 product if anything looks wrong.
+  const backupPath = `${path}.v1.backup`;
+  const backupFh = await fs.open(backupPath, "w", 0o600);
+  try {
+    await backupFh.writeFile(raw);
+    await backupFh.chmod(0o600);
+  } finally {
+    await backupFh.close();
+  }
+  const v2: CacheEnvelope = {
+    schemaVersion: CACHE_SCHEMA_VERSION,
+    writtenAt: parsed.writtenAt,
+    verdict: parsed.verdict,
+    githubWebhookCache: {},
+  };
+  await writeCache(path, v2);
 }

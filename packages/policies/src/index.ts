@@ -47,3 +47,9 @@ export type { PackMetadata, RuleMetadata, Severity, EnforcementLevel } from "./m
 
 export type { Suppression, SuppressionMatch } from "./aws/suppressions";
 export { matchSuppression } from "./aws/suppressions";
+
+// GitHub-side rule + pack module — added in v1.1.0 M3 (2026-04-26).
+// PolicyPack instances live at:
+//   - @hulumi/policies/github/packs/hulumi-hardening
+//   - @hulumi/policies/github/packs/cis-v1
+export * as github from "./github";

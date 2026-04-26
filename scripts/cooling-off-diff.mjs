@@ -12,7 +12,10 @@
 
 import { readFileSync } from "node:fs";
 
-const PULUMI_PACKAGES = ["@pulumi/pulumi", "@pulumi/aws", "@pulumi/policy"];
+// @pulumi/github added in Hulumi v1.1.0 M1 (Hulumi-for-GitHub, 2026-04-26).
+// Bumps go through the same 72h/24h cooling-off gate as the other @pulumi/*
+// deps so a blind `pnpm update` still requires a deliberate review.
+const PULUMI_PACKAGES = ["@pulumi/pulumi", "@pulumi/aws", "@pulumi/policy", "@pulumi/github"];
 const COOLING_OFF_MS = {
   major: 72 * 60 * 60 * 1000,
   minor: 72 * 60 * 60 * 1000,

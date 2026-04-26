@@ -99,11 +99,36 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@20.19.39)
 
+  examples/secure-repository-smoke:
+    dependencies:
+      '@hulumi/baseline':
+        specifier: workspace:*
+        version: link:../../packages/baseline
+      '@pulumi/github':
+        specifier: 6.13.0
+        version: 6.13.0(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.39
+        version: 20.19.39
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
+
   packages/baseline:
     devDependencies:
       '@pulumi/aws':
         specifier: 7.27.0
         version: 7.27.0(typescript@5.9.3)
+      '@pulumi/github':
+        specifier: 6.13.0
+        version: 6.13.0(typescript@5.9.3)
       '@pulumi/pulumi':
         specifier: 3.232.0
         version: 3.232.0(typescript@5.9.3)
@@ -893,6 +918,9 @@ packages:
 
   '@pulumi/aws@7.27.0':
     resolution: {integrity: sha512-I3zArWb8F8QVfcWhBBW8h4dB1Omb823G3H2Ej66t0PFyfUHC7t79MDlG0UvoaZqrmXkDG7nFVFB4xdQTZ62R6w==}
+
+  '@pulumi/github@6.13.0':
+    resolution: {integrity: sha512-VoQEHG7oAm7IWGwNCOKZl0FELTch9gtOBbyMLRHZgPIwyF+xxXwXomnEyAkell/PzfjuHl9HYZeOQPMS9doUaw==}
 
   '@pulumi/policy@1.20.0':
     resolution: {integrity: sha512-XglLDdJg1CfxuZ0Lvxzm9mo5YInwwwkVWE6z6tjWCCj1c96eNzaQRoVF4+P9ToQ3fSTk+G00iZdgXY9hpg9Qgw==}
@@ -3547,6 +3575,14 @@ snapshots:
     dependencies:
       '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
       mime: 2.6.0
+    transitivePeerDependencies:
+      - supports-color
+      - ts-node
+      - typescript
+
+  '@pulumi/github@6.13.0(typescript@5.9.3)':
+    dependencies:
+      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - ts-node

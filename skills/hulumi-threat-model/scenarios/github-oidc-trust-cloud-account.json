@@ -1,0 +1,90 @@
+{
+  "id": "github-oidc-trust-cloud-account",
+  "title": "GitHub Actions OIDC trust to a cloud account — three-axis sub claim, UNC6426 mitigation",
+  "description": "A platform engineer wires GitHub Actions to assume a role in AWS / Azure / GCP via OIDC federation. The cloud-side trust policy must validate the GitHub-issued token's `sub` claim against a three-axis shape (`repo:{org}/{repo}:job_workflow_ref:{org}/{repo}/.github/workflows/{workflow}@{ref}:environment:{environment}`). UNC6426 (March 2026, ~500 vulnerable role ARNs across 275 AWS accounts per CSA Labs / Unit 42 OH-MY-DC analyses) weaponized exactly the wildcard `repo:{org}/{repo}:*` shape that Pulumi's GitHub provider accepts as default. Hulumi's `OrgFoundation` (M2) ships the safe template; the M3 `G_OIDC_1` policy declaratively rejects `StringLike` / wildcard `sub` conditions on AWS / Azure / GCP trust policies.",
+  "requiredFrameworks": [
+    "CCM",
+    "NIST-SSDF-v1.1",
+    "OpenSSF-Scorecard",
+    "MITRE-ATTCK",
+    "GitHub-Well-Architected",
+    "CIS-GitHub-v1.2.0"
+  ],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, authoring IaC via Claude Code)",
+    "External Attacker controlling a fork or a separate repo in the same org",
+    "Compromised third-party Action (semi-trusted, via supply-chain compromise)"
+  ],
+  "assets": [
+    "GitHub Actions OIDC issuer URL (token.actions.githubusercontent.com)",
+    "Cloud-side IAM role assumed by the workflow",
+    "`sub` claim shape in the cloud trust policy",
+    "`ActionsOrganizationOidcSubjectClaimCustomizationTemplate` (org-level IaC)",
+    "Production cloud resources downstream of the assumed role"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "OIDC sub-claim wildcard impersonation (UNC6426)",
+      "description": "An attacker who can run any workflow in the same org (e.g. via a fork or a dev repo) requests an OIDC token; the cloud trust policy uses `StringLike` on `sub` with wildcard `repo:{org}/{repo}:*`; the attacker's token is accepted and the role is assumed. Mitigation: Hulumi's `G_OIDC_1` policy rejects `StringLike` and any `*` in the `sub` axis on AWS / Azure / GCP at preview-time; `OrgFoundation` ships the three-axis safe default for the GitHub-side `ActionsOrganizationOidcSubjectClaimCustomizationTemplate`.",
+      "controls": [
+        "CCM:IAM-10",
+        "NIST-SSDF-v1.1:PO.5",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "MITRE-ATTCK:T1195",
+        "GitHub-Well-Architected:PO.3"
+      ]
+    },
+    {
+      "type": "T",
+      "name": "Trust policy tampering via console",
+      "description": "An admin clicks in the AWS / Azure / GCP console and broadens the OIDC trust policy's `sub` condition for a one-off use case, leaving the broadened condition in place after the use case closes. Drift detection (M4 webhook fallback adapter) cannot see cloud-side changes; the cloud-side IaC tag (`hulumi:iac-role=true`) carries forward. Mitigation: `G_OIDC_1` re-evaluates the trust policy on every `pulumi up`; cloud-side audit log cross-check against the Hulumi-managed expected shape.",
+      "controls": [
+        "CCM:IAM-06",
+        "NIST-SSDF-v1.1:PW.7",
+        "GitHub-Well-Architected:RV.1",
+        "CIS-GitHub-v1.2.0:PENDING-WORKBENCH"
+      ]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via over-scoped role",
+      "description": "The role assumed by the GitHub Actions workflow has broader permissions than the workflow needs (e.g. read-only on a PR-validation workflow but the role allows writes). A pwn-request-style exploit (compromised PR diff) gains write capability beyond the workflow author's intent.",
+      "controls": [
+        "CCM:IAM-07",
+        "NIST-SSDF-v1.1:PO.3",
+        "OpenSSF-Scorecard:Token-Permissions",
+        "GitHub-Well-Architected:PW.5"
+      ]
+    },
+    {
+      "type": "E",
+      "name": "Privilege escalation via job_workflow_ref spoofing",
+      "description": "An attacker triggers a reusable workflow in a sibling repo whose `job_workflow_ref` matches what the trust policy permits, but the calling repo is not the intended one. Without an `environment` axis, the trust policy cannot distinguish prod-deploy from non-prod-deploy callers. Mitigation: include `environment` in the `sub` axis; require explicit `environment: prod` on prod-deploy workflows; AWS `StringEquals` (not `StringLike`) on the full three-axis string.",
+      "controls": [
+        "CCM:IAM-10",
+        "NIST-SSDF-v1.1:PO.5",
+        "GitHub-Well-Architected:PO.3",
+        "MITRE-ATTCK:T1195"
+      ]
+    }
+  ],
+  "recommendedComponents": [
+    {
+      "name": "@hulumi/baseline.github.OrgFoundation",
+      "availability": "Shipped in Hulumi v1.1.0 M2",
+      "rationale": "Ships the GitHub-side `ActionsOrganizationOidcSubjectClaimCustomizationTemplate` with the three-axis safe default. Runtime rejects custom templates containing `*`."
+    },
+    {
+      "name": "@hulumi/policies.github.G_OIDC_1",
+      "availability": "Shipped in Hulumi v1.1.0 M3",
+      "rationale": "Declarative CrossGuard rule rejecting `StringLike` / wildcard `sub` conditions on AWS / Azure / GCP trust policies at preview-time. Covers AWS IAM, Azure Workload Identity Federation, and GCP Workload Identity Federation."
+    },
+    {
+      "name": "@hulumi/baseline.aws.AccountFoundation",
+      "availability": "Shipped in Hulumi v1.0.0 M3",
+      "rationale": "Provides the cloud-side IAM role tagged `hulumi:iac-role=true` so audit logs distinguish IaC-originated assumes from console break-glass."
+    }
+  ]
+}

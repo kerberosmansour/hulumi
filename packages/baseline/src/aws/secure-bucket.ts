@@ -20,7 +20,9 @@ function buildTags(tier: Tier): Record<string, string> {
   return {
     "hulumi:component": "SecureBucket",
     "hulumi:tier": tier,
-    "hulumi:controls": CONTROLS_CLAIMED_BY_SECURE_BUCKET.join(","),
+    // S3 tag values disallow `,` — use `+` per the AWS-allowed charset
+    // (letters, numbers, spaces, `+ - = . _ : / @`). Fixes #36.
+    "hulumi:controls": CONTROLS_CLAIMED_BY_SECURE_BUCKET.join("+"),
   };
 }
 

@@ -38,6 +38,16 @@ const ALLOWED = [
     integrity:
       "sha512-XglLDdJg1CfxuZ0Lvxzm9mo5YInwwwkVWE6z6tjWCCj1c96eNzaQRoVF4+P9ToQ3fSTk+G00iZdgXY9hpg9Qgw==",
   },
+  // Added in Hulumi v1.1.0 M1 (Hulumi-for-GitHub runbook, 2026-04-26).
+  // Mandatory baseline for SecureRepository (M1) + OrgFoundation (M2) + the
+  // GitHub-side surface generally. Bumps must run through the cooling-off
+  // gate the same way @pulumi/aws bumps do.
+  {
+    name: "@pulumi/github",
+    version: "6.13.0",
+    integrity:
+      "sha512-VoQEHG7oAm7IWGwNCOKZl0FELTch9gtOBbyMLRHZgPIwyF+xxXwXomnEyAkell/PzfjuHl9HYZeOQPMS9doUaw==",
+  },
 ];
 
 function resolveFromLockfile(lock, name, version) {

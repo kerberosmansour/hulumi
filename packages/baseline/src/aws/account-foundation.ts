@@ -48,7 +48,10 @@ function buildTags(tier: AccountFoundationArgs["tier"]): Record<string, string> 
   return {
     "hulumi:component": "AccountFoundation",
     "hulumi:tier": tier,
-    "hulumi:controls": ACCOUNT_FOUNDATION_CONTROLS.join(","),
+    // S3 tag values (and several other AWS resource-tag charsets) disallow
+    // `,` — use `+` per the AWS-allowed charset (letters, numbers, spaces,
+    // `+ - = . _ : / @`). Fixes #36.
+    "hulumi:controls": ACCOUNT_FOUNDATION_CONTROLS.join("+"),
   };
 }
 

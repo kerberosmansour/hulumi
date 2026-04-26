@@ -1,0 +1,21 @@
+{
+  "name": "@hulumi/example-secure-repository-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Smoke-test example: provision one SecureRepository against a sandbox GitHub org. Mirrors the AWS-side example shape; gated on env vars so it skips cleanly without sandbox creds.",
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hulumi/baseline": "workspace:*",
+    "@pulumi/github": "6.13.0",
+    "@pulumi/pulumi": "3.232.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.39",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}

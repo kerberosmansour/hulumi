@@ -223,7 +223,8 @@ describe("AccountFoundation — tags emitted on every taggable sub-resource", ()
       const tags = r.inputs.tags as Record<string, string> | undefined;
       expect(tags?.["hulumi:component"]).toBe("AccountFoundation");
       expect(tags?.["hulumi:tier"]).toBe("startup-hardened");
-      const controls = tags?.["hulumi:controls"]?.split(",") ?? [];
+      // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
+      const controls = tags?.["hulumi:controls"]?.split("+") ?? [];
       expect(controls.length).toBeGreaterThanOrEqual(5);
     }
   });

@@ -35,6 +35,22 @@ export interface DriftVerdict {
   confidence: Confidence;
   evidence: Evidence[];
   recommendation?: RemediationHint;
+  /**
+   * Added in v1.1.0 M4 (Hulumi-for-GitHub). True when the GitHub plan
+   * tier (Team / Pro / Free non-GHEC) prevents full audit-log fidelity
+   * — the GithubWebhookFallbackAdapter's output is push-model webhook
+   * coverage, NOT REST audit-log polling. Distinct from Hulumi's `Tier`
+   * enum (`sandbox` / `startup-hardened`). Non-suppressible: there is no
+   * API flag to hide this when the underlying adapter signals it.
+   */
+  tierDegraded?: boolean;
+  /**
+   * Added in v1.1.0 M4. Listed feature names the underlying GitHub plan
+   * does NOT license; the adapter cannot observe drift for those
+   * features. Examples: `["code_scanning_alert"]` for repos without GHAS.
+   * Non-suppressible.
+   */
+  featureNotLicensed?: string[];
 }
 
 export interface AdapterSignal {

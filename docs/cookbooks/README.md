@@ -11,14 +11,15 @@ If you're brand new, start with the [Getting Started walkthrough](../getting-sta
 
 ## Index
 
-| Recipe                                                                           | Status  | When to reach for it                                                                 |
-| -------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------ |
-| [Bootstrap a new AWS account](./account-bootstrap.md)                            | shipped | Day-zero baseline for a fresh AWS account or sandbox.                                |
-| [Wire drift detection into CI](./drift-detection.md)                             | shipped | You want a verdict on whether last night's diff is console drift or provider churn.  |
-| [Roll out the Hulumi policy pack to an existing stack](./policy-pack-rollout.md) | shipped | You haven't migrated to `SecureBucket` yet but want the safety net today.            |
-| [Threat-model an AWS scenario before writing IaC](./threat-modeling.md)          | shipped | You're about to write infra and want a structured controls-aligned design doc first. |
-| [Verify SLSA provenance on a `@hulumi/*` tarball](./verify-provenance.md)        | shipped | Your supply-chain policy requires provenance verification before install.            |
-| [Suppress a CrossGuard violation, on purpose](./suppressions.md)                 | shipped | You have a justified exception and need to document it without disabling the rule.   |
+| Recipe                                                                           | Status  | When to reach for it                                                                                                  |
+| -------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| [Bootstrap a new AWS account](./account-bootstrap.md)                            | shipped | Day-zero baseline for a fresh AWS account or sandbox.                                                                 |
+| [Wire drift detection into CI](./drift-detection.md)                             | shipped | You want a verdict on whether last night's diff is console drift or provider churn.                                   |
+| [Roll out the Hulumi policy pack to an existing stack](./policy-pack-rollout.md) | shipped | You haven't migrated to `SecureBucket` yet but want the safety net today.                                             |
+| [Threat-model an AWS scenario before writing IaC](./threat-modeling.md)          | shipped | You're about to write infra and want a structured controls-aligned design doc first.                                  |
+| [Verify SLSA provenance on a `@hulumi/*` tarball](./verify-provenance.md)        | shipped | Your supply-chain policy requires provenance verification before install.                                             |
+| [Suppress a CrossGuard violation, on purpose](./suppressions.md)                 | shipped | You have a justified exception and need to document it without disabling the rule.                                    |
+| [Run Istio sidecars under PSA "baseline"](./psa-baseline-istio-sidecar.md)       | shipped | You hit `non-default capabilities (container "istio-init" must not include "NET_ADMIN")` on a PSA-baseline namespace. |
 
 ## Recipe template
 

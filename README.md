@@ -48,6 +48,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub** (new in v1.1): `SecureRepository` (with `acknowledgePublic` opt-in) + `OrgFoundation` (with switchable Code Security Configurations backend). Sandbox / Startup-Hardened tiers throughout. |
 | `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H4) + `CisV5Pack` sections 1–3. **GitHub** (new in v1.1): `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack` (placeholder pending CIS WorkBench access). `Suppression` API.                            |
 | `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors TLA+ spec exactly. v1.1 adds `tierDegraded` + `featureNotLicensed` non-suppressible verdict fields. Cache schema v2 with explicit migration. |
+| `@hulumi/k8s-baseline` (pre-release)     | **Kubernetes / EKS**: `HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`. Ships with the same SLSA Build L3 attestation path as the other three packages. Currently `1.0.0-pre.1`; first stable release lands with the v1.2 train. |
 | `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios + 4 prebuilt GitHub scenarios (v1.1: OIDC trust, Actions supply-chain, App tokens, self-hosted runners). Citation-only threat-model markdown.                                                                                |
 
 For the GitHub variant: see [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md), [`docs/cookbooks/github-webhook-drift.md`](./docs/cookbooks/github-webhook-drift.md), and [`examples/secure-repository-smoke/`](./examples/secure-repository-smoke/) for the wedge surface. The Hulumi-for-GitHub project lives under a hard infra-only scope contract — see Global Execution Rule 0 in the runbook for the boundary.
@@ -77,6 +78,8 @@ pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
 # Optional, recommended:
 pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
 pnpm add @hulumi/drift   # if you want the drift classifier
+# Kubernetes / EKS surface (pre-release):
+pnpm add @hulumi/k8s-baseline @pulumi/kubernetes@4.30.0
 ```
 
 The exact `@pulumi/*` versions match Hulumi's `peerDependencies` pins. Bumps go through a 72h/24h cooling-off CI gate — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).

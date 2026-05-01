@@ -3,7 +3,6 @@
   "version": "1.0.0-pre.1",
   "description": "Hardened Pulumi K8s / EKS / Istio / RDS / Secrets-Manager baseline components — HardenedHelmRelease, EksSubnetTagger, IstioFoundation, AlbMeshedHttpEntrypoint, KubernetesSecretFromAwsSecretsManager, RdsCredentialSecret, GitHubAppCredential. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
-  "private": true,
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -24,7 +23,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "test:integration:kind": "vitest run tests/integration/kind",
+    "test:integration:kind": "vitest run --config vitest.integration.config.ts tests/integration/kind",
+    "test:integration:eks": "vitest run --config vitest.integration.config.ts tests/integration/eks",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

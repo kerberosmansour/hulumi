@@ -88,4 +88,24 @@ describe("RdsCredentialSecret", () => {
       ["dbClusterIdentifier", "engine", "host", "password", "port", "username"].sort(),
     );
   });
+
+  test("Scenario: RDS password missing fails (M2 fail-closed for required keys)", async () => {
+    // RDS-managed JSON without the password field (e.g., misconfigured rotation)
+    __setSecretsManagerFetcher(async () =>
+      JSON.stringify({
+        username: "admin",
+        host: "h",
+        port: 5432,
+        engine: "postgres",
+        dbClusterIdentifier: "c",
+      }),
+    );
+    const c = new RdsCredentialSecret("rds", {
+      rdsManagedMasterCredentialArn: "arn",
+      namespace: "prod",
+      secretName: "rds-creds",
+    });
+    await settlePulumi();
+    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/missing requested key "password"/);
+  });
 });

@@ -38,6 +38,7 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
     });
     await settlePulumi();
 
@@ -56,6 +57,7 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
     });
     await settlePulumi();
     const ing = ingresses()[0];
@@ -74,6 +76,11 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       host: "api.example.com",
       serviceRef: { namespace: "prod", name: "api", port: 80 },
       scheme: "internet-facing",
+      acknowledgeInferredSelector: true,
+      alb: {
+        certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc",
+        publicJustification: "Public marketing site; HTTPS-only.",
+      },
     });
     await settlePulumi();
     const ing = ingresses()[0];
@@ -87,6 +94,7 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
     });
     await settlePulumi();
     const vs = findCustomResourceByKind("VirtualService")[0];
@@ -101,6 +109,7 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
       authorizationPolicy: {
         allowFromGateway: true,
         extraPrincipals: ["spiffe://example.org/sa/sister"],
@@ -123,6 +132,7 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
     });
     await settlePulumi();
     const peers = findCustomResourceByKind("PeerAuthentication");
@@ -137,7 +147,11 @@ describe("AlbMeshedHttpEntrypoint — happy paths", () => {
       host: "api.example.com",
       serviceRef: { namespace: "prod", name: "api", port: 80 },
       scheme: "internet-facing",
-      alb: { certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc" },
+      acknowledgeInferredSelector: true,
+      alb: {
+        certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc",
+        publicJustification: "Public marketing site; HTTPS-only.",
+      },
     });
     await settlePulumi();
     const ing = ingresses()[0];
@@ -241,6 +255,7 @@ describe("AlbMeshedHttpEntrypoint — abuse cases", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
       authorizationPolicy: {
         allowFromGateway: false,
         acknowledgeNoAuthZ: true,
@@ -266,6 +281,7 @@ describe("AlbMeshedHttpEntrypoint — outputs lock", () => {
       mesh,
       host: "api.example.internal",
       serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
     });
     await settlePulumi();
     expect(await valueOf(e.ingressName)).toBe("api-ingress");
@@ -274,5 +290,154 @@ describe("AlbMeshedHttpEntrypoint — outputs lock", () => {
     expect(await valueOf(e.authorizationPolicyName)).toBe("api-authz");
     expect(await valueOf(e.virtualServiceNamespace)).toBe("prod");
     expect(await valueOf(e.authorizationPolicyNamespace)).toBe("prod");
+  });
+});
+
+describe("AlbMeshedHttpEntrypoint — M2 explicit-selector default", () => {
+  test("Scenario: Explicit selector used (workloadSelector wins over inferred app:name)", async () => {
+    const mesh = new IstioFoundation("mesh-sel", { version: "1.24.2" });
+    new AlbMeshedHttpEntrypoint("api", {
+      mesh,
+      host: "api.example.internal",
+      serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      workloadSelector: { matchLabels: { "app.kubernetes.io/name": "api", tier: "frontend" } },
+    });
+    await settlePulumi();
+    const ap = findCustomResourceByKind("AuthorizationPolicy")[0];
+    const spec = ap.inputs.spec as { selector: { matchLabels: Record<string, string> } };
+    expect(spec.selector.matchLabels).toEqual({
+      "app.kubernetes.io/name": "api",
+      tier: "frontend",
+    });
+  });
+
+  test("Scenario: Inferred selector requires acknowledgement (M2 default rejects implicit inference)", () => {
+    const mesh = new IstioFoundation("mesh-impl", { version: "1.24.2" });
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.internal",
+          serviceRef: { namespace: "prod", name: "api", port: 9090 },
+        }),
+    ).toThrow(/workloadSelector|acknowledgeInferredSelector/);
+  });
+
+  test("Scenario: Inferred selector with explicit acknowledgement still constructs and warns", async () => {
+    const warnSpy = vi.spyOn(pulumi.log, "warn").mockResolvedValue();
+    const mesh = new IstioFoundation("mesh-ack", { version: "1.24.2" });
+    new AlbMeshedHttpEntrypoint("api", {
+      mesh,
+      host: "api.example.internal",
+      serviceRef: { namespace: "prod", name: "api", port: 9090 },
+      acknowledgeInferredSelector: true,
+    });
+    await settlePulumi();
+    const messages = warnSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(messages).toMatch(/acknowledgeInferredSelector|inferred selector/i);
+    const ap = findCustomResourceByKind("AuthorizationPolicy")[0];
+    const spec = ap.inputs.spec as { selector: { matchLabels: Record<string, string> } };
+    expect(spec.selector.matchLabels).toEqual({ app: "api" });
+  });
+
+  test("Scenario: Selector label bound enforced (33 labels → constructor rejects)", () => {
+    const mesh = new IstioFoundation("mesh-labels", { version: "1.24.2" });
+    const tooMany: Record<string, string> = {};
+    for (let i = 0; i < 33; i++) tooMany[`label-${i}`] = `v${i}`;
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.internal",
+          serviceRef: { namespace: "prod", name: "api", port: 9090 },
+          workloadSelector: { matchLabels: tooMany },
+        }),
+    ).toThrow(/workloadSelector.*labels.*max 32/i);
+  });
+
+  test("Scenario: extraPrincipals bound enforced (65 → constructor rejects)", () => {
+    const mesh = new IstioFoundation("mesh-pr", { version: "1.24.2" });
+    const tooMany: string[] = [];
+    for (let i = 0; i < 65; i++) tooMany.push(`spiffe://example.org/sa/svc-${i}`);
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.internal",
+          serviceRef: { namespace: "prod", name: "api", port: 9090 },
+          acknowledgeInferredSelector: true,
+          authorizationPolicy: { extraPrincipals: tooMany },
+        }),
+    ).toThrow(/extraPrincipals.*max 64/i);
+  });
+});
+
+describe("AlbMeshedHttpEntrypoint — M2 internet-facing posture", () => {
+  test("Scenario: internet-facing without certificateArn refused", () => {
+    const mesh = new IstioFoundation("mesh-pub-1", { version: "1.24.2" });
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.com",
+          serviceRef: { namespace: "prod", name: "api", port: 80 },
+          scheme: "internet-facing",
+          acknowledgeInferredSelector: true,
+        }),
+    ).toThrow(/internet-facing.*certificateArn/i);
+  });
+
+  test("Scenario: internet-facing without publicJustification refused", () => {
+    const mesh = new IstioFoundation("mesh-pub-2", { version: "1.24.2" });
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.com",
+          serviceRef: { namespace: "prod", name: "api", port: 80 },
+          scheme: "internet-facing",
+          acknowledgeInferredSelector: true,
+          alb: { certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc" },
+        }),
+    ).toThrow(/internet-facing.*publicJustification/i);
+  });
+
+  test("Scenario: internet-facing with cert + justification records it on ingress annotation", async () => {
+    const mesh = new IstioFoundation("mesh-pub-3", { version: "1.24.2" });
+    new AlbMeshedHttpEntrypoint("api", {
+      mesh,
+      host: "api.example.com",
+      serviceRef: { namespace: "prod", name: "api", port: 80 },
+      scheme: "internet-facing",
+      acknowledgeInferredSelector: true,
+      alb: {
+        certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc",
+        publicJustification: "Public marketing site; HTTPS-only; no PII handled.",
+      },
+    });
+    await settlePulumi();
+    const ing = ingresses()[0];
+    const meta = ing.inputs.metadata as { annotations: Record<string, string> };
+    expect(meta.annotations["hulumi.dev/public-justification"]).toBe(
+      "Public marketing site; HTTPS-only; no PII handled.",
+    );
+  });
+
+  test("Scenario: short publicJustification (< 8 chars) refused", () => {
+    const mesh = new IstioFoundation("mesh-pub-short", { version: "1.24.2" });
+    expect(
+      () =>
+        new AlbMeshedHttpEntrypoint("api", {
+          mesh,
+          host: "api.example.com",
+          serviceRef: { namespace: "prod", name: "api", port: 80 },
+          scheme: "internet-facing",
+          acknowledgeInferredSelector: true,
+          alb: {
+            certificateArn: "arn:aws:acm:us-east-1:111:certificate/abc",
+            publicJustification: "ok",
+          },
+        }),
+    ).toThrow(/publicJustification.*length|publicJustification.*8/i);
   });
 });

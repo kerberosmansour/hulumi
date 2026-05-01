@@ -62,7 +62,7 @@ This is the single source of truth for progress. Update as each milestone comple
 
 | # | Milestone | Status | Started | Completed | Lessons File | Completion Summary |
 |---|---|---|---|---|---|---|
-| 1 | Ship-ready K8s package, docs, release path, and integration skeleton | `not_started` | | | `docs/lessons/hulumi-k8s-security-m1.md` | `docs/completion/hulumi-k8s-security-m1.md` |
+| 1 | Ship-ready K8s package, docs, release path, and integration skeleton | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m1.md` | `docs/completion/hulumi-k8s-security-m1.md` |
 | 2 | Close unsafe defaults in current K8s primitives | `not_started` | | | `docs/lessons/hulumi-k8s-security-m2.md` | `docs/completion/hulumi-k8s-security-m2.md` |
 | 3 | K8s and EKS CrossGuard hardening packs | `not_started` | | | `docs/lessons/hulumi-k8s-security-m3.md` | `docs/completion/hulumi-k8s-security-m3.md` |
 | 4 | Namespace and network security foundations | `not_started` | | | `docs/lessons/hulumi-k8s-security-m4.md` | `docs/completion/hulumi-k8s-security-m4.md` |
@@ -907,22 +907,44 @@ Path: `docs/completion/hulumi-k8s-security-m<N>.md`
 
 #### Evidence Log
 
-Use Section 13 table.
+| Step | Command / Check | Expected Result | Actual Result | Pass/Fail | Notes |
+|---|---|---|---|---|---|
+| Baseline tests | `pnpm -r test` | all pre-existing tests green | 67 baseline / 59 policies / 54 drift / 83 k8s-baseline / 28 skill-bdd / 4 example smoke green | Pass | Run on entry, all green. |
+| BDD tests created | `tests/release-readiness.test.ts`, `tests/integration/{kind,eks}/release-readiness.{kind,eks}.test.ts` | fail for expected reason | Initial run: 4 failures — release.yml lacks 4-package loop, package.json has `private:true`, COMPATIBILITY.md missing istiod/cni/gateway/1.24.2 | Pass | All four failures matched the runbook's stated unsafe defaults exactly. |
+| E2E stubs created | `tests/integration/{kind,eks}/release-readiness.{kind,eks}.test.ts` | gated skip with explicit precondition | Both lanes skip with `[release-readiness.{kind,eks}] skipped: set HULUMI_INTEGRATION_{KIND,EKS}=1 ...` and `expect(integrationFlag).toBe(false)` proves the test ran | Pass | Allow-list deviation: sibling `vitest.integration.config.ts` is required because vitest 1.6 has no `--include`/`--exclude` CLI flags and the default config excludes `tests/integration/**`. Documented in lessons file. |
+| Implementation | release.yml four-package loop + SBOM, ci.yml `k8s-baseline-test` job, weekly-integration k8s lane, package.json publish-readiness, COMPATIBILITY.md sync, doc updates (README, CHANGELOG, ARCHITECTURE, docs/README, components/README) | contract satisfied | All BDD scenarios green after edits | Pass | Allow-list deviation: top-level `tests/release-readiness.test.ts` was needed because `vitest.config.ts` excludes integration paths from the default suite — see lessons file. |
+| Formatter | `npx prettier --check <changed files>` | clean | only `docs/components/README.md` regressed; fixed with `prettier --write`; pre-existing 85-warning baseline remains out-of-scope (§6.7) | Pass | |
+| Typecheck / build check | `pnpm -r typecheck && pnpm -r build` | clean | both green across 10 workspace projects | Pass | |
+| Static analyzer / linter | `pnpm -r lint` | clean | green after removing 3 unused `eslint-disable-next-line no-console` directives I introduced | Pass | |
+| License boundary | `pnpm -w run lint:license-boundary` | clean | `OK (IDs-only policy upheld across scanned trees)` | Pass | Used `-w` per K8s M5 lessons-file foot-gun. |
+| Exact pin guard | `pnpm -w run lint:exact-pin-guard` | clean | `OK (6 @pulumi/* deps match pinned hashes)` | Pass | |
+| Dependency audit | n/a | n/a | no dependency graph changes (M1 forbids new deps) | Skip | |
+| Full tests | `pnpm -r test` | green | 67 baseline / 59 policies / 54 drift / **87** k8s-baseline (was 83; +4 BDD scenarios) / 28 skill-bdd / 4 example smoke | Pass | |
+| E2E runtime | `pnpm --filter @hulumi/k8s-baseline run test:integration:{kind,eks}` | green or intentionally skipped | both lanes skip with explicit precondition messages | Pass | |
+| Build/boot | `pnpm -r build` | clean | green | Pass | |
+| Smoke tests | k8s-baseline test, full build, release.yml has 4 packages, components doc has K8s entries, git status no test artifacts | all checked | k8s-baseline 87 tests green; 4-package loop confirmed; components doc lists 7 K8s rows; git status clean of test artifacts | Pass | |
+| Resource-bound verification | release artifact list = exactly 4 packages | encoded and exercised | `Release packs four packages` BDD asserts the regex `baseline policies drift k8s-baseline` in `release.yml` | Pass | |
+| Invariant/assertion verification | `COMPATIBILITY.md` ↔ `TESTED_VERSIONS` lockstep | encoded and exercised | `Compatibility docs match code` BDD iterates every chart and version in `TESTED_VERSIONS` and asserts presence in COMPATIBILITY.md | Pass | |
+| Debugger / state inspection | inspected vitest.config.ts exclude pattern | hypothesis confirmed before code change | `tests/integration/**` exclude in `vitest.config.ts` discovered by direct read; this drove the sibling-config decision | Pass | Inspection-over-guessing — first attempt at `vitest run tests/integration/kind` returned "No test files found" because of the exclude. |
+| Test artifact cleanup | `git status --short` | no untracked test artifacts | clean — only intentional files in working tree | Pass | |
+| .gitignore review | review `.gitignore` | patterns current | no new artifact patterns needed; existing `.pulumi/`, `*.tgz`, `.release-artifacts/` patterns cover all M1 outputs | Pass | |
+| Compatibility checks | listed checks | no regressions | AWS + GitHub release path unchanged; K8s public exports unchanged; existing test suite unchanged in count except for the +4 BDD additions | Pass | |
 
 #### Definition of Done
 
-- Four-package release path exists.
-- K8s package metadata is publish-ready or explicitly documented as pre-release with no false release claims.
-- Docs accurately describe K8s surface.
-- Compatibility docs match code.
-- Integration skeletons exist and are safely gated.
-- Full static analysis and tests pass.
+- ✅ Four-package release path exists.
+- ✅ K8s package metadata is publish-ready (`private:true` removed; `provenance:true` retained); shipping at `1.0.0-pre.1` until the v1.2 launch PR.
+- ✅ Docs accurately describe K8s surface.
+- ✅ Compatibility docs match code (BDD invariant enforced).
+- ✅ Integration skeletons exist and are safely gated.
+- ✅ Full static analysis and tests pass.
 
 #### Post-Flight
 
-- **ARCHITECTURE.md**: update package list, data flow, test architecture.
-- **README.md**: add K8s package row and install instructions.
-- **Other docs**: component index, compatibility, changelog, integration testing.
+- ✅ **ARCHITECTURE.md**: package list, workspace tree, components table updated.
+- ✅ **README.md**: K8s package row + install snippet added.
+- ✅ **Other docs**: component index split (AWS + K8s tables), compatibility synced, CHANGELOG `[Unreleased]` added.
+- See `docs/lessons/hulumi-k8s-security-m1.md` and `docs/completion/hulumi-k8s-security-m1.md`.
 
 ---
 

@@ -1,0 +1,76 @@
+{
+  "id": "eks-runtime-and-backup",
+  "title": "EKS Runtime Detection and Backup — GuardDuty, audit alarms, AWS Backup vault lock",
+  "description": "An engineer is wiring up the EKS detection + DR lane: GuardDuty EKS Audit Logs + Runtime Monitoring, CloudWatch metric filters + alarms for secret-read and pods/exec, an AWS Backup vault (KMS-encrypted) with optional immutable vault lock. Target end state matches Hulumi's `EksRuntimeDetectionFoundation` (M5) + `EksBackupFoundation` (M5). Threats focus on detection gaps (Fargate runtime-monitoring limitation), backup deletion (privileged AWS principal + irreversibility), and unencrypted recovery points.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-EKS"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted)",
+    "External Attacker (post-compromise; objective: persist + cover tracks)",
+    "Compromised AWS principal with `backup:*` (could delete recovery points)"
+  ],
+  "assets": [
+    "EKS audit log stream",
+    "GuardDuty findings",
+    "AWS Backup recovery points",
+    "AWS Backup vault (and its KMS key)"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "Spoofed source on backup-delete API call",
+      "description": "An attacker with `backup:DeleteRecoveryPoint` and `backup:DeleteBackupVault` permissions can erase recovery points before exfil. Mitigation: vault lock (immutable, with the M5 operator-confirmation gate); IAM scoping for backup-management principals.",
+      "controls": ["CCM:IAM-09", "NIST-800-53-r5:CP-9"]
+    },
+    {
+      "type": "T",
+      "name": "Tampered audit-log JSON shape",
+      "description": "If the EKS audit log JSON shape drifts (e.g. EKS adds `objectRef.subresource` placement), the M5 metric-filter patterns silently miss `pods/exec` events. Mitigation: kind/EKS integration tests against a real cluster; alarm coverage tracking via Hulumi/Drift adapter (M6).",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-7"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via Fargate runtime blindness",
+      "description": "GuardDuty Runtime Monitoring is unsupported on EKS-on-Fargate. A compromised Fargate pod has no kernel-level introspection. Mitigation: `EksRuntimeDetectionFoundation` exposes `runtimeMonitoringUnsupported: Output<true>` so operators see the gap; control-plane audit events remain the detection backstop.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-2"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via unencrypted backup vault",
+      "description": "AWS Backup defaults to AWS-managed KMS keys. A vault encrypted with an AWS-managed key is readable by any AWS-managed-key-using principal in the account, defeating cross-account isolation. Mitigation: `EksBackupFoundation` requires an explicit `kmsKeyArn` (no AWS-managed default).",
+      "controls": ["CCM:CEK-04", "NIST-800-53-r5:SC-28"]
+    },
+    {
+      "type": "D",
+      "name": "Denial of recovery via deleted recovery points",
+      "description": "Without vault lock, a privileged attacker can delete recovery points faster than the team detects the breach. Mitigation: `enableImmutableVaultLock` + the 3-day `changeableForDays` window leaves a confirmation gate without making the lock instantly irreversible.",
+      "controls": ["CCM:CP-09", "NIST-800-53-r5:CP-9"]
+    },
+    {
+      "type": "E",
+      "name": "Elevation via cross-tenant backup vault access",
+      "description": "A backup IAM role over-scoped to `backup:*` on `*` can read any vault. Mitigation: scope the role to the specific vault ARNs; the component does NOT validate the role for the consumer (limitation noted in the M5 completion summary).",
+      "controls": ["CCM:IAM-09", "NIST-800-53-r5:AC-6"]
+    }
+  ],
+  "abuseCases": [
+    {
+      "id": "tm-eks-runtime-blindness-abuse",
+      "title": "Fargate runtime blindness — compromised Fargate pod has no kernel-level detection",
+      "description": "Mitigation: M5 component exposes the unsupported flag; kind tests verify the warning fires.",
+      "controls": ["CCM:LOG-01"]
+    },
+    {
+      "id": "tm-eks-backup-delete-abuse",
+      "title": "Backup deletion before exfil detection",
+      "description": "Mitigation: vault lock + the 72h confirmation window in M5.",
+      "controls": ["NIST-800-53-r5:CP-9"]
+    },
+    {
+      "id": "tm-eks-secret-read-detection-abuse",
+      "title": "Mass-secret-read evades detection without metric filter",
+      "description": "Mitigation: the secret-read metric filter + alarm pair in `EksRuntimeDetectionFoundation`.",
+      "controls": ["CCM:DSP-12", "NIST-800-53-r5:AU-2"]
+    }
+  ]
+}

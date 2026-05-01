@@ -66,7 +66,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | 2 | Close unsafe defaults in current K8s primitives | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m2.md` | `docs/completion/hulumi-k8s-security-m2.md` |
 | 3 | K8s and EKS CrossGuard hardening packs | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m3.md` | `docs/completion/hulumi-k8s-security-m3.md` |
 | 4 | Namespace and network security foundations | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m4.md` | `docs/completion/hulumi-k8s-security-m4.md` |
-| 5 | EKS detection and disaster recovery foundations | `not_started` | | | `docs/lessons/hulumi-k8s-security-m5.md` | `docs/completion/hulumi-k8s-security-m5.md` |
+| 5 | EKS detection and disaster recovery foundations | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m5.md` | `docs/completion/hulumi-k8s-security-m5.md` |
 | 6 | EKS upgrade, add-on, drift, and threat-model expansion | `not_started` | | | `docs/lessons/hulumi-k8s-security-m6.md` | `docs/completion/hulumi-k8s-security-m6.md` |
 | 7 | Ops M1: `Ec2PatchBaseline` + `Ec2PatchWaves` | `not_started` | | | `docs/lessons/hulumi-operations-m1.md` | `docs/completion/hulumi-operations-m1.md` |
 | 8 | Ops M2: `DetectiveServicesEnable` | `not_started` | | | `docs/lessons/hulumi-operations-m2.md` | `docs/completion/hulumi-operations-m2.md` |

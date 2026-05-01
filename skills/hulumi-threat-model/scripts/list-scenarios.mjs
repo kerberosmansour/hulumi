@@ -27,6 +27,9 @@ export function listScenarios() {
     "github-actions-supply-chain",
     "github-app-token-exposure",
     "github-self-hosted-runner",
+    // K8s/EKS scenarios added in runbook hulumi-operations-k8s-security M6.
+    "eks-cluster-baseline",
+    "eks-runtime-and-backup",
   ];
 }
 

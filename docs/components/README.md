@@ -37,5 +37,7 @@ Pre-release at `1.0.0-pre.1`. First stable lands with the v1.2 release train (at
 | `hulumi.k8s.RdsCredentialSecret`                   | [rds-credential-secret.md](./rds-credential-secret.md)           |
 | `hulumi.k8s.GitHubAppCredential`                   | [github-app-credential.md](./github-app-credential.md)           |
 | `hulumi.k8s.NamespaceFoundation`                   | [namespace-foundation.md](./namespace-foundation.md)             |
+| `hulumi.k8s.EksRuntimeDetectionFoundation`         | [eks-runtime-detection-foundation.md](./eks-runtime-detection-foundation.md) |
+| `hulumi.k8s.EksBackupFoundation`                   | [eks-backup-foundation.md](./eks-backup-foundation.md)           |
 
 The tier matrix for every baseline component lives in [../tiers.md](../tiers.md).

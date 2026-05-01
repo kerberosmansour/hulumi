@@ -67,5 +67,25 @@ export type {
 } from "./github-app-credential.args";
 export type { GitHubAppCredentialOutputs } from "./github-app-credential.outputs";
 
+export {
+  NamespaceFoundation,
+  NAMESPACE_FOUNDATION_COMPONENT_TYPE,
+} from "./namespace-foundation";
+export type {
+  NamespaceFoundationArgs,
+  NamespaceFoundationQuota,
+  NamespaceFoundationLimitRange,
+  NamespaceFoundationNetworkDefaults,
+  PsaLevel,
+  AutomountTokenMode,
+} from "./namespace-foundation.args";
+export {
+  MAX_NAMESPACE_LABELS,
+  MAX_QUOTA_ENTRIES,
+  MAX_NETWORK_POLICY_PEERS,
+  RECOMMENDED_NETWORK_POLICY_PEERS,
+} from "./namespace-foundation.args";
+export type { NamespaceFoundationOutputs } from "./namespace-foundation.outputs";
+
 export { TESTED_VERSIONS, assertVersionTested } from "./compatibility";
 export type { TestedChartName } from "./compatibility";

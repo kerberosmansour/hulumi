@@ -20,6 +20,7 @@ Three CrossGuard PolicyPacks added in runbook `hulumi-operations-k8s-security` M
 | `HulumiK8sHardeningPack` | `@hulumi/policies/k8s/packs/hulumi-k8s-hardening` | `WL-1` privileged containers · `WL-2` host namespaces · `WL-3` mutable image tags · `WL-4` resources missing (advisory) · `SVC-1` public LoadBalancer |
 | `HulumiK8sRbacPack`      | `@hulumi/policies/k8s/packs/hulumi-k8s-rbac`      | `RBAC-1` wildcard verbs · `RBAC-2` `list` / `watch` on Secrets · `RBAC-3` cluster-admin RoleBinding / ClusterRoleBinding                              |
 | `HulumiEksClusterPack`   | `@hulumi/policies/k8s/packs/hulumi-eks-cluster`   | `EKS-CL-1` public endpoint with broad CIDR · `EKS-CL-2` audit logging required                                                                        |
+| `HulumiOperationsHardeningPack` | `@hulumi/policies/aws/packs/hulumi-operations-hardening` | `O-PATCH-1` Patch:Group enum · `O-AUDIT-1` CloudTrail multi-region + log-file validation · `O-AUDIT-2` CT log group KMS-encrypted · `O-INSPECTOR-1` Inspector v2 full coverage |
 
 All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored.
 

@@ -311,7 +311,7 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
     expect(pass.stdout).toMatch(/license-boundary-lint: OK/);
   });
 
-  it("[happy path] lister returns the prebuilt scenario IDs in declared order (5 AWS + 4 GitHub + 2 K8s)", async () => {
+  it("[happy path] lister returns the prebuilt scenario IDs in declared order (5 AWS + 4 GitHub + 2 K8s + 3 Ops)", async () => {
     const list = await importLister();
     const ids = list();
     expect(ids).toEqual([
@@ -326,6 +326,9 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
       "github-self-hosted-runner",
       "eks-cluster-baseline",
       "eks-runtime-and-backup",
+      "operations-patch-compliance-lapse",
+      "operations-detective-services-disabled",
+      "operations-audit-pipeline-broken",
     ]);
   });
 });

@@ -30,6 +30,10 @@ export function listScenarios() {
     // K8s/EKS scenarios added in runbook hulumi-operations-k8s-security M6.
     "eks-cluster-baseline",
     "eks-runtime-and-backup",
+    // Operations scenarios added in runbook hulumi-operations-k8s-security M11.
+    "operations-patch-compliance-lapse",
+    "operations-detective-services-disabled",
+    "operations-audit-pipeline-broken",
   ];
 }
 

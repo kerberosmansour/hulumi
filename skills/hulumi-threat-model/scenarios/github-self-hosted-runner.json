@@ -40,11 +40,7 @@
       "type": "I",
       "name": "Network exfil via runner with broad VPC access",
       "description": "A self-hosted runner has access to the full VPC for legitimate reasons (e.g., to talk to private databases for integration tests). A compromised job uses that access to scan / exfil internal services. Mitigation: runner-pool scoping by workflow purpose (a PR-validation runner pool has zero VPC access; a deploy-runner pool has scoped access to deploy targets only); egress allowlist at the network layer.",
-      "controls": [
-        "CCM:IVS-09",
-        "NIST-SSDF-v1.1:PO.5",
-        "GitHub-Well-Architected:PW.5"
-      ]
+      "controls": ["CCM:IVS-09", "NIST-SSDF-v1.1:PO.5", "GitHub-Well-Architected:PW.5"]
     },
     {
       "type": "E",

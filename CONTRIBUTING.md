@@ -65,7 +65,7 @@ Hulumi follows the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLit
 **Recommended workflow** for a new component / policy rule / drift adapter / threat-model scenario:
 
 1. **Open an issue first.** The runbook discipline only pays off when scope is agreed before code is written. Tiny fixes (typos, broken links, one-line bug fixes) can skip this step.
-2. **Use the `/slo-*` skills on yourself.** `/slo-ideate` → `/slo-research` → `/slo-architect` → `/slo-plan` produces a runbook the maintainers can review *before* any code lands. This is the lowest-friction path to merging — reviewers can sign off on the plan and trust the execution.
+2. **Use the `/slo-*` skills on yourself.** `/slo-ideate` → `/slo-research` → `/slo-architect` → `/slo-plan` produces a runbook the maintainers can review _before_ any code lands. This is the lowest-friction path to merging — reviewers can sign off on the plan and trust the execution.
 3. **Pass the baseline** — the `Pre-submit checks` section above.
 4. **Open a PR** following the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). Link to the runbook + closed-milestone summary if there is one.
 

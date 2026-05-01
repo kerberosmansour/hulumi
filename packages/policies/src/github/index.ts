@@ -26,8 +26,4 @@ export {
   cisGithubV1PackMetadata,
 } from "./cis-v1-pack.rules";
 
-export {
-  matchSuppression,
-  type Suppression,
-  type SuppressionMatch,
-} from "./suppressions";
+export { matchSuppression, type Suppression, type SuppressionMatch } from "./suppressions";

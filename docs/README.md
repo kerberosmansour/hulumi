@@ -31,13 +31,13 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 
 ## I'm a contributor — I want to develop on Hulumi
 
-| You want to…                                                          | Read this                                 |
-| --------------------------------------------------------------------- | ----------------------------------------- |
-| Get the local dev loop running (build, test, lint)                    | [Development guide](./development.md)         |
-| Understand the PR conventions (DCO, conventional commits, CODEOWNERS) | [CONTRIBUTING.md](../CONTRIBUTING.md)         |
+| You want to…                                                          | Read this                                                                         |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Get the local dev loop running (build, test, lint)                    | [Development guide](./development.md)                                             |
+| Understand the PR conventions (DCO, conventional commits, CODEOWNERS) | [CONTRIBUTING.md](../CONTRIBUTING.md)                                             |
 | Read the engineering runbooks driving each release train              | [docs/slo/completed/](./slo/completed/) and [docs/slo/README.md](./slo/README.md) |
-| See what lessons came out of each milestone                           | [docs/slo/lessons/](./slo/lessons/)           |
-| Find candidate issues / improvements for the project                  | [Issue candidates](./issue-candidates.md)     |
+| See what lessons came out of each milestone                           | [docs/slo/lessons/](./slo/lessons/)                                               |
+| Find candidate issues / improvements for the project                  | [Issue candidates](./issue-candidates.md)                                         |
 
 ## Reference
 

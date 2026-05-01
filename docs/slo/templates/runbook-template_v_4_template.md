@@ -23,24 +23,24 @@
 
 ## 1. Runbook Metadata
 
-| Field | Value |
-|---|---|
-| Runbook ID | `[short-id]` |
-| Project name | `[project]` |
-| Primary stack | `[e.g., Rust + Tauri + React + TypeScript]` |
-| Primary package/app names | `[package names]` |
-| Prefix for tests and lesson files | `[prefix]` |
-| Default unit test command | `[command]` |
-| Default integration/BDD test command | `[command]` |
-| Default E2E/runtime validation command | `[command]` |
-| Default build/boot command | `[command]` |
-| Default formatter command | `[command]` |
-| Default static analysis / lint command | `[command]` |
-| Default dependency / security audit command | `[command]` |
-| Default debugger or state-inspection tool | `[debugger / IDE / command]` |
-| Allowed new dependencies by default | `none` |
-| Schema/config migration allowed by default | `no` |
-| Public interfaces stable by default | `yes` |
+| Field                                       | Value                                       |
+| ------------------------------------------- | ------------------------------------------- |
+| Runbook ID                                  | `[short-id]`                                |
+| Project name                                | `[project]`                                 |
+| Primary stack                               | `[e.g., Rust + Tauri + React + TypeScript]` |
+| Primary package/app names                   | `[package names]`                           |
+| Prefix for tests and lesson files           | `[prefix]`                                  |
+| Default unit test command                   | `[command]`                                 |
+| Default integration/BDD test command        | `[command]`                                 |
+| Default E2E/runtime validation command      | `[command]`                                 |
+| Default build/boot command                  | `[command]`                                 |
+| Default formatter command                   | `[command]`                                 |
+| Default static analysis / lint command      | `[command]`                                 |
+| Default dependency / security audit command | `[command]`                                 |
+| Default debugger or state-inspection tool   | `[debugger / IDE / command]`                |
+| Allowed new dependencies by default         | `none`                                      |
+| Schema/config migration allowed by default  | `no`                                        |
+| Public interfaces stable by default         | `yes`                                       |
 
 ### Public interfaces that must remain stable unless explicitly listed otherwise
 
@@ -53,11 +53,11 @@
 
 This is the single source of truth for progress. Update as each milestone completes.
 
-| # | Milestone | Status | Started | Completed | Lessons File | Completion Summary |
-|---|---|---|---|---|---|---|
-| 1 | `[Milestone title]` | `not_started` | | | | |
-| 2 | `[Milestone title]` | `not_started` | | | | |
-| 3 | `[Milestone title]` | `not_started` | | | | |
+| #   | Milestone           | Status        | Started | Completed | Lessons File | Completion Summary |
+| --- | ------------------- | ------------- | ------- | --------- | ------------ | ------------------ |
+| 1   | `[Milestone title]` | `not_started` |         |           |              |                    |
+| 2   | `[Milestone title]` | `not_started` |         |           |              |                    |
+| 3   | `[Milestone title]` | `not_started` |         |           |              |                    |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 <!-- Lessons files go in docs/slo/lessons/<prefix>-m<N>.md -->
@@ -98,16 +98,16 @@ Provide a complete architecture diagram of the proposed end state after all mile
 
 ### Component Summary Table
 
-| Component | Responsibility | Existing/New/Changed | Milestone | Key Interfaces |
-|---|---|---|---|---|
-| `[Component name]` | `[What it does]` | `[existing/new/changed]` | M[N] | `[APIs, events, commands]` |
-| `[Component name]` | `[What it does]` | `[existing/new/changed]` | M[N] | `[APIs, events, commands]` |
+| Component          | Responsibility   | Existing/New/Changed     | Milestone | Key Interfaces             |
+| ------------------ | ---------------- | ------------------------ | --------- | -------------------------- |
+| `[Component name]` | `[What it does]` | `[existing/new/changed]` | M[N]      | `[APIs, events, commands]` |
+| `[Component name]` | `[What it does]` | `[existing/new/changed]` | M[N]      | `[APIs, events, commands]` |
 
 ### Data Flow Summary
 
-| Flow | From | To | Protocol/Mechanism | Bounded? | Failure Mode | Milestone |
-|---|---|---|---|---|---|---|
-| `[Flow name]` | `[Source]` | `[Target]` | `[IPC/HTTP/event/file]` | `[yes/no]` | `[behavior on failure]` | M[N] |
+| Flow          | From       | To         | Protocol/Mechanism      | Bounded?   | Failure Mode            | Milestone |
+| ------------- | ---------- | ---------- | ----------------------- | ---------- | ----------------------- | --------- |
+| `[Flow name]` | `[Source]` | `[Target]` | `[IPC/HTTP/event/file]` | `[yes/no]` | `[behavior on failure]` | M[N]      |
 
 ---
 
@@ -119,12 +119,12 @@ These rules apply to every language and every milestone. They are how we get the
 
 Logging is useful for production observability, but it is not a substitute for interactive debugging and state inspection.
 
-| Requirement | Project-Specific Tool/Command | Evidence Required |
-|---|---|---|
-| Interactive debugger available | `[debugger / IDE / command]` | `[how verified]` |
-| Breakpoints can be set in changed code | `[how]` | `[note if needed]` |
-| Runtime state can be inspected | `[how]` | `[what was inspected]` |
-| Tests can be debugged | `[how]` | `[test/debug command]` |
+| Requirement                            | Project-Specific Tool/Command | Evidence Required      |
+| -------------------------------------- | ----------------------------- | ---------------------- |
+| Interactive debugger available         | `[debugger / IDE / command]`  | `[how verified]`       |
+| Breakpoints can be set in changed code | `[how]`                       | `[note if needed]`     |
+| Runtime state can be inspected         | `[how]`                       | `[what was inspected]` |
+| Tests can be debugged                  | `[how]`                       | `[test/debug command]` |
 
 Agent rules:
 
@@ -137,12 +137,12 @@ Agent rules:
 
 Every milestone must run the project's static-analysis and lint tools. Treat tool findings as design feedback, not personal criticism.
 
-| Check | Command | Required Level | Notes |
-|---|---|---|---|
-| Formatter | `[formatter command]` | must pass | No style-only churn outside changed files unless allowed |
-| Type check / compile check | `[typecheck command]` | must pass | Must include all changed targets |
-| Static analyzer / linter | `[lint command]` | must pass | Warnings fail CI unless explicitly waived |
-| Security/dependency audit | `[audit command]` | must pass or documented exception | Required if dependency graph changes |
+| Check                      | Command               | Required Level                    | Notes                                                    |
+| -------------------------- | --------------------- | --------------------------------- | -------------------------------------------------------- |
+| Formatter                  | `[formatter command]` | must pass                         | No style-only churn outside changed files unless allowed |
+| Type check / compile check | `[typecheck command]` | must pass                         | Must include all changed targets                         |
+| Static analyzer / linter   | `[lint command]`      | must pass                         | Warnings fail CI unless explicitly waived                |
+| Security/dependency audit  | `[audit command]`     | must pass or documented exception | Required if dependency graph changes                     |
 
 Waiver rule: a static-analysis waiver must be local, minimal, and justified in code or the Evidence Log. Global disables are forbidden unless explicitly approved in the milestone contract.
 
@@ -167,19 +167,19 @@ Do **not** use assertions for:
 
 Assertion policy:
 
-| Assertion Type | Use For | Production Behavior |
-|---|---|---|
+| Assertion Type             | Use For                                  | Production Behavior                                              |
+| -------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
 | Development-only assertion | Expensive or diagnostic invariant checks | Disabled or lower-cost in production if the language supports it |
-| Runtime assertion | Invariants that must never be violated | Active in production |
-| Contract validation | Public boundary checks | Return structured errors, not crashes |
+| Runtime assertion          | Invariants that must never be violated   | Active in production                                             |
+| Contract validation        | Public boundary checks                   | Return structured errors, not crashes                            |
 
 ### 4.4 Prefer Bounded Resources Over Silent Growth
 
 Unbounded collections, queues, retries, caches, recursion, and concurrency hide architectural failures until production. Every milestone must identify newly introduced or modified resource growth.
 
-| Resource | Expected Bound | Hard Limit | Behavior At Limit | Evidence/Test |
-|---|---:|---:|---|---|
-| `[queue/cache/list/etc.]` | `[N]` | `[N]` | `[reject/backpressure/error]` | `[test]` |
+| Resource                  | Expected Bound | Hard Limit | Behavior At Limit             | Evidence/Test |
+| ------------------------- | -------------: | ---------: | ----------------------------- | ------------- |
+| `[queue/cache/list/etc.]` |          `[N]` |      `[N]` | `[reject/backpressure/error]` | `[test]`      |
 
 Rules:
 
@@ -194,14 +194,14 @@ Rules:
 
 Use the language's strongest available mechanisms to encode domain constraints.
 
-| Concept | Prefer | Avoid |
-|---|---|---|
-| Domain IDs | dedicated ID type / value object | raw string/int everywhere |
-| State machines | enum / sum type / tagged union / classes with restricted transitions | loose string states |
-| Optional data | explicit optional / maybe type | sentinel values |
-| Validated strings | constrained constructor | free-form string reuse |
-| Units | unit-specific type | raw numbers without unit |
-| Protocol messages | schema-validated typed messages | ad hoc maps/dictionaries |
+| Concept           | Prefer                                                               | Avoid                     |
+| ----------------- | -------------------------------------------------------------------- | ------------------------- |
+| Domain IDs        | dedicated ID type / value object                                     | raw string/int everywhere |
+| State machines    | enum / sum type / tagged union / classes with restricted transitions | loose string states       |
+| Optional data     | explicit optional / maybe type                                       | sentinel values           |
+| Validated strings | constrained constructor                                              | free-form string reuse    |
+| Units             | unit-specific type                                                   | raw numbers without unit  |
+| Protocol messages | schema-validated typed messages                                      | ad hoc maps/dictionaries  |
 
 Agent rule: before implementing a feature, identify at least one invalid state the design should prevent. If none exists, state why.
 
@@ -263,23 +263,23 @@ For simple CRUD with no meaningful concurrency or failure-recovery risk, mark `N
 
 ### 5.2 Main Components
 
-| Component | Protocol Role | Key State (durable / volatile) | Visible Actions |
-|---|---|---|---|
-| `[component]` | `[role]` | `[state]` | `[actions]` |
+| Component     | Protocol Role | Key State (durable / volatile) | Visible Actions |
+| ------------- | ------------- | ------------------------------ | --------------- |
+| `[component]` | `[role]`      | `[state]`                      | `[actions]`     |
 
 ### 5.3 Abstract State
 
 The minimum set of state variables needed to capture correctness. Flag anything likely to cause state explosion.
 
-| Variable | Abstract Type | Why Needed | Bound | Explosion Risk |
-|---|---|---|---|---|
-| `[var]` | `[type]` | `[property]` | `[N]` | `[low/medium/high]` |
+| Variable | Abstract Type | Why Needed   | Bound | Explosion Risk      |
+| -------- | ------------- | ------------ | ----- | ------------------- |
+| `[var]`  | `[type]`      | `[property]` | `[N]` | `[low/medium/high]` |
 
 ### 5.4 Actions / Transitions
 
-| Action | Preconditions | State Updates | Failure / Interleaving Notes |
-|---|---|---|---|
-| `[action]` | `[preconditions]` | `[updates]` | `[notes]` |
+| Action     | Preconditions     | State Updates | Failure / Interleaving Notes |
+| ---------- | ----------------- | ------------- | ---------------------------- |
+| `[action]` | `[preconditions]` | `[updates]`   | `[notes]`                    |
 
 ### 5.5 Safety Properties
 
@@ -295,9 +295,9 @@ The minimum set of state variables needed to capture correctness. Flag anything 
 
 ### 5.7 Simplifications
 
-| Simplification | Why It Still Catches Relevant Bugs |
-|---|---|
-| `[simplification]` | `[reason]` |
+| Simplification     | Why It Still Catches Relevant Bugs |
+| ------------------ | ---------------------------------- |
+| `[simplification]` | `[reason]`                         |
 
 ---
 
@@ -515,8 +515,8 @@ These are forbidden unless explicitly overridden inside a milestone.
 >
 > **What this section is NOT**: an auto-extension of any milestone's allow-list. The user decides each milestone's bounds. Carry-forward is informational input to that decision, not a substitute for it.
 
-| Issue | Title | Suggested lane | Suggested milestone | Status |
-|---|---|---|---|---|
+| Issue       | Title              | Suggested lane                            | Suggested milestone        | Status                                         |
+| ----------- | ------------------ | ----------------------------------------- | -------------------------- | ---------------------------------------------- |
 | (e.g., #42) | (one-line summary) | `micro` \| `milestone` \| `fresh-runbook` | (M3 \| M4 \| next runbook) | (open \| closed-via-PR-pending \| transferred) |
 
 ### Lane vocabulary
@@ -602,15 +602,15 @@ it("descriptive test name", () => {
 
 ### 11.4 Test File Naming
 
-| Layer | Convention | Location |
-|---|---|---|
-| Backend unit tests | `#[cfg(test)] mod tests` inside the source file | Same file as production code |
-| Backend integration/BDD tests | `tests/<prefix>_<feature>.rs` | `src-tauri/tests/` (or equivalent) |
-| Frontend unit tests | `<module>.test.ts` | Co-located with source file |
-| Frontend page tests | `<Page>.test.tsx` | Co-located with component |
-| Scenario / e2e tests | `tests/scenarios/<prefix>_scenario_<name>.rs` | `src-tauri/tests/scenarios/` (or equivalent) |
-| E2E runtime validation (backend) | `tests/e2e_<prefix>_m<N>.rs` | `src-tauri/tests/` (or equivalent) |
-| E2E runtime validation (frontend) | `e2e/<feature>.e2e.test.tsx` | `src/e2e/` |
+| Layer                             | Convention                                      | Location                                     |
+| --------------------------------- | ----------------------------------------------- | -------------------------------------------- |
+| Backend unit tests                | `#[cfg(test)] mod tests` inside the source file | Same file as production code                 |
+| Backend integration/BDD tests     | `tests/<prefix>_<feature>.rs`                   | `src-tauri/tests/` (or equivalent)           |
+| Frontend unit tests               | `<module>.test.ts`                              | Co-located with source file                  |
+| Frontend page tests               | `<Page>.test.tsx`                               | Co-located with component                    |
+| Scenario / e2e tests              | `tests/scenarios/<prefix>_scenario_<name>.rs`   | `src-tauri/tests/scenarios/` (or equivalent) |
+| E2E runtime validation (backend)  | `tests/e2e_<prefix>_m<N>.rs`                    | `src-tauri/tests/` (or equivalent)           |
+| E2E runtime validation (frontend) | `e2e/<feature>.e2e.test.tsx`                    | `src/e2e/`                                   |
 
 ### 11.5 Test Artifact Cleanup Rules
 
@@ -684,26 +684,26 @@ Each milestone must state exactly one of the following:
 
 Copy this table into each milestone section and fill it in during execution.
 
-| Step | Command / Check | Expected Result | Actual Result | Pass/Fail | Notes |
-|---|---|---|---|---|---|
-| Baseline tests | `[command]` | all pre-existing tests green | | | |
-| BDD tests created | `[files]` | fail for expected reason | | | |
-| E2E stubs created | `[files]` | fail for expected reason | | | |
-| Implementation | `[summary]` | contract satisfied | | | |
-| Formatter | `[command]` | clean | | | |
-| Typecheck / build check | `[command]` | clean | | | |
-| Static analyzer / linter | `[command]` | clean (no new warnings) | | | |
-| Dependency audit (if deps changed) | `[command]` | pass or documented exception | | | |
-| Full tests | `[command]` | green | | | |
-| E2E runtime | `[command]` | green | | | |
-| Build/boot | `[command]` | boots cleanly | | | |
-| Smoke tests | `[steps]` | all checked | | | |
-| Resource-bound verification | `[bound + test]` | bound encoded; test exercises near-limit behavior | | | |
-| Invariant/assertion verification | `[invariant + test]` | encoded; test triggers under fault injection if applicable | | | |
-| Debugger / state inspection | `[what was inspected]` | hypothesis confirmed before code change | | | |
-| Test artifact cleanup | `git status` | no untracked test artifacts | | | |
-| .gitignore review | review `.gitignore` | patterns current, no stale entries | | | |
-| Compatibility checks | `[checks]` | no regressions | | | |
+| Step                               | Command / Check        | Expected Result                                            | Actual Result | Pass/Fail | Notes |
+| ---------------------------------- | ---------------------- | ---------------------------------------------------------- | ------------- | --------- | ----- |
+| Baseline tests                     | `[command]`            | all pre-existing tests green                               |               |           |       |
+| BDD tests created                  | `[files]`              | fail for expected reason                                   |               |           |       |
+| E2E stubs created                  | `[files]`              | fail for expected reason                                   |               |           |       |
+| Implementation                     | `[summary]`            | contract satisfied                                         |               |           |       |
+| Formatter                          | `[command]`            | clean                                                      |               |           |       |
+| Typecheck / build check            | `[command]`            | clean                                                      |               |           |       |
+| Static analyzer / linter           | `[command]`            | clean (no new warnings)                                    |               |           |       |
+| Dependency audit (if deps changed) | `[command]`            | pass or documented exception                               |               |           |       |
+| Full tests                         | `[command]`            | green                                                      |               |           |       |
+| E2E runtime                        | `[command]`            | green                                                      |               |           |       |
+| Build/boot                         | `[command]`            | boots cleanly                                              |               |           |       |
+| Smoke tests                        | `[steps]`              | all checked                                                |               |           |       |
+| Resource-bound verification        | `[bound + test]`       | bound encoded; test exercises near-limit behavior          |               |           |       |
+| Invariant/assertion verification   | `[invariant + test]`   | encoded; test triggers under fault injection if applicable |               |           |       |
+| Debugger / state inspection        | `[what was inspected]` | hypothesis confirmed before code change                    |               |           |       |
+| Test artifact cleanup              | `git status`           | no untracked test artifacts                                |               |           |       |
+| .gitignore review                  | review `.gitignore`    | patterns current, no stale entries                         |               |           |       |
+| Compatibility checks               | `[checks]`             | no regressions                                             |               |           |       |
 
 ---
 
@@ -738,48 +738,63 @@ Path: `docs/slo/lessons/<prefix>-m<N>.md`
 # Lessons Learned — <prefix> Milestone <N>
 
 ## What changed
+
 - [summary]
 
 ## Design decisions and why
+
 - [decision] — [reason]
 
 ## Assumptions verified
+
 - [assumption] — [evidence]
 
 ## Assumptions still unresolved
+
 - [assumption] — [risk / follow-up]
 
 ## Mistakes made
+
 - [mistake]
 
 ## Root causes
+
 - [root cause]
 
 ## What was harder than expected
+
 - [note]
 
 ## Invariants/assertions added or strengthened
+
 - [invariant]
 
 ## Resource bounds established or verified
+
 - [bound]
 
 ## Debugging / inspection notes
+
 - [what was inspected and what it revealed]
 
 ## Naming conventions established
+
 - [types, files, tests, events, commands]
 
 ## Test patterns that worked well
+
 - [pattern]
 
 ## Missing tests that should exist now
+
 - [test]
 
 ## Rules for the next milestone
+
 - [rule]
 
 ## Template improvements suggested
+
 - [improvement]
 ```
 
@@ -793,42 +808,55 @@ Path: `docs/slo/completion/<prefix>-m<N>.md`
 # Completion Summary — <prefix> Milestone <N>
 
 ## Goal completed
+
 - [what capability now exists]
 
 ## Files changed
+
 - [file]
 
 ## Tests added
+
 - [test file]
 
 ## Runtime validations added
+
 - [e2e file]
 
 ## Static analysis and formatter evidence
+
 - [command and result]
 
 ## Compatibility checks performed
+
 - [check]
 
 ## Invariants/assertions added
+
 - [invariant]
 
 ## Resource bounds added or verified
+
 - [bound]
 
 ## Documentation updated
+
 - [doc and section]
 
 ## .gitignore changes
+
 - [patterns added or removed]
 
 ## Test artifact cleanup verified
+
 - [confirmation that git status is clean after test run]
 
 ## Deferred follow-ups
+
 - [follow-up]
 
 ## Known non-blocking limitations
+
 - [limitation]
 ```
 
@@ -852,25 +880,25 @@ Path: `docs/slo/completion/<prefix>-m<N>.md`
 
 #### Contract Block
 
-| Field | Value |
-|---|---|
-| Inputs | [user input, command input, event input, state input] |
-| Outputs | [UI state, return values, persisted state, events] |
-| Interfaces touched | [commands, APIs, routes, events, structs, files] |
-| Files allowed to change | [explicit list] |
-| Files to read before changing anything | [explicit list] |
-| New files allowed | [explicit list or `none`] |
-| New dependencies allowed | [explicit list or `none`] |
-| Migration allowed | [`yes` or `no`] |
-| Compatibility commitments | [what must still work] |
-| Resource bounds introduced/changed | [bounds and behavior at limit, per §4.4] |
-| Invariants/assertions required | [list, per §4.3] |
-| Debugger / inspection expectation | [what must be inspectable, per §4.1] |
-| Static analysis gates | [formatter / typecheck / linter / audit commands, per §4.2] |
-| Forbidden shortcuts | [mocks in prod, TODOs, silent fallbacks, broad refactor, etc.] |
-| Data classification (optional) | [Public / Internal / Confidential / Restricted — per project threat-model conventions] |
-| Proactive controls in play (optional) | [OWASP Proactive Controls citations, e.g., C1, C5, C9] |
-| Abuse acceptance scenarios (optional) | [`tm-<feature>-abuse-N: <description>` — mitigation noted in BDD] |
+| Field                                  | Value                                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Inputs                                 | [user input, command input, event input, state input]                                  |
+| Outputs                                | [UI state, return values, persisted state, events]                                     |
+| Interfaces touched                     | [commands, APIs, routes, events, structs, files]                                       |
+| Files allowed to change                | [explicit list]                                                                        |
+| Files to read before changing anything | [explicit list]                                                                        |
+| New files allowed                      | [explicit list or `none`]                                                              |
+| New dependencies allowed               | [explicit list or `none`]                                                              |
+| Migration allowed                      | [`yes` or `no`]                                                                        |
+| Compatibility commitments              | [what must still work]                                                                 |
+| Resource bounds introduced/changed     | [bounds and behavior at limit, per §4.4]                                               |
+| Invariants/assertions required         | [list, per §4.3]                                                                       |
+| Debugger / inspection expectation      | [what must be inspectable, per §4.1]                                                   |
+| Static analysis gates                  | [formatter / typecheck / linter / audit commands, per §4.2]                            |
+| Forbidden shortcuts                    | [mocks in prod, TODOs, silent fallbacks, broad refactor, etc.]                         |
+| Data classification (optional)         | [Public / Internal / Confidential / Restricted — per project threat-model conventions] |
+| Proactive controls in play (optional)  | [OWASP Proactive Controls citations, e.g., C1, C5, C9]                                 |
+| Abuse acceptance scenarios (optional)  | [`tm-<feature>-abuse-N: <description>` — mitigation noted in BDD]                      |
 
 #### Out of Scope / Must Not Do
 
@@ -887,11 +915,11 @@ Path: `docs/slo/completion/<prefix>-m<N>.md`
 
 #### Files Allowed To Change
 
-| File | Planned Change |
-|---|---|
-| `[existing file path]` | [summary of change] |
-| `[new file path if allowed]` | NEW: [what this file does] |
-| `.gitignore` | Add patterns for any new generated files, build outputs, or test artifacts |
+| File                         | Planned Change                                                             |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `[existing file path]`       | [summary of change]                                                        |
+| `[new file path if allowed]` | NEW: [what this file does]                                                 |
+| `.gitignore`                 | Add patterns for any new generated files, build outputs, or test artifacts |
 
 #### Step-by-Step
 
@@ -912,15 +940,15 @@ Path: `docs/slo/completion/<prefix>-m<N>.md`
 
 **Feature: [feature name]**
 
-| Scenario | Category | Given | When | Then |
-|---|---|---|---|---|
-| [Scenario name] | happy path | [Precondition] | [Action] | [Expected outcome] |
-| [Scenario name] | invalid input | [Precondition] | [Action] | [Expected outcome] |
-| [Scenario name] | empty state | [Precondition] | [Action] | [Expected outcome] |
-| [Scenario name] | partial failure | [Precondition] | [Action] | [Expected outcome] |
-| [Scenario name] | resource bound | [Near limit] | [Operation] | [Bounded behavior] |
+| Scenario        | Category            | Given                     | When        | Then                               |
+| --------------- | ------------------- | ------------------------- | ----------- | ---------------------------------- |
+| [Scenario name] | happy path          | [Precondition]            | [Action]    | [Expected outcome]                 |
+| [Scenario name] | invalid input       | [Precondition]            | [Action]    | [Expected outcome]                 |
+| [Scenario name] | empty state         | [Precondition]            | [Action]    | [Expected outcome]                 |
+| [Scenario name] | partial failure     | [Precondition]            | [Action]    | [Expected outcome]                 |
+| [Scenario name] | resource bound      | [Near limit]              | [Operation] | [Bounded behavior]                 |
 | [Scenario name] | assertion violation | [Invalid invariant state] | [Operation] | [Visible failure / contract error] |
-| [Scenario name] | compatibility | [Old behavior/state] | [Operation] | [Still works] |
+| [Scenario name] | compatibility       | [Old behavior/state]      | [Operation] | [Still works]                      |
 
 Add more rows as needed. If a category does not apply, state why under Notes.
 
@@ -942,15 +970,15 @@ Add more rows as needed. If a category does not apply, state why under Notes.
 
 **File**: `[backend E2E test file path]`
 
-| E2E Test | What It Proves | Pass Criteria |
-|---|---|---|
+| E2E Test               | What It Proves               | Pass Criteria                 |
+| ---------------------- | ---------------------------- | ----------------------------- |
 | `[test_function_name]` | [Runtime behavior validated] | [Specific assertion criteria] |
 | `[test_function_name]` | [Runtime behavior validated] | [Specific assertion criteria] |
 
 **File**: `[frontend E2E test file path]`
 
-| E2E Test | What It Proves | Pass Criteria |
-|---|---|---|
+| E2E Test      | What It Proves               | Pass Criteria                 |
+| ------------- | ---------------------------- | ----------------------------- |
 | `[test name]` | [Runtime behavior validated] | [Specific assertion criteria] |
 
 #### Smoke Tests
@@ -965,26 +993,26 @@ Add more rows as needed. If a category does not apply, state why under Notes.
 
 #### Evidence Log
 
-| Step | Command / Check | Expected Result | Actual Result | Pass/Fail | Notes |
-|---|---|---|---|---|---|
-| Baseline tests | `[command]` | all green | | | |
-| BDD tests created | `[files]` | fail for expected reason | | | |
-| E2E stubs created | `[files]` | fail for expected reason | | | |
-| Implementation | `[summary]` | contract satisfied | | | |
-| Formatter | `[command]` | clean | | | |
-| Typecheck / build check | `[command]` | clean | | | |
-| Static analyzer / linter | `[command]` | clean | | | |
-| Dependency audit (if deps changed) | `[command]` | pass or documented exception | | | |
-| Full tests | `[command]` | green | | | |
-| E2E runtime | `[command]` | green | | | |
-| Build/boot | `[command]` | boots cleanly | | | |
-| Smoke tests | `[steps]` | all checked | | | |
-| Resource-bound verification | `[bound + test]` | bound encoded; test exercises near-limit | | | |
-| Invariant/assertion verification | `[invariant + test]` | encoded; test triggers under fault injection if applicable | | | |
-| Debugger / state inspection | `[what was inspected]` | hypothesis confirmed before code change | | | |
-| Test artifact cleanup | `git status` | no untracked test artifacts | | | |
-| .gitignore review | review `.gitignore` | patterns current, no stale entries | | | |
-| Compatibility checks | `[checks]` | no regressions | | | |
+| Step                               | Command / Check        | Expected Result                                            | Actual Result | Pass/Fail | Notes |
+| ---------------------------------- | ---------------------- | ---------------------------------------------------------- | ------------- | --------- | ----- |
+| Baseline tests                     | `[command]`            | all green                                                  |               |           |       |
+| BDD tests created                  | `[files]`              | fail for expected reason                                   |               |           |       |
+| E2E stubs created                  | `[files]`              | fail for expected reason                                   |               |           |       |
+| Implementation                     | `[summary]`            | contract satisfied                                         |               |           |       |
+| Formatter                          | `[command]`            | clean                                                      |               |           |       |
+| Typecheck / build check            | `[command]`            | clean                                                      |               |           |       |
+| Static analyzer / linter           | `[command]`            | clean                                                      |               |           |       |
+| Dependency audit (if deps changed) | `[command]`            | pass or documented exception                               |               |           |       |
+| Full tests                         | `[command]`            | green                                                      |               |           |       |
+| E2E runtime                        | `[command]`            | green                                                      |               |           |       |
+| Build/boot                         | `[command]`            | boots cleanly                                              |               |           |       |
+| Smoke tests                        | `[steps]`              | all checked                                                |               |           |       |
+| Resource-bound verification        | `[bound + test]`       | bound encoded; test exercises near-limit                   |               |           |       |
+| Invariant/assertion verification   | `[invariant + test]`   | encoded; test triggers under fault injection if applicable |               |           |       |
+| Debugger / state inspection        | `[what was inspected]` | hypothesis confirmed before code change                    |               |           |       |
+| Test artifact cleanup              | `git status`           | no untracked test artifacts                                |               |           |       |
+| .gitignore review                  | review `.gitignore`    | patterns current, no stale entries                         |               |           |       |
+| Compatibility checks               | `[checks]`             | no regressions                                             |               |           |       |
 
 #### Definition of Done
 
@@ -1030,11 +1058,11 @@ Complete the Global Exit Rules above. Key documentation updates:
 
 Track which documents need updating per milestone.
 
-| Milestone | ARCHITECTURE.md Update | README.md Update | .gitignore Update | Other Docs |
-|---|---|---|---|---|
-| 1 | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
-| 2 | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
-| 3 | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
+| Milestone | ARCHITECTURE.md Update  | README.md Update        | .gitignore Update        | Other Docs     |
+| --------- | ----------------------- | ----------------------- | ------------------------ | -------------- |
+| 1         | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
+| 2         | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
+| 3         | [Section to add/update] | [Section to add/update] | [Patterns to add/remove] | [Section/file] |
 
 ---
 

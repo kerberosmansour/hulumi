@@ -161,19 +161,15 @@ describe("NamespaceFoundation — network defaults", () => {
 });
 
 describe("NamespaceFoundation — invalid input refusals", () => {
-  test('Scenario: empty name refused', () => {
-    expect(() => new NamespaceFoundation("c", { name: "" })).toThrow(
-      /name is required/,
-    );
+  test("Scenario: empty name refused", () => {
+    expect(() => new NamespaceFoundation("c", { name: "" })).toThrow(/name is required/);
   });
 
   test('Scenario: name with "/" refused', () => {
-    expect(() => new NamespaceFoundation("c", { name: "ns/x" })).toThrow(
-      /must not contain/,
-    );
+    expect(() => new NamespaceFoundation("c", { name: "ns/x" })).toThrow(/must not contain/);
   });
 
-  test('Scenario: invalid PSA level refused', () => {
+  test("Scenario: invalid PSA level refused", () => {
     expect(
       () =>
         new NamespaceFoundation("c", {
@@ -183,7 +179,7 @@ describe("NamespaceFoundation — invalid input refusals", () => {
     ).toThrow(/podSecurity must be one of/);
   });
 
-  test('Scenario: allowMeshEgress without meshIngressNamespace refused', () => {
+  test("Scenario: allowMeshEgress without meshIngressNamespace refused", () => {
     expect(
       () =>
         new NamespaceFoundation("c", {
@@ -193,7 +189,7 @@ describe("NamespaceFoundation — invalid input refusals", () => {
     ).toThrow(/allowMeshEgress.*requires meshIngressNamespace/);
   });
 
-  test('Scenario: Label bound enforced (33 labels → reject)', () => {
+  test("Scenario: Label bound enforced (33 labels → reject)", () => {
     const tooMany: Record<string, string> = {};
     for (let i = 0; i < 33; i++) tooMany[`label-${i}`] = `v${i}`;
     expect(() => new NamespaceFoundation("c", { name: "x", labels: tooMany })).toThrow(
@@ -201,12 +197,12 @@ describe("NamespaceFoundation — invalid input refusals", () => {
     );
   });
 
-  test('Scenario: Quota entry bound enforced (33 entries → reject)', () => {
+  test("Scenario: Quota entry bound enforced (33 entries → reject)", () => {
     const tooMany: Record<string, string> = {};
     for (let i = 0; i < 33; i++) tooMany[`requests.cpu-${i}`] = "1";
-    expect(
-      () => new NamespaceFoundation("c", { name: "x", quota: { hard: tooMany } }),
-    ).toThrow(/quota.hard has 33.*max 32/);
+    expect(() => new NamespaceFoundation("c", { name: "x", quota: { hard: tooMany } })).toThrow(
+      /quota.hard has 33.*max 32/,
+    );
   });
 });
 

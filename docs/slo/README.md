@@ -4,20 +4,20 @@ Everything under this directory is **work / task information** produced by the [
 
 ## Layout
 
-| Path                                | What lives here                                                                                                                                       |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`current/`](current/)              | Runbooks for work currently in progress (one milestone tagged `in_progress`).                                                                         |
-| [`completed/`](completed/)          | Runbooks whose every milestone is `done`. A runbook moves here once `/slo-retro` closes the last milestone.                                            |
-| [`future/`](future/)                | Runbooks queued up but not yet started (every milestone `not_started`). Drop them into `current/` when work begins.                                   |
-| [`templates/`](templates/)          | Runbook templates (`runbook-template_v_4_template.md`) and supporting reference templates.                                                             |
-| [`idea/`](idea/)                    | `/slo-ideate` outputs — the YC-style interrogation that precedes every runbook.                                                                       |
-| [`research/`](research/)            | `/slo-research` dossiers (one subdirectory per slug).                                                                                                  |
-| [`design/`](design/)                | `/slo-architect` outputs — overview, interfaces, threat model, stack decision per slug.                                                                |
-| [`critique/`](critique/)            | `/slo-critique` four-persona adversarial reviews.                                                                                                       |
-| [`completion/`](completion/)        | Per-milestone completion summaries written by `/slo-retro`.                                                                                            |
-| [`lessons/`](lessons/)              | Per-milestone lessons-learned files written by `/slo-retro`.                                                                                           |
-| [`runbook-milestones/`](runbook-milestones/) | Per-milestone scoping detail referenced from the parent runbook (older convention; new runbooks fold this into the runbook body).                  |
-| [`verify/`](verify/)                | `/slo-verify` smoke and runtime QA reports.                                                                                                            |
+| Path                                         | What lives here                                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`current/`](current/)                       | Runbooks for work currently in progress (one milestone tagged `in_progress`).                                                     |
+| [`completed/`](completed/)                   | Runbooks whose every milestone is `done`. A runbook moves here once `/slo-retro` closes the last milestone.                       |
+| [`future/`](future/)                         | Runbooks queued up but not yet started (every milestone `not_started`). Drop them into `current/` when work begins.               |
+| [`templates/`](templates/)                   | Runbook templates (`runbook-template_v_4_template.md`) and supporting reference templates.                                        |
+| [`idea/`](idea/)                             | `/slo-ideate` outputs — the YC-style interrogation that precedes every runbook.                                                   |
+| [`research/`](research/)                     | `/slo-research` dossiers (one subdirectory per slug).                                                                             |
+| [`design/`](design/)                         | `/slo-architect` outputs — overview, interfaces, threat model, stack decision per slug.                                           |
+| [`critique/`](critique/)                     | `/slo-critique` four-persona adversarial reviews.                                                                                 |
+| [`completion/`](completion/)                 | Per-milestone completion summaries written by `/slo-retro`.                                                                       |
+| [`lessons/`](lessons/)                       | Per-milestone lessons-learned files written by `/slo-retro`.                                                                      |
+| [`runbook-milestones/`](runbook-milestones/) | Per-milestone scoping detail referenced from the parent runbook (older convention; new runbooks fold this into the runbook body). |
+| [`verify/`](verify/)                         | `/slo-verify` smoke and runtime QA reports.                                                                                       |
 
 ## Runbook lifecycle
 

@@ -1,9 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 import type {
   KubernetesSecretFromAwsSecretsManagerArgs,
@@ -57,10 +54,7 @@ async function defaultFetcher(arn: string, region?: string): Promise<string> {
 function jsonNestingDepth(value: unknown, depth = 0): number {
   if (depth > MAX_NESTING_DEPTH) return depth;
   if (Array.isArray(value)) {
-    return value.reduce<number>(
-      (m, v) => Math.max(m, jsonNestingDepth(v, depth + 1)),
-      depth,
-    );
+    return value.reduce<number>((m, v) => Math.max(m, jsonNestingDepth(v, depth + 1)), depth);
   }
   if (value !== null && typeof value === "object") {
     return Object.values(value as Record<string, unknown>).reduce<number>(
@@ -204,7 +198,10 @@ export class KubernetesSecretFromAwsSecretsManager
 
     const empty = { stringData: {} as Record<string, string>, written: [] as string[] };
 
-    function handleDegraded(reason: string): { stringData: Record<string, string>; written: string[] } {
+    function handleDegraded(reason: string): {
+      stringData: Record<string, string>;
+      written: string[];
+    } {
       const fullReason = `KubernetesSecretFromAwsSecretsManager "${name}": ${reason}`;
       if (failureMode === "fail") {
         // Log to pulumi.log.error first so operators see the concrete failure
@@ -227,35 +224,22 @@ export class KubernetesSecretFromAwsSecretsManager
         raw = await fetch(arn, region === "" ? undefined : region);
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        return handleDegraded(
-          `failed to fetch SM secret at ${arn}: ${redact(errMsg)}`,
-        );
+        return handleDegraded(`failed to fetch SM secret at ${arn}: ${redact(errMsg)}`);
       }
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        return handleDegraded(
-          `SM secret at ${arn} is not valid JSON: ${redact(errMsg)}`,
-        );
+        return handleDegraded(`SM secret at ${arn} is not valid JSON: ${redact(errMsg)}`);
       }
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        const got =
-          parsed === null
-            ? "null"
-            : Array.isArray(parsed)
-              ? "array"
-              : typeof parsed;
-        return handleDegraded(
-          `SM secret at ${arn} must be a JSON object (got ${got})`,
-        );
+        const got = parsed === null ? "null" : Array.isArray(parsed) ? "array" : typeof parsed;
+        return handleDegraded(`SM secret at ${arn} must be a JSON object (got ${got})`);
       }
       const depth = jsonNestingDepth(parsed);
       if (depth > MAX_NESTING_DEPTH) {
-        return handleDegraded(
-          `SM secret JSON exceeds max nesting depth (${MAX_NESTING_DEPTH})`,
-        );
+        return handleDegraded(`SM secret JSON exceeds max nesting depth (${MAX_NESTING_DEPTH})`);
       }
       // mapKeys + missing-key check. This may throw FailClosedError under
       // the M2 default (`missingKeyMode: "fail"`), which the Pulumi engine
@@ -271,7 +255,12 @@ export class KubernetesSecretFromAwsSecretsManager
     const stringData = extracted.apply((e) => e.stringData);
     const written = extracted.apply((e) => e.written);
 
-    const metadata: { name: string; namespace: pulumi.Input<string>; labels?: Record<string, string>; annotations?: Record<string, string> } = {
+    const metadata: {
+      name: string;
+      namespace: pulumi.Input<string>;
+      labels?: Record<string, string>;
+      annotations?: Record<string, string>;
+    } = {
       name: args.secretName,
       namespace: args.namespace,
     };
@@ -310,7 +299,10 @@ export class RdsCredentialSecret
 
   constructor(name: string, args: RdsCredentialSecretArgs, opts?: pulumi.ComponentResourceOptions) {
     super(RDS_CREDENTIAL_SECRET_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
-    const keyMapping: Record<string, string> = { ...RDS_DEFAULT_KEY_MAPPING, ...(args.keyMapping ?? {}) };
+    const keyMapping: Record<string, string> = {
+      ...RDS_DEFAULT_KEY_MAPPING,
+      ...(args.keyMapping ?? {}),
+    };
     const innerArgs: KubernetesSecretFromAwsSecretsManagerArgs = {
       secretsManagerArn: args.rdsManagedMasterCredentialArn,
       namespace: args.namespace,

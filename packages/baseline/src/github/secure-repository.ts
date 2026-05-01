@@ -4,10 +4,7 @@ import * as github from "@pulumi/github";
 import { assertValidTier, type Tier } from "../aws/tier";
 import { cisGithub } from "../mappings/cis-github";
 import { nistSsdfV11 } from "../mappings/nist-ssdf-v1.1";
-import type {
-  SecureRepositoryArgs,
-  SecureRepositoryArgsPublic,
-} from "./secure-repository.args";
+import type { SecureRepositoryArgs, SecureRepositoryArgsPublic } from "./secure-repository.args";
 import type { SecureRepositoryOutputs } from "./secure-repository.outputs";
 
 export const SECURE_REPOSITORY_COMPONENT_TYPE = "hulumi:baseline:github:SecureRepository";
@@ -89,11 +86,7 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
   public readonly defaultBranch: pulumi.Output<string>;
   public readonly rulesetId: pulumi.Output<string>;
 
-  constructor(
-    name: string,
-    args: SecureRepositoryArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: SecureRepositoryArgs, opts?: pulumi.ComponentResourceOptions) {
     super(SECURE_REPOSITORY_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
 
@@ -137,8 +130,7 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
       : parent;
 
     const isStartupHardened = args.tier === "startup-hardened";
-    const enableSecretScanning =
-      args.secretScanning ?? isStartupHardened;
+    const enableSecretScanning = args.secretScanning ?? isStartupHardened;
     const enablePushProtection = args.pushProtection ?? isStartupHardened;
 
     // Build repo args; omit optional fields when the caller didn't supply
@@ -201,7 +193,9 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
 
     this.repoFullName = this.repository.fullName;
     this.repoNodeId = this.repository.nodeId;
-    this.defaultBranch = this.repository.defaultBranch.apply((b: string | undefined) => b ?? "main");
+    this.defaultBranch = this.repository.defaultBranch.apply(
+      (b: string | undefined) => b ?? "main",
+    );
     this.rulesetId = this.ruleset.id;
 
     this.registerOutputs({

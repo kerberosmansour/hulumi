@@ -16,7 +16,7 @@
 - **Three scenarios, not one** — each Ops milestone (M7 patch, M8 detective, M9 audit) gets its own scenario. Splitting them lets consumers run focused threat-modeling sessions when adopting one component at a time.
 - **`operations-detective-services-disabled` covers both "service off" AND "route broken"** — the failure mode isn't just disabled services; it's services emitting findings to a SNS topic nobody reads. STRIDE-T captures the "tampered route" path.
 - **`operations-audit-pipeline-broken` includes StopLogging as the spoofed-source threat** — the most common attacker behavior in audit-evasion incidents. Maps directly to the existing `IdentityAlarms.cloudtrail-tampered` event.
-- **Release version bump is the M11 deliverable, not an M11 release event** — actual `npm publish` happens at tag time. M11 ships the *readiness*: package.json versions, CHANGELOG, scenario lister, and the four-package release path (which already landed in M1).
+- **Release version bump is the M11 deliverable, not an M11 release event** — actual `npm publish` happens at tag time. M11 ships the _readiness_: package.json versions, CHANGELOG, scenario lister, and the four-package release path (which already landed in M1).
 
 ## Mistakes made
 

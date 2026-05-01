@@ -1,9 +1,11 @@
 # Research brief — Hulumi for GitHub
 
 ## Wedge (one sentence)
+
 Ship `@hulumi/baseline.github.SecureRepository` + `OrgFoundation` + a `HulumiGithubHardeningPack` (mirroring the existing AWS pattern at `kerberosmansour/hulumi`), under a hard infra-only scope contract that explicitly excludes appsec rule authoring (no CodeQL queries, no Semgrep rules, no alert triage).
 
 ## Target user (one sentence)
+
 A platform engineer who has already adopted Hulumi v1.0 for AWS (and now has hardened S3 / account foundation / drift classifier / threat-model skill working), but their company's GitHub orgs and ~30 repos remain hand-configured with branch-protection drift, classic-PAT auth, and a stale CIS GitHub Benchmark spreadsheet from a 2025 consulting engagement.
 
 ## Five research questions

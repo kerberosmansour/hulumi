@@ -16,12 +16,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { OrgFoundation } from "../../src/github/org-foundation";
-import {
-  registrations,
-  resetRegistrations,
-  valueOf,
-  settlePulumi,
-} from "../setup";
+import { registrations, resetRegistrations, valueOf, settlePulumi } from "../setup";
 
 type Registration = (typeof registrations)[number];
 
@@ -56,7 +51,9 @@ describe("OrgFoundation — startup-hardened tier with default flat-fields backe
     expect(rules.nonFastForward).toBe(true);
     expect(rules.deletion).toBe(true);
 
-    const perms = find("github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions");
+    const perms = find(
+      "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions",
+    );
     expect(perms).toBeDefined();
     expect(perms!.inputs.allowedActions).toBe("selected");
     expect(perms!.inputs.shaPinningRequired).toBe(true);
@@ -96,9 +93,7 @@ describe("OrgFoundation — startup-hardened tier with code-security-configurati
     await settlePulumi();
 
     // Dynamic-resource ID is registered as a custom resource type.
-    const csc = registrations.find((r) =>
-      r.type.includes("CodeSecurityConfiguration"),
-    );
+    const csc = registrations.find((r) => r.type.includes("CodeSecurityConfiguration"));
     expect(csc).toBeDefined();
 
     // The flat-fields OrganizationSettings is NOT registered when CSC backend selected.
@@ -126,7 +121,9 @@ describe("OrgFoundation — Sandbox tier minimum (empty state)", () => {
     // Sandbox does NOT require signed commits.
     expect(rules.requiredSignatures).toBeUndefined();
 
-    const perms = find("github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions");
+    const perms = find(
+      "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions",
+    );
     expect(perms).toBeDefined();
     expect(perms!.inputs.allowedActions).toBe("local_only");
     expect(perms!.inputs.shaPinningRequired).toBe(false);
@@ -188,12 +185,7 @@ describe("OrgFoundation — abuse case: default OIDC template is the three-axis 
     const claimKeys = oidc!.inputs.includeClaimKeys as readonly string[];
     // Snapshot-pinned: any future change to this default fails this test
     // until the snapshot is regenerated with explicit reviewer approval.
-    expect(claimKeys).toStrictEqual([
-      "repo",
-      "context",
-      "job_workflow_ref",
-      "environment",
-    ]);
+    expect(claimKeys).toStrictEqual(["repo", "context", "job_workflow_ref", "environment"]);
   });
 });
 
@@ -237,7 +229,9 @@ describe("OrgFoundation — abuse case: SHA-pin default on at startup-hardened",
     await valueOf(f.organizationRulesetId);
     await settlePulumi();
 
-    const perms = find("github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions");
+    const perms = find(
+      "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions",
+    );
     expect(perms).toBeDefined();
     expect(perms!.inputs.shaPinningRequired).toBe(true);
   });
@@ -280,7 +274,9 @@ describe("OrgFoundation — abuse case: audit-event emitter redacts token fragme
     expect(redactTokens('{"auth":"Bearer ghs_xxxxxxxxxxxxxxxx","other":"safe"}')).not.toMatch(
       /ghs_xxxxxxxxxxxxxxxx/,
     );
-    expect(redactTokens("Bearer ghs_abc Bearer github_pat_def")).not.toMatch(/ghs_abc|github_pat_def/);
+    expect(redactTokens("Bearer ghs_abc Bearer github_pat_def")).not.toMatch(
+      /ghs_abc|github_pat_def/,
+    );
     expect(redactTokens("safe text without tokens")).toBe("safe text without tokens");
   });
 });

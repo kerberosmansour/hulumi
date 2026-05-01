@@ -75,9 +75,9 @@ describe("EksBackupFoundation — invalid input refusals", () => {
   test("Scenario: Backup selections bounded (33 → reject)", () => {
     const tooMany: string[] = [];
     for (let i = 0; i < 33; i++) tooMany.push(`arn:aws:efs:us-east-1:111:file-system/fs-${i}`);
-    expect(
-      () => new EksBackupFoundation("backup", { ...baseArgs, resourceArns: tooMany }),
-    ).toThrow(/resourceArns has 33.*max 32/);
+    expect(() => new EksBackupFoundation("backup", { ...baseArgs, resourceArns: tooMany })).toThrow(
+      /resourceArns has 33.*max 32/,
+    );
   });
 
   test("Scenario: Lifecycle rules bounded (9 → reject)", () => {
@@ -124,8 +124,8 @@ describe("EksBackupFoundation — invalid input refusals", () => {
   });
 
   test("empty resourceArns refused", () => {
-    expect(
-      () => new EksBackupFoundation("backup", { ...baseArgs, resourceArns: [] }),
-    ).toThrow(/resourceArns must be non-empty/);
+    expect(() => new EksBackupFoundation("backup", { ...baseArgs, resourceArns: [] })).toThrow(
+      /resourceArns must be non-empty/,
+    );
   });
 });

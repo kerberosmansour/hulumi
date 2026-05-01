@@ -7,20 +7,24 @@
 ## Files changed
 
 ### Added (source)
+
 - `packages/k8s-baseline/src/eks-runtime-detection-foundation.{args,outputs,ts}.ts`.
 - `packages/k8s-baseline/src/eks-backup-foundation.{args,outputs,ts}.ts`.
 
 ### Added (tests)
+
 - `packages/k8s-baseline/tests/eks-runtime-detection-foundation.test.ts` — 6 BDD scenarios.
 - `packages/k8s-baseline/tests/eks-backup-foundation.test.ts` — 9 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/eks-runtime-detection-foundation.md`.
 - `docs/components/eks-backup-foundation.md`.
 - `docs/slo/lessons/hulumi-k8s-security-m5.md`.
 - `docs/slo/completion/hulumi-k8s-security-m5.md`.
 
 ### Modified
+
 - `packages/k8s-baseline/src/index.ts` — re-exports both components + types + bounds.
 - `docs/components/README.md` — adds two new component rows.
 
@@ -29,6 +33,7 @@
 15 BDD scenarios (134 K8s tests total, was 119; +15):
 
 **Runtime detection** (6):
+
 - GuardDuty audit + runtime monitoring enabled by default for `ec2-managed` clusters.
 - Fargate-only mode skips runtime monitoring and emits visible warning + output flag.
 - Secret-read alarm emitted (filter pattern targets `secrets` + `get/list/watch`).
@@ -37,6 +42,7 @@
 - Invalid `clusterCompute` rejected.
 
 **Backup** (9):
+
 - Vault encrypted via supplied KMS key.
 - Vault lock + air-gap explicit emits `VaultLockConfiguration` with the 3-day `changeableForDays` window.
 - `retentionDays <= 0` rejected.
@@ -49,14 +55,14 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| license-boundary       | OK    |
-| exact-pin-guard        | OK    |
-| Full tests             | 67 baseline / 96 policies / 54 drift / **134** k8s-baseline (+15) / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                              |
+| `pnpm -r build`     | green                                                                                              |
+| `pnpm -r lint`      | green                                                                                              |
+| license-boundary    | OK                                                                                                 |
+| exact-pin-guard     | OK                                                                                                 |
+| Full tests          | 67 baseline / 96 policies / 54 drift / **134** k8s-baseline (+15) / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility checks
 

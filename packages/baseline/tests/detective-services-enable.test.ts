@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import {
-  DetectiveServicesEnable,
-  DETECTIVE_SERVICES_ENABLE_COMPONENT_TYPE,
-} from "../src/aws";
+import { DetectiveServicesEnable, DETECTIVE_SERVICES_ENABLE_COMPONENT_TYPE } from "../src/aws";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
 beforeEach(() => {
@@ -32,9 +29,7 @@ describe("DetectiveServicesEnable — happy paths", () => {
     expect(registrations.some((r) => r.type === DETECTIVE_SERVICES_ENABLE_COMPONENT_TYPE)).toBe(
       true,
     );
-    expect(
-      registrations.some((r) => r.type === "aws:accessanalyzer/analyzer:Analyzer"),
-    ).toBe(true);
+    expect(registrations.some((r) => r.type === "aws:accessanalyzer/analyzer:Analyzer")).toBe(true);
     expect(registrations.some((r) => r.type === "aws:inspector2/enabler:Enabler")).toBe(true);
     expect(
       registrations.some((r) => r.type === "aws:costexplorer/anomalyMonitor:AnomalyMonitor"),
@@ -81,9 +76,9 @@ describe("DetectiveServicesEnable — happy paths", () => {
       enableCostAnomalyDetection: false,
     });
     await settlePulumi();
-    expect(
-      registrations.some((r) => r.type === "aws:accessanalyzer/analyzer:Analyzer"),
-    ).toBe(false);
+    expect(registrations.some((r) => r.type === "aws:accessanalyzer/analyzer:Analyzer")).toBe(
+      false,
+    );
     expect(registrations.some((r) => r.type === "aws:inspector2/enabler:Enabler")).toBe(false);
     expect(
       registrations.some((r) => r.type === "aws:costexplorer/anomalyMonitor:AnomalyMonitor"),

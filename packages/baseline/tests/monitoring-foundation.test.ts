@@ -81,8 +81,7 @@ describe("MonitoringFoundation — sandbox tier", () => {
 
     const critHttps = subs.find(
       (s) =>
-        s.inputs.protocol === "https" &&
-        s.inputs.endpoint === "https://hooks.example.com/critical",
+        s.inputs.protocol === "https" && s.inputs.endpoint === "https://hooks.example.com/critical",
     );
     expect(critHttps).toBeDefined();
   });
@@ -102,12 +101,7 @@ describe("MonitoringFoundation — sandbox tier", () => {
 
   it("topicsBySeverity exposes all 4 ARN outputs", async () => {
     const m = new MonitoringFoundation("mon", { tier: "sandbox" });
-    expect(Object.keys(m.topicsBySeverity).sort()).toEqual([
-      "critical",
-      "high",
-      "low",
-      "medium",
-    ]);
+    expect(Object.keys(m.topicsBySeverity).sort()).toEqual(["critical", "high", "low", "medium"]);
     // Drain pending registrations so the next test's beforeEach reset is clean.
     await valueOf(m.criticalArn);
     await settlePulumi();

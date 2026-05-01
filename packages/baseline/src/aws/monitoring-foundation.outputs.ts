@@ -18,10 +18,7 @@ export interface MonitoringFoundationOutputs {
    *
    *     for (const [severity, arn] of Object.entries(monitoring.topicsBySeverity)) { ... }
    */
-  readonly topicsBySeverity: Record<
-    "critical" | "high" | "medium" | "low",
-    pulumi.Output<string>
-  >;
+  readonly topicsBySeverity: Record<"critical" | "high" | "medium" | "low", pulumi.Output<string>>;
 
   /** Underlying SNS topic resources, exposed for advanced uses (custom subscriptions, etc). */
   readonly criticalTopic: aws.sns.Topic;

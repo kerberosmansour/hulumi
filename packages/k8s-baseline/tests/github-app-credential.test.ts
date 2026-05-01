@@ -163,9 +163,7 @@ describe("GitHubAppCredential — abuse cases", () => {
     const policy = iamPolicies()[0];
     const rawPolicy = policy.inputs.policy;
     const policyJson: string =
-      typeof rawPolicy === "string"
-        ? rawPolicy
-        : await valueOf(rawPolicy as pulumi.Output<string>);
+      typeof rawPolicy === "string" ? rawPolicy : await valueOf(rawPolicy as pulumi.Output<string>);
     const policyDoc = JSON.parse(policyJson);
     const resource = policyDoc.Statement[0].Resource;
     expect(resource).not.toBe("*");
@@ -176,12 +174,7 @@ describe("GitHubAppCredential — abuse cases", () => {
   test("populate.sh is set -euo pipefail with PEM-scrubbing trap", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const scriptPath = path.resolve(
-      __dirname,
-      "..",
-      "scripts",
-      "populate-github-app-secret.sh",
-    );
+    const scriptPath = path.resolve(__dirname, "..", "scripts", "populate-github-app-secret.sh");
     const content = fs.readFileSync(scriptPath, "utf8");
     expect(content).toMatch(/set -euo pipefail/);
     expect(content).toMatch(/trap cleanup/);
@@ -191,12 +184,7 @@ describe("GitHubAppCredential — abuse cases", () => {
   test("mint.sh is set -euo pipefail and never echoes the PEM to stdout/stderr", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const scriptPath = path.resolve(
-      __dirname,
-      "..",
-      "scripts",
-      "mint-github-app-token.sh",
-    );
+    const scriptPath = path.resolve(__dirname, "..", "scripts", "mint-github-app-token.sh");
     const content = fs.readFileSync(scriptPath, "utf8");
     expect(content).toMatch(/set -euo pipefail/);
     expect(content).toMatch(/trap cleanup/);
@@ -209,9 +197,7 @@ describe("GitHubAppCredential — abuse cases", () => {
   test("scripts shipped via package.json files array", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const pkg = JSON.parse(
-      fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"),
-    );
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"));
     expect(pkg.files).toContain("scripts/");
   });
 });

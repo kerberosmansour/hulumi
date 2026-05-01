@@ -15,24 +15,12 @@
 // placeholders is the intentional staged state.
 
 export const cisGithub = {
-  secureRepository: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
-  orgFoundation: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
-  orgRulesets: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
-  orgActions: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
-  orgOidcTemplate: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
-  orgSecurityDefaults: [
-    "CIS-GitHub-v1.2.0:PENDING-WORKBENCH",
-  ],
+  secureRepository: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
+  orgFoundation: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
+  orgRulesets: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
+  orgActions: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
+  orgOidcTemplate: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
+  orgSecurityDefaults: ["CIS-GitHub-v1.2.0:PENDING-WORKBENCH"],
 } as const;
 
 export type CisGithubId = (typeof cisGithub.secureRepository)[number];

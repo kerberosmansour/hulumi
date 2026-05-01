@@ -7,21 +7,26 @@
 ## Files changed
 
 ### Added (source)
+
 - `packages/baseline/src/aws/audit-trail.{args,outputs,ts}.ts`.
 
 ### Added (tests)
+
 - `packages/baseline/tests/audit-trail.test.ts` — 5 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/audit-trail.md`.
 - `docs/slo/lessons/hulumi-operations-m3.md`, `docs/slo/completion/hulumi-operations-m3.md`.
 
 ### Modified
+
 - `packages/baseline/src/aws/index.ts` — re-exports.
 
 ## Tests added
 
 5 BDD scenarios:
+
 - Multi-region trail with log-file validation, KMS-encrypted CW Logs.
 - CW Logs retention configurable.
 - Missing `kmsKeyArn` rejected.
@@ -30,12 +35,12 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| Full tests             | **86** baseline (was 81; +5) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                     |
+| `pnpm -r build`     | green                                                                                                     |
+| `pnpm -r lint`      | green                                                                                                     |
+| Full tests          | **86** baseline (was 81; +5) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility
 

@@ -74,8 +74,8 @@ describe("AuditTrail — invalid input refusals", () => {
   });
 
   test("non-positive retention rejected", () => {
-    expect(
-      () => new AuditTrail("c", { ...baseArgs, cloudWatchLogsRetentionDays: 0 }),
-    ).toThrow(/cloudWatchLogsRetentionDays must be > 0/);
+    expect(() => new AuditTrail("c", { ...baseArgs, cloudWatchLogsRetentionDays: 0 })).toThrow(
+      /cloudWatchLogsRetentionDays must be > 0/,
+    );
   });
 });

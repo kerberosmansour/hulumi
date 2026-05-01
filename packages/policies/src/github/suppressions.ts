@@ -6,8 +6,4 @@
 // is consulted, not in the Suppression API itself (since the AWS-side
 // API doesn't enforce justification per rule, only as a convention).
 
-export {
-  matchSuppression,
-  type Suppression,
-  type SuppressionMatch,
-} from "../aws/suppressions";
+export { matchSuppression, type Suppression, type SuppressionMatch } from "../aws/suppressions";

@@ -44,9 +44,9 @@ const ALLOWED = [
   // gate the same way @pulumi/aws bumps do.
   {
     name: "@pulumi/github",
-    version: "6.13.0",
+    version: "6.13.1",
     integrity:
-      "sha512-VoQEHG7oAm7IWGwNCOKZl0FELTch9gtOBbyMLRHZgPIwyF+xxXwXomnEyAkell/PzfjuHl9HYZeOQPMS9doUaw==",
+      "sha512-dvQtwXvhIqx7HHTe0+PzLooyboiNapDHOnxEbGd0jY6boFFuFJpT5LKapK25cjsc6s4qKduvLo2HZdo9UtH05g==",
   },
   // Added in Hulumi v1.2.0 M1 (Hulumi-for-K8s runbook). Mandatory baseline for
   // HardenedHelmRelease (M1) + IstioFoundation (M2) + every K8s-side component.
@@ -63,9 +63,9 @@ const ALLOWED = [
   // integrity hash is part of the supply-chain story for the K8s package.
   {
     name: "@aws-sdk/client-secrets-manager",
-    version: "3.1037.0",
+    version: "3.1040.0",
     integrity:
-      "sha512-SBXVNgXdzFeiuUod1AZXJexTDndPcpSTGOrVDe5Ny81Xq7d3r18th7ZTzvnc7BsD9MQa8SckNgOYscvi/fYZhw==",
+      "sha512-qszI/6MUy57rSqA2eSN3jbdjU1RFUDkayw7HbSX02jRmP896mSssWM0BC+mwYXuY7d3s1QntxmMKiNwXEXRdWg==",
   },
 ];
 

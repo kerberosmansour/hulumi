@@ -11,16 +11,16 @@ Does NOT make network calls. Does NOT mutate state. Does NOT perform upgrades. C
 
 ## Verdict gates
 
-| Gate | Action |
-|---|---|
-| `targetSupportStatus === "unsupported"` | `unsafe` |
-| `currentSupportStatus === "unsupported"` | `unsafe` |
-| `targetSupportStatus === "unknown"` | `degraded` (warning) |
-| `currentSupportStatus === "extended"` | `safe` (warning, elevated priority) |
-| Skipping minor versions (e.g. 1.28 → 1.31) | `unsafe` |
-| Downgrade | `unsafe` |
-| `backupEvidence.recent === false` | `unsafe` |
-| Any add-on `targetCompatibleWithK8sTarget === false` | `unsafe` |
+| Gate                                                 | Action                              |
+| ---------------------------------------------------- | ----------------------------------- |
+| `targetSupportStatus === "unsupported"`              | `unsafe`                            |
+| `currentSupportStatus === "unsupported"`             | `unsafe`                            |
+| `targetSupportStatus === "unknown"`                  | `degraded` (warning)                |
+| `currentSupportStatus === "extended"`                | `safe` (warning, elevated priority) |
+| Skipping minor versions (e.g. 1.28 → 1.31)           | `unsafe`                            |
+| Downgrade                                            | `unsafe`                            |
+| `backupEvidence.recent === false`                    | `unsafe`                            |
+| Any add-on `targetCompatibleWithK8sTarget === false` | `unsafe`                            |
 
 ## Bounds
 

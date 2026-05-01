@@ -97,9 +97,7 @@ export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOu
         name: `${prefix}-trail`,
         s3BucketName: args.archiveBucketName,
         kmsKeyId: args.kmsKeyArn,
-        cloudWatchLogsGroupArn: pulumi
-          .output(logGroup.arn)
-          .apply((arn: string) => `${arn}:*`),
+        cloudWatchLogsGroupArn: pulumi.output(logGroup.arn).apply((arn: string) => `${arn}:*`),
         cloudWatchLogsRoleArn: role.arn,
         isMultiRegionTrail: true,
         includeGlobalServiceEvents: true,
@@ -108,9 +106,7 @@ export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOu
           {
             readWriteType: "All",
             includeManagementEvents: true,
-            dataResources: [
-              { type: "AWS::S3::Object", values: [`${args.archiveBucketArn}/`] },
-            ],
+            dataResources: [{ type: "AWS::S3::Object", values: [`${args.archiveBucketArn}/`] }],
           },
         ],
         tags: baseTags,

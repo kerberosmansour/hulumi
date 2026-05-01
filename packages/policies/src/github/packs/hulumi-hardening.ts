@@ -13,13 +13,6 @@ import {
   hulumiHardeningPackGithubMetadata,
 } from "../hulumi-hardening-pack.rules";
 
-export const HulumiGithubHardeningPack = new PolicyPack(
-  hulumiHardeningPackGithubMetadata.id,
-  {
-    policies: [
-      h1NoRawGithubRepository,
-      h2NoWildcardOidcTemplate,
-      h3NoWildcardTrustPolicy,
-    ],
-  },
-);
+export const HulumiGithubHardeningPack = new PolicyPack(hulumiHardeningPackGithubMetadata.id, {
+  policies: [h1NoRawGithubRepository, h2NoWildcardOidcTemplate, h3NoWildcardTrustPolicy],
+});

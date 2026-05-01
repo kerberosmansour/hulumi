@@ -32,9 +32,7 @@ export const HULUMI_OIDC_DEFAULT_CLAIM_KEYS: readonly string[] = [
  */
 export function assertOidcTemplateSafe(template: readonly string[]): void {
   if (!Array.isArray(template) || template.length === 0) {
-    throw new Error(
-      "OIDC sub-claim template must be a non-empty array of claim keys",
-    );
+    throw new Error("OIDC sub-claim template must be a non-empty array of claim keys");
   }
   for (const axis of template) {
     if (typeof axis !== "string" || axis.length === 0) {

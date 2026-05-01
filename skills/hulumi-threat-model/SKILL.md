@@ -104,12 +104,12 @@ The body has fixed sections: `Scenario`, `Actors`, `Assets`, `Threats (STRIDE)`,
 
 The four highest demand-minus-supply GitHub-platform scenarios from research synthesis. All four anchor on named 2025–2026 incidents (UNC6426 OIDC trust-chain abuse, trivy-action/tj-actions/Sysdig Shai-Hulud Actions supply-chain compromises, OpenAI Codex / Vercel App-token exposures, self-hosted-runner backdoor reports).
 
-| Scenario ID                          | Focus                                                                                                |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `github-oidc-trust-cloud-account`    | OIDC trust from GitHub Actions to AWS / Azure / GCP — three-axis sub claim, UNC6426 mitigation       |
-| `github-actions-supply-chain`        | Third-party Action ingestion, SHA-pinning, pwn-request, cache poisoning, allow-list discipline       |
-| `github-app-token-exposure`          | GitHub App / installation-token rotation, scope minimization, octo-sts-style short-lived exchange    |
-| `github-self-hosted-runner`          | Ephemeral runners, runner-image hardening, runner-group scoping, exfil-via-runner threat model       |
+| Scenario ID                       | Focus                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `github-oidc-trust-cloud-account` | OIDC trust from GitHub Actions to AWS / Azure / GCP — three-axis sub claim, UNC6426 mitigation    |
+| `github-actions-supply-chain`     | Third-party Action ingestion, SHA-pinning, pwn-request, cache poisoning, allow-list discipline    |
+| `github-app-token-exposure`       | GitHub App / installation-token rotation, scope minimization, octo-sts-style short-lived exchange |
+| `github-self-hosted-runner`       | Ephemeral runners, runner-image hardening, runner-group scoping, exfil-via-runner threat model    |
 
 ## What this skill does NOT do
 

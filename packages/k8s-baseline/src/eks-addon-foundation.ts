@@ -37,16 +37,10 @@ export class EksAddonFoundation
   public readonly addonNames: pulumi.Output<string[]>;
   public readonly pinnedVersions: pulumi.Output<Record<string, string>>;
 
-  constructor(
-    name: string,
-    args: EksAddonFoundationArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: EksAddonFoundationArgs, opts?: pulumi.ComponentResourceOptions) {
     super(EKS_ADDON_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     if (args.addons === undefined || args.addons.length === 0) {
-      throw new Error(
-        `EksAddonFoundation: addons must be non-empty (component "${name}")`,
-      );
+      throw new Error(`EksAddonFoundation: addons must be non-empty (component "${name}")`);
     }
     if (args.addons.length > MAX_EKS_ADDONS) {
       throw new Error(

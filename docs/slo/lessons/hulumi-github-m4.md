@@ -39,7 +39,7 @@ Failure modes are loud — malformed v1 fails before the backup is written, so t
 
 ### `DriftVerdict.tierDegraded` and `featureNotLicensed` are non-suppressible
 
-Per critique-derived constraints. The adapter's `signal()` always populates `tierDegraded: true` (the adapter exists *because* GHEC audit-log is unavailable; the truth is constant). `featureNotLicensed` is populated from the user-supplied `featureLicenseMap` — only truthy entries appear in the output. There is no API flag to hide either field.
+Per critique-derived constraints. The adapter's `signal()` always populates `tierDegraded: true` (the adapter exists _because_ GHEC audit-log is unavailable; the truth is constant). `featureNotLicensed` is populated from the user-supplied `featureLicenseMap` — only truthy entries appear in the output. There is no API flag to hide either field.
 
 ### Webhook secret-rotation detection at >3 consecutive failures
 

@@ -42,11 +42,7 @@ export class GitHubAppCredential
   public readonly populateScriptPath: string;
   public readonly mintScriptPath: string;
 
-  constructor(
-    name: string,
-    args: GitHubAppCredentialArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: GitHubAppCredentialArgs, opts?: pulumi.ComponentResourceOptions) {
     super(GITHUB_APP_CREDENTIAL_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     validateArgs(name, args);
 

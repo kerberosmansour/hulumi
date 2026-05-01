@@ -123,19 +123,12 @@ function metricNameFor(eventName: string): string {
     .join("");
 }
 
-export class IdentityAlarms
-  extends pulumi.ComponentResource
-  implements IdentityAlarmsOutputs
-{
+export class IdentityAlarms extends pulumi.ComponentResource implements IdentityAlarmsOutputs {
   public readonly alarms: Record<string, aws.cloudwatch.MetricAlarm>;
   public readonly alarmArns: pulumi.Output<string>[];
   public readonly metricNames: string[];
 
-  constructor(
-    name: string,
-    args: IdentityAlarmsArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: IdentityAlarmsArgs, opts?: pulumi.ComponentResourceOptions) {
     super(IDENTITY_ALARMS_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
 
@@ -147,8 +140,10 @@ export class IdentityAlarms
     this.alarmArns = [];
     this.metricNames = [];
 
-    const allEvents: Array<CanonicalEvent | (IdentityAlarmExtraEvent & { metricName?: string })> =
-      [...CANONICAL_EVENTS, ...(args.additionalEvents ?? [])];
+    const allEvents: Array<CanonicalEvent | (IdentityAlarmExtraEvent & { metricName?: string })> = [
+      ...CANONICAL_EVENTS,
+      ...(args.additionalEvents ?? []),
+    ];
 
     for (const event of allEvents) {
       const metricName =

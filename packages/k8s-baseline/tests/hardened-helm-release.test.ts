@@ -26,9 +26,7 @@ describe("HardenedHelmRelease — happy paths", () => {
       repository: REPO,
     });
     await settlePulumi();
-    const componentReg = registrations.find(
-      (r) => r.type === HARDENED_HELM_RELEASE_COMPONENT_TYPE,
-    );
+    const componentReg = registrations.find((r) => r.type === HARDENED_HELM_RELEASE_COMPONENT_TYPE);
     const releaseReg = registrations.find((r) => r.type === "kubernetes:helm.sh/v3:Release");
     expect(componentReg, "component is registered").toBeDefined();
     expect(releaseReg, "child Release is registered").toBeDefined();

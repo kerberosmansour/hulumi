@@ -51,12 +51,7 @@
       "type": "E",
       "name": "Elevation of privilege via host namespace / IMDS",
       "description": "A pod with `hostNetwork: true` bypasses all NetworkPolicy enforcement; a pod that can reach `169.254.169.254` can steal node-IAM credentials. Mitigation: WL-2 (host namespace) blocks the pod shape; `NamespaceFoundation` (M4) emits a default-deny + IMDS-deny NetworkPolicy. CNI must enforce.",
-      "controls": [
-        "CCM:UEM-09",
-        "NIST-800-53-r5:SC-7",
-        "CIS-K8S:5.2.4",
-        "CIS-EKS:4.4.1"
-      ]
+      "controls": ["CCM:UEM-09", "NIST-800-53-r5:SC-7", "CIS-K8S:5.2.4", "CIS-EKS:4.4.1"]
     }
   ],
   "abuseCases": [

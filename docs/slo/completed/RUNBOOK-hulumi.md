@@ -40,8 +40,8 @@
 
 Update this table as each milestone is completed. This is the single source of truth for progress.
 
-| #   | Milestone                                                                                    | Status | Started    | Completed  | Lessons File                                        | Completion Summary                                        |
-| --- | -------------------------------------------------------------------------------------------- | ------ | ---------- | ---------- | --------------------------------------------------- | --------------------------------------------------------- |
+| #   | Milestone                                                                                    | Status | Started    | Completed  | Lessons File                                             | Completion Summary                                             |
+| --- | -------------------------------------------------------------------------------------------- | ------ | ---------- | ---------- | -------------------------------------------------------- | -------------------------------------------------------------- |
 | 1   | `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap                             | `done` | 2026-04-24 | 2026-04-24 | [docs/slo/lessons/hulumi-m1.md](../lessons/hulumi-m1.md) | [docs/slo/completion/hulumi-m1.md](../completion/hulumi-m1.md) |
 | 2   | `SecureBucket` component + tiered defaults + `HulumiHardeningPack`                           | `done` | 2026-04-24 | 2026-04-24 | [docs/slo/lessons/hulumi-m2.md](../lessons/hulumi-m2.md) | [docs/slo/completion/hulumi-m2.md](../completion/hulumi-m2.md) |
 | 3   | `AccountFoundation` component + full `CisV5Pack` (sections 1–3) + weekly sandbox integration | `done` | 2026-04-25 | 2026-04-25 | [docs/slo/lessons/hulumi-m3.md](../lessons/hulumi-m3.md) | [docs/slo/completion/hulumi-m3.md](../completion/hulumi-m3.md) |
@@ -480,11 +480,11 @@ v1.0.0 to npm with SLSA Build L3 attestation on every package (atomic three-pack
 
 | Doc                                         | Updated in            | Change                                                  |
 | ------------------------------------------- | --------------------- | ------------------------------------------------------- |
-| `docs/slo/idea/hulumi.md`                       | pre-runbook           | Authoritative idea doc                                  |
-| `docs/slo/research/hulumi/`                     | pre-runbook           | Research dossier (140+ sources)                         |
-| `docs/slo/design/hulumi/`                       | pre-runbook           | Architecture, stack decision, interfaces, overview      |
+| `docs/slo/idea/hulumi.md`                   | pre-runbook           | Authoritative idea doc                                  |
+| `docs/slo/research/hulumi/`                 | pre-runbook           | Research dossier (140+ sources)                         |
+| `docs/slo/design/hulumi/`                   | pre-runbook           | Architecture, stack decision, interfaces, overview      |
 | `docs/TLAdocs/hulumi/`                      | pre-runbook           | TLA+ spec + verified design + trace                     |
-| `docs/slo/critique/hulumi.md`                   | pre-runbook           | 18-finding critique                                     |
+| `docs/slo/critique/hulumi.md`               | pre-runbook           | 18-finding critique                                     |
 | Hulumi repo `ARCHITECTURE.md`               | M1 → M4 (progressive) | Reflects shipped components per milestone               |
 | Hulumi repo `README.md`                     | every milestone       | Quick-start for shipped components                      |
 | `docs/components/*.md`                      | M2, M3, M4            | Per-component docs                                      |

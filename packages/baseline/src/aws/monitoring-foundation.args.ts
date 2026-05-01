@@ -19,14 +19,7 @@ export type AlertSeverity = (typeof ALERT_SEVERITIES)[number];
 export interface AlertSubscriptionInput {
   /** SNS subscription protocol — see aws.sns.TopicSubscription docs. */
   protocol: pulumi.Input<
-    | "email"
-    | "email-json"
-    | "https"
-    | "http"
-    | "lambda"
-    | "sqs"
-    | "application"
-    | "sms"
+    "email" | "email-json" | "https" | "http" | "lambda" | "sqs" | "application" | "sms"
   >;
   /** Endpoint for this protocol (e.g., email address, https URL, queue ARN). */
   endpoint: pulumi.Input<string>;
@@ -36,9 +29,7 @@ export interface AlertSubscriptionInput {
  * Subscriptions keyed by severity. Each tier's array can be empty or
  * omitted — the topic still gets created, just with no subscribers.
  */
-export type AlertSubscriptionsBySeverity = Partial<
-  Record<AlertSeverity, AlertSubscriptionInput[]>
->;
+export type AlertSubscriptionsBySeverity = Partial<Record<AlertSeverity, AlertSubscriptionInput[]>>;
 
 export interface MonitoringFoundationArgs {
   /**

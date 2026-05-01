@@ -135,7 +135,10 @@ describe("Citation-ID validation meta-test (E4) — every CIS-GitHub-v1.2.0 / NI
     }
     if (unrecognized.length > 0) {
       const detail = unrecognized
-        .map((o) => `  - ${o.scenario} cites "${o.id}" — framework prefix "${o.prefix}" not in KNOWN_FRAMEWORKS or BUNDLED_FRAMEWORKS_WITHOUT_MAPPING_TABLE`)
+        .map(
+          (o) =>
+            `  - ${o.scenario} cites "${o.id}" — framework prefix "${o.prefix}" not in KNOWN_FRAMEWORKS or BUNDLED_FRAMEWORKS_WITHOUT_MAPPING_TABLE`,
+        )
         .join("\n");
       throw new Error(
         `Found ${unrecognized.length} unrecognized framework prefix(es):\n${detail}\n\nEither add the framework to BUNDLED_STUBS in skills/hulumi-threat-model/scripts/generate-threat-model.mjs (and to BUNDLED_FRAMEWORKS_WITHOUT_MAPPING_TABLE here), OR ship a mapping table and add to KNOWN_FRAMEWORKS.`,

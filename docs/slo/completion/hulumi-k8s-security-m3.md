@@ -7,6 +7,7 @@ Three CrossGuard PolicyPacks under `@hulumi/policies/k8s` block unsafe K8s workl
 ## Files changed
 
 ### Added (source)
+
 - `packages/policies/src/k8s/hulumi-hardening-pack.ts` — workload + Service rules + pack metadata.
 - `packages/policies/src/k8s/rbac-pack.ts` — RBAC rules + pack metadata.
 - `packages/policies/src/k8s/eks-cluster-pack.ts` — EKS cluster rules + pack metadata.
@@ -15,16 +16,19 @@ Three CrossGuard PolicyPacks under `@hulumi/policies/k8s` block unsafe K8s workl
 - `packages/policies/src/k8s/packs/hulumi-eks-cluster.ts` — `PolicyPack` entry point.
 
 ### Added (tests)
+
 - `packages/policies/tests/k8s/hulumi-k8s-hardening-pack.test.ts` — 20 tests across 5 BDD scenarios.
 - `packages/policies/tests/k8s/rbac-pack.test.ts` — 8 tests across 3 BDD scenarios + suppression/reason invariant.
 - `packages/policies/tests/k8s/eks-cluster-pack.test.ts` — 7 tests across 2 BDD scenarios.
 - `packages/policies/tests/k8s/policy-pack-runtime.test.ts` — 2 E2E scenarios: synthetic unsafe stack fires every rule; synthetic hardened stack fires zero violations.
 
 ### Added (docs)
+
 - `docs/slo/lessons/hulumi-k8s-security-m3.md` — lessons file.
 - `docs/slo/completion/hulumi-k8s-security-m3.md` — this file.
 
 ### Modified
+
 - `packages/policies/src/index.ts` — re-exports K8s rule handlers + metadata.
 - `docs/components/README.md` — adds K8s policy packs section above the K8s components section.
 - `docs/cookbooks/policy-pack-rollout.md` — adds K8s/EKS rollout section with phased Day 0 / 7 / 14 cadence.
@@ -33,18 +37,18 @@ Three CrossGuard PolicyPacks under `@hulumi/policies/k8s` block unsafe K8s workl
 
 37 new tests; all pass. K8s/EKS rules total 10:
 
-| Rule ID            | What it blocks                                                                     |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `HULUMI-K8S-WL-1`  | Containers with `securityContext.privileged: true`                                 |
-| `HULUMI-K8S-WL-2`  | Pods with `hostNetwork: true`, `hostPID: true`, or `hostIPC: true`                 |
-| `HULUMI-K8S-WL-3`  | Mutable image tags (`:latest`, no tag, `:edge`)                                    |
-| `HULUMI-K8S-WL-4`  | Containers without `resources.requests` and/or `resources.limits` (advisory)       |
-| `HULUMI-K8S-SVC-1` | `Service` of type `LoadBalancer` without `hulumi.dev/public-justification`         |
-| `HULUMI-K8S-RBAC-1`| `(Cluster)Role.rules.verbs: ["*"]`                                                 |
-| `HULUMI-K8S-RBAC-2`| `(Cluster)Role` granting `list` / `watch` / `*` on `secrets` in core API group    |
-| `HULUMI-K8S-RBAC-3`| `(Cluster)RoleBinding` whose `roleRef.name === "cluster-admin"`                    |
-| `HULUMI-EKS-CL-1`  | `aws:eks/cluster:Cluster` with `endpointPublicAccess: true` and `0.0.0.0/0` CIDR   |
-| `HULUMI-EKS-CL-2`  | `aws:eks/cluster:Cluster` whose `enabledClusterLogTypes` does not include `audit`  |
+| Rule ID             | What it blocks                                                                    |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `HULUMI-K8S-WL-1`   | Containers with `securityContext.privileged: true`                                |
+| `HULUMI-K8S-WL-2`   | Pods with `hostNetwork: true`, `hostPID: true`, or `hostIPC: true`                |
+| `HULUMI-K8S-WL-3`   | Mutable image tags (`:latest`, no tag, `:edge`)                                   |
+| `HULUMI-K8S-WL-4`   | Containers without `resources.requests` and/or `resources.limits` (advisory)      |
+| `HULUMI-K8S-SVC-1`  | `Service` of type `LoadBalancer` without `hulumi.dev/public-justification`        |
+| `HULUMI-K8S-RBAC-1` | `(Cluster)Role.rules.verbs: ["*"]`                                                |
+| `HULUMI-K8S-RBAC-2` | `(Cluster)Role` granting `list` / `watch` / `*` on `secrets` in core API group    |
+| `HULUMI-K8S-RBAC-3` | `(Cluster)RoleBinding` whose `roleRef.name === "cluster-admin"`                   |
+| `HULUMI-EKS-CL-1`   | `aws:eks/cluster:Cluster` with `endpointPublicAccess: true` and `0.0.0.0/0` CIDR  |
+| `HULUMI-EKS-CL-2`   | `aws:eks/cluster:Cluster` whose `enabledClusterLogTypes` does not include `audit` |
 
 ## Runtime validations added
 
@@ -53,15 +57,15 @@ Three CrossGuard PolicyPacks under `@hulumi/policies/k8s` block unsafe K8s workl
 
 ## Static analysis and formatter evidence
 
-| Check | Command | Result |
-|---|---|---|
-| Format | `npx prettier --write <files>` | clean (auto-applied) |
-| Typecheck | `pnpm -r typecheck` | green across 10 projects |
-| Build | `pnpm -r build` | green |
-| Lint | `pnpm -r lint` | green |
-| License boundary | `pnpm -w run lint:license-boundary` | OK |
-| Exact-pin guard | `pnpm -w run lint:exact-pin-guard` | OK |
-| Full tests | `pnpm -r test` | 67 baseline / **96** policies (+37) / 54 drift / 102 k8s-baseline / 28 skill-bdd / 4 example smoke |
+| Check            | Command                             | Result                                                                                             |
+| ---------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Format           | `npx prettier --write <files>`      | clean (auto-applied)                                                                               |
+| Typecheck        | `pnpm -r typecheck`                 | green across 10 projects                                                                           |
+| Build            | `pnpm -r build`                     | green                                                                                              |
+| Lint             | `pnpm -r lint`                      | green                                                                                              |
+| License boundary | `pnpm -w run lint:license-boundary` | OK                                                                                                 |
+| Exact-pin guard  | `pnpm -w run lint:exact-pin-guard`  | OK                                                                                                 |
+| Full tests       | `pnpm -r test`                      | 67 baseline / **96** policies (+37) / 54 drift / 102 k8s-baseline / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility checks performed
 

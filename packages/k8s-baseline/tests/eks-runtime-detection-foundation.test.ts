@@ -21,9 +21,7 @@ function alarms() {
   return registrations.filter((r) => r.type === "aws:cloudwatch/metricAlarm:MetricAlarm");
 }
 function metricFilters() {
-  return registrations.filter(
-    (r) => r.type === "aws:cloudwatch/logMetricFilter:LogMetricFilter",
-  );
+  return registrations.filter((r) => r.type === "aws:cloudwatch/logMetricFilter:LogMetricFilter");
 }
 
 const baseArgs = {
@@ -68,7 +66,7 @@ describe("EksRuntimeDetectionFoundation — happy paths", () => {
     await settlePulumi();
     const filters = metricFilters();
     const secretFilter = filters.find((f) =>
-      ((f.inputs as { name: string }).name).includes("secret-read"),
+      (f.inputs as { name: string }).name.includes("secret-read"),
     );
     expect(secretFilter).toBeDefined();
     const pattern = (secretFilter!.inputs as { pattern: string }).pattern;
@@ -81,7 +79,7 @@ describe("EksRuntimeDetectionFoundation — happy paths", () => {
     await settlePulumi();
     const filters = metricFilters();
     const execFilter = filters.find((f) =>
-      ((f.inputs as { name: string }).name).includes("pod-exec"),
+      (f.inputs as { name: string }).name.includes("pod-exec"),
     );
     expect(execFilter).toBeDefined();
     const pattern = (execFilter!.inputs as { pattern: string }).pattern;

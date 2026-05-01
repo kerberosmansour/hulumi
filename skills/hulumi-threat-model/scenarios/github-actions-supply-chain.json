@@ -62,11 +62,7 @@
       "type": "I",
       "name": "Information disclosure via runner exfil after Action compromise",
       "description": "A compromised Action running on the org's runner reads environment, secrets, or filesystem state and exfils to an attacker-controlled URL. Step-Security Maintained Actions or octo-sts-style short-lived token exchange limit blast radius.",
-      "controls": [
-        "CCM:DSI-03",
-        "NIST-SSDF-v1.1:PO.5",
-        "MITRE-ATTCK:T1195"
-      ]
+      "controls": ["CCM:DSI-03", "NIST-SSDF-v1.1:PO.5", "MITRE-ATTCK:T1195"]
     }
   ],
   "recommendedComponents": [

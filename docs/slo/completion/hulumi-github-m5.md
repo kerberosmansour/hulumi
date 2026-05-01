@@ -28,7 +28,7 @@ Scope-trimmed deliverables (4 additional cookbooks, 5 component reference docs, 
 - `examples/secure-repository-smoke/Pulumi.yaml` — Pulumi project metadata
 - `examples/secure-repository-smoke/tsconfig.json`
 - `examples/secure-repository-smoke/vitest.config.ts`
-- `examples/secure-repository-smoke/tests/smoke.test.ts` — mock-runtime BDD asserting tier-delta + hulumi:* tag triple
+- `examples/secure-repository-smoke/tests/smoke.test.ts` — mock-runtime BDD asserting tier-delta + hulumi:\* tag triple
 - `examples/secure-repository-smoke/README.md` — usage + prerequisites
 - `docs/slo/lessons/hulumi-github-m5.md`
 - `docs/slo/completion/hulumi-github-m5.md`

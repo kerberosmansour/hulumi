@@ -47,12 +47,12 @@ new NamespaceFoundation("team-a-foundation", {
 
 ## Resource bounds
 
-| Bound                          | Value | Constant                           |
-| ------------------------------ | ----: | ---------------------------------- |
-| Namespace labels               |    32 | `MAX_NAMESPACE_LABELS`             |
-| `ResourceQuota.spec.hard`      |    32 | `MAX_QUOTA_ENTRIES`                |
-| NetworkPolicy peers (per direction) |  128 | `MAX_NETWORK_POLICY_PEERS`         |
-| Recommended peers              |    32 | `RECOMMENDED_NETWORK_POLICY_PEERS` |
+| Bound                               | Value | Constant                           |
+| ----------------------------------- | ----: | ---------------------------------- |
+| Namespace labels                    |    32 | `MAX_NAMESPACE_LABELS`             |
+| `ResourceQuota.spec.hard`           |    32 | `MAX_QUOTA_ENTRIES`                |
+| NetworkPolicy peers (per direction) |   128 | `MAX_NETWORK_POLICY_PEERS`         |
+| Recommended peers                   |    32 | `RECOMMENDED_NETWORK_POLICY_PEERS` |
 
 ## Outputs
 

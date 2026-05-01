@@ -7,16 +7,20 @@
 ## Files changed
 
 ### Added (source)
+
 - `packages/baseline/src/aws/detective-services-enable.{args,outputs,ts}.ts`.
 
 ### Added (tests)
+
 - `packages/baseline/tests/detective-services-enable.test.ts` — 7 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/detective-services-enable.md`.
 - `docs/slo/lessons/hulumi-operations-m2.md`, `docs/slo/completion/hulumi-operations-m2.md`.
 
 ### Modified
+
 - `packages/baseline/src/aws/index.ts` — re-exports.
 
 ## Tests added
@@ -33,12 +37,12 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| Full tests             | **81** baseline (was 74; +7) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                     |
+| `pnpm -r build`     | green                                                                                                     |
+| `pnpm -r lint`      | green                                                                                                     |
+| Full tests          | **81** baseline (was 74; +7) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility
 

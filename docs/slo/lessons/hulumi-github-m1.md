@@ -6,13 +6,13 @@
 
 ### 1. Bare framework citations don't render in the existing generator
 
-The first BDD-test failure was the OIDC scenario test asserting `CIS-GitHub-v1.2.0` in the citation list. My initial scenario JSONs cited `CIS-GitHub-v1.2.0` as a *bare* framework name (no colon-separated ID suffix). The generator's `resolveCitations` parses `controls[]` entries by splitting on `:`; entries without a colon land in the `unresolved` list rather than in `citations`. **Fix**: use a placeholder ID `CIS-GitHub-v1.2.0:PENDING-WORKBENCH` so the parser splits to framework prefix + opaque suffix and the citation renders. M3 will replace `:PENDING-WORKBENCH` with real WorkBench-resolved CIS section numbers.
+The first BDD-test failure was the OIDC scenario test asserting `CIS-GitHub-v1.2.0` in the citation list. My initial scenario JSONs cited `CIS-GitHub-v1.2.0` as a _bare_ framework name (no colon-separated ID suffix). The generator's `resolveCitations` parses `controls[]` entries by splitting on `:`; entries without a colon land in the `unresolved` list rather than in `citations`. **Fix**: use a placeholder ID `CIS-GitHub-v1.2.0:PENDING-WORKBENCH` so the parser splits to framework prefix + opaque suffix and the citation renders. M3 will replace `:PENDING-WORKBENCH` with real WorkBench-resolved CIS section numbers.
 
 This is a structural observation about the generator: framework prefixes only appear in citations when they're attached to a colon-separated ID. **Rule for the next milestone (M2)**: when extending `BUNDLED_STUBS` with a new framework prefix, every scenario citing it must use a `<prefix>:<id-or-placeholder>` pattern, never a bare prefix.
 
 ### 2. Allow-list amendment captured during execution
 
-M1's allow-list omitted `skills/hulumi-threat-model/scripts/generate-threat-model.mjs` because the original assumption was that GitHub-specific framework citations would resolve via mapping FILES (which land in M3). But the BDD scenarios assert that GitHub-specific frameworks (CIS-GitHub-v1.2.0, NIST-SSDF-v1.1, OpenSSF-Scorecard, MITRE-ATTCK, GitHub-Well-Architected) appear in the *citations* output of M1's scenarios — not just in M3's mapping files. To satisfy that contract, `BUNDLED_STUBS` (the framework-prefix-to-default-URL table inside `generate-threat-model.mjs`) must be extended in M1.
+M1's allow-list omitted `skills/hulumi-threat-model/scripts/generate-threat-model.mjs` because the original assumption was that GitHub-specific framework citations would resolve via mapping FILES (which land in M3). But the BDD scenarios assert that GitHub-specific frameworks (CIS-GitHub-v1.2.0, NIST-SSDF-v1.1, OpenSSF-Scorecard, MITRE-ATTCK, GitHub-Well-Architected) appear in the _citations_ output of M1's scenarios — not just in M3's mapping files. To satisfy that contract, `BUNDLED_STUBS` (the framework-prefix-to-default-URL table inside `generate-threat-model.mjs`) must be extended in M1.
 
 This is a real conflict between the M1 allow-list and the M1 BDD contract. Per `/slo-execute`'s allow-list discipline, the resolution was to extend the allow-list with explicit captured rationale (recorded inline in the M1 runbook file's Refactor budget paragraph). The minimum mechanical change was 5 new entries to `BUNDLED_STUBS`. **Rule for the next milestone**: when an allow-list amendment is needed, pause and capture the rationale in the runbook file's `Refactor budget` line so the trail is auditable; don't expand silently.
 
@@ -20,7 +20,7 @@ This is a real conflict between the M1 allow-list and the M1 BDD contract. Per `
 
 I initially modeled the ruleset rules as block objects (`{ deletion: {} }`) following an outdated docs reference. The actual `RepositoryRulesetRules` shape uses `Input<boolean>` for the simple gates (`deletion`, `nonFastForward`, `requiredSignatures`) and only block objects for parameterized rules (`branchNamePattern`, `pullRequest`, etc.). Similarly, `RepositoryRulesetConditionsRefName` uses `includes` / `excludes` (plural with -s), not `include` / `exclude`.
 
-**Rule for the next milestone (M2)**: when adding a new GitHub component, read the current `node_modules/.pnpm/@pulumi+github@6.13.0_typescript@5.9.3/node_modules/@pulumi/github/types/input.d.ts` shape *first* before drafting the implementation. The provider's TypeScript types are accurate; outdated guides aren't.
+**Rule for the next milestone (M2)**: when adding a new GitHub component, read the current `node_modules/.pnpm/@pulumi+github@6.13.0_typescript@5.9.3/node_modules/@pulumi/github/types/input.d.ts` shape _first_ before drafting the implementation. The provider's TypeScript types are accurate; outdated guides aren't.
 
 ### 4. `provider?: github.Provider` and `exactOptionalPropertyTypes`
 

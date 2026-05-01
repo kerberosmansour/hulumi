@@ -79,9 +79,7 @@ describe("KubernetesSecretFromAwsSecretsManager — happy paths", () => {
   });
 
   test("non-string JSON values are JSON-stringified", async () => {
-    __setSecretsManagerFetcher(async () =>
-      JSON.stringify({ port: 5432, host: "db.example.com" }),
-    );
+    __setSecretsManagerFetcher(async () => JSON.stringify({ port: 5432, host: "db.example.com" }));
     new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn:aws:sm:us-east-1:111:secret:foo",
       keyMapping: { port: "PORT", host: "HOST" },
@@ -108,7 +106,7 @@ describe("KubernetesSecretFromAwsSecretsManager — invalid input refusals", () 
     ).toThrow(/keyMapping must be non-empty/);
   });
 
-  test('empty secretName refused', () => {
+  test("empty secretName refused", () => {
     expect(
       () =>
         new KubernetesSecretFromAwsSecretsManager("c", {

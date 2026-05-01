@@ -18,10 +18,7 @@ export type {
   ActionsAllowlistConfig,
   OidcSubTemplateConfig,
 } from "./org-foundation.args";
-export type {
-  OrgFoundationOutputs,
-  SecurityDefaultsOutput,
-} from "./org-foundation.outputs";
+export type { OrgFoundationOutputs, SecurityDefaultsOutput } from "./org-foundation.outputs";
 // Re-export the Hulumi-default OIDC template so consumers + cookbooks can
 // reference the snapshot-pinned default without importing internal paths.
 export { HULUMI_OIDC_DEFAULT_CLAIM_KEYS } from "./org-oidc-template";

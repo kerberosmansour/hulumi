@@ -2,10 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as github from "@pulumi/github";
 
 import type { Tier } from "../aws/tier";
-import type {
-  OrgSecurityDefaults,
-  OrganizationSecurityBackend,
-} from "./org-foundation.args";
+import type { OrgSecurityDefaults, OrganizationSecurityBackend } from "./org-foundation.args";
 import type { SecurityDefaultsOutput } from "./org-foundation.outputs";
 
 /**
@@ -236,4 +233,3 @@ export function applySecurityDefaults(args: {
     ...(args.provider !== undefined ? { provider: args.provider } : {}),
   });
 }
-

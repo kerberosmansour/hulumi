@@ -79,7 +79,11 @@ describe("HulumiGithubHardeningPack H1 — blocks raw github.Repository (tm-hulu
       name: "legacy-repo",
       getConfig: (() => ({
         suppressions: [
-          { ruleId: "HULUMI-H1", reason: "Legacy repo migration in progress; tracked in issue #N", urnScope: "*" },
+          {
+            ruleId: "HULUMI-H1",
+            reason: "Legacy repo migration in progress; tracked in issue #N",
+            urnScope: "*",
+          },
         ],
       })) as ResourceValidationArgs["getConfig"],
     });
@@ -204,12 +208,10 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
         }),
       },
     });
-    (
-      G_OIDC_1.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/G_OIDC_1/);
     expect(violations[0]).toMatch(/StringLike/);
@@ -241,12 +243,10 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
         }),
       },
     });
-    (
-      G_OIDC_1.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/wildcard|UNC6426/);
   });
@@ -278,12 +278,10 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
         }),
       },
     });
-    (
-      G_OIDC_1.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
     expect(violations).toEqual([]);
   });
 
@@ -294,12 +292,10 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
       name: "azure-cred",
       props: { subject: "repo:org/repo:*" },
     });
-    (
-      G_OIDC_1.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/Azure|federated/);
   });
@@ -311,12 +307,10 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
       name: "gcp-wif",
       props: { attributeCondition: "assertion.repository == '*'" },
     });
-    (
-      G_OIDC_1.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/GCP|Workload/);
   });

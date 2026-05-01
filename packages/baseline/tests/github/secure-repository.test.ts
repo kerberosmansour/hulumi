@@ -16,12 +16,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { SecureRepository } from "../../src/github/secure-repository";
-import {
-  registrations,
-  resetRegistrations,
-  valueOf,
-  settlePulumi,
-} from "../setup";
+import { registrations, resetRegistrations, valueOf, settlePulumi } from "../setup";
 
 type Registration = (typeof registrations)[number];
 

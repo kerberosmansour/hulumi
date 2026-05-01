@@ -8,10 +8,7 @@
 
 import { PolicyPack } from "@pulumi/policy";
 
-import {
-  cisGithubPlaceholder,
-  cisGithubV1PackMetadata,
-} from "../cis-v1-pack.rules";
+import { cisGithubPlaceholder, cisGithubV1PackMetadata } from "../cis-v1-pack.rules";
 
 export const CisGithubV1Pack = new PolicyPack(cisGithubV1PackMetadata.id, {
   policies: [cisGithubPlaceholder],

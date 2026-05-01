@@ -91,11 +91,7 @@ export class HardenedHelmRelease
   public readonly status: pulumi.Output<k8s.types.output.helm.v3.ReleaseStatus>;
   public readonly chartVersion: pulumi.Output<string>;
 
-  constructor(
-    name: string,
-    args: HardenedHelmReleaseArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: HardenedHelmReleaseArgs, opts?: pulumi.ComponentResourceOptions) {
     super(HARDENED_HELM_RELEASE_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     validateArgs(name, args);
 

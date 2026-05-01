@@ -47,9 +47,7 @@ describe("EksSubnetTagger — happy paths", () => {
     const tags = registrations.filter((r) => r.type === "aws:ec2/tag:Tag");
     expect(tags).toHaveLength(4); // 2 subnets * 2 tags each
     expect(tags.some((t) => t.inputs.key === "kubernetes.io/role/elb")).toBe(false);
-    expect(
-      tags.filter((t) => t.inputs.key === "kubernetes.io/role/internal-elb"),
-    ).toHaveLength(2);
+    expect(tags.filter((t) => t.inputs.key === "kubernetes.io/role/internal-elb")).toHaveLength(2);
   });
 
   test("public-only writes only elb tags", async () => {

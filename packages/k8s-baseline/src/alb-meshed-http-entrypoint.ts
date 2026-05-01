@@ -46,7 +46,11 @@ function validateArgs(name: string, args: AlbMeshedHttpEntrypointArgs): void {
       `AlbMeshedHttpEntrypoint: serviceRef.port must be a number between 1 and 65535 (got ${sr.port})`,
     );
   }
-  if (args.scheme !== undefined && args.scheme !== "internal" && args.scheme !== "internet-facing") {
+  if (
+    args.scheme !== undefined &&
+    args.scheme !== "internal" &&
+    args.scheme !== "internet-facing"
+  ) {
     throw new Error(
       `AlbMeshedHttpEntrypoint: scheme must be one of "internal" | "internet-facing" (got "${String(args.scheme)}")`,
     );
@@ -68,10 +72,7 @@ function validateArgs(name: string, args: AlbMeshedHttpEntrypointArgs): void {
       );
     }
   }
-  if (
-    authz.extraPrincipals !== undefined &&
-    authz.extraPrincipals.length > MAX_EXTRA_PRINCIPALS
-  ) {
+  if (authz.extraPrincipals !== undefined && authz.extraPrincipals.length > MAX_EXTRA_PRINCIPALS) {
     throw new Error(
       `AlbMeshedHttpEntrypoint: extraPrincipals has ${authz.extraPrincipals.length} entries; max ${MAX_EXTRA_PRINCIPALS} (component "${name}")`,
     );
@@ -198,8 +199,7 @@ export class AlbMeshedHttpEntrypoint
     };
     if (albCfg.certificateArn !== undefined) {
       annotations["alb.ingress.kubernetes.io/certificate-arn"] = albCfg.certificateArn;
-      annotations["alb.ingress.kubernetes.io/listen-ports"] =
-        '[{"HTTP":80},{"HTTPS":443}]';
+      annotations["alb.ingress.kubernetes.io/listen-ports"] = '[{"HTTP":80},{"HTTPS":443}]';
       annotations["alb.ingress.kubernetes.io/ssl-redirect"] = "443";
       if (albCfg.sslPolicy !== undefined) {
         annotations["alb.ingress.kubernetes.io/ssl-policy"] = albCfg.sslPolicy;
@@ -294,16 +294,16 @@ export class AlbMeshedHttpEntrypoint
     );
 
     const apName = `${name}-authz`;
-    const principals = pulumi.all([gatewayServiceName, ingressNs]).apply(
-      ([sa, ns]: [string, string]) => {
+    const principals = pulumi
+      .all([gatewayServiceName, ingressNs])
+      .apply(([sa, ns]: [string, string]) => {
         const out: string[] = [];
         if (allowFromGateway) {
           out.push(spiffePrincipalForGateway(sa, ns));
         }
         out.push(...extraPrincipals);
         return out;
-      },
-    );
+      });
     new k8s.apiextensions.CustomResource(
       apName,
       {

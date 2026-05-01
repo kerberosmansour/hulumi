@@ -100,9 +100,7 @@ function exceedsNestingDepth(root: unknown, maxDepth: number): boolean {
 }
 
 function hashCacheKey(deliveryId: string, eventType: string, repoFullName: string): string {
-  return createHash("sha256")
-    .update(`${deliveryId}|${eventType}|${repoFullName}`)
-    .digest("hex");
+  return createHash("sha256").update(`${deliveryId}|${eventType}|${repoFullName}`).digest("hex");
 }
 
 /**
@@ -165,9 +163,7 @@ export class GithubWebhookFallbackAdapter implements DriftAdapter {
     eventType: string;
     installationId?: string;
     receivedAt: string;
-  }):
-    | { ok: true; event: IngestedEvent }
-    | { ok: false; reason: string } {
+  }): { ok: true; event: IngestedEvent } | { ok: false; reason: string } {
     // S1.a — size cap (25 MB).
     if (Buffer.byteLength(args.body, "utf8") > MAX_PAYLOAD_BYTES) {
       emitWebhookEvent("webhook_payload_max_size_exceeded", {
@@ -205,8 +201,7 @@ export class GithubWebhookFallbackAdapter implements DriftAdapter {
 
     // HMAC verification (mandatory at startup-hardened; sandbox can opt out).
     const isStartupHardened = this.args.hulumiTier === "startup-hardened";
-    const allowUnsigned =
-      !isStartupHardened && this.args.allowUnsignedWebhooks === true;
+    const allowUnsigned = !isStartupHardened && this.args.allowUnsignedWebhooks === true;
     let signatureOk = false;
     if (args.signature) {
       signatureOk = verifyWebhookSignature(args.body, args.signature, this.args.webhookSecret());
@@ -294,10 +289,7 @@ export class GithubWebhookFallbackAdapter implements DriftAdapter {
         if (Number.isNaN(t)) return false;
         return t >= lowerTs && t <= upperTs;
       })
-      .sort(
-        (a, b) =>
-          new Date(a.envelopeTime).getTime() - new Date(b.envelopeTime).getTime(),
-      );
+      .sort((a, b) => new Date(a.envelopeTime).getTime() - new Date(b.envelopeTime).getTime());
     const featureNotLicensed: string[] = [];
     for (const [feat, notLicensed] of Object.entries(this.args.featureLicenseMap ?? {})) {
       if (notLicensed && inWindow.some((e) => e.eventType === feat)) {

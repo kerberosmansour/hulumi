@@ -139,7 +139,7 @@ with no code changes.
   `repository_ruleset`, `secret_scanning_alert`, `dependabot_alert`,
   `code_scanning_alert`, `member`, `organization`. Shipped in M4.
 - **`DriftVerdict.tierDegraded?: boolean`** — additive field, true when the
-  GithubWebhookFallbackAdapter contributes (the adapter exists *because*
+  GithubWebhookFallbackAdapter contributes (the adapter exists _because_
   GHEC audit-log REST is unavailable; the truth is non-suppressible — no
   API flag hides it). Distinct from Hulumi's `Tier` enum. Shipped in M4.
 - **`DriftVerdict.featureNotLicensed?: string[]`** — additive field listing

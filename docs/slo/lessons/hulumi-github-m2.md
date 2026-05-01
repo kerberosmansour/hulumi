@@ -6,7 +6,7 @@
 
 ### 1. `pulumi.dynamic.Resource` blows up under vitest worker pool — anticipated, but cost was higher than expected
 
-The M2 design rule explicitly anticipated this: "the existing `packages/baseline/src/aws/probes/poll.ts` workaround for the vitest worker-pool gotcha is the documented pattern; the CSC backend's mock-runtime tests use `dependsOn` instead of dynamic resources for that reason." But "use dependsOn instead" turned out to be insufficient — the failing path is `pulumi/runtime/closure/createClosure.ts` calling `node:trace_events` which is unavailable under vitest's worker model. This happens at *construction* time, not just at use-via-`dependsOn` time.
+The M2 design rule explicitly anticipated this: "the existing `packages/baseline/src/aws/probes/poll.ts` workaround for the vitest worker-pool gotcha is the documented pattern; the CSC backend's mock-runtime tests use `dependsOn` instead of dynamic resources for that reason." But "use dependsOn instead" turned out to be insufficient — the failing path is `pulumi/runtime/closure/createClosure.ts` calling `node:trace_events` which is unavailable under vitest's worker model. This happens at _construction_ time, not just at use-via-`dependsOn` time.
 
 **Fix**: replaced the `pulumi.dynamic.Resource` with a thin `pulumi.ComponentResource` of type `hulumi:baseline:github:CodeSecurityConfiguration`. The mock-runtime BDD assertion ("a resource of this type is registered") still holds; the ComponentResource doesn't trigger closure serialization. Real REST hooks are deferred to v1.1 (added a new D1.5 entry to `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`).
 
@@ -15,6 +15,7 @@ The M2 design rule explicitly anticipated this: "the existing `packages/baseline
 ### 2. `OrganizationSettings.billingEmail` is required and not in M2 args spec
 
 The M2 runbook spec described `OrgFoundationArgs` without a `billingEmail` field, but `@pulumi/github`'s `OrganizationSettings` resource requires `billingEmail` as a non-optional input. Two paths:
+
 - (a) Make `billingEmail` optional and skip `OrganizationSettings` registration when not supplied — but then sandbox-tier flat-fields backend has nothing to register.
 - (b) Add `billingEmail` as a required field on `OrgFoundationArgs`.
 
@@ -30,7 +31,8 @@ A test file used `Parameters<typeof SecureRepository>[1]` to extract the args ty
 
 ### 4. ESLint `no-control-regex` flags `\x00-\x1f` ranges
 
-The shell-metachar blacklist regex `[;\`$()&|<>\\\r\n\t\x00-\x1f]` triggered ESLint's `no-control-regex` rule. Two paths:
+The shell-metachar blacklist regex `[;\`$()&|<>\\\r\n\t\x00-\x1f]`triggered ESLint's`no-control-regex` rule. Two paths:
+
 - (a) `// eslint-disable-next-line no-control-regex` directive at each call site.
 - (b) Drop the control-character range and rely on `\r\n\t` only.
 
@@ -44,7 +46,7 @@ The shell-metachar blacklist regex `[;\`$()&|<>\\\r\n\t\x00-\x1f]` triggered ESL
 
 The M2 contract said "ships the CSC backend abstraction" with both implementations selectable. The CSC implementation in M2 is now a thin `ComponentResource` placeholder that registers the resource shape but does not issue real REST calls. Real REST integration is **D1.5 in the v1.1 deferrals** (added to `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` during execution).
 
-This is a quiet narrowing of the M2 contract: M2 ships the *abstraction* with a real flat-fields backend and a placeholder CSC backend. Per the "err on side of security" stance from the user's earlier directive, this is a security-positive trade — the placeholder fails closed (no half-applied REST state), and the production REST hooks land alongside the v1.1 audit-log adapter where the test infrastructure for dynamic-resource testing can be solved once for both surfaces.
+This is a quiet narrowing of the M2 contract: M2 ships the _abstraction_ with a real flat-fields backend and a placeholder CSC backend. Per the "err on side of security" stance from the user's earlier directive, this is a security-positive trade — the placeholder fails closed (no half-applied REST state), and the production REST hooks land alongside the v1.1 audit-log adapter where the test infrastructure for dynamic-resource testing can be solved once for both surfaces.
 
 ### `redactTokens` exported for direct testing
 

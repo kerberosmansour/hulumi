@@ -106,9 +106,9 @@ describe("Ec2PatchBaseline — RebootOption discriminated union", () => {
 
 describe("Ec2PatchBaseline — invalid input refusals", () => {
   test("invalid scheduleCron rejected", () => {
-    expect(
-      () => new Ec2PatchBaseline("c", { ...baseArgs, scheduleCron: "0 4 * * 0" }),
-    ).toThrow(/cron\(\.\.\.\) or rate\(\.\.\.\)/);
+    expect(() => new Ec2PatchBaseline("c", { ...baseArgs, scheduleCron: "0 4 * * 0" })).toThrow(
+      /cron\(\.\.\.\) or rate\(\.\.\.\)/,
+    );
   });
 
   test("durationHours out of range rejected", () => {
@@ -119,8 +119,7 @@ describe("Ec2PatchBaseline — invalid input refusals", () => {
 
   test("cutoffHours >= durationHours rejected", () => {
     expect(
-      () =>
-        new Ec2PatchBaseline("c", { ...baseArgs, durationHours: 4, cutoffHours: 4 }),
+      () => new Ec2PatchBaseline("c", { ...baseArgs, durationHours: 4, cutoffHours: 4 }),
     ).toThrow(/cutoffHours must be 0\.\.durationHours-1/);
   });
 

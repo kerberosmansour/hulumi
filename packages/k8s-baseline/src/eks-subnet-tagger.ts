@@ -1,10 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
-import type {
-  EksSubnetTaggerArgs,
-  SubnetOwnership,
-} from "./eks-subnet-tagger.args";
+import type { EksSubnetTaggerArgs, SubnetOwnership } from "./eks-subnet-tagger.args";
 import type { AppliedTag, EksSubnetTaggerOutputs } from "./eks-subnet-tagger.outputs";
 
 export const EKS_SUBNET_TAGGER_COMPONENT_TYPE = "hulumi:k8s:EksSubnetTagger";

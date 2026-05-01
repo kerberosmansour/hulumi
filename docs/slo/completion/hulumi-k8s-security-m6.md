@@ -12,6 +12,7 @@ EKS upgrade safety, exact-pinned add-on management, K8s drift signaling, and thr
 ## Files changed
 
 ### Added (source)
+
 - `packages/k8s-baseline/src/eks-addon-foundation.{args,outputs,ts}.ts`.
 - `packages/k8s-baseline/src/eks-upgrade-planner.ts`.
 - `packages/drift/src/adapters/kubernetes-api.ts`.
@@ -19,17 +20,20 @@ EKS upgrade safety, exact-pinned add-on management, K8s drift signaling, and thr
 - `skills/hulumi-threat-model/scenarios/eks-runtime-and-backup.json`.
 
 ### Added (tests)
+
 - `packages/k8s-baseline/tests/eks-addon-foundation.test.ts` — 4 BDD scenarios.
 - `packages/k8s-baseline/tests/eks-upgrade-planner.test.ts` — 9 BDD scenarios.
 - `packages/drift/tests/k8s/kubernetes-api-adapter.test.ts` — 4 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/eks-addon-foundation.md`.
 - `docs/components/eks-upgrade-planner.md`.
 - `docs/slo/lessons/hulumi-k8s-security-m6.md`.
 - `docs/slo/completion/hulumi-k8s-security-m6.md`.
 
 ### Modified
+
 - `packages/k8s-baseline/src/index.ts` — re-exports.
 - `skills/hulumi-threat-model/scripts/list-scenarios.mjs` — appends two new IDs.
 - `tests/skill-bdd/hulumi-threat-model.test.ts` — asserts 11-scenario lister.
@@ -47,14 +51,14 @@ EKS upgrade safety, exact-pinned add-on management, K8s drift signaling, and thr
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| license-boundary       | OK    |
-| exact-pin-guard        | OK    |
-| Full tests             | 67 baseline / 96 policies / **58** drift (+4) / **149** k8s-baseline (+15) / 28 skill-bdd (1 modified for 11 scenarios) / 4 example smoke |
+| Check               | Result                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                                                     |
+| `pnpm -r build`     | green                                                                                                                                     |
+| `pnpm -r lint`      | green                                                                                                                                     |
+| license-boundary    | OK                                                                                                                                        |
+| exact-pin-guard     | OK                                                                                                                                        |
+| Full tests          | 67 baseline / 96 policies / **58** drift (+4) / **149** k8s-baseline (+15) / 28 skill-bdd (1 modified for 11 scenarios) / 4 example smoke |
 
 ## Compatibility checks
 

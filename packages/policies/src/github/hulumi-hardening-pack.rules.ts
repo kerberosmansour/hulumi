@@ -18,9 +18,7 @@ const DOCS_BASE =
 const H2_DOCS =
   "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/org-foundation.md";
 
-function readSuppressions(
-  config: Record<string, unknown> | undefined,
-): Suppression[] {
+function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
   if (!Array.isArray(raw)) return [];
   return raw.filter((x): x is Suppression => {

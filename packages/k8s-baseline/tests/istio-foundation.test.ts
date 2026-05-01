@@ -24,10 +24,11 @@ function namespaces() {
 function customResources() {
   // Pulumi's apiextensions.CustomResource registers under a dynamic
   // `kubernetes:<apiVersion>:<kind>` type derived from the GVK at runtime.
-  return registrations.filter((r) =>
-    r.type.startsWith("kubernetes:") &&
-    !r.type.startsWith("kubernetes:core/") &&
-    !r.type.startsWith("kubernetes:helm.sh/"),
+  return registrations.filter(
+    (r) =>
+      r.type.startsWith("kubernetes:") &&
+      !r.type.startsWith("kubernetes:core/") &&
+      !r.type.startsWith("kubernetes:helm.sh/"),
   );
 }
 
@@ -147,9 +148,9 @@ describe("IstioFoundation — invalid input refusals", () => {
   });
 
   test("empty istiodNamespace is refused", () => {
-    expect(
-      () => new IstioFoundation("x", { version: "1.24.2", istiodNamespace: "" }),
-    ).toThrow(/istiodNamespace must be non-empty/);
+    expect(() => new IstioFoundation("x", { version: "1.24.2", istiodNamespace: "" })).toThrow(
+      /istiodNamespace must be non-empty/,
+    );
   });
 
   test("invalid podSecurity is refused", () => {

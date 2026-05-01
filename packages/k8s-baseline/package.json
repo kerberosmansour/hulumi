@@ -29,7 +29,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1040.0"
+    "@aws-sdk/client-secrets-manager": "3.1041.0"
   },
   "peerDependencies": {
     "@pulumi/aws": "7.27.0",
@@ -37,7 +37,7 @@
     "@pulumi/pulumi": "3.232.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1040.0",
+    "@aws-sdk/client-secrets-manager": "3.1041.0",
     "@pulumi/aws": "7.27.0",
     "@pulumi/kubernetes": "4.30.0",
     "@pulumi/pulumi": "3.232.0",

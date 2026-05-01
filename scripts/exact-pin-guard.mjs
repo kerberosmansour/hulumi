@@ -63,9 +63,9 @@ const ALLOWED = [
   // integrity hash is part of the supply-chain story for the K8s package.
   {
     name: "@aws-sdk/client-secrets-manager",
-    version: "3.1040.0",
+    version: "3.1041.0",
     integrity:
-      "sha512-qszI/6MUy57rSqA2eSN3jbdjU1RFUDkayw7HbSX02jRmP896mSssWM0BC+mwYXuY7d3s1QntxmMKiNwXEXRdWg==",
+      "sha512-dr4AbZ5hIDyecKHWyYy0LhK3h6q/jd6QWem46wyHulJ6IBRPENlpB7iXo7KKFWkgKSweCEqjHVB5W+3WB4JiYw==",
   },
 ];
 

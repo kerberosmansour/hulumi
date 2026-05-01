@@ -47,3 +47,15 @@ export type { Ec2PatchBaselineOutputs } from "./ec2-patch-baseline.outputs";
 export { Ec2PatchWaves, EC2_PATCH_WAVES_COMPONENT_TYPE } from "./ec2-patch-waves";
 export type { Ec2PatchWavesArgs, Ec2PatchWaveArgs } from "./ec2-patch-waves.args";
 export type { Ec2PatchWavesOutputs } from "./ec2-patch-waves.outputs";
+
+export {
+  DetectiveServicesEnable,
+  DETECTIVE_SERVICES_ENABLE_COMPONENT_TYPE,
+} from "./detective-services-enable";
+export type { DetectiveServicesEnableArgs } from "./detective-services-enable.args";
+export { MAX_DETECTIVE_EVENT_PATTERNS } from "./detective-services-enable.args";
+export type { DetectiveServicesEnableOutputs } from "./detective-services-enable.outputs";
+
+export { AuditTrail, AUDIT_TRAIL_COMPONENT_TYPE } from "./audit-trail";
+export type { AuditTrailArgs } from "./audit-trail.args";
+export type { AuditTrailOutputs } from "./audit-trail.outputs";

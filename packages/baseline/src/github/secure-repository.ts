@@ -4,7 +4,12 @@ import * as github from "@pulumi/github";
 import { assertValidTier, type Tier } from "../aws/tier";
 import { cisGithub } from "../mappings/cis-github";
 import { nistSsdfV11 } from "../mappings/nist-ssdf-v1.1";
-import type { SecureRepositoryArgs, SecureRepositoryArgsPublic } from "./secure-repository.args";
+import type {
+  SecureRepositoryArgs,
+  SecureRepositoryArgsPublic,
+  SecureRepositoryPullRequestRule,
+  SecureRepositoryRequiredStatusChecks,
+} from "./secure-repository.args";
 import type { SecureRepositoryOutputs } from "./secure-repository.outputs";
 
 export const SECURE_REPOSITORY_COMPONENT_TYPE = "hulumi:baseline:github:SecureRepository";
@@ -64,6 +69,74 @@ function buildDescription(
     if (user.length === 0) return tagSuffix;
     return `${user} [${tagSuffix}]`;
   });
+}
+
+/**
+ * Resolve the effective pull-request rule. `false` means caller explicitly
+ * disabled the tier default; `undefined` at startup-hardened means apply
+ * Hulumi's default-branch PR rule (1 approval, dismiss-stale, last-push,
+ * thread-resolution); `undefined` at sandbox means no PR rule.
+ *
+ * Caller-supplied values always win over tier defaults — a partial object
+ * is shallow-merged onto the tier default so callers can override one
+ * field without restating the rest.
+ */
+function resolvePullRequestRule(
+  arg: SecureRepositoryPullRequestRule | false | undefined,
+  isStartupHardened: boolean,
+): github.types.input.RepositoryRulesetRulesPullRequest | undefined {
+  if (arg === false) return undefined;
+  if (arg === undefined && !isStartupHardened) return undefined;
+  const defaults: SecureRepositoryPullRequestRule = isStartupHardened
+    ? {
+        requiredApprovingReviewCount: 1,
+        dismissStaleReviewsOnPush: true,
+        requireLastPushApproval: true,
+        requiredReviewThreadResolution: true,
+      }
+    : {};
+  const merged: SecureRepositoryPullRequestRule = { ...defaults, ...(arg ?? {}) };
+  const out: github.types.input.RepositoryRulesetRulesPullRequest = {};
+  if (merged.requiredApprovingReviewCount !== undefined) {
+    out.requiredApprovingReviewCount = merged.requiredApprovingReviewCount;
+  }
+  if (merged.dismissStaleReviewsOnPush !== undefined) {
+    out.dismissStaleReviewsOnPush = merged.dismissStaleReviewsOnPush;
+  }
+  if (merged.requireCodeOwnerReview !== undefined) {
+    out.requireCodeOwnerReview = merged.requireCodeOwnerReview;
+  }
+  if (merged.requireLastPushApproval !== undefined) {
+    out.requireLastPushApproval = merged.requireLastPushApproval;
+  }
+  if (merged.requiredReviewThreadResolution !== undefined) {
+    out.requiredReviewThreadResolution = merged.requiredReviewThreadResolution;
+  }
+  if (merged.allowedMergeMethods !== undefined) {
+    out.allowedMergeMethods = [...merged.allowedMergeMethods];
+  }
+  return out;
+}
+
+function buildRequiredStatusChecks(
+  rsc: SecureRepositoryRequiredStatusChecks,
+): github.types.input.RepositoryRulesetRulesRequiredStatusChecks {
+  const out: github.types.input.RepositoryRulesetRulesRequiredStatusChecks = {
+    requiredChecks: rsc.requiredChecks.map((c) => {
+      const check: github.types.input.RepositoryRulesetRulesRequiredStatusChecksRequiredCheck = {
+        context: c.context,
+      };
+      if (c.integrationId !== undefined) check.integrationId = c.integrationId;
+      return check;
+    }),
+  };
+  if (rsc.strictRequiredStatusChecksPolicy !== undefined) {
+    out.strictRequiredStatusChecksPolicy = rsc.strictRequiredStatusChecksPolicy;
+  }
+  if (rsc.doNotEnforceOnCreate !== undefined) {
+    out.doNotEnforceOnCreate = rsc.doNotEnforceOnCreate;
+  }
+  return out;
 }
 
 /**
@@ -168,28 +241,55 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
     this.repository = new github.Repository(`${name}-repo`, repoArgs, providerOpts);
 
     // Repository ruleset — Sandbox: deletion + force-push protection; Startup-
-    // Hardened adds signed-commits-required. The provider's `RepositoryRulesetRules`
-    // shape is flat booleans for these primitive rules.
-    const rules: github.types.input.RepositoryRulesetRules = isStartupHardened
-      ? { deletion: true, nonFastForward: true, requiredSignatures: true }
-      : { deletion: true, nonFastForward: true };
-    this.ruleset = new github.RepositoryRuleset(
-      `${name}-ruleset`,
-      {
-        name: `${name}-ruleset`,
-        repository: this.repository.name,
-        target: "branch",
-        enforcement: "active",
-        conditions: {
-          refName: {
-            includes: ["~DEFAULT_BRANCH"],
-            excludes: [],
-          },
+    // Hardened adds signed-commits-required + a sensible default PR rule +
+    // required-linear-history. The provider's `RepositoryRulesetRules` shape
+    // mixes flat booleans (deletion, nonFastForward, requiredSignatures,
+    // requiredLinearHistory) with nested objects (pullRequest,
+    // requiredStatusChecks).
+    const rules: github.types.input.RepositoryRulesetRules = {
+      deletion: true,
+      nonFastForward: true,
+    };
+    if (isStartupHardened) {
+      rules.requiredSignatures = true;
+    }
+    const linear = args.requireLinearHistory ?? isStartupHardened;
+    if (linear) {
+      rules.requiredLinearHistory = true;
+    }
+    const prRule = resolvePullRequestRule(args.pullRequestRule, isStartupHardened);
+    if (prRule !== undefined) {
+      rules.pullRequest = prRule;
+    }
+    const statusChecks = args.requiredStatusChecks;
+    if (statusChecks !== false && statusChecks !== undefined) {
+      rules.requiredStatusChecks = buildRequiredStatusChecks(statusChecks);
+    }
+
+    const rulesetArgs: github.RepositoryRulesetArgs = {
+      name: `${name}-ruleset`,
+      repository: this.repository.name,
+      target: "branch",
+      enforcement: "active",
+      conditions: {
+        refName: {
+          includes: ["~DEFAULT_BRANCH"],
+          excludes: [],
         },
-        rules,
-      } satisfies github.RepositoryRulesetArgs,
-      providerOpts,
-    );
+      },
+      rules,
+    };
+    if (args.bypassActors !== undefined && args.bypassActors.length > 0) {
+      rulesetArgs.bypassActors = args.bypassActors.map((a) => {
+        const out: github.types.input.RepositoryRulesetBypassActor = {
+          actorType: a.actorType,
+          bypassMode: a.bypassMode,
+        };
+        if (a.actorId !== undefined) out.actorId = a.actorId;
+        return out;
+      });
+    }
+    this.ruleset = new github.RepositoryRuleset(`${name}-ruleset`, rulesetArgs, providerOpts);
 
     this.repoFullName = this.repository.fullName;
     this.repoNodeId = this.repository.nodeId;

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Atomic four-package release path** — the release workflow now packs,
+  attests, and publishes `@hulumi/k8s-baseline` alongside `@hulumi/baseline`,
+  `@hulumi/policies`, and `@hulumi/drift`. CycloneDX SBOM is generated for
+  each tarball; SLSA Build L3 attestation covers all four. (Runbook
+  `hulumi-operations-k8s-security` Milestone 1.)
+- **`@hulumi/k8s-baseline` publish-readiness** — `private:true` removed;
+  `publishConfig.provenance:true` retained. Package metadata is now ready
+  for the v1.2 release train. Currently shipping at `1.0.0-pre.1`.
+- **kind / EKS integration test skeleton** — `tests/integration/kind/` and
+  `tests/integration/eks/` lanes with a sibling `vitest.integration.config.ts`.
+  Both lanes skip cleanly when their flags are unset and fail visibly when
+  flagged but missing the prerequisite (kind binary or EKS sandbox). Wired
+  into `ci.yml` (always-on contract test) and `weekly-integration.yml`.
+- **`packages/k8s-baseline/COMPATIBILITY.md`** synced with the runtime
+  `TESTED_VERSIONS` typed const (Istio `istiod`/`cni`/`gateway` at `1.24.2`),
+  with a BDD invariant test enforcing the lockstep going forward.
+
+### Changed
+
+- README, `docs/ARCHITECTURE.md`, `docs/README.md`, `docs/components/README.md`
+  now describe the K8s package surface alongside AWS and GitHub.
+
 ## [1.1.0] — 2026-04-26
 
 GitHub-as-Infrastructure surface added under a hard infra-only scope contract

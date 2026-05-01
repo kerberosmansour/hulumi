@@ -84,6 +84,26 @@ jobs:
       - run: pnpm --filter @hulumi-examples/drift-classify-smoke typecheck
       - run: pnpm --filter @hulumi-examples/drift-classify-smoke test
 
+  k8s-baseline-test:
+    name: "@hulumi/k8s-baseline unit + release-readiness BDD"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hulumi/k8s-baseline build
+      - run: pnpm --filter @hulumi/k8s-baseline test
+      # Integration lanes (kind/EKS) skip cleanly without flags; running
+      # them in CI proves the gating shape is wired up correctly.
+      - run: pnpm --filter @hulumi/k8s-baseline run test:integration:kind
+      - run: pnpm --filter @hulumi/k8s-baseline run test:integration:eks
+
   account-foundation-mocks:
     name: "@hulumi/baseline AccountFoundation mocks"
     runs-on: ubuntu-latest
@@ -172,7 +192,7 @@ jobs:
         run: |
           mkdir -p .release-artifacts
           ABS_DEST="$(pwd)/.release-artifacts"
-          for pkg in baseline policies drift; do
+          for pkg in baseline policies drift k8s-baseline; do
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/

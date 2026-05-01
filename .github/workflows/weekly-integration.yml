@@ -109,6 +109,16 @@ jobs:
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: pnpm --filter @hulumi/drift test -- tests/integration/
 
+      - name: Run k8s-baseline integration lanes (contract-only by default)
+        # The kind / EKS lanes skip cleanly when their flags are unset, so
+        # this step always runs. When HULUMI_INTEGRATION_KIND or
+        # HULUMI_INTEGRATION_EKS is set on the workflow run (via dispatch
+        # input or secrets in a future milestone), the lanes exercise real
+        # clusters.
+        run: |
+          pnpm --filter @hulumi/k8s-baseline run test:integration:kind
+          pnpm --filter @hulumi/k8s-baseline run test:integration:eks
+
       - name: Upload stack export on failure
         if: failure() && steps.env.outputs.contract_only == 'false'
         uses: actions/upload-artifact@v7

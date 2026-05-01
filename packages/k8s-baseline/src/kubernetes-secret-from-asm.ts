@@ -7,9 +7,14 @@ import {
 
 import type {
   KubernetesSecretFromAwsSecretsManagerArgs,
+  MissingKeyMode,
   RdsCredentialSecretArgs,
+  SecretFailureMode,
 } from "./kubernetes-secret-from-asm.args";
-import { RDS_DEFAULT_KEY_MAPPING } from "./kubernetes-secret-from-asm.args";
+import {
+  MAX_KEY_MAPPING_ENTRIES,
+  RDS_DEFAULT_KEY_MAPPING,
+} from "./kubernetes-secret-from-asm.args";
 import type {
   KubernetesSecretFromAwsSecretsManagerOutputs,
   RdsCredentialSecretOutputs,
@@ -89,36 +94,85 @@ function validateKeyMapping(name: string, keyMapping: Record<string, string>): v
       `KubernetesSecretFromAwsSecretsManager: keyMapping is required (component "${name}")`,
     );
   }
-  if (Object.keys(keyMapping).length === 0) {
+  const size = Object.keys(keyMapping).length;
+  if (size === 0) {
     throw new Error(
       `KubernetesSecretFromAwsSecretsManager: keyMapping must be non-empty (silent zero-key extraction is the failure mode this component refuses) (component "${name}")`,
     );
   }
+  if (size > MAX_KEY_MAPPING_ENTRIES) {
+    throw new Error(
+      `KubernetesSecretFromAwsSecretsManager: keyMapping has ${size} entries; max ${MAX_KEY_MAPPING_ENTRIES} (component "${name}")`,
+    );
+  }
+}
+
+interface MapKeysResult {
+  stringData: Record<string, string>;
+  written: string[];
+  missing: string[];
 }
 
 /**
- * Apply key mapping to a parsed SM JSON value. Emits warn for any requested
- * SM key that's missing in the source.
+ * Apply key mapping to a parsed SM JSON value. Returns the rendered data,
+ * the keys actually written, and the set of requested SM keys that were
+ * missing. The caller decides whether missing keys are a hard failure
+ * (M2 default) or a soft warn (legacy `missingKeyMode: "warn"`).
  */
 function mapKeys(
-  componentName: string,
   parsed: Record<string, unknown>,
   keyMapping: Record<string, string>,
-): { stringData: Record<string, string>; written: string[] } {
+): MapKeysResult {
   const stringData: Record<string, string> = {};
   const written: string[] = [];
+  const missing: string[] = [];
   for (const [smKey, k8sKey] of Object.entries(keyMapping)) {
     const value = parsed[smKey];
     if (value === undefined) {
-      pulumi.log.warn(
-        `KubernetesSecretFromAwsSecretsManager "${componentName}": SM JSON missing requested key "${smKey}" (mapped to K8s key "${k8sKey}"); the rendered K8s Secret will not include "${k8sKey}". Consumer apps that read this env var will fail loud at startup.`,
-      );
+      missing.push(smKey);
       continue;
     }
     stringData[k8sKey] = typeof value === "string" ? value : JSON.stringify(value);
     written.push(k8sKey);
   }
-  return { stringData, written };
+  return { stringData, written, missing };
+}
+
+class FailClosedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FailClosedError";
+  }
+}
+
+/**
+ * Internal: produce the rendered K8s Secret payload, honoring
+ * `failureMode` and `missingKeyMode`. Throws `FailClosedError` for
+ * the "fail" path; returns `{ stringData: {}, written: [] }` for
+ * the "warn-empty" degraded path.
+ */
+function renderPayloadOrFail(
+  componentName: string,
+  parsed: Record<string, unknown>,
+  keyMapping: Record<string, string>,
+  missingKeyMode: MissingKeyMode,
+): { stringData: Record<string, string>; written: string[] } {
+  const result = mapKeys(parsed, keyMapping);
+  if (result.missing.length > 0) {
+    const formatted = result.missing.map((k) => `"${k}"`).join(", ");
+    if (missingKeyMode === "fail") {
+      const reason = `KubernetesSecretFromAwsSecretsManager "${componentName}": SM JSON missing requested key ${formatted} (set missingKeyMode: "warn" to allow degraded extraction).`;
+      pulumi.log.error(`${reason} (missingKeyMode "fail" — fail-closed)`);
+      throw new FailClosedError(reason);
+    }
+    for (const smKey of result.missing) {
+      const k8sKey = keyMapping[smKey];
+      pulumi.log.warn(
+        `KubernetesSecretFromAwsSecretsManager "${componentName}": SM JSON missing requested key "${smKey}" (mapped to K8s key "${k8sKey}"); the rendered K8s Secret will not include "${k8sKey}". missingKeyMode: "warn" is set — the deploy proceeds.`,
+      );
+    }
+  }
+  return { stringData: result.stringData, written: result.written };
 }
 
 export class KubernetesSecretFromAwsSecretsManager
@@ -138,6 +192,9 @@ export class KubernetesSecretFromAwsSecretsManager
     validateName(name, args.secretName);
     validateKeyMapping(name, args.keyMapping);
 
+    const failureMode: SecretFailureMode = args.failureMode ?? "fail";
+    const missingKeyMode: MissingKeyMode = args.missingKeyMode ?? "fail";
+
     const parent = { parent: this } as const;
 
     const inputs = pulumi.all([
@@ -145,7 +202,24 @@ export class KubernetesSecretFromAwsSecretsManager
       pulumi.output(args.region ?? ""),
     ]);
 
-    const empty = { stringData: {}, written: [] as string[] };
+    const empty = { stringData: {} as Record<string, string>, written: [] as string[] };
+
+    function handleDegraded(reason: string): { stringData: Record<string, string>; written: string[] } {
+      const fullReason = `KubernetesSecretFromAwsSecretsManager "${name}": ${reason}`;
+      if (failureMode === "fail") {
+        // Log to pulumi.log.error first so operators see the concrete failure
+        // reason in addition to Pulumi's standard "deployment failed" surface.
+        // Then throw — Pulumi treats the rejected apply as a deploy-blocking
+        // error and refuses to apply the Secret.
+        pulumi.log.error(`${fullReason} (failureMode "fail" — fail-closed)`);
+        throw new FailClosedError(fullReason);
+      }
+      pulumi.log.warn(
+        `${fullReason} — failureMode "warn-empty" fail-closed bypass active; the rendered K8s Secret is empty (degraded mode)`,
+      );
+      return empty;
+    }
+
     const extracted = inputs.apply(async ([arn, region]: [string, string]) => {
       const fetch = activeFetcher ?? defaultFetcher;
       let raw: string;
@@ -153,35 +227,45 @@ export class KubernetesSecretFromAwsSecretsManager
         raw = await fetch(arn, region === "" ? undefined : region);
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        pulumi.log.error(
-          `KubernetesSecretFromAwsSecretsManager "${name}": failed to fetch SM secret at ${arn}: ${redact(errMsg)}`,
+        return handleDegraded(
+          `failed to fetch SM secret at ${arn}: ${redact(errMsg)}`,
         );
-        return empty;
       }
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        pulumi.log.error(
-          `KubernetesSecretFromAwsSecretsManager "${name}": SM secret at ${arn} is not valid JSON: ${redact(errMsg)}`,
+        return handleDegraded(
+          `SM secret at ${arn} is not valid JSON: ${redact(errMsg)}`,
         );
-        return empty;
       }
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        pulumi.log.error(
-          `KubernetesSecretFromAwsSecretsManager "${name}": SM secret at ${arn} must be a JSON object (got ${typeof parsed === "object" && Array.isArray(parsed) ? "array" : typeof parsed})`,
+        const got =
+          parsed === null
+            ? "null"
+            : Array.isArray(parsed)
+              ? "array"
+              : typeof parsed;
+        return handleDegraded(
+          `SM secret at ${arn} must be a JSON object (got ${got})`,
         );
-        return empty;
       }
       const depth = jsonNestingDepth(parsed);
       if (depth > MAX_NESTING_DEPTH) {
-        pulumi.log.error(
-          `KubernetesSecretFromAwsSecretsManager "${name}": SM secret JSON exceeds max nesting depth (${MAX_NESTING_DEPTH})`,
+        return handleDegraded(
+          `SM secret JSON exceeds max nesting depth (${MAX_NESTING_DEPTH})`,
         );
-        return empty;
       }
-      return mapKeys(name, parsed as Record<string, unknown>, args.keyMapping);
+      // mapKeys + missing-key check. This may throw FailClosedError under
+      // the M2 default (`missingKeyMode: "fail"`), which the Pulumi engine
+      // surfaces as a deploy-blocking error.
+      return renderPayloadOrFail(
+        name,
+        parsed as Record<string, unknown>,
+        args.keyMapping,
+        missingKeyMode,
+      );
     });
 
     const stringData = extracted.apply((e) => e.stringData);
@@ -234,6 +318,8 @@ export class RdsCredentialSecret
       keyMapping,
     };
     if (args.region !== undefined) innerArgs.region = args.region;
+    if (args.failureMode !== undefined) innerArgs.failureMode = args.failureMode;
+    if (args.missingKeyMode !== undefined) innerArgs.missingKeyMode = args.missingKeyMode;
     const inner = new KubernetesSecretFromAwsSecretsManager(`${name}-foundation`, innerArgs, {
       parent: this,
     });

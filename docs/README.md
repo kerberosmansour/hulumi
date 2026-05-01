@@ -41,12 +41,13 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 
 ## Reference
 
-- [Components](./components/README.md) — `SecureBucket`, `AccountFoundation`, `DriftClassifier`.
+- [Components](./components/README.md) — `SecureBucket`, `AccountFoundation`, `DriftClassifier`, plus the K8s/EKS surface (`HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`).
 - [Framework mappings](./mappings/) — CCM v4.1, CIS AWS v5.0.0, NIST 800-53 r5, NIST 800-218A, MITRE ATLAS v5.1.
 - [Tier matrix](./tiers.md) — what differs between Sandbox and Startup-Hardened, by component.
 - [Threat-model examples](./threat-model-examples/) — sample outputs from `/hulumi-threat-model`.
 - [Lessons learned](./lessons/) — per-milestone notes capturing design decisions and surprises.
 - [Launch artifacts](./launch/) — outreach drafts, blog pitches, CFP submissions.
+- Runbooks — [AWS](./RUNBOOK-hulumi.md), [GitHub](./RUNBOOK-hulumi-github.md), [K8s baseline](./RUNBOOK-hulumi-k8s.md), [combined Operations + K8s security (in flight)](./RUNBOOK-hulumi-operations-k8s-security.md).
 
 ## Papers
 

@@ -5,12 +5,19 @@ import type {
   AlbMeshedHttpEntrypointArgs,
   AlbMeshedHttpEntrypointAuthZ,
   AlbMeshedHttpEntrypointAlb,
+  AlbMeshedHttpEntrypointWorkloadSelector,
+} from "./alb-meshed-http-entrypoint.args";
+import {
+  MAX_EXTRA_PRINCIPALS,
+  MAX_WORKLOAD_SELECTOR_LABELS,
+  MIN_PUBLIC_JUSTIFICATION_LENGTH,
 } from "./alb-meshed-http-entrypoint.args";
 import type { AlbMeshedHttpEntrypointOutputs } from "./alb-meshed-http-entrypoint.outputs";
 
 export const ALB_MESHED_HTTP_ENTRYPOINT_COMPONENT_TYPE = "hulumi:k8s:AlbMeshedHttpEntrypoint";
 
 const FQDN_REGEX = /^(?=.{1,253}$)([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+const PUBLIC_JUSTIFICATION_ANNOTATION = "hulumi.dev/public-justification";
 
 function validateArgs(name: string, args: AlbMeshedHttpEntrypointArgs): void {
   if (args.mesh === undefined) {
@@ -61,10 +68,68 @@ function validateArgs(name: string, args: AlbMeshedHttpEntrypointArgs): void {
       );
     }
   }
+  if (
+    authz.extraPrincipals !== undefined &&
+    authz.extraPrincipals.length > MAX_EXTRA_PRINCIPALS
+  ) {
+    throw new Error(
+      `AlbMeshedHttpEntrypoint: extraPrincipals has ${authz.extraPrincipals.length} entries; max ${MAX_EXTRA_PRINCIPALS} (component "${name}")`,
+    );
+  }
+
+  // M2 contract: explicit selector OR explicit acknowledgement.
+  const ws = args.workloadSelector;
+  if (ws === undefined && args.acknowledgeInferredSelector !== true) {
+    throw new Error(
+      `AlbMeshedHttpEntrypoint: pass workloadSelector (preferred) or acknowledgeInferredSelector: true to opt into the legacy inferred { app: serviceRef.name } selector (component "${name}")`,
+    );
+  }
+  if (ws !== undefined) {
+    if (ws.matchLabels === undefined || Object.keys(ws.matchLabels).length === 0) {
+      throw new Error(
+        `AlbMeshedHttpEntrypoint: workloadSelector.matchLabels must be non-empty (component "${name}")`,
+      );
+    }
+    const labelCount = Object.keys(ws.matchLabels).length;
+    if (labelCount > MAX_WORKLOAD_SELECTOR_LABELS) {
+      throw new Error(
+        `AlbMeshedHttpEntrypoint: workloadSelector.matchLabels has ${labelCount} entries; max ${MAX_WORKLOAD_SELECTOR_LABELS} labels (component "${name}")`,
+      );
+    }
+  }
+
+  // M2 contract: internet-facing requires both certificateArn and a public justification.
+  if (args.scheme === "internet-facing") {
+    const albCfg = args.alb ?? {};
+    if (albCfg.certificateArn === undefined || albCfg.certificateArn === "") {
+      throw new Error(
+        `AlbMeshedHttpEntrypoint: scheme "internet-facing" requires alb.certificateArn (component "${name}")`,
+      );
+    }
+    if (albCfg.publicJustification === undefined || albCfg.publicJustification === "") {
+      throw new Error(
+        `AlbMeshedHttpEntrypoint: scheme "internet-facing" requires alb.publicJustification (component "${name}")`,
+      );
+    }
+    if (albCfg.publicJustification.length < MIN_PUBLIC_JUSTIFICATION_LENGTH) {
+      throw new Error(
+        `AlbMeshedHttpEntrypoint: alb.publicJustification must be at least ${MIN_PUBLIC_JUSTIFICATION_LENGTH} chars long (got ${albCfg.publicJustification.length}) (component "${name}")`,
+      );
+    }
+  }
 }
 
 function spiffePrincipalForGateway(saName: string, namespace: string): string {
   return `cluster.local/ns/${namespace}/sa/${saName}`;
+}
+
+function resolveSelector(
+  args: AlbMeshedHttpEntrypointArgs,
+): AlbMeshedHttpEntrypointWorkloadSelector {
+  if (args.workloadSelector !== undefined) {
+    return args.workloadSelector;
+  }
+  return { matchLabels: { app: args.serviceRef.name } };
 }
 
 export class AlbMeshedHttpEntrypoint
@@ -98,10 +163,16 @@ export class AlbMeshedHttpEntrypoint
     const healthcheckPath = albCfg.healthcheckPath ?? "/healthz/ready";
     const healthcheckPort = albCfg.healthcheckPort ?? 15021;
     const groupName = albCfg.groupName ?? "default";
+    const selector = resolveSelector(args);
 
     if (!allowFromGateway) {
       pulumi.log.warn(
         `AlbMeshedHttpEntrypoint "${name}": allowFromGateway: false — the AuthorizationPolicy does NOT include the gateway principal. The entrypoint accepts only the explicit extraPrincipals list. Confirm this matches the intended trust posture.`,
+      );
+    }
+    if (args.workloadSelector === undefined && args.acknowledgeInferredSelector === true) {
+      pulumi.log.warn(
+        `AlbMeshedHttpEntrypoint "${name}": acknowledgeInferredSelector: true — using the legacy inferred selector { app: "${args.serviceRef.name}" } for the AuthorizationPolicy. Prefer passing workloadSelector explicitly so the AuthorizationPolicy's match cannot drift from the actual workload labels.`,
       );
     }
 
@@ -111,10 +182,6 @@ export class AlbMeshedHttpEntrypoint
     const workloadNamespace = args.serviceRef.namespace;
 
     // Ingress backend points at the istio-ingressgateway Service in mesh.ingressGatewayNamespace.
-    // We compute the ingress in the workload's namespace per the load-balancer-controller
-    // group.name convention (one ingress can route to a gateway service via ExternalName-like ref).
-    // Simpler / more common pattern: ingress lives in istio-ingress namespace; we adopt that here
-    // because the gateway service is there and ALB Controller binds at the same namespace.
     const ingressNs = args.mesh.ingressGatewayNamespace.apply(
       (ns: string | undefined) => ns ?? ingressNamespace,
     );
@@ -137,6 +204,9 @@ export class AlbMeshedHttpEntrypoint
       if (albCfg.sslPolicy !== undefined) {
         annotations["alb.ingress.kubernetes.io/ssl-policy"] = albCfg.sslPolicy;
       }
+    }
+    if (scheme === "internet-facing" && albCfg.publicJustification !== undefined) {
+      annotations[PUBLIC_JUSTIFICATION_ANNOTATION] = albCfg.publicJustification;
     }
 
     const ingress = new k8s.networking.v1.Ingress(
@@ -241,7 +311,7 @@ export class AlbMeshedHttpEntrypoint
         kind: "AuthorizationPolicy",
         metadata: { name: apName, namespace: workloadNamespace },
         spec: {
-          selector: { matchLabels: { app: args.serviceRef.name } },
+          selector: { matchLabels: selector.matchLabels },
           action: "ALLOW",
           rules: [
             {

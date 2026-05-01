@@ -28,3 +28,22 @@ export type {
   IdentityAlarmExtraEvent,
 } from "./identity-alarms.args";
 export type { IdentityAlarmsOutputs } from "./identity-alarms.outputs";
+
+export { Ec2PatchBaseline, EC2_PATCH_BASELINE_COMPONENT_TYPE } from "./ec2-patch-baseline";
+export type {
+  Ec2PatchBaselineArgs,
+  PatchGroupTier,
+  RebootOption,
+  ComplianceMetric,
+  StaggeringConfig,
+} from "./ec2-patch-baseline.args";
+export {
+  PATCH_GROUP_VALUES,
+  MAX_STAGGERING_BUCKETS,
+  MAX_COMPLIANCE_SEVERITIES,
+} from "./ec2-patch-baseline.args";
+export type { Ec2PatchBaselineOutputs } from "./ec2-patch-baseline.outputs";
+
+export { Ec2PatchWaves, EC2_PATCH_WAVES_COMPONENT_TYPE } from "./ec2-patch-waves";
+export type { Ec2PatchWavesArgs, Ec2PatchWaveArgs } from "./ec2-patch-waves.args";
+export type { Ec2PatchWavesOutputs } from "./ec2-patch-waves.outputs";

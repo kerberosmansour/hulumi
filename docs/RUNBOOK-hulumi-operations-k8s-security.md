@@ -72,7 +72,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | 8 | Ops M2: `DetectiveServicesEnable` | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-operations-m2.md` | `docs/completion/hulumi-operations-m2.md` |
 | 9 | Ops M3: `AuditTrail` + `IdentityAlarms` extension | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-operations-m3.md` | `docs/completion/hulumi-operations-m3.md` |
 | 10 | Ops M4: `HulumiOperationsHardeningPack` | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-operations-m4.md` | `docs/completion/hulumi-operations-m4.md` |
-| 11 | Ops M5: threat-model ops scenarios + atomic four-package release | `not_started` | | | `docs/lessons/hulumi-operations-m5.md` | `docs/completion/hulumi-operations-m5.md` |
+| 11 | Ops M5: threat-model ops scenarios + atomic four-package release | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-operations-m5.md` | `docs/completion/hulumi-operations-m5.md` |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 

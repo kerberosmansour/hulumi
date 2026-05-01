@@ -10,6 +10,57 @@ import type { Tier } from "../aws/tier";
 /** Discriminated-union shape: the public branch requires explicit opt-in. */
 export type SecureRepositoryArgs = SecureRepositoryArgsPrivate | SecureRepositoryArgsPublic;
 
+/**
+ * Pull-request rule applied to the default-branch ruleset. Mirrors the
+ * provider's `RepositoryRulesetRulesPullRequest` shape but uses native TS
+ * unions so the `Hulumi` API stays decoupled from `@pulumi/github` minor
+ * shape churn. Pass `false` to explicitly disable the tier default.
+ */
+export interface SecureRepositoryPullRequestRule {
+  /** GitHub default 0; Hulumi startup-hardened default 1. */
+  requiredApprovingReviewCount?: number;
+  /** Hulumi startup-hardened default true. */
+  dismissStaleReviewsOnPush?: boolean;
+  /** Hulumi default false at every tier — opt-in (CODEOWNERS coverage is project-specific). */
+  requireCodeOwnerReview?: boolean;
+  /** Hulumi startup-hardened default true. */
+  requireLastPushApproval?: boolean;
+  /** Hulumi startup-hardened default true. */
+  requiredReviewThreadResolution?: boolean;
+  /** Provider order is preserved. SecureRepository's repo args already pin squash-only merges. */
+  allowedMergeMethods?: ReadonlyArray<"merge" | "squash" | "rebase">;
+}
+
+/**
+ * Required-status-checks rule applied to the default-branch ruleset.
+ * Hulumi does not infer status-check contexts — the names are
+ * project-specific, so this is opt-in at every tier even though
+ * startup-hardened deployments should always declare it.
+ */
+export interface SecureRepositoryRequiredStatusChecks {
+  requiredChecks: ReadonlyArray<{
+    /** Status check context name (e.g., "test + typecheck + lint"). */
+    context: string;
+    /** Optional GitHub App ID that must originate the check. */
+    integrationId?: number;
+  }>;
+  /** Require commits be tested with the latest target-branch code before merge. */
+  strictRequiredStatusChecksPolicy?: boolean;
+  /** Allow ref creation when a check would otherwise prohibit it. */
+  doNotEnforceOnCreate?: boolean;
+}
+
+/**
+ * Bypass-actor entry. Mirrors `RepositoryRulesetBypassActor`. Empty by
+ * default at every tier — explicit-only access avoids the typical
+ * "OrganizationAdmin can bypass everything" footgun.
+ */
+export interface SecureRepositoryBypassActor {
+  actorId?: number;
+  actorType: "RepositoryRole" | "Team" | "Integration" | "OrganizationAdmin" | "DeployKey";
+  bypassMode: "always" | "pullRequest" | "exempt";
+}
+
 interface SecureRepositoryArgsCommon {
   tier: Tier;
   /** Optional override of the GitHub provider used for this resource. */
@@ -29,6 +80,33 @@ interface SecureRepositoryArgsCommon {
   secretScanning?: boolean;
   /** Default true at startup-hardened. */
   pushProtection?: boolean;
+  /**
+   * Pull-request rule on the default branch. At sandbox, undefined ⇒ no
+   * rule. At startup-hardened, undefined ⇒ a sensible PR rule (1 approval,
+   * dismiss-stale-on-push, require-last-push-approval, require thread
+   * resolution). Pass `false` to explicitly disable the startup-hardened
+   * default.
+   */
+  pullRequestRule?: SecureRepositoryPullRequestRule | false;
+  /**
+   * Required-status-checks rule on the default branch. Opt-in at every
+   * tier — Hulumi cannot infer project-specific check context names.
+   * Pass `false` for symmetry / future-proofing.
+   */
+  requiredStatusChecks?: SecureRepositoryRequiredStatusChecks | false;
+  /**
+   * Require linear history (no merge commits). Sandbox default false;
+   * startup-hardened default true. Note: SecureRepository's repo args
+   * already disable merge-commit creation; this is the ruleset belt to
+   * the repo-args braces.
+   */
+  requireLinearHistory?: boolean;
+  /**
+   * Bypass actors permitted to override the default-branch ruleset.
+   * Empty at every tier — explicit-only access. Listed actors are passed
+   * through to the provider unchanged.
+   */
+  bypassActors?: ReadonlyArray<SecureRepositoryBypassActor>;
 }
 
 export interface SecureRepositoryArgsPrivate extends SecureRepositoryArgsCommon {

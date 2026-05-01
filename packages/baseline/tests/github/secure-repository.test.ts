@@ -215,6 +215,221 @@ describe("SecureRepository — abuse case: public visibility opt-in friction", (
   });
 });
 
+describe("SecureRepository — pull-request rule (default-branch ruleset)", () => {
+  beforeEach(resetRegistrations);
+
+  it("[sandbox] does not emit a pullRequest rule by default", async () => {
+    const repo = new SecureRepository("pr-sb", { tier: "sandbox", visibility: "private" });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("pr-sb-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.pullRequest).toBeUndefined();
+  });
+
+  it("[startup-hardened] emits a pullRequest rule with sensible defaults", async () => {
+    const repo = new SecureRepository("pr-sh", {
+      tier: "startup-hardened",
+      visibility: "private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("pr-sh-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    const pr = rules.pullRequest as Record<string, unknown> | undefined;
+    expect(pr).toBeDefined();
+    expect(pr!.requiredApprovingReviewCount).toBe(1);
+    expect(pr!.dismissStaleReviewsOnPush).toBe(true);
+    expect(pr!.requireLastPushApproval).toBe(true);
+    expect(pr!.requiredReviewThreadResolution).toBe(true);
+    // CODEOWNERS is opt-in — the component does not assume project shape.
+    expect(pr!.requireCodeOwnerReview).toBeUndefined();
+  });
+
+  it("[startup-hardened] caller can disable the default by passing pullRequestRule: false", async () => {
+    const repo = new SecureRepository("pr-off", {
+      tier: "startup-hardened",
+      visibility: "private",
+      pullRequestRule: false,
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("pr-off-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.pullRequest).toBeUndefined();
+  });
+
+  it("[overrides] partial override merges over the tier default", async () => {
+    const repo = new SecureRepository("pr-ovr", {
+      tier: "startup-hardened",
+      visibility: "private",
+      pullRequestRule: { requiredApprovingReviewCount: 2, requireCodeOwnerReview: true },
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("pr-ovr-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    const pr = rules.pullRequest as Record<string, unknown>;
+    expect(pr.requiredApprovingReviewCount).toBe(2);
+    expect(pr.requireCodeOwnerReview).toBe(true);
+    // Other defaults preserved through the merge.
+    expect(pr.dismissStaleReviewsOnPush).toBe(true);
+    expect(pr.requireLastPushApproval).toBe(true);
+  });
+
+  it("[sandbox] explicit pullRequestRule still applies even though no tier default exists", async () => {
+    const repo = new SecureRepository("pr-sb-explicit", {
+      tier: "sandbox",
+      visibility: "private",
+      pullRequestRule: { requiredApprovingReviewCount: 1 },
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("pr-sb-explicit-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    const pr = rules.pullRequest as Record<string, unknown>;
+    expect(pr.requiredApprovingReviewCount).toBe(1);
+  });
+});
+
+describe("SecureRepository — required status checks (opt-in at every tier)", () => {
+  beforeEach(resetRegistrations);
+
+  it("emits required-status-checks block with caller-supplied check contexts", async () => {
+    const repo = new SecureRepository("rsc-1", {
+      tier: "startup-hardened",
+      visibility: "private",
+      requiredStatusChecks: {
+        requiredChecks: [{ context: "test + typecheck + lint" }, { context: "DCO sign-off" }],
+        strictRequiredStatusChecksPolicy: true,
+      },
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("rsc-1-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    const rsc = rules.requiredStatusChecks as Record<string, unknown>;
+    expect(rsc.strictRequiredStatusChecksPolicy).toBe(true);
+    const checks = rsc.requiredChecks as Array<{ context: string }>;
+    expect(checks).toHaveLength(2);
+    expect(checks[0]!.context).toBe("test + typecheck + lint");
+    expect(checks[1]!.context).toBe("DCO sign-off");
+  });
+
+  it("[startup-hardened default] does not emit a required-status-checks block — opt-in only", async () => {
+    const repo = new SecureRepository("rsc-default", {
+      tier: "startup-hardened",
+      visibility: "private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("rsc-default-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.requiredStatusChecks).toBeUndefined();
+  });
+});
+
+describe("SecureRepository — required linear history (tier-monotonic)", () => {
+  beforeEach(resetRegistrations);
+
+  it("[sandbox default] does not require linear history", async () => {
+    const repo = new SecureRepository("lin-sb", { tier: "sandbox", visibility: "private" });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("lin-sb-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.requiredLinearHistory).toBeUndefined();
+  });
+
+  it("[startup-hardened default] requires linear history", async () => {
+    const repo = new SecureRepository("lin-sh", {
+      tier: "startup-hardened",
+      visibility: "private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("lin-sh-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.requiredLinearHistory).toBe(true);
+  });
+
+  it("[explicit override] sandbox can opt-in to linear history", async () => {
+    const repo = new SecureRepository("lin-sb-on", {
+      tier: "sandbox",
+      visibility: "private",
+      requireLinearHistory: true,
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("lin-sb-on-ruleset");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.requiredLinearHistory).toBe(true);
+  });
+});
+
+describe("SecureRepository — bypass actors (explicit-only access)", () => {
+  beforeEach(resetRegistrations);
+
+  it("emits no bypassActors when caller does not supply any", async () => {
+    const repo = new SecureRepository("ba-empty", {
+      tier: "startup-hardened",
+      visibility: "private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("ba-empty-ruleset");
+    expect(ruleset!.inputs.bypassActors).toBeUndefined();
+  });
+
+  it("forwards caller-supplied bypassActors to the ruleset", async () => {
+    const repo = new SecureRepository("ba-set", {
+      tier: "startup-hardened",
+      visibility: "private",
+      bypassActors: [
+        { actorId: 5, actorType: "Team", bypassMode: "pullRequest" },
+        { actorType: "OrganizationAdmin", actorId: 1, bypassMode: "exempt" },
+      ],
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+    const ruleset = findRulesetFor("ba-set-ruleset");
+    const actors = ruleset!.inputs.bypassActors as Array<Record<string, unknown>>;
+    expect(actors).toHaveLength(2);
+    expect(actors[0]!.actorType).toBe("Team");
+    expect(actors[0]!.bypassMode).toBe("pullRequest");
+    expect(actors[1]!.actorType).toBe("OrganizationAdmin");
+  });
+});
+
+describe("SecureRepository — tier-monotonicity (hardened ⊇ sandbox)", () => {
+  beforeEach(resetRegistrations);
+
+  it("startup-hardened emits a strict superset of sandbox rules with no overrides", async () => {
+    const sb = new SecureRepository("mono-sb", { tier: "sandbox", visibility: "private" });
+    const sh = new SecureRepository("mono-sh", {
+      tier: "startup-hardened",
+      visibility: "private",
+    });
+    await valueOf(sb.repoFullName);
+    await valueOf(sh.repoFullName);
+    await settlePulumi();
+    const sbRules =
+      (findRulesetFor("mono-sb-ruleset")!.inputs.rules as Record<string, unknown>) ?? {};
+    const shRules =
+      (findRulesetFor("mono-sh-ruleset")!.inputs.rules as Record<string, unknown>) ?? {};
+    for (const k of Object.keys(sbRules)) {
+      expect(shRules[k]).toBeDefined();
+    }
+    // Startup-Hardened adds at least: requiredSignatures, requiredLinearHistory,
+    // pullRequest. (requiredStatusChecks stays opt-in regardless of tier.)
+    expect(shRules.requiredSignatures).toBe(true);
+    expect(shRules.requiredLinearHistory).toBe(true);
+    expect(shRules.pullRequest).toBeDefined();
+    // Strict superset — at least one rule key beyond sandbox.
+    expect(Object.keys(shRules).length).toBeGreaterThan(Object.keys(sbRules).length);
+  });
+});
+
 describe("SecureRepository — schema lock (compatibility)", () => {
   beforeEach(resetRegistrations);
 

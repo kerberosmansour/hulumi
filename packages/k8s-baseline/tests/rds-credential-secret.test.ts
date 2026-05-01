@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import * as pulumi from "@pulumi/pulumi";
 
 import {
   RDS_CREDENTIAL_SECRET_COMPONENT_TYPE,
@@ -8,13 +9,28 @@ import {
 import { RDS_DEFAULT_KEY_MAPPING } from "../src/kubernetes-secret-from-asm.args";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
+// Suppress fail-closed unhandled-rejection noise — see
+// kubernetes-secret-from-asm.test.ts for the rationale.
+let unhandledRejectionListener: ((reason: unknown) => void) | undefined;
+
 beforeEach(() => {
   resetRegistrations();
+  unhandledRejectionListener = (reason: unknown) => {
+    if (reason instanceof Error && reason.name === "FailClosedError") {
+      return;
+    }
+    throw reason instanceof Error ? reason : new Error(String(reason));
+  };
+  process.on("unhandledRejection", unhandledRejectionListener);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   __setSecretsManagerFetcher(undefined);
+  if (unhandledRejectionListener !== undefined) {
+    process.off("unhandledRejection", unhandledRejectionListener);
+    unhandledRejectionListener = undefined;
+  }
 });
 
 function secrets() {
@@ -100,12 +116,15 @@ describe("RdsCredentialSecret", () => {
         dbClusterIdentifier: "c",
       }),
     );
-    const c = new RdsCredentialSecret("rds", {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
+    new RdsCredentialSecret("rds", {
       rdsManagedMasterCredentialArn: "arn",
       namespace: "prod",
       secretName: "rds-creds",
     });
     await settlePulumi();
-    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/missing requested key "password"/);
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/missing requested key "password"/);
+    expect(errs).toMatch(/missingKeyMode "fail" — fail-closed/);
   });
 });

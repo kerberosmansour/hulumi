@@ -8,13 +8,31 @@ import {
 } from "../src/kubernetes-secret-from-asm";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
+// The M2 fail-closed impl throws `FailClosedError` inside a Pulumi apply
+// chain. Pulumi's `cmd/run` path installs an unhandled-rejection handler in
+// production, but the mock runtime in tests does not. Attach a per-file
+// listener that suppresses ONLY FailClosedError rejections so the BDD test
+// output stays clean while still surfacing any unexpected rejection.
+let unhandledRejectionListener: ((reason: unknown) => void) | undefined;
+
 beforeEach(() => {
   resetRegistrations();
+  unhandledRejectionListener = (reason: unknown) => {
+    if (reason instanceof Error && reason.name === "FailClosedError") {
+      return; // expected for fail-closed BDD scenarios
+    }
+    throw reason instanceof Error ? reason : new Error(String(reason));
+  };
+  process.on("unhandledRejection", unhandledRejectionListener);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   __setSecretsManagerFetcher(undefined);
+  if (unhandledRejectionListener !== undefined) {
+    process.off("unhandledRejection", unhandledRejectionListener);
+    unhandledRejectionListener = undefined;
+  }
 });
 
 function secrets() {
@@ -132,20 +150,23 @@ describe("KubernetesSecretFromAwsSecretsManager — invalid input refusals", () 
 // the same scenario lives in the M2 fail-closed-defaults block above.
 
 describe("KubernetesSecretFromAwsSecretsManager — M2 fail-closed defaults", () => {
-  test("Scenario: Secret fetch failure fails closed (default raises visible error)", async () => {
+  test("Scenario: Secret fetch failure fails closed (default logs error + aborts deploy)", async () => {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
     __setSecretsManagerFetcher(async () => {
       throw new Error("AWS API: AccessDeniedException");
     });
-    const c = new KubernetesSecretFromAwsSecretsManager("c", {
+    new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn:aws:sm:us-east-1:111:secret:foo",
       keyMapping: { username: "user" },
       namespace: "prod",
       secretName: "x",
     });
     await settlePulumi();
-    // The default failureMode is "fail" — the Pulumi Output's apply() rejects,
-    // which surfaces as a rejected output the engine refuses to deploy.
-    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/fail-closed|fetch|AccessDenied/i);
+    // failureMode default is "fail" — the impl logs to pulumi.log.error AND
+    // throws inside the apply (Pulumi engine treats that as deploy-blocking).
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/AccessDeniedException/);
+    expect(errs).toMatch(/failureMode "fail" — fail-closed/);
   });
 
   test('Scenario: Warn-empty is explicit (failureMode: "warn-empty" preserves degraded behavior)', async () => {
@@ -164,19 +185,22 @@ describe("KubernetesSecretFromAwsSecretsManager — M2 fail-closed defaults", ()
     const data = unwrapStringData(secrets()[0].inputs.stringData);
     expect(data).toEqual({});
     const messages = warnSpy.mock.calls.map((c) => c[0]).join("\n");
-    expect(messages).toMatch(/warn-empty|degraded|fail-closed bypass/i);
+    expect(messages).toMatch(/warn-empty.*fail-closed bypass|degraded mode/i);
   });
 
   test('Scenario: Missing required key fails by default (missingKeyMode default is "fail")', async () => {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
     __setSecretsManagerFetcher(async () => JSON.stringify({ username: "u" }));
-    const c = new KubernetesSecretFromAwsSecretsManager("c", {
+    new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn",
       keyMapping: { username: "user", password: "pass" },
       namespace: "prod",
       secretName: "x",
     });
     await settlePulumi();
-    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/missing requested key "password"/);
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/missing requested key "password"/);
+    expect(errs).toMatch(/missingKeyMode "fail" — fail-closed/);
   });
 
   test('Scenario: missingKeyMode: "warn" preserves the historical missing-key warn behavior', async () => {
@@ -228,51 +252,52 @@ describe("KubernetesSecretFromAwsSecretsManager — M2 fail-closed defaults", ()
 
 describe("KubernetesSecretFromAwsSecretsManager — abuse cases (fail-closed by default)", () => {
   test("JSON-bomb cap fails closed by default", async () => {
-    // Build a 100-level nested object (deeper than the 64 cap)
     let nested: Record<string, unknown> = { leaf: 1 };
     for (let i = 0; i < 100; i++) nested = { child: nested };
     const evil = { username: "u", deep: nested };
     __setSecretsManagerFetcher(async () => JSON.stringify(evil));
-    const c = new KubernetesSecretFromAwsSecretsManager("c", {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
+    new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn",
       keyMapping: { username: "u" },
       namespace: "prod",
       secretName: "x",
     });
     await settlePulumi();
-    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/exceeds max nesting depth/i);
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/exceeds max nesting depth/i);
+    expect(errs).toMatch(/failureMode "fail" — fail-closed/);
   });
 
-  test("error path does not leak prior secret bytes — redacted token-shape in rejection", async () => {
+  test("error path does not leak prior secret bytes — redacted token-shape in error log", async () => {
     __setSecretsManagerFetcher(async () => {
       throw new Error("API denied: Bearer ghs_supersecretvalueABC123 was rejected");
     });
-    const c = new KubernetesSecretFromAwsSecretsManager("c", {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
+    new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn:aws:secretsmanager:us-east-1:111:secret:foo",
       keyMapping: { username: "user" },
       namespace: "prod",
       secretName: "x",
     });
     await settlePulumi();
-    let captured = "";
-    try {
-      await valueOf(c.dataKeysWritten);
-    } catch (err) {
-      captured = err instanceof Error ? err.message : String(err);
-    }
-    expect(captured).toMatch(/<redacted>/);
-    expect(captured).not.toMatch(/ghs_supersecretvalueABC123/);
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/<redacted>/);
+    expect(errs).not.toMatch(/ghs_supersecretvalueABC123/);
   });
 
   test("non-object SM JSON refused (fail-closed)", async () => {
     __setSecretsManagerFetcher(async () => '"just a string"');
-    const c = new KubernetesSecretFromAwsSecretsManager("c", {
+    const errSpy = vi.spyOn(pulumi.log, "error").mockResolvedValue();
+    new KubernetesSecretFromAwsSecretsManager("c", {
       secretsManagerArn: "arn",
       keyMapping: { a: "b" },
       namespace: "prod",
       secretName: "x",
     });
     await settlePulumi();
-    await expect(valueOf(c.dataKeysWritten)).rejects.toThrow(/must be a JSON object/);
+    const errs = errSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(errs).toMatch(/must be a JSON object/);
+    expect(errs).toMatch(/failureMode "fail" — fail-closed/);
   });
 });

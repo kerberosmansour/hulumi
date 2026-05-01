@@ -21,8 +21,8 @@ Three CrossGuard PolicyPacks under `@hulumi/policies/k8s` block unsafe K8s workl
 - `packages/policies/tests/k8s/policy-pack-runtime.test.ts` — 2 E2E scenarios: synthetic unsafe stack fires every rule; synthetic hardened stack fires zero violations.
 
 ### Added (docs)
-- `docs/lessons/hulumi-k8s-security-m3.md` — lessons file.
-- `docs/completion/hulumi-k8s-security-m3.md` — this file.
+- `docs/slo/lessons/hulumi-k8s-security-m3.md` — lessons file.
+- `docs/slo/completion/hulumi-k8s-security-m3.md` — this file.
 
 ### Modified
 - `packages/policies/src/index.ts` — re-exports K8s rule handlers + metadata.

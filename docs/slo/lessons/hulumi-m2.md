@@ -77,7 +77,7 @@ Completed 2026-04-24.
 
 ## /slo-verify M2 observations (appended 2026-04-24)
 
-- **No new bugs found** during runtime verification. Full verify report: [docs/verify/hulumi-m2.md](../verify/hulumi-m2.md).
+- **No new bugs found** during runtime verification. Full verify report: [docs/slo/verify/hulumi-m2.md](../verify/hulumi-m2.md).
 - Exact-pin-guard drift test repeated during /slo-verify — sed-tampered the @pulumi/aws hash in `pnpm-lock.yaml`, confirmed `exact-pin-guard: FAIL` (exit=1), restored, confirmed `exact-pin-guard: OK` (exit=0).
 - Skill CLI regression confirmed: `node skills/hulumi-threat-model/scripts/generate-threat-model.mjs s3-public-bucket-hardening` now renders `available in Hulumi v0.2 … Shipped in M2` for SecureBucket + HulumiHardeningPack, and still `available in Hulumi v0.4+` for DriftClassifier (forward-reference retained).
 - License-boundary-lint post-build run confirmed dist/ coverage: 0 hits across packages/{baseline,policies}/dist + skills/ source.

@@ -17,8 +17,8 @@
 ### Added (docs)
 - `docs/components/eks-runtime-detection-foundation.md`.
 - `docs/components/eks-backup-foundation.md`.
-- `docs/lessons/hulumi-k8s-security-m5.md`.
-- `docs/completion/hulumi-k8s-security-m5.md`.
+- `docs/slo/lessons/hulumi-k8s-security-m5.md`.
+- `docs/slo/completion/hulumi-k8s-security-m5.md`.
 
 ### Modified
 - `packages/k8s-baseline/src/index.ts` — re-exports both components + types + bounds.

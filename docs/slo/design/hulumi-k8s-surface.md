@@ -19,7 +19,7 @@ Hulumi today ships an AWS account-level surface (`AccountFoundation`, `SecureBuc
 
 These are not Sunlit-specific patterns. **Anyone running EKS + Istio + ALB + RDS hits all eight.** The cost of abstraction is justified because every consumer is rebuilding the same fragile glue and getting it subtly wrong (the `pilot.cni.enabled=true` step alone is a ~90 minute error; the `manage_master_user_password=true` extraction is a recurring drift source between Pulumi state and live cluster).
 
-This doc is **not** a runbook. The runbook is the v1.x milestone breakdown that lives at `docs/RUNBOOK-hulumi-k8s.md` once these decisions are accepted. This doc commits to the shape; the runbook commits to the sequencing.
+This doc is **not** a runbook. The runbook is the v1.x milestone breakdown that lives at `docs/slo/completed/RUNBOOK-hulumi-k8s.md` once these decisions are accepted. This doc commits to the shape; the runbook commits to the sequencing.
 
 ## Scope of the K8s surface
 
@@ -342,4 +342,4 @@ These are the calls that still want a sign-off before the runbook commits:
 - [issue #44 — Helm release-name suffix default](https://github.com/kerberosmansour/hulumi/issues/44)
 - [issue #45 — PSA-baseline + Istio cookbook (shipped)](../cookbooks/psa-baseline-istio-sidecar.md)
 - [`docs/issue-candidates.md` § Kubernetes / EKS surface candidates](../issue-candidates.md#kubernetes--eks-surface-candidates-filed-2026-04-26-from-a-real-world-sg-unified-m7-deployment) — per-issue triage and recommended sequencing
-- [`docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md) — companion deferral doc shape on the GitHub side; the K8s deferrals doc forks from this template once the runbook lands.
+- [`docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md) — companion deferral doc shape on the GitHub side; the K8s deferrals doc forks from this template once the runbook lands.

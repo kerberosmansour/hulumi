@@ -1,5 +1,5 @@
 // CisGithubV1Pack rule scaffolding. Section IDs are gated behind CIS
-// WorkBench access (see docs/research/hulumi-github/dossier.md open
+// WorkBench access (see docs/slo/research/hulumi-github/dossier.md open
 // question #2 + the v1.1 deferral D4 entry). Until WorkBench access is
 // secured, this pack ships placeholder advisory rules so downstream
 // consumers can attach the pack and see the WorkBench-pending state

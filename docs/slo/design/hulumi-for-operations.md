@@ -28,7 +28,7 @@ A consumer who lands on Hulumi v1.1 with a simple AWS account, a small EC2 fleet
 
 These are not sunlit-specific patterns. **Anyone running EC2 + ECR on AWS, in any account that produces audit-relevant signal, hits all five.** The [§4.8 of `MAINTENANCE-GUIDE.md`](../../../sunlit-guardian/apps/desktop/docs/Guides/MAINTENANCE-GUIDE.md#48-ecr-scan-finds-critical-cve) instruction "if any `CRITICAL`, rebuild with updated base image" is the smoking gun: a maintenance guide in 2026 telling a single developer to run a query manually because there is no notification path.
 
-This doc is **not** a runbook. The runbook is the v1.x milestone breakdown that lives at `docs/RUNBOOK-hulumi-operations.md` once these decisions are accepted. This doc commits to the shape; the runbook commits to the sequencing.
+This doc is **not** a runbook. The runbook is the v1.x milestone breakdown that lives at `docs/slo/completed/RUNBOOK-hulumi-operations.md` once these decisions are accepted. This doc commits to the shape; the runbook commits to the sequencing.
 
 ## Scope of the Operations surface
 
@@ -384,7 +384,7 @@ These are the four `/slo-research` open-question buckets from the idea doc, refr
 
 ### New questions surfaced 2026-05-01
 
-5. **DHI catalog coverage for sunlit-shaped runtimes** — does Docker Hardened Images carry `rust:1.88`-equivalent, Node, and HashiCorp Vault images? Verification is a 30-min `docker pull` exercise; if gaps exist, document the Chainguard fallback in the M5 hardened-base-images cookbook. Tracked in [`docs/idea/hulumi-for-operations-v1-3.md`](../idea/hulumi-for-operations-v1-3.md) for the v1.3 ECR pull-through-cache work.
+5. **DHI catalog coverage for sunlit-shaped runtimes** — does Docker Hardened Images carry `rust:1.88`-equivalent, Node, and HashiCorp Vault images? Verification is a 30-min `docker pull` exercise; if gaps exist, document the Chainguard fallback in the M5 hardened-base-images cookbook. Tracked in [`docs/slo/idea/hulumi-for-operations-v1-3.md`](../idea/hulumi-for-operations-v1-3.md) for the v1.3 ECR pull-through-cache work.
 6. **Wave gate semantics under partial failure** — when the dev-wave-to-staging-wave composite alarm fires mid-window (e.g., a single dev EC2 fails patch compliance but the rest succeed), should the gate disable the staging wave for the *current* week or permanently until reset? Decision: current week only; the `MaintenanceWindow.enabled: false` is a flop, not a latch. Document in M1 lessons file when implemented.
 
 ## Glossary

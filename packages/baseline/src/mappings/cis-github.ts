@@ -2,7 +2,7 @@
 // IDs ONLY — no verbatim CIS Benchmark text.
 //
 // Section numbers are gated behind CIS WorkBench member access (see
-// docs/research/hulumi-github/dossier.md open question #2 + the v1.1
+// docs/slo/research/hulumi-github/dossier.md open question #2 + the v1.1
 // deferral D4 entry). Until WorkBench access is secured, this table
 // ships with `:PENDING-WORKBENCH` placeholders so license-boundary-lint
 // and the citation-ID validation meta-test can both reason about the

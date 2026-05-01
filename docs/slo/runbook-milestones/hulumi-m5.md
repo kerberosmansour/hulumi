@@ -1,6 +1,6 @@
 # Milestone 5 — SLSA-L3 release + launch readiness
 
-Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
+Parent runbook: [docs/slo/completed/RUNBOOK-hulumi.md](../completed/RUNBOOK-hulumi.md).
 
 **Goal**: After M5, the Hulumi repo has shipped **v1.0.0 to npm** with SLSA Build L3 attestation on every package (`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`), a complete `SECURITY.md` codifying 72h minor/major + 24h patch Pulumi cooling-off (CI-enforced), a ready-to-apply SCP at `docs/deployment/scp.json` protecting the `hulumi:iac-role` tag, launch-readiness artifacts in `docs/launch/` (CSA outreach, Pulumi GitHub Discussion, CFPs, Pulumi blog pitch), and **H3 advisory → mandatory** (drift classifier now consumes the tag). Hulumi v1 ships standalone — adoption by the [sunlit-guardian](https://github.com/sherifmansour/sunlit-guardian) monorepo (the planned dogfood consumer) is owned by that repo's runbook on its own timeline; Hulumi does not gate on that adoption.
 
@@ -39,7 +39,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 ## Pre-Flight
 
 1. Global Entry Rules.
-2. Read `docs/lessons/hulumi-m{1,2,3,4}.md`; apply corrections.
+2. Read `docs/slo/lessons/hulumi-m{1,2,3,4}.md`; apply corrections.
 3. Read files listed.
 4. Copy Evidence Log template.
 5. Re-state four load-bearing constraints: (i) SLSA-L3 on every published package, atomic three-package release; (ii) OIDC-only publish; (iii) H3 flip + SCP ship together; (iv) 72h/24h cooling-off CI-enforced on every Pulumi-bump including first post-release.
@@ -206,7 +206,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 - Smoke tests checked.
 - Compatibility complete.
 - `git status` clean (Hulumi repo).
-- `docs/lessons/hulumi-m5.md` + `docs/completion/hulumi-m5.md` written.
+- `docs/slo/lessons/hulumi-m5.md` + `docs/slo/completion/hulumi-m5.md` written.
 - Milestone Tracker `done`.
 - **v1.0.0 announcement on Hulumi README + GitHub Releases page.**
 

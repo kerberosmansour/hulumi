@@ -3,7 +3,7 @@ name: hulumi-for-operations-v1-3
 created: 2026-05-01
 status: ideation
 tla_required: false
-parent_runbook: docs/RUNBOOK-hulumi-operations.md
+parent_runbook: docs/slo/completed/RUNBOOK-hulumi-operations.md
 ---
 
 # Hulumi for Operations v1.3 — image-pipeline + ASG-orchestrated patching
@@ -98,7 +98,7 @@ Recommended next steps, in order:
 
 1. **`/slo-research hulumi-for-operations-v1-3`** — answer the four open questions, especially #1 (API destination payload) and #2 (EC2 Image Builder cost).
 2. **`/slo-architect hulumi-for-operations-v1-3`** — produce the design record + threat model. Reuse v1.2's design-doc shape.
-3. **`/slo-plan hulumi-for-operations-v1-3`** — produce `docs/RUNBOOK-hulumi-operations-v1-3.md` + five milestone files.
+3. **`/slo-plan hulumi-for-operations-v1-3`** — produce `docs/slo/current/RUNBOOK-hulumi-operations-v1-3.md` (move to `docs/slo/completed/` once the last milestone closes) + per-milestone lessons / completion files under `docs/slo/lessons/` and `docs/slo/completion/`.
 4. **Wait until v1.2 ships** before kicking off v1.3 implementation — v1.3 components depend on v1.2 surfaces (especially `DetectiveServicesEnable` for the KEV trigger and `Ec2PatchBaseline` for the patch-compliance metric the AMI rebuild consumes).
 
 `/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering. Mirrors v1.2's decision.

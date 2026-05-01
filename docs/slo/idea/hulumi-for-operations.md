@@ -112,4 +112,4 @@ These cannot be answered from the codebase or from training. Each must be answer
 
 Recommended next step: **`/slo-architect hulumi-for-operations`**. The four open-question buckets above (SSM defaults, in-scope boundary, default-driven breach risk, OSS consumability) are research-bounded but the recommendation is firm enough that architecture can begin in parallel — `/slo-research` is optional rather than blocking, the same posture the `hulumi-github` doc took before its M1 landed. If `/slo-research` runs first, it needs Question A answered before architecture; B/C/D can be answered during architecture's interface-lock phase.
 
-`/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering, mirroring the `hulumi-k8s-surface` decision in [`docs/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md).
+`/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering, mirroring the `hulumi-k8s-surface` decision in [`docs/slo/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md).

@@ -10,7 +10,7 @@ The M5 runbook spec listed an ambitious launch-readiness deliverable surface: 5 
 
 **Decision**: scope-trimmed M5 to the launch-feasible v1.1.0 surface — CHANGELOG entry, version bump 1.0.0 → 1.1.0 across all 3 packages, README + AGENTS updates, the highest-leverage cookbook (`github-webhook-drift.md`), the minimum-viable example (`secure-repository-smoke`), and package.json `exports` extensions for the new subpath surfaces. The remaining content (4 threat-model cookbooks, 5 additional component reference docs, `org-foundation-smoke` + `github-drift-smoke` examples, getting-started.md + why-hulumi.md updates, weekly integration workflow extension) is captured as v1.1.x patches — not v1.1.0 release blockers.
 
-This is a security-conservative trade: shipping a complete v1.1.0 with strong documentation of the wedge surface beats shipping a polished v1.1.0 that's six-weeks-late or quality-compromised. The deferral list in `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md` already captures the major code-side deferrals (D1, D1.5, D2, D3, D4, D5, D6); content-side deferrals are added during `/slo-retro` if the v1.1.x patch cadence picks up.
+This is a security-conservative trade: shipping a complete v1.1.0 with strong documentation of the wedge surface beats shipping a polished v1.1.0 that's six-weeks-late or quality-compromised. The deferral list in `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` already captures the major code-side deferrals (D1, D1.5, D2, D3, D4, D5, D6); content-side deferrals are added during `/slo-retro` if the v1.1.x patch cadence picks up.
 
 ### 2. Pulumi.yaml + tsconfig + vitest.config infrastructure for the example
 
@@ -24,7 +24,7 @@ Initial attempt used `cfg.requireSecret(...)` for GitHub App auth in the example
 
 ### v1.1.0 release ships three packages atomically
 
-`@hulumi/baseline@1.1.0`, `@hulumi/policies@1.1.0`, `@hulumi/drift@1.1.0` — same version, same day. Atomic three-package release is the existing AWS-side convention from `docs/RUNBOOK-hulumi.md` § Runbook Metadata. CHANGELOG entry calls out every M1–M4 deliverable plus the staged-migration completions (hulumi:controls tag, cache schema bump v1→v2).
+`@hulumi/baseline@1.1.0`, `@hulumi/policies@1.1.0`, `@hulumi/drift@1.1.0` — same version, same day. Atomic three-package release is the existing AWS-side convention from `docs/slo/completed/RUNBOOK-hulumi.md` § Runbook Metadata. CHANGELOG entry calls out every M1–M4 deliverable plus the staged-migration completions (hulumi:controls tag, cache schema bump v1→v2).
 
 ### Package.json `exports` extended additively
 

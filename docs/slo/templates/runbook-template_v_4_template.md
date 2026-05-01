@@ -60,8 +60,8 @@ This is the single source of truth for progress. Update as each milestone comple
 | 3 | `[Milestone title]` | `not_started` | | | | |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
-<!-- Lessons files go in docs/lessons/<prefix>-m<N>.md -->
-<!-- Completion summaries go in docs/completion/<prefix>-m<N>.md -->
+<!-- Lessons files go in docs/slo/lessons/<prefix>-m<N>.md -->
+<!-- Completion summaries go in docs/slo/completion/<prefix>-m<N>.md -->
 
 ---
 
@@ -439,8 +439,8 @@ Do this after every milestone.
 14. **Review .gitignore**: ensure new outputs have patterns; remove stale entries.
 15. Update [ARCHITECTURE.md](ARCHITECTURE.md) following the Documentation Update Table.
 16. Update [README.md](../README.md) if user-facing capabilities changed.
-17. Write a lessons-learned file at `docs/lessons/<prefix>-m<N>.md`.
-18. Write a completion summary at `docs/completion/<prefix>-m<N>.md`.
+17. Write a lessons-learned file at `docs/slo/lessons/<prefix>-m<N>.md`.
+18. Write a completion summary at `docs/slo/completion/<prefix>-m<N>.md`.
 19. Update the Milestone Tracker: set status to `done`, record Completed date, fill in the lessons and completion summary paths.
 20. **(v4 lessons loop)** If `/slo-retro` is the driver, run the issue-filing flow per [skills/slo-retro/references/issue-filing-discipline.md](../skills/slo-retro/references/issue-filing-discipline.md). Always write the lessons file first; issue filing is strictly additive.
 21. Re-read the next milestone with fresh eyes and record any assumption changes in the lessons file.
@@ -732,7 +732,7 @@ If any answer is "no", the milestone is not complete.
 
 ## 15. Lessons-Learned File Template
 
-Path: `docs/lessons/<prefix>-m<N>.md`
+Path: `docs/slo/lessons/<prefix>-m<N>.md`
 
 ```md
 # Lessons Learned — <prefix> Milestone <N>
@@ -787,7 +787,7 @@ Path: `docs/lessons/<prefix>-m<N>.md`
 
 ## 16. Completion Summary Template
 
-Path: `docs/completion/<prefix>-m<N>.md`
+Path: `docs/slo/completion/<prefix>-m<N>.md`
 
 ```md
 # Completion Summary — <prefix> Milestone <N>
@@ -880,7 +880,7 @@ Path: `docs/completion/<prefix>-m<N>.md`
 #### Pre-Flight
 
 1. Complete the Global Entry Rules (Section 7).
-2. Read `docs/lessons/<prefix>-m<N-1>.md` and apply relevant corrections.
+2. Read `docs/slo/lessons/<prefix>-m<N-1>.md` and apply relevant corrections.
 3. Read the allowed files before editing.
 4. Copy the Evidence Log template into this milestone section or working notes.
 5. Re-state the milestone constraints before coding (include resource bounds, invariants, static-analysis gates).

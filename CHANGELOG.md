@@ -84,7 +84,7 @@ for the exact migration snippets.
 ## [1.1.0] — 2026-04-26
 
 GitHub-as-Infrastructure surface added under a hard infra-only scope contract
-(see [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md) Global
+(see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md) Global
 Execution Rule 0). Atomic three-package release: `@hulumi/baseline@1.1.0`,
 `@hulumi/policies@1.1.0`, `@hulumi/drift@1.1.0` — all carrying SLSA Build L3
 attestation. AWS-side v1.0.0 surface unchanged; existing consumers can upgrade
@@ -177,7 +177,7 @@ with no code changes.
 
 ### Deferred to v1.1.x
 
-See [`docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`](./docs/runbook-milestones/hulumi-github-v1.1-deferrals.md):
+See [`docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`](./docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md):
 
 - **D1** — Classic-PAT-authed audit-log REST adapter (GHEC only).
 - **D1.5** — Real REST hooks for the Code Security Configurations backend

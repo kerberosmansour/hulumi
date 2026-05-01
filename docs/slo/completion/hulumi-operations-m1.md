@@ -17,8 +17,8 @@
 ### Added (docs)
 - `docs/components/ec2-patch-baseline.md`.
 - `docs/components/ec2-patch-waves.md`.
-- `docs/lessons/hulumi-operations-m1.md`.
-- `docs/completion/hulumi-operations-m1.md`.
+- `docs/slo/lessons/hulumi-operations-m1.md`.
+- `docs/slo/completion/hulumi-operations-m1.md`.
 
 ### Modified
 - `packages/baseline/src/aws/index.ts` — re-exports.

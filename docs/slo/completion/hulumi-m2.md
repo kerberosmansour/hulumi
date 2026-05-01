@@ -107,7 +107,7 @@ Deferred package READMEs noted in Deferred follow-ups below.
 ## Deferred follow-ups
 
 - **`packages/baseline/README.md` + `packages/policies/README.md`** — M2 shipped the code; the tarball-level package READMEs (the ones that land on npmjs.com) are part of the M5 SLSA-release package. Target: M5.
-- **ARCHITECTURE.md update in Hulumi repo root** — M2's Post-Flight lists "add `@hulumi/baseline` + `@hulumi/policies` to Key Components; note M3 adds `AccountFoundation`". Not done in this M2 session because `docs/design/hulumi/ARCHITECTURE.md` doesn't exist in the Hulumi repo yet (still in the upstream TauriMobile planning corpus). Importing the planning corpus is an M5 follow-up; the Hulumi-repo ARCHITECTURE.md stub should be written as part of that import.
+- **ARCHITECTURE.md update in Hulumi repo root** — M2's Post-Flight lists "add `@hulumi/baseline` + `@hulumi/policies` to Key Components; note M3 adds `AccountFoundation`". Not done in this M2 session because `docs/slo/design/hulumi/ARCHITECTURE.md` doesn't exist in the Hulumi repo yet (still in the upstream TauriMobile planning corpus). Importing the planning corpus is an M5 follow-up; the Hulumi-repo ARCHITECTURE.md stub should be written as part of that import.
 - **README.md quick-start for SecureBucket** — M2's Post-Flight mentions this. Current `README.md` references v0.1 scope; updating it for v0.2 requires touching the root README which, per M2's allow-list, is NOT changeable in this milestone. Target: M3 (when v0.2 components are released alongside AccountFoundation) or M5 (when the v1.0 README is rewritten for npm launch).
 - **Self-test for `exact-pin-guard.mjs`** — M2 verified drift-catch manually. A `scripts/tests/exact-pin-guard.test.mjs` fork-exec test against a fixture tampered lockfile would formalize the BDD row "CI step catches drift". Target: M3.
 - **BucketV2 deprecation review** — @pulumi/aws 7.27.0 deprecates V2 names; interfaces.md §1 locks `SecureBucketOutputs.bucket: aws.s3.BucketV2`. Decision: keep V2 in M2, revisit as part of M5 interface-lock review for v1.0.0.
@@ -126,6 +126,6 @@ Deferred package READMEs noted in Deferred follow-ups below.
 - All 15 BDD rows + tier-delta schema test + 4 mappings-sync tests + 1 smoke test exercised at runtime via vitest under `pulumi.runtime.setMocks()`.
 - Exact-pin-guard drift test manually re-verified during /slo-verify (sed-tamper → FAIL exit=1; restore → OK exit=0). License-boundary-lint re-run post `pnpm -r build`: OK across source + dist.
 - Skill CLI rendering regression re-verified: s3 scenario output has 0 `v0.2+` hits for SecureBucket + HulumiHardeningPack; DriftClassifier retains its `v0.4+` forward-reference (correct).
-- Verify report: [docs/verify/hulumi-m2.md](../verify/hulumi-m2.md).
+- Verify report: [docs/slo/verify/hulumi-m2.md](../verify/hulumi-m2.md).
 - Self-Review Gate: all 10 checkboxes pass. No TODO/FIXME/XXX in production src; no debug console.log; no test mocks leaked into src/; forbidden shortcuts from Contract Block verified absent (a)-(g).
 - Milestone Tracker confirmed `done` with 2026-04-24 completion date and pointers to this doc + the lessons file.

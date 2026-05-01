@@ -1,6 +1,6 @@
 // Behavioural tests for the /hulumi-threat-model Claude Code skill.
 // Each test corresponds to one row of the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-m1.md. Do not reshape the scenario table
+// docs/slo/runbook-milestones/hulumi-m1.md. Do not reshape the scenario table
 // here — the runbook's table is the contract.
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -334,7 +334,7 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
 });
 
 // Tests below correspond to the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-github-m1.md. Do not reshape the scenario
+// docs/slo/runbook-milestones/hulumi-github-m1.md. Do not reshape the scenario
 // table here — the runbook's table is the contract.
 describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model markdown for GitHub scenarios", () => {
   let tmp: string;

@@ -3,7 +3,7 @@
 > **Purpose**: Deliver Hulumi v1 — a hardened-Pulumi library + CrossGuard pack + drift classifier + Claude Code skill — from greenfield bootstrap to SLSA-L3-attested npm release, in five milestones. Hulumi v1 ships standalone; the dogfood adoption story (the [sunlit-guardian](https://github.com/sherifmansour/sunlit-guardian) monorepo's migration runbook consuming Hulumi components) is owned by that repo and progresses on its own milestones.
 > **Audience**: AI coding agents first, humans second. This document is written to reduce ambiguity, prevent scope drift, and improve code quality with the same model capability.
 > **How to use**: Work through milestones sequentially. Before starting any milestone, read its full section and the Global Execution Rules. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope.
-> **Prerequisite reading — Hulumi planning corpus**: The authoritative pre-implementation artifacts (idea doc, research dossier with 140+ sources, architecture, stack decision, interfaces, TLA+ spec and verified-design, critique) were produced in the upstream planning repo before Hulumi was bootstrapped in M1. They are not checked into this repo as of v0.1 (M1 allow-list scoped-out); importing them into this repo (or publishing to a dedicated archive) is tracked as an M5 follow-up. Maintainers executing later milestones MUST read: `docs/idea/hulumi.md`, `docs/research/hulumi/{dossier,sources,synthesis}.md`, `docs/design/hulumi/{ARCHITECTURE,stack-decision,interfaces,hulumi-overview}.md`, `docs/TLAdocs/hulumi/{HulumiDrift.tla,HulumiDrift.trace.md,HulumiDrift-verified.md}`, `docs/critique/hulumi.md` from the upstream corpus before opening a PR that materially changes architecture. Each milestone file under [`docs/runbook-milestones/`](./runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
+> **Prerequisite reading — Hulumi planning corpus**: The authoritative pre-implementation artifacts (idea doc, research dossier with 140+ sources, architecture, stack decision, interfaces, TLA+ spec and verified-design, critique) were produced in the upstream planning repo before Hulumi was bootstrapped in M1. They are not checked into this repo as of v0.1 (M1 allow-list scoped-out); importing them into this repo (or publishing to a dedicated archive) is tracked as an M5 follow-up. Maintainers executing later milestones MUST read: `docs/slo/idea/hulumi.md`, `docs/slo/research/hulumi/{dossier,sources,synthesis}.md`, `docs/slo/design/hulumi/{ARCHITECTURE,stack-decision,interfaces,hulumi-overview}.md`, `docs/TLAdocs/hulumi/{HulumiDrift.tla,HulumiDrift.trace.md,HulumiDrift-verified.md}`, `docs/slo/critique/hulumi.md` from the upstream corpus before opening a PR that materially changes architecture. Each milestone file under [`docs/slo/runbook-milestones/`](../runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
 
 ---
 
@@ -42,15 +42,15 @@ Update this table as each milestone is completed. This is the single source of t
 
 | #   | Milestone                                                                                    | Status | Started    | Completed  | Lessons File                                        | Completion Summary                                        |
 | --- | -------------------------------------------------------------------------------------------- | ------ | ---------- | ---------- | --------------------------------------------------- | --------------------------------------------------------- |
-| 1   | `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap                             | `done` | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m1.md](./lessons/hulumi-m1.md) | [docs/completion/hulumi-m1.md](./completion/hulumi-m1.md) |
-| 2   | `SecureBucket` component + tiered defaults + `HulumiHardeningPack`                           | `done` | 2026-04-24 | 2026-04-24 | [docs/lessons/hulumi-m2.md](./lessons/hulumi-m2.md) | [docs/completion/hulumi-m2.md](./completion/hulumi-m2.md) |
-| 3   | `AccountFoundation` component + full `CisV5Pack` (sections 1–3) + weekly sandbox integration | `done` | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m3.md](./lessons/hulumi-m3.md) | [docs/completion/hulumi-m3.md](./completion/hulumi-m3.md) |
-| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `done` | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m4.md](./lessons/hulumi-m4.md) | [docs/completion/hulumi-m4.md](./completion/hulumi-m4.md) |
-| 5   | SLSA-L3 release + launch readiness                                                           | `done` | 2026-04-25 | 2026-04-25 | [docs/lessons/hulumi-m5.md](./lessons/hulumi-m5.md) | [docs/completion/hulumi-m5.md](./completion/hulumi-m5.md) |
+| 1   | `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap                             | `done` | 2026-04-24 | 2026-04-24 | [docs/slo/lessons/hulumi-m1.md](../lessons/hulumi-m1.md) | [docs/slo/completion/hulumi-m1.md](../completion/hulumi-m1.md) |
+| 2   | `SecureBucket` component + tiered defaults + `HulumiHardeningPack`                           | `done` | 2026-04-24 | 2026-04-24 | [docs/slo/lessons/hulumi-m2.md](../lessons/hulumi-m2.md) | [docs/slo/completion/hulumi-m2.md](../completion/hulumi-m2.md) |
+| 3   | `AccountFoundation` component + full `CisV5Pack` (sections 1–3) + weekly sandbox integration | `done` | 2026-04-25 | 2026-04-25 | [docs/slo/lessons/hulumi-m3.md](../lessons/hulumi-m3.md) | [docs/slo/completion/hulumi-m3.md](../completion/hulumi-m3.md) |
+| 4   | Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs                    | `done` | 2026-04-25 | 2026-04-25 | [docs/slo/lessons/hulumi-m4.md](../lessons/hulumi-m4.md) | [docs/slo/completion/hulumi-m4.md](../completion/hulumi-m4.md) |
+| 5   | SLSA-L3 release + launch readiness                                                           | `done` | 2026-04-25 | 2026-04-25 | [docs/slo/lessons/hulumi-m5.md](../lessons/hulumi-m5.md) | [docs/slo/completion/hulumi-m5.md](../completion/hulumi-m5.md) |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
-<!-- Lessons files go in docs/lessons/hulumi-m<N>.md -->
-<!-- Completion summaries go in docs/completion/hulumi-m<N>.md -->
+<!-- Lessons files go in docs/slo/lessons/hulumi-m<N>.md -->
+<!-- Completion summaries go in docs/slo/completion/hulumi-m<N>.md -->
 
 ---
 
@@ -228,7 +228,7 @@ TLA+ scratch (`states/`, `**/*_TTrace_*.{tla,bin}`, `*-run.log`), Pulumi checkpo
 ## Global Entry Rules (Pre-Milestone Protocol)
 
 1. Read the full milestone section + Global Execution Rules.
-2. Read prior-milestone lessons files (`docs/lessons/hulumi-m<N-1>.md`).
+2. Read prior-milestone lessons files (`docs/slo/lessons/hulumi-m<N-1>.md`).
 3. Read files listed in "Files to read before changing anything."
 4. Copy the Evidence Log template into the milestone's Evidence Log section.
 5. Re-state the milestone's load-bearing constraints in your own words in working notes before coding.
@@ -240,8 +240,8 @@ TLA+ scratch (`states/`, `**/*_TTrace_*.{tla,bin}`, `*-run.log`), Pulumi checkpo
 3. Compatibility checklist complete.
 4. `git status` clean.
 5. `.gitignore` updated.
-6. `docs/lessons/hulumi-m<N>.md` written with surprises + decisions + deltas-from-plan.
-7. `docs/completion/hulumi-m<N>.md` written with changed files + tests added + documentation updated.
+6. `docs/slo/lessons/hulumi-m<N>.md` written with surprises + decisions + deltas-from-plan.
+7. `docs/slo/completion/hulumi-m<N>.md` written with changed files + tests added + documentation updated.
 8. Milestone Tracker updated to `done`.
 9. Docs listed in Post-Flight updated.
 
@@ -259,11 +259,11 @@ Platform engineers authoring Pulumi with Claude Code ship insecure IaC because (
 
 ### Target Architecture
 
-See the End-to-End Architecture Diagram above and [docs/design/hulumi/ARCHITECTURE.md](design/hulumi/ARCHITECTURE.md).
+See the End-to-End Architecture Diagram above and [docs/slo/design/hulumi/ARCHITECTURE.md](design/hulumi/ARCHITECTURE.md).
 
 ### Key Design Principles
 
-From [docs/design/hulumi/stack-decision.md](design/hulumi/stack-decision.md):
+From [docs/slo/design/hulumi/stack-decision.md](design/hulumi/stack-decision.md):
 
 - Apache-2.0 throughout.
 - No verbatim framework text in source (IDs only).
@@ -388,7 +388,7 @@ Before closing a milestone:
 
 ## Lessons-Learned File Template
 
-See `docs/lessons/hulumi-m<N>.md`:
+See `docs/slo/lessons/hulumi-m<N>.md`:
 
 ## What changed
 
@@ -406,7 +406,7 @@ See `docs/lessons/hulumi-m<N>.md`:
 
 ## Completion Summary Template
 
-See `docs/completion/hulumi-m<N>.md`:
+See `docs/slo/completion/hulumi-m<N>.md`:
 
 ## Goal completed
 
@@ -452,7 +452,7 @@ See `docs/completion/hulumi-m<N>.md`:
 
 ## Milestone Plan
 
-Each milestone is authored as a standalone file under [docs/runbook-milestones/](runbook-milestones/). Each file contains all fifteen v3-template sub-sections (Goal, Context, Important design rule, Refactor budget, Contract Block, Out of Scope, Pre-Flight, Files Allowed To Change, Step-by-Step, BDD Acceptance Scenarios, Regression Tests, Compatibility Checklist, E2E Runtime Validation, Smoke Tests, Evidence Log, Definition of Done, Post-Flight, Notes) and was confirmed by the user on 2026-04-24.
+Each milestone is authored as a standalone file under [docs/slo/runbook-milestones/](runbook-milestones/). Each file contains all fifteen v3-template sub-sections (Goal, Context, Important design rule, Refactor budget, Contract Block, Out of Scope, Pre-Flight, Files Allowed To Change, Step-by-Step, BDD Acceptance Scenarios, Regression Tests, Compatibility Checklist, E2E Runtime Validation, Smoke Tests, Evidence Log, Definition of Done, Post-Flight, Notes) and was confirmed by the user on 2026-04-24.
 
 ### [Milestone 1 — `/hulumi-threat-model` Claude Code skill + Hulumi repo bootstrap](runbook-milestones/hulumi-m1.md)
 
@@ -480,11 +480,11 @@ v1.0.0 to npm with SLSA Build L3 attestation on every package (atomic three-pack
 
 | Doc                                         | Updated in            | Change                                                  |
 | ------------------------------------------- | --------------------- | ------------------------------------------------------- |
-| `docs/idea/hulumi.md`                       | pre-runbook           | Authoritative idea doc                                  |
-| `docs/research/hulumi/`                     | pre-runbook           | Research dossier (140+ sources)                         |
-| `docs/design/hulumi/`                       | pre-runbook           | Architecture, stack decision, interfaces, overview      |
+| `docs/slo/idea/hulumi.md`                       | pre-runbook           | Authoritative idea doc                                  |
+| `docs/slo/research/hulumi/`                     | pre-runbook           | Research dossier (140+ sources)                         |
+| `docs/slo/design/hulumi/`                       | pre-runbook           | Architecture, stack decision, interfaces, overview      |
 | `docs/TLAdocs/hulumi/`                      | pre-runbook           | TLA+ spec + verified design + trace                     |
-| `docs/critique/hulumi.md`                   | pre-runbook           | 18-finding critique                                     |
+| `docs/slo/critique/hulumi.md`                   | pre-runbook           | 18-finding critique                                     |
 | Hulumi repo `ARCHITECTURE.md`               | M1 → M4 (progressive) | Reflects shipped components per milestone               |
 | Hulumi repo `README.md`                     | every milestone       | Quick-start for shipped components                      |
 | `docs/components/*.md`                      | M2, M3, M4            | Per-component docs                                      |

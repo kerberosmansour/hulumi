@@ -20,9 +20,9 @@ packages/k8s-baseline/
 └── package.json                          # add scripts/ to files array
 
 docs/components/github-app-credential.md  # NEW
-docs/lessons/hulumi-k8s-m5.md             # NEW
-docs/completion/hulumi-k8s-m5.md          # NEW
-docs/RUNBOOK-hulumi-k8s.md                # Milestone Tracker M5 → done
+docs/slo/lessons/hulumi-k8s-m5.md             # NEW
+docs/slo/completion/hulumi-k8s-m5.md          # NEW
+docs/slo/completed/RUNBOOK-hulumi-k8s.md                # Milestone Tracker M5 → done
 ```
 
 ## Tests added

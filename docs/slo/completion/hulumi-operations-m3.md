@@ -14,7 +14,7 @@
 
 ### Added (docs)
 - `docs/components/audit-trail.md`.
-- `docs/lessons/hulumi-operations-m3.md`, `docs/completion/hulumi-operations-m3.md`.
+- `docs/slo/lessons/hulumi-operations-m3.md`, `docs/slo/completion/hulumi-operations-m3.md`.
 
 ### Modified
 - `packages/baseline/src/aws/index.ts` — re-exports.

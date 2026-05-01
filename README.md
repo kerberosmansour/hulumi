@@ -51,7 +51,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | `@hulumi/k8s-baseline` (pre-release)     | **Kubernetes / EKS**: `HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`. Ships with the same SLSA Build L3 attestation path as the other three packages. Currently `1.0.0-pre.1`; first stable release lands with the v1.2 train. |
 | `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios + 4 prebuilt GitHub scenarios (v1.1: OIDC trust, Actions supply-chain, App tokens, self-hosted runners). Citation-only threat-model markdown.                                                                                |
 
-For the GitHub variant: see [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md), [`docs/cookbooks/github-webhook-drift.md`](./docs/cookbooks/github-webhook-drift.md), and [`examples/secure-repository-smoke/`](./examples/secure-repository-smoke/) for the wedge surface. The Hulumi-for-GitHub project lives under a hard infra-only scope contract — see Global Execution Rule 0 in the runbook for the boundary.
+For the GitHub variant: see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md), [`docs/cookbooks/github-webhook-drift.md`](./docs/cookbooks/github-webhook-drift.md), and [`examples/secure-repository-smoke/`](./examples/secure-repository-smoke/) for the wedge surface. The Hulumi-for-GitHub project lives under a hard infra-only scope contract — see Global Execution Rule 0 in the runbook for the boundary.
 
 The full v1.0 changelog lives in [CHANGELOG.md](./CHANGELOG.md). Every published tarball ships with SLSA Build L3 provenance — see [verify-provenance.md](./docs/cookbooks/verify-provenance.md).
 
@@ -65,7 +65,7 @@ The full v1.0 changelog lives in [CHANGELOG.md](./CHANGELOG.md). Every published
 | M4        | `@hulumi/drift` with 4 pluggable adapters, TLA+-bound verdict matrix                                 | shipped |
 | M5        | SLSA-L3 release (v1.0.0) + SCP template + launch readiness                                           | shipped |
 
-Per-milestone specs live in [`docs/runbook-milestones/`](./docs/runbook-milestones/) and lessons-learned in [`docs/lessons/`](./docs/lessons/). The master runbook is [`docs/RUNBOOK-hulumi.md`](./docs/RUNBOOK-hulumi.md).
+Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md).
 
 ## Canonical install
 
@@ -125,6 +125,17 @@ See [`docs/threat-model-examples/`](./docs/threat-model-examples/) for example o
 
 The longer version of "why these principles, not others" is in [docs/why-hulumi.md](./docs/why-hulumi.md).
 
+## Project layout
+
+- `packages/` — publishable npm packages (`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`).
+- `skills/` — `/hulumi-threat-model` Claude Code skill pack.
+- `examples/` — runnable smoke examples per component (consumed by CI).
+- `tests/skill-bdd/` — repo-wide BDD + license-boundary lint enforcement.
+- `docs/` — code-level documentation (`ARCHITECTURE.md`, `getting-started.md`, `cookbooks/`, `components/`, `mappings/`, `tiers.md`, etc.).
+- `docs/slo/` — runbooks, milestone artifacts (lessons / completion / critique / design / research / verify / templates) produced by the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack. See [docs/slo/README.md](./docs/slo/README.md) for the layout convention.
+- `scripts/` — `license-boundary-lint.mjs`, `exact-pin-guard.mjs`, `cooling-off-diff.mjs`.
+- `.github/workflows/` — CI, release, weekly-integration, and Pulumi cooling-off pipelines.
+
 ## Getting involved
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — DCO sign-off, license-boundary discipline, development commands.
@@ -132,7 +143,27 @@ The longer version of "why these principles, not others" is in [docs/why-hulumi.
 - [docs/issue-candidates.md](./docs/issue-candidates.md) — running list of "things noticed in lessons-learned that should become GitHub issues."
 - [SECURITY.md](./SECURITY.md) — responsible-disclosure channel, canonical install paths.
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — Contributor Covenant v2.1.
+- [TRADEMARKS.md](./TRADEMARKS.md) — what permission you do and do not need before using the Hulumi name in a fork or downstream product.
+
+### Code of conduct
+
+This project adopts the [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for the full text and how to report unacceptable behavior.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](./LICENSE).
+Copyright 2026 Sherif Mansour. An open-source project by Sherif Mansour.
+
+Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see [LICENSE](./LICENSE) for the full text and [NOTICE](./NOTICE) for the project-level copyright notice.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache 2.0 license, shall be licensed as above, without any additional terms or conditions. Contributions require a Developer Certificate of Origin sign-off — see [CONTRIBUTING.md](./CONTRIBUTING.md#dco-sign-off-required).
+
+## Trade-marks
+
+**Hulumi** and the associated logo are unregistered trade-marks of Sherif Mansour. The Apache-2.0 licence grants rights in the code, not in the name or logo — see [TRADEMARKS.md](./TRADEMARKS.md) for what permission you do and do not need. The `@hulumi/*` npm scope is owned by Sherif Mansour.
+
+## Acknowledgements
+
+- The [Pulumi](https://www.pulumi.com/) project for the Component Resource model, CrossGuard policy framework, and provider ecosystem Hulumi builds on top of.
+- The [Cloud Security Alliance](https://cloudsecurityalliance.org/) (CCM, AICM, CAIQ), the [Center for Internet Security](https://www.cisecurity.org/) (CIS Benchmarks), [NIST](https://www.nist.gov/) (SP 800-53 r5, SP 800-218A SSDF), and [MITRE](https://atlas.mitre.org/) (ATLAS) for publishing the framework IDs Hulumi cites in components, policy rules, and threat-model outputs.
+- The [SLSA](https://slsa.dev/) project for the Build L3 attestation model `/hulumi-threat-model` consumers verify against every published tarball.
+- The [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack for the runbook + milestone discipline driving the `docs/slo/` layout.

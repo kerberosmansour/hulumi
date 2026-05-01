@@ -15,15 +15,15 @@ After M4, `@hulumi/drift` extends with `GithubWebhookFallbackAdapter` — a pure
 - `packages/drift/src/adapters/github-webhook-fallback.ts` — adapter + helpers (`hashCacheKey`, `exceedsNestingDepth`, `verifyWebhookSignature`)
 - `packages/drift/tests/github/github-webhook-fallback.test.ts` — 14 mock-runtime BDD scenarios
 - `packages/drift/tests/github/cache-migration-v1-to-v2.test.ts` — 3 atomic-write-order tests
-- `docs/lessons/hulumi-github-m4.md`
-- `docs/completion/hulumi-github-m4.md`
+- `docs/slo/lessons/hulumi-github-m4.md`
+- `docs/slo/completion/hulumi-github-m4.md`
 
 ### Modified (3)
 
 - `packages/drift/src/types.ts` — additive: `tierDegraded?: boolean`, `featureNotLicensed?: string[]` on `DriftVerdict`. Enum unchanged.
 - `packages/drift/src/cache.ts` — `CACHE_SCHEMA_VERSION` bumped 1 → 2; `CACHE_SCHEMA_V1_LEGACY` constant; `CacheEnvelopeV1` legacy type; `migrateV1ToV2` function with atomic backup-then-v2-write
 - `packages/drift/src/index.ts` — re-exports for the new adapter + cache migration + types
-- `docs/RUNBOOK-hulumi-github.md` Milestone Tracker — M4 → in_progress (start) → done (close)
+- `docs/slo/completed/RUNBOOK-hulumi-github.md` Milestone Tracker — M4 → in_progress (start) → done (close)
 
 ## Tests added
 

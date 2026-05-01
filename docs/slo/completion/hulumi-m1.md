@@ -26,15 +26,15 @@ Achieved. Hulumi repo bootstrapped at `~/Documents/Dev/GitHub/Hulumi/` (Apache-2
 - `docs/mappings/`: `README.md`, `ccm-v4.1.md`, `cis-aws-v5.0.md`, `nist-800-53-r5.md`, `nist-800-218a.md`, `atlas-v5.1.md`, `licensing.md`
 - `docs/threat-model-examples/`: `aws-multi-account-baseline.md`, `s3-public-bucket-hardening.md`
 - `docs/licensing.md`
-- `docs/RUNBOOK-hulumi.md` (migrated from TauriMobile, prereq-reading section annotated)
-- `docs/runbook-milestones/hulumi-m{1,2,3,4,5}.md` (migrated from TauriMobile)
-- `docs/lessons/hulumi-m1.md` (this run)
-- `docs/completion/hulumi-m1.md` (this file)
+- `docs/slo/completed/RUNBOOK-hulumi.md` (migrated from TauriMobile, prereq-reading section annotated)
+- `docs/slo/runbook-milestones/hulumi-m{1,2,3,4,5}.md` (migrated from TauriMobile)
+- `docs/slo/lessons/hulumi-m1.md` (this run)
+- `docs/slo/completion/hulumi-m1.md` (this file)
 
 ### TauriMobile repo (deletions)
 
-- `docs/RUNBOOK-hulumi.md` deleted.
-- `docs/runbook-milestones/` directory deleted.
+- `docs/slo/completed/RUNBOOK-hulumi.md` deleted.
+- `docs/slo/runbook-milestones/` directory deleted.
 
 ## Tests added
 
@@ -75,7 +75,7 @@ Total: **19 tests, all green.**
 - `docs/mappings/licensing.md` — IDs-only policy with rationale per-framework.
 - `docs/licensing.md` — top-level licence overview.
 - `AGENTS.md` — multi-tool-host entrypoint pointing at the skill.
-- Migrated `docs/RUNBOOK-hulumi.md` — prereq-reading section annotated to point at upstream planning corpus (not in this repo yet).
+- Migrated `docs/slo/completed/RUNBOOK-hulumi.md` — prereq-reading section annotated to point at upstream planning corpus (not in this repo yet).
 - Milestone Tracker in the runbook flipped M1 → `done`.
 
 ## `.gitignore` changes
@@ -106,7 +106,7 @@ Total: **19 tests, all green.**
 ## /slo-verify close-out (appended 2026-04-24)
 
 - Runtime verification pass completed via `/slo-verify M1`. No bugs found. All 10 BDD rows + all 5 E2E runtime scenarios exercised end-to-end; full pipeline (`pnpm install --frozen-lockfile`, `pnpm -r test`, `pnpm -r lint`, `pnpm -r typecheck`, `pnpm run lint:license-boundary`, `pnpm run format:check`) green.
-- Verify report: [docs/verify/hulumi-m1.md](../verify/hulumi-m1.md).
-- Evidence Log in [docs/runbook-milestones/hulumi-m1.md](../runbook-milestones/hulumi-m1.md#evidence-log) filled with actual command outputs from the verify run.
+- Verify report: [docs/slo/verify/hulumi-m1.md](../verify/hulumi-m1.md).
+- Evidence Log in [docs/slo/runbook-milestones/hulumi-m1.md](../runbook-milestones/hulumi-m1.md#evidence-log) filled with actual command outputs from the verify run.
 - Self-Review Gate: all 10 checkboxes pass. No TODO/FIXME/XXX in production source; no unresolvable console.log; no exec/eval in skill scripts; no verbatim framework prose.
 - Milestone Tracker confirmed `done` with the 2026-04-24 ship date and paths to this file + the lessons file.

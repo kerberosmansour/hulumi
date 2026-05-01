@@ -27,8 +27,8 @@ After M3, the Hulumi-for-GitHub policy surface is in place. `@hulumi/policies/gi
 - `packages/policies/src/github/suppressions.ts` — re-export from AWS
 - `packages/policies/tests/github/hulumi-hardening-pack.test.ts` — 12 BDD rows (H1, H2, G_OIDC_1 across AWS/Azure/GCP, suppressions)
 - `tests/skill-bdd/citation-id-validation.test.ts` — citation-ID meta-test (per critique E4)
-- `docs/lessons/hulumi-github-m3.md`
-- `docs/completion/hulumi-github-m3.md`
+- `docs/slo/lessons/hulumi-github-m3.md`
+- `docs/slo/completion/hulumi-github-m3.md`
 
 ### Modified (5)
 
@@ -38,7 +38,7 @@ After M3, the Hulumi-for-GitHub policy surface is in place. `@hulumi/policies/gi
 - `packages/baseline/tests/github/secure-repository.test.ts` — flip assertion from "tag absent" to "tag present"
 - `packages/baseline/tests/github/org-foundation.test.ts` — flip assertion from "no hulumiControls property" to "hulumiControls populated"
 - `packages/policies/src/index.ts` — re-export `./github`
-- `docs/RUNBOOK-hulumi-github.md` Milestone Tracker — M3 → in_progress (start) → done (close)
+- `docs/slo/completed/RUNBOOK-hulumi-github.md` Milestone Tracker — M3 → in_progress (start) → done (close)
 
 ## Tests added
 

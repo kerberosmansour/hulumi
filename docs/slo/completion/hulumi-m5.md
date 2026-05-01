@@ -47,7 +47,7 @@ Achieved (with the v1.0.0 tag-push deferred to the user). All M5 deliverables sh
 
 ### Edits
 
-- `docs/RUNBOOK-hulumi.md` — Milestone Tracker M5 → `done`.
+- `docs/slo/completed/RUNBOOK-hulumi.md` — Milestone Tracker M5 → `done`.
 - `SECURITY.md` — full rewrite (M1 stub → v1.0.0).
 - `packages/{baseline,policies,drift}/package.json` — version 1.0.0 + `publishConfig.provenance: true`.
 - `packages/policies/src/aws/hulumi-hardening-pack.ts` — `H3_ENFORCEMENT_LEVEL: "mandatory"` + comment update.
@@ -83,7 +83,7 @@ Achieved (with the v1.0.0 tag-push deferred to the user). All M5 deliverables sh
 - `docs/deployment/scp.json` + `scp-guide.md` (new).
 - `docs/launch/*` (7 files new).
 - `.github/attestations/README.md` (new).
-- `docs/RUNBOOK-hulumi.md` Milestone Tracker M5 → `done`.
+- `docs/slo/completed/RUNBOOK-hulumi.md` Milestone Tracker M5 → `done`.
 
 ## .gitignore changes
 

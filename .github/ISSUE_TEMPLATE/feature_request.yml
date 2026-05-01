@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a new component, policy rule, drift adapter, or threat-model scenario.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing. Hulumi follows a runbook discipline — significant features are scoped via `/slo-ideate` → `/slo-research` → `/slo-architect` → `/slo-plan` before code lands. Tiny extensions (a new framework ID mapping, a new threat-model scenario) can skip the runbook ceremony.
+        For security vulnerabilities, do **not** file a public issue — see [SECURITY.md](../../SECURITY.md).
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing the feature.
+      placeholder: e.g. Add a `KmsKeyRing` component that wraps `aws.kms.Key` + `aws.kms.Alias` with rotation, deletion-window, and grant-policy defaults.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - New component in @hulumi/baseline (AWS)
+        - New component in @hulumi/baseline (GitHub)
+        - New component in @hulumi/k8s-baseline
+        - New rule in @hulumi/policies
+        - New adapter in @hulumi/drift
+        - New /hulumi-threat-model scenario
+        - Doc / cookbook addition
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why
+      description: What pain point or threat does this address? Cite a real incident, a CIS / CCM / NIST control, or a published advisory if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed shape
+      description: A rough TypeScript / YAML / JSON snippet showing what the consumer-facing API would look like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing Hulumi components, raw Pulumi resources, or third-party tools you considered before proposing this.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+      description: What you are NOT proposing. (Hulumi tries to keep components narrow and composable; broad / many-knobs APIs usually get split.)

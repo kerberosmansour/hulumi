@@ -1,10 +1,10 @@
 # Hulumi for Operations — AI-First Runbook v4
 
-> **Purpose**: Open a *time-based* hardening surface in Hulumi, in five milestones, as committed in [`docs/design/hulumi-for-operations.md`](./design/hulumi-for-operations.md). Hulumi v1.1 ships hardened defaults *at the moment infrastructure is created*; this runbook adds the missing piece — defaults that hold *over time*. The hard scope contract — **"Hulumi codifies *time-based* defaults as IaC. The consumer's *findings triage* and *runtime orchestration* are theirs."** — is pinned in the Global Execution Rules and is not negotiable per-milestone.
+> **Purpose**: Open a *time-based* hardening surface in Hulumi, in five milestones, as committed in [`docs/slo/design/hulumi-for-operations.md`](../design/hulumi-for-operations.md). Hulumi v1.1 ships hardened defaults *at the moment infrastructure is created*; this runbook adds the missing piece — defaults that hold *over time*. The hard scope contract — **"Hulumi codifies *time-based* defaults as IaC. The consumer's *findings triage* and *runtime orchestration* are theirs."** — is pinned in the Global Execution Rules and is not negotiable per-milestone.
 > **Audience**: AI coding agents first, humans second. Written to reduce ambiguity, prevent scope drift into Hulumi-authored Lambda territory (the design's Approach B that we explicitly deferred), and ship Hulumi for Operations at the same trust posture as the AWS, GitHub, and K8s variants.
 > **Core philosophy**: Prefer automated guardrails over developer intention. Prefer direct inspection over guessing. Prefer executable assumptions (assertions) over comments. Prefer bounded design over silent growth. Prefer evidence over claims.
-> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/runbook-milestones/hulumi-operations-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope into Hulumi-authored runtime code.
-> **Prerequisite reading — Hulumi-for-Operations planning corpus**: The authoritative pre-implementation artifact is the design record at [`docs/design/hulumi-for-operations.md`](./design/hulumi-for-operations.md) (`/slo-architect` was inlined into the design doc — Hulumi-for-Operations is a feature addition to an already-designed workspace, not a new product). The threat model is at [`docs/design/hulumi-for-operations-threat-model.md`](./design/hulumi-for-operations-threat-model.md) (every per-milestone abuse-case row `tm-hulumi-ops-abuse-N` cited in this runbook traces back to a row there). The two open issues that motivated the surface ([#47](https://github.com/kerberosmansour/hulumi/issues/47), [#49](https://github.com/kerberosmansour/hulumi/issues/49)) are the field evidence; the [sunlit-guardian guides](../../sunlit-guardian/apps/desktop/docs/Guides/) are the lived consumer experience that surfaced the gap. `/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering. Each milestone file under [`docs/runbook-milestones/`](./runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
+> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/slo/runbook-milestones/hulumi-operations-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope into Hulumi-authored runtime code.
+> **Prerequisite reading — Hulumi-for-Operations planning corpus**: The authoritative pre-implementation artifact is the design record at [`docs/slo/design/hulumi-for-operations.md`](../design/hulumi-for-operations.md) (`/slo-architect` was inlined into the design doc — Hulumi-for-Operations is a feature addition to an already-designed workspace, not a new product). The threat model is at [`docs/slo/design/hulumi-for-operations-threat-model.md`](../design/hulumi-for-operations-threat-model.md) (every per-milestone abuse-case row `tm-hulumi-ops-abuse-N` cited in this runbook traces back to a row there). The two open issues that motivated the surface ([#47](https://github.com/kerberosmansour/hulumi/issues/47), [#49](https://github.com/kerberosmansour/hulumi/issues/49)) are the field evidence; the [sunlit-guardian guides](../../sunlit-guardian/apps/desktop/docs/Guides/) are the lived consumer experience that surfaced the gap. `/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering. Each milestone file under [`docs/slo/runbook-milestones/`](../runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
 >
 > **What's new in v4 vs v3**: explicit Carmack-style reliability rules (debugger-first inspection, mandatory static analysis, assertion-driven invariants, bounded resource design, "make invalid states unrepresentable"); extended Contract Block with resource bounds + invariants + debugger expectation + static-analysis gates; a Self-Review Gate before every milestone close-out; a Carry-forward-from-prior-retros placeholder. v3's Global Execution Rules are preserved as Operations-specific extensions on top of the v4 baseline.
 
@@ -52,7 +52,7 @@ Update this table as each milestone is completed. This is the single source of t
 
 | #   | Milestone                                                                                                                                                | Status        | Started | Completed | Lessons File                                                       | Completion Summary                                                       |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- | --------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| 1   | `Ec2PatchBaseline` + `Ec2PatchWaves` (Patch Baseline + Maintenance Window + tier ladder + compliance → SNS routing + dev/staging/prod wave gates) — *renamed 2026-05-01 per Flaw 2* | `not_started` | —       | —         | [docs/lessons/hulumi-operations-m1.md](./lessons/hulumi-operations-m1.md) (TBD) | [docs/completion/hulumi-operations-m1.md](./completion/hulumi-operations-m1.md) (TBD) |
+| 1   | `Ec2PatchBaseline` + `Ec2PatchWaves` (Patch Baseline + Maintenance Window + tier ladder + compliance → SNS routing + dev/staging/prod wave gates) — *renamed 2026-05-01 per Flaw 2* | `not_started` | —       | —         | [docs/slo/lessons/hulumi-operations-m1.md](../lessons/hulumi-operations-m1.md) (TBD) | [docs/slo/completion/hulumi-operations-m1.md](../completion/hulumi-operations-m1.md) (TBD) |
 | 2   | `DetectiveServicesEnable` — closes [#49](https://github.com/kerberosmansour/hulumi/issues/49)                                                            | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
 | 3   | `AuditTrail` + `IdentityAlarms` extension — closes [#47](https://github.com/kerberosmansour/hulumi/issues/47)                                            | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
 | 4   | `HulumiOperationsHardeningPack` (`O_PATCH_*` / `O_DETECT_*` / `O_AUDIT_*` / `O_INSPECTOR_*`)                                                             | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
@@ -105,7 +105,7 @@ flowchart TB
         S3Audit["S3 audit bucket (NEW: AuditTrail wraps SecureBucket)"]
     end
 
-    subgraph Deferred["Deferred — landing in v1.3 (see docs/idea/hulumi-for-operations-v1-3.md)"]
+    subgraph Deferred["Deferred — landing in v1.3 (see docs/slo/idea/hulumi-for-operations-v1-3.md)"]
         EcrCache["EcrPullThroughCache (v1.3 M1)"]
         AmiPipeline["Ec2GoldenAmiPipeline (v1.3 M2)"]
         AsgRefresh["AsgInstanceRefresh (v1.3 M3)"]
@@ -332,7 +332,7 @@ Pulumi checkpoints, integration-test sandbox-AWS state, transient JSON fixtures 
 
 ### 8) Tier defaults must encode the breach risk
 
-Every component's tier-default decision is reviewed against [`docs/design/hulumi-for-operations-threat-model.md`](./design/hulumi-for-operations-threat-model.md) § Top risks. The **silent un-patching trap** ([#breach](./design/hulumi-for-operations-threat-model.md#breach--silent-un-patching-at-default-tier)) is the canonical example: `Sandbox` defaulting to `NoReboot` would have been the wrong default. Any tier-default change in this runbook must cite the threat-model row it answers and the visible-failure / invisible-failure trade-off.
+Every component's tier-default decision is reviewed against [`docs/slo/design/hulumi-for-operations-threat-model.md`](../design/hulumi-for-operations-threat-model.md) § Top risks. The **silent un-patching trap** ([#breach](../design/hulumi-for-operations-threat-model.md#breach--silent-un-patching-at-default-tier)) is the canonical example: `Sandbox` defaulting to `NoReboot` would have been the wrong default. Any tier-default change in this runbook must cite the threat-model row it answers and the visible-failure / invisible-failure trade-off.
 
 ### 9) Routing is hardened-by-default at StartupHardened
 
@@ -362,10 +362,10 @@ If a Pulumi mock-runtime test or a real-AWS integration test fails non-obviously
 
 ## Global Entry Rules (Pre-Milestone Protocol)
 
-1. Read the full milestone file under `docs/runbook-milestones/hulumi-operations-m<N>.md` + Global Execution Rules (especially Rule 0 + Rule 8 + Rule 10).
-2. Read prior-milestone lessons (`docs/lessons/hulumi-operations-m<N-1>.md`).
-3. Read the design record [`docs/design/hulumi-for-operations.md`](./design/hulumi-for-operations.md) — every component's API shape and rationale lives there; the runbook only sequences and tests.
-4. Read the threat model [`docs/design/hulumi-for-operations-threat-model.md`](./design/hulumi-for-operations-threat-model.md) — every BDD abuse-case row in this milestone cites a `tm-hulumi-ops-abuse-N` row from there.
+1. Read the full milestone file under `docs/slo/runbook-milestones/hulumi-operations-m<N>.md` + Global Execution Rules (especially Rule 0 + Rule 8 + Rule 10).
+2. Read prior-milestone lessons (`docs/slo/lessons/hulumi-operations-m<N-1>.md`).
+3. Read the design record [`docs/slo/design/hulumi-for-operations.md`](../design/hulumi-for-operations.md) — every component's API shape and rationale lives there; the runbook only sequences and tests.
+4. Read the threat model [`docs/slo/design/hulumi-for-operations-threat-model.md`](../design/hulumi-for-operations-threat-model.md) — every BDD abuse-case row in this milestone cites a `tm-hulumi-ops-abuse-N` row from there.
 5. Read files listed in "Files to read before changing anything."
 6. Copy the Evidence Log template into the milestone's Evidence Log section.
 7. Re-state the milestone's load-bearing constraints in your own words in working notes before coding, **including the Rule 0 scope contract and the Rule 8 tier-default discipline.**
@@ -377,8 +377,8 @@ If a Pulumi mock-runtime test or a real-AWS integration test fails non-obviously
 3. Compatibility checklist complete (incl. AWS + GitHub + K8s Hulumi v1.x interfaces unbroken).
 4. `git status` clean.
 5. `.gitignore` updated.
-6. `docs/lessons/hulumi-operations-m<N>.md` written with surprises + decisions + deltas-from-plan.
-7. `docs/completion/hulumi-operations-m<N>.md` written with changed files + tests added + documentation updated.
+6. `docs/slo/lessons/hulumi-operations-m<N>.md` written with surprises + decisions + deltas-from-plan.
+7. `docs/slo/completion/hulumi-operations-m<N>.md` written with changed files + tests added + documentation updated.
 8. Milestone Tracker above updated to `done`.
 9. Docs listed in Post-Flight updated.
 
@@ -388,7 +388,7 @@ If a Pulumi mock-runtime test or a real-AWS integration test fails non-obviously
 
 ### Current State
 
-Hulumi v1.0.0 (AWS) + v1.1.0 (GitHub) + v1.1.0 (K8s) are shipped and stable. Master runbooks at [`docs/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md), [`docs/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md), and [`docs/RUNBOOK-hulumi-k8s.md`](./RUNBOOK-hulumi-k8s.md) — all milestones `done`. The AWS account-level surface includes `MonitoringFoundation` and `IdentityAlarms` (the most recent additions). No time-based hardening surface exists yet — consumers re-derive the patterns by hand on every deployment, and the gap surfaced operationally for sunlit-guardian within ~2 weeks of going live (a CRITICAL ECR scan finding sat un-routed for ~4 days because the maintenance guide's only patch instruction is "if any CRITICAL, rebuild manually").
+Hulumi v1.0.0 (AWS) + v1.1.0 (GitHub) + v1.1.0 (K8s) are shipped and stable. Master runbooks at [`docs/slo/completed/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md), [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md), and [`docs/slo/completed/RUNBOOK-hulumi-k8s.md`](./RUNBOOK-hulumi-k8s.md) — all milestones `done`. The AWS account-level surface includes `MonitoringFoundation` and `IdentityAlarms` (the most recent additions). No time-based hardening surface exists yet — consumers re-derive the patterns by hand on every deployment, and the gap surfaced operationally for sunlit-guardian within ~2 weeks of going live (a CRITICAL ECR scan finding sat un-routed for ~4 days because the maintenance guide's only patch instruction is "if any CRITICAL, rebuild manually").
 
 ### Problem
 
@@ -404,7 +404,7 @@ These are not consumer-specific — every team running EC2 + ECR on AWS hits all
 
 ### Target Architecture
 
-See the End-to-End Architecture Diagram above. The detailed component-by-component design is committed in [`docs/design/hulumi-for-operations.md`](./design/hulumi-for-operations.md) — every "Decision" line in that doc is a commitment-point this runbook delivers against.
+See the End-to-End Architecture Diagram above. The detailed component-by-component design is committed in [`docs/slo/design/hulumi-for-operations.md`](../design/hulumi-for-operations.md) — every "Decision" line in that doc is a commitment-point this runbook delivers against.
 
 ### Key Design Principles
 
@@ -456,7 +456,7 @@ Inherits from the AWS + GitHub + K8s runbooks, plus six Operations-specific addi
 
 ## BDD and Runtime Validation Rules
 
-(Inherits from `docs/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The Operations-specific test-file naming is:)
+(Inherits from `docs/slo/completed/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The Operations-specific test-file naming is:)
 
 - Unit / BDD: `packages/baseline/tests/aws/<feature>.test.ts`
 - Integration (real AWS sandbox, weekly): `packages/baseline/tests/integration/aws-ops/<feature>.aws-ops.test.ts`
@@ -486,15 +486,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 | `AGENTS.md`                                                | —                        | —                        | —                        | —                                           | UPDATE — pointer to `RUNBOOK-hulumi-operations.md`                                |
 | `docs/why-hulumi.md`                                       | —                        | —                        | —                        | —                                           | UPDATE — paragraph on Operations variant + scope contract                         |
 | `docs/getting-started.md`                                  | —                        | —                        | —                        | —                                           | UPDATE — "Operations" section                                                     |
-| `docs/RUNBOOK-hulumi-operations.md` Milestone Tracker      | UPDATE                   | UPDATE                   | UPDATE                   | UPDATE                                      | UPDATE                                                                            |
-| `docs/RUNBOOK-hulumi-operations.md` Doc Update Table       | —                        | —                        | —                        | —                                           | UPDATE — final fill-in                                                            |
-| `docs/runbook-milestones/hulumi-operations-m1.md`          | NEW                      | —                        | —                        | —                                           | —                                                                                 |
-| `docs/runbook-milestones/hulumi-operations-m2.md`          | —                        | NEW                      | —                        | —                                           | —                                                                                 |
-| `docs/runbook-milestones/hulumi-operations-m3.md`          | —                        | —                        | NEW                      | —                                           | —                                                                                 |
-| `docs/runbook-milestones/hulumi-operations-m4.md`          | —                        | —                        | —                        | NEW                                         | —                                                                                 |
-| `docs/runbook-milestones/hulumi-operations-m5.md`          | —                        | —                        | —                        | —                                           | NEW                                                                               |
-| `docs/lessons/hulumi-operations-m1..m5.md`                 | NEW (m1)                 | NEW (m2)                 | NEW (m3)                 | NEW (m4)                                    | NEW (m5)                                                                          |
-| `docs/completion/hulumi-operations-m1..m5.md`              | NEW (m1)                 | NEW (m2)                 | NEW (m3)                 | NEW (m4)                                    | NEW (m5)                                                                          |
+| `docs/slo/completed/RUNBOOK-hulumi-operations.md` Milestone Tracker      | UPDATE                   | UPDATE                   | UPDATE                   | UPDATE                                      | UPDATE                                                                            |
+| `docs/slo/completed/RUNBOOK-hulumi-operations.md` Doc Update Table       | —                        | —                        | —                        | —                                           | UPDATE — final fill-in                                                            |
+| `docs/slo/runbook-milestones/hulumi-operations-m1.md`          | NEW                      | —                        | —                        | —                                           | —                                                                                 |
+| `docs/slo/runbook-milestones/hulumi-operations-m2.md`          | —                        | NEW                      | —                        | —                                           | —                                                                                 |
+| `docs/slo/runbook-milestones/hulumi-operations-m3.md`          | —                        | —                        | NEW                      | —                                           | —                                                                                 |
+| `docs/slo/runbook-milestones/hulumi-operations-m4.md`          | —                        | —                        | —                        | NEW                                         | —                                                                                 |
+| `docs/slo/runbook-milestones/hulumi-operations-m5.md`          | —                        | —                        | —                        | —                                           | NEW                                                                               |
+| `docs/slo/lessons/hulumi-operations-m1..m5.md`                 | NEW (m1)                 | NEW (m2)                 | NEW (m3)                 | NEW (m4)                                    | NEW (m5)                                                                          |
+| `docs/slo/completion/hulumi-operations-m1..m5.md`              | NEW (m1)                 | NEW (m2)                 | NEW (m3)                 | NEW (m4)                                    | NEW (m5)                                                                          |
 | `docs/cookbooks/README.md`                                 | —                        | —                        | —                        | —                                           | UPDATE — three new cookbooks indexed                                              |
 | `docs/cookbooks/ec2-patch-baseline-bootstrap.md`           | —                        | —                        | —                        | —                                           | NEW — bootstrap cookbook for adopting `Ec2PatchBaseline` on a fleet               |
 | `docs/cookbooks/detective-services-enable.md`              | —                        | —                        | —                        | —                                           | NEW — bootstrap cookbook                                                          |
@@ -523,15 +523,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 
 ## Per-Milestone Specs
 
-Each milestone has its own file under [`docs/runbook-milestones/`](./runbook-milestones/):
+Each milestone has its own file under [`docs/slo/runbook-milestones/`](../runbook-milestones/):
 
-- [M1: `Ec2PatchBaseline` + `Ec2PatchWaves`](./runbook-milestones/hulumi-operations-m1.md) — wedge milestone, full execution-ready detail. Renamed 2026-05-01 per Flaw 2: ships both components together (~90% shared implementation), keeps milestone count at 5.
-- [M2: `DetectiveServicesEnable`](./runbook-milestones/hulumi-operations-m2.md) — closes [#49](https://github.com/kerberosmansour/hulumi/issues/49).
-- [M3: `AuditTrail` + `IdentityAlarms` extension](./runbook-milestones/hulumi-operations-m3.md) — closes [#47](https://github.com/kerberosmansour/hulumi/issues/47).
-- [M4: `HulumiOperationsHardeningPack`](./runbook-milestones/hulumi-operations-m4.md) — five `O_*` rules + tier-monotonicity meta-test.
-- [M5: skill scenarios + atomic four-package release](./runbook-milestones/hulumi-operations-m5.md) — three new threat-model scenarios + v1.2.0.
+- [M1: `Ec2PatchBaseline` + `Ec2PatchWaves`](../runbook-milestones/hulumi-operations-m1.md) — wedge milestone, full execution-ready detail. Renamed 2026-05-01 per Flaw 2: ships both components together (~90% shared implementation), keeps milestone count at 5.
+- [M2: `DetectiveServicesEnable`](../runbook-milestones/hulumi-operations-m2.md) — closes [#49](https://github.com/kerberosmansour/hulumi/issues/49).
+- [M3: `AuditTrail` + `IdentityAlarms` extension](../runbook-milestones/hulumi-operations-m3.md) — closes [#47](https://github.com/kerberosmansour/hulumi/issues/47).
+- [M4: `HulumiOperationsHardeningPack`](../runbook-milestones/hulumi-operations-m4.md) — five `O_*` rules + tier-monotonicity meta-test.
+- [M5: skill scenarios + atomic four-package release](../runbook-milestones/hulumi-operations-m5.md) — three new threat-model scenarios + v1.2.0.
 
-Lessons learned: `docs/lessons/hulumi-operations-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/completion/hulumi-operations-m{1..5}.md` — written during each milestone's exit.
+Lessons learned: `docs/slo/lessons/hulumi-operations-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/slo/completion/hulumi-operations-m{1..5}.md` — written during each milestone's exit.
 
 ---
 
@@ -552,7 +552,7 @@ Before marking any milestone done, the executing agent must answer every questio
 - Is every assumption either verified or explicitly documented as unresolved in the lessons file?
 - Do all tests clean up their AWS sandbox state? Does `git status` show a clean working tree?
 - Is `.gitignore` up to date with any new generated files / Pulumi checkpoints?
-- Does every BDD abuse-case row cite a `tm-hulumi-ops-abuse-N` row in [`docs/design/hulumi-for-operations-threat-model.md`](./design/hulumi-for-operations-threat-model.md)?
+- Does every BDD abuse-case row cite a `tm-hulumi-ops-abuse-N` row in [`docs/slo/design/hulumi-for-operations-threat-model.md`](../design/hulumi-for-operations-threat-model.md)?
 - Is the milestone truly done according to its Definition of Done?
 
 If any answer is "no", the milestone is not complete — the Self-Review Gate fails and `/slo-retro` refuses to close the milestone.
@@ -563,11 +563,11 @@ If any answer is "no", the milestone is not complete — the Self-Review Gate fa
 
 Before any implementation begins, run **`/slo-critique hulumi-operations`** to walk the four-persona adversarial review (CEO, eng-lead, security; design pass auto-skipped — no UI surface). Critique will find what this plan got wrong before code lands. Then `/slo-execute M1` to begin shipping `Ec2PatchBaseline` + `Ec2PatchWaves` (single milestone — see Flaw 2 rename note above).
 
-The six open questions in the design record's [§ Open questions](./design/hulumi-for-operations.md#open-questions) are not blocking for `/slo-critique` to run, but Q1 (PCI-DSS Req 6.3.3 primary signal) should be answered before M1's `complianceMetric` output shape is frozen — flag in the M1 contract block as a "decide during implementation, document in lessons" line. Q2 (Inspector v2 KEV surfacing) was resolved 2026-05-01 — Inspector v2 carries KEV catalog membership inline in finding payloads since 2023, so M2's dual-route is pure EventBridge JSON with no Step Functions / Lambda. Q5 + Q6 were added 2026-05-01 (DHI catalog coverage — verified, all of Rust 1.88, Node, Vault present at `dhi.io/<image>:<tag>`; wave gate flop-not-latch semantics).
+The six open questions in the design record's [§ Open questions](../design/hulumi-for-operations.md#open-questions) are not blocking for `/slo-critique` to run, but Q1 (PCI-DSS Req 6.3.3 primary signal) should be answered before M1's `complianceMetric` output shape is frozen — flag in the M1 contract block as a "decide during implementation, document in lessons" line. Q2 (Inspector v2 KEV surfacing) was resolved 2026-05-01 — Inspector v2 carries KEV catalog membership inline in finding payloads since 2023, so M2's dual-route is pure EventBridge JSON with no Step Functions / Lambda. Q5 + Q6 were added 2026-05-01 (DHI catalog coverage — verified, all of Rust 1.88, Node, Vault present at `dhi.io/<image>:<tag>`; wave gate flop-not-latch semantics).
 
 ## Forward path — v1.3 (post-v1.2 release)
 
-The v1.3 idea doc at [`docs/idea/hulumi-for-operations-v1-3.md`](./idea/hulumi-for-operations-v1-3.md) commits the next layer of the patching story: **image pipelines** (so new EC2s + new container images start patched on day one) and **ASG-orchestrated rolling refresh** (so a critical CVE rollout drains connections cleanly). v1.3's five-milestone shape:
+The v1.3 idea doc at [`docs/slo/idea/hulumi-for-operations-v1-3.md`](../idea/hulumi-for-operations-v1-3.md) commits the next layer of the patching story: **image pipelines** (so new EC2s + new container images start patched on day one) and **ASG-orchestrated rolling refresh** (so a critical CVE rollout drains connections cleanly). v1.3's five-milestone shape:
 
 - **M1**: `EcrPullThroughCache` — wraps `aws.ecr.PullThroughCacheRule` for DHI / Chainguard / Docker Hub upstreams (closes the hardened-base-images cookbook from v1.2 M5 with a real component).
 - **M2**: `Ec2GoldenAmiPipeline` — EC2 Image Builder wrapper with tier-aware rebuild cadence + KEV-trigger path (consumes `DetectiveServicesEnable`'s findingsKevRoutingSnsArn from v1.2 M2).

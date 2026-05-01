@@ -20,8 +20,8 @@ K8s primitives are fail-closed by default: secret extraction failures and missin
 - `docs/components/rds-credential-secret.md` — M2 section noting fail-closed inheritance.
 
 ### Added
-- `docs/lessons/hulumi-k8s-security-m2.md` — lessons file.
-- `docs/completion/hulumi-k8s-security-m2.md` — this file.
+- `docs/slo/lessons/hulumi-k8s-security-m2.md` — lessons file.
+- `docs/slo/completion/hulumi-k8s-security-m2.md` — this file.
 
 ## Tests added
 

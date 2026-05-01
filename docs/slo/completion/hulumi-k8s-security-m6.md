@@ -26,8 +26,8 @@ EKS upgrade safety, exact-pinned add-on management, K8s drift signaling, and thr
 ### Added (docs)
 - `docs/components/eks-addon-foundation.md`.
 - `docs/components/eks-upgrade-planner.md`.
-- `docs/lessons/hulumi-k8s-security-m6.md`.
-- `docs/completion/hulumi-k8s-security-m6.md`.
+- `docs/slo/lessons/hulumi-k8s-security-m6.md`.
+- `docs/slo/completion/hulumi-k8s-security-m6.md`.
 
 ### Modified
 - `packages/k8s-baseline/src/index.ts` — re-exports.

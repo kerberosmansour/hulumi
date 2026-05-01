@@ -9,7 +9,7 @@ carries the `hulumi:component`, `hulumi:tier`, and `hulumi:controls`
 tag triple.
 
 **Stability**: `stable` from v0.3 per
-[interfaces.md §1](../design/hulumi/interfaces.md).
+[interfaces.md §1](../slo/design/hulumi/interfaces.md).
 **Ships**: M3.
 **Paired policies**: `HulumiHardeningPack` H1–H4 (M2),
 `CisV5Pack` sections 1–3 (M3).
@@ -101,7 +101,7 @@ All taggable children carry:
 | `hulumi:controls`  | comma-separated framework IDs   | Which CCM / CIS / NIST IDs this component claims to address (≥18 entries). |
 
 Tag-key schema is `stable` per
-[interfaces.md §6](../design/hulumi/interfaces.md).
+[interfaces.md §6](../slo/design/hulumi/interfaces.md).
 
 ## Framework IDs cited
 
@@ -144,7 +144,7 @@ itself blocks until `status === ENABLED`, which gives us equivalent
 ordering for real deployments. The escape hatch
 (`packages/baseline/src/aws/probes/poll.ts`) is preserved for v1.1+
 probes where dependsOn alone is insufficient. See
-[../lessons/hulumi-m3.md](../lessons/hulumi-m3.md) for the full
+[M3 lessons](../slo/lessons/hulumi-m3.md) for the full
 rationale.
 
 ## Input validation

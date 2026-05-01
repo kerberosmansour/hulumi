@@ -42,7 +42,7 @@ Achieved (with the same Pulumi-Cloud-token deferral as M3 for the real-AWS integ
 
 ### Edits
 
-- `docs/RUNBOOK-hulumi.md` — Milestone Tracker M4 → `done`.
+- `docs/slo/completed/RUNBOOK-hulumi.md` — Milestone Tracker M4 → `done`.
 - `docs/components/README.md` — DriftClassifier link from "arriving in M4" → `drift-classifier.md`.
 - `skills/hulumi-threat-model/scenarios/aws-multi-account-baseline.json` + `s3-public-bucket-hardening.json` — DriftClassifier availability `v0.4+` → `v0.4` (with "Shipped in M4" suffix).
 - `.github/workflows/ci.yml` — new `drift-mocks` job; `examples-typecheck` extended to cover drift smoke.
@@ -53,8 +53,8 @@ Achieved (with the same Pulumi-Cloud-token deferral as M3 for the real-AWS integ
 
 ### Precursor commit (this branch)
 
-- `docs/RUNBOOK-hulumi.md` — purpose tagline, M5 Tracker row, mermaid Dogfood subgraph, Component Summary, Global Execution Rules, M5 section heading, Documentation Update Table — all de-scope cross-repo UDM binding.
-- `docs/runbook-milestones/hulumi-m{1,3,4,5}.md` — UDM-binding mentions reframed as sunlit-guardian's own deliverable.
+- `docs/slo/completed/RUNBOOK-hulumi.md` — purpose tagline, M5 Tracker row, mermaid Dogfood subgraph, Component Summary, Global Execution Rules, M5 section heading, Documentation Update Table — all de-scope cross-repo UDM binding.
+- `docs/slo/runbook-milestones/hulumi-m{1,3,4,5}.md` — UDM-binding mentions reframed as sunlit-guardian's own deliverable.
 
 ## Tests added
 
@@ -96,7 +96,7 @@ Achieved (with the same Pulumi-Cloud-token deferral as M3 for the real-AWS integ
 - `docs/components/drift-classifier.md` (new).
 - `docs/drift-classifier-deployment.md` (new).
 - `docs/components/README.md` — DriftClassifier link updated.
-- `docs/RUNBOOK-hulumi.md` Milestone Tracker M4 → `done`.
+- `docs/slo/completed/RUNBOOK-hulumi.md` Milestone Tracker M4 → `done`.
 
 ## .gitignore changes
 

@@ -10,7 +10,7 @@
 - `packages/policies/src/aws/operations-hardening-pack.ts` — rules + metadata.
 - `packages/policies/src/aws/packs/hulumi-operations-hardening.ts` — entry point.
 - `packages/policies/tests/operations-hardening-pack.test.ts` — 10 BDD scenarios.
-- `docs/lessons/hulumi-operations-m4.md`, `docs/completion/hulumi-operations-m4.md`.
+- `docs/slo/lessons/hulumi-operations-m4.md`, `docs/slo/completion/hulumi-operations-m4.md`.
 
 ### Modified
 - `packages/policies/src/index.ts` — re-exports.

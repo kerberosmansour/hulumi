@@ -63,7 +63,7 @@ A platform engineer adopts GitHub App authentication for IaC (the recommended Hu
 ## Open Questions
 
 - **CIS-GitHub-v1.2.0** section numbers gated by WorkBench access; M3 lands resolved IDs.
-- App permission-rotation cadence — out of scope for this scenario; track in `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`.
+- App permission-rotation cadence — out of scope for this scenario; track in `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`.
 
 ---
 

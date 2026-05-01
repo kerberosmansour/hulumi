@@ -33,11 +33,11 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 
 | You want to…                                                          | Read this                                 |
 | --------------------------------------------------------------------- | ----------------------------------------- |
-| Get the local dev loop running (build, test, lint)                    | [Development guide](./development.md)     |
-| Understand the PR conventions (DCO, conventional commits, CODEOWNERS) | [CONTRIBUTING.md](../CONTRIBUTING.md)     |
-| Read the engineering runbook driving v0.x → v1.0 work                 | [RUNBOOK-hulumi.md](./RUNBOOK-hulumi.md)  |
-| See what lessons came out of each milestone                           | [docs/lessons/](./lessons/)               |
-| Find candidate issues / improvements for the project                  | [Issue candidates](./issue-candidates.md) |
+| Get the local dev loop running (build, test, lint)                    | [Development guide](./development.md)         |
+| Understand the PR conventions (DCO, conventional commits, CODEOWNERS) | [CONTRIBUTING.md](../CONTRIBUTING.md)         |
+| Read the engineering runbooks driving each release train              | [docs/slo/completed/](./slo/completed/) and [docs/slo/README.md](./slo/README.md) |
+| See what lessons came out of each milestone                           | [docs/slo/lessons/](./slo/lessons/)           |
+| Find candidate issues / improvements for the project                  | [Issue candidates](./issue-candidates.md)     |
 
 ## Reference
 
@@ -45,9 +45,9 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 - [Framework mappings](./mappings/) — CCM v4.1, CIS AWS v5.0.0, NIST 800-53 r5, NIST 800-218A, MITRE ATLAS v5.1.
 - [Tier matrix](./tiers.md) — what differs between Sandbox and Startup-Hardened, by component.
 - [Threat-model examples](./threat-model-examples/) — sample outputs from `/hulumi-threat-model`.
-- [Lessons learned](./lessons/) — per-milestone notes capturing design decisions and surprises.
+- [Lessons learned](./slo/lessons/) — per-milestone notes capturing design decisions and surprises.
 - [Launch artifacts](./launch/) — outreach drafts, blog pitches, CFP submissions.
-- Runbooks — [AWS](./RUNBOOK-hulumi.md), [GitHub](./RUNBOOK-hulumi-github.md), [K8s baseline](./RUNBOOK-hulumi-k8s.md), [combined Operations + K8s security (in flight)](./RUNBOOK-hulumi-operations-k8s-security.md).
+- Runbooks — [AWS](./slo/completed/RUNBOOK-hulumi.md), [GitHub](./slo/completed/RUNBOOK-hulumi-github.md), [K8s baseline](./slo/completed/RUNBOOK-hulumi-k8s.md), [combined Operations + K8s security](./slo/completed/RUNBOOK-hulumi-operations-k8s-security.md). Layout convention: [docs/slo/README.md](./slo/README.md).
 
 ## Papers
 

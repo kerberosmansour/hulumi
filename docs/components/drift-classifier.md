@@ -9,7 +9,7 @@ the TLA+ `HardenedVerdict` from
 planning corpus) cell by cell.
 
 **Stability**: `stable` from v0.4 per
-[interfaces.md §3](../design/hulumi/interfaces.md).
+[interfaces.md §3](../slo/design/hulumi/interfaces.md).
 **Ships**: M4.
 **Paired**: M3's `AccountFoundation` (provides the
 `hulumi:iac-role=true` principal-attribution signal that the

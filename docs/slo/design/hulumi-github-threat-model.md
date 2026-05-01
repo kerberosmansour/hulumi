@@ -2,7 +2,7 @@
 
 > Consolidated threat-model artifact addressing critique finding S4 (V17 missing threat model). Produced 2026-04-26 outside the standard `/slo-architect` Step 3.5 path because that skill was deliberately skipped per the idea doc — Hulumi-for-GitHub is a feature addition to an already-designed workspace, not a new design.
 >
-> This file is the canonical surface for any future security review or contribution against the runbook. Every per-milestone abuse-case row (`tm-hulumi-github-abuse-N`) cited in [`docs/RUNBOOK-hulumi-github.md`](../RUNBOOK-hulumi-github.md) and the per-milestone files at [`docs/runbook-milestones/`](../runbook-milestones/) traces back to a row in this document. The four threat-model scenario exemplars at [`docs/threat-model-examples/`](../threat-model-examples/) (shipped in M1) are the per-scenario depth; this doc is the cross-cutting surface.
+> This file is the canonical surface for any future security review or contribution against the runbook. Every per-milestone abuse-case row (`tm-hulumi-github-abuse-N`) cited in [`docs/slo/completed/RUNBOOK-hulumi-github.md`](../completed/RUNBOOK-hulumi-github.md) and the per-milestone files at [`docs/slo/runbook-milestones/`](../runbook-milestones/) traces back to a row in this document. The four threat-model scenario exemplars at [`docs/threat-model-examples/`](../threat-model-examples/) (shipped in M1) are the per-scenario depth; this doc is the cross-cutting surface.
 
 ## Trust boundaries
 
@@ -125,7 +125,7 @@ Each component lands in a milestone (M1–M4). The fifth column ("M5") covers re
 
 ## Out-of-scope risks acknowledged (v1.1+ deferrals)
 
-These risks are **acknowledged** but explicitly out of scope for v1.0 of Hulumi-for-GitHub. Tracked in [`docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md):
+These risks are **acknowledged** but explicitly out of scope for v1.0 of Hulumi-for-GitHub. Tracked in [`docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md):
 
 - GHEC audit-log REST adapter — full-fidelity drift detection requires GHEC + classic-PAT auth.
 - `EnterpriseSecurityAnalysisSettings` enforcement — GHEC-only knobs.
@@ -138,4 +138,4 @@ These risks are **acknowledged** but explicitly out of scope for v1.0 of Hulumi-
 - Every contributor adding a new component to `@hulumi/baseline.github.*`, `@hulumi/policies.github.*`, or a new drift adapter for GitHub MUST add the corresponding STRIDE row + abuse-case ID to this file in the same PR.
 - Every milestone's BDD table abuse-case rows MUST cite a `tm-hulumi-github-abuse-N` ID present in this file.
 - The license-boundary-lint extension (M3) does NOT scan this file's "concrete exploit scenario" prose for verbatim framework text — that is a known limitation. Review during PR.
-- This file is reality-first: only document threats whose mitigations exist or are landing in a tracked milestone. Aspirational threats belong in [`docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md).
+- This file is reality-first: only document threats whose mitigations exist or are landing in a tracked milestone. Aspirational threats belong in [`docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md).

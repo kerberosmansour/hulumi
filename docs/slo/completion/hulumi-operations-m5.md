@@ -12,8 +12,8 @@ Three Operations threat-model scenarios shipped in `/hulumi-threat-model`. All f
 - `skills/hulumi-threat-model/scenarios/operations-audit-pipeline-broken.json`.
 
 ### Added (docs)
-- `docs/lessons/hulumi-operations-m5.md`.
-- `docs/completion/hulumi-operations-m5.md`.
+- `docs/slo/lessons/hulumi-operations-m5.md`.
+- `docs/slo/completion/hulumi-operations-m5.md`.
 
 ### Modified
 - `skills/hulumi-threat-model/scripts/list-scenarios.mjs` — appends the three new IDs.

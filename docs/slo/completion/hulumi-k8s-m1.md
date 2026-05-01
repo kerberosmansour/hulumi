@@ -32,14 +32,14 @@ packages/k8s-baseline/
 - `scripts/exact-pin-guard.mjs` — added `@pulumi/kubernetes@4.30.0` entry (5 deps now pinned).
 - `scripts/cooling-off-diff.mjs` — added `@pulumi/kubernetes` to `PULUMI_PACKAGES`.
 - `pnpm-lock.yaml` — `@pulumi/kubernetes@4.30.0` + transitive deps.
-- `docs/RUNBOOK-hulumi-k8s.md` — Milestone Tracker M1 → `done`.
+- `docs/slo/completed/RUNBOOK-hulumi-k8s.md` — Milestone Tracker M1 → `done`.
 
 ## New documentation
 
 - `docs/components/hardened-helm-release.md` (one-line stub).
 - `docs/components/eks-subnet-tagger.md` (one-line stub).
-- `docs/lessons/hulumi-k8s-m1.md`.
-- `docs/completion/hulumi-k8s-m1.md` (this file).
+- `docs/slo/lessons/hulumi-k8s-m1.md`.
+- `docs/slo/completion/hulumi-k8s-m1.md` (this file).
 
 ## Tests added
 

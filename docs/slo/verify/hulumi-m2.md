@@ -2,7 +2,7 @@
 
 Verified 2026-04-24 by /slo-verify M2.
 
-M2 is a library / CrossGuard-policy-pack / CI-lint milestone (no UI, no network). The UI prerequisite cascade is skipped. "Runtime" for M2 = Pulumi SDK mock execution + Node process invocation of the CLI lint scripts + Claude-Code-skill rendering of the edited scenario JSON. Every BDD row in [docs/runbook-milestones/hulumi-m2.md](../runbook-milestones/hulumi-m2.md#bdd-acceptance-scenarios) was exercised at runtime, not just asserted at compile time.
+M2 is a library / CrossGuard-policy-pack / CI-lint milestone (no UI, no network). The UI prerequisite cascade is skipped. "Runtime" for M2 = Pulumi SDK mock execution + Node process invocation of the CLI lint scripts + Claude-Code-skill rendering of the edited scenario JSON. Every BDD row in [docs/slo/runbook-milestones/hulumi-m2.md](../runbook-milestones/hulumi-m2.md#bdd-acceptance-scenarios) was exercised at runtime, not just asserted at compile time.
 
 ## What was exercised
 
@@ -36,7 +36,7 @@ None. No regression tests added in this verification cycle.
 - **Node**: v24.14.0 (local). `engines.node` declares `>=20.0.0`; CI pins Node 20 LTS via `actions/setup-node@v4`.
 - **pnpm**: 9.12.0
 - **Test framework**: Vitest 1.6.0
-- **Pulumi SDK**: `@pulumi/pulumi` 3.232.0, `@pulumi/aws` 7.27.0, `@pulumi/policy` 1.20.0 (exact-pinned; integrity hashes captured in [docs/runbook-milestones/hulumi-m2.md § Evidence Log](../runbook-milestones/hulumi-m2.md#evidence-log))
+- **Pulumi SDK**: `@pulumi/pulumi` 3.232.0, `@pulumi/aws` 7.27.0, `@pulumi/policy` 1.20.0 (exact-pinned; integrity hashes captured in [docs/slo/runbook-milestones/hulumi-m2.md § Evidence Log](../runbook-milestones/hulumi-m2.md#evidence-log))
 - **Workspace count**: 6 workspace projects (root + 2 skills/tests + 2 packages + 1 example)
 
 ## Runtime output capture

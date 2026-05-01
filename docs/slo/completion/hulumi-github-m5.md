@@ -30,8 +30,8 @@ Scope-trimmed deliverables (4 additional cookbooks, 5 component reference docs, 
 - `examples/secure-repository-smoke/vitest.config.ts`
 - `examples/secure-repository-smoke/tests/smoke.test.ts` — mock-runtime BDD asserting tier-delta + hulumi:* tag triple
 - `examples/secure-repository-smoke/README.md` — usage + prerequisites
-- `docs/lessons/hulumi-github-m5.md`
-- `docs/completion/hulumi-github-m5.md`
+- `docs/slo/lessons/hulumi-github-m5.md`
+- `docs/slo/completion/hulumi-github-m5.md`
 
 ### Modified (5)
 
@@ -42,7 +42,7 @@ Scope-trimmed deliverables (4 additional cookbooks, 5 component reference docs, 
 - `packages/policies/package.json` — version bump; description; `./github/packs/{hulumi-hardening,cis-v1}` exports added
 - `packages/drift/package.json` — version bump; description updated to mention 5 adapters + tierDegraded
 - `pnpm-lock.yaml` — re-resolved
-- `docs/RUNBOOK-hulumi-github.md` Milestone Tracker — M5 → in_progress (start) → done (close)
+- `docs/slo/completed/RUNBOOK-hulumi-github.md` Milestone Tracker — M5 → in_progress (start) → done (close)
 
 ## Tests added
 
@@ -86,7 +86,7 @@ pnpm run lint:exact-pin-guard:    OK (4 @pulumi/* deps match pinned hashes)
 ## Forward-references opened
 
 - v1.1.x patch cadence per the M5 lessons file's rules-for-v1.1.x — each deferred deliverable in its own patch.
-- v1.1+ deferrals tracked in `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`: D1 (audit-log REST adapter), D1.5 (CSC real REST hooks), D2 (EnterpriseSecurityAnalysisSettings), D3 (audit-log streams), D4 (CIS WorkBench section completion), D5 (GitHub App org-admin scope scenario), D6 (Oracle/IBM Cloud OIDC).
+- v1.1+ deferrals tracked in `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`: D1 (audit-log REST adapter), D1.5 (CSC real REST hooks), D2 (EnterpriseSecurityAnalysisSettings), D3 (audit-log streams), D4 (CIS WorkBench section completion), D5 (GitHub App org-admin scope scenario), D6 (Oracle/IBM Cloud OIDC).
 
 ## Release readiness
 

@@ -2,7 +2,7 @@
 
 Verified 2026-04-24 by /slo-verify M1.
 
-M1 is a pure CLI / skill-pack / docs milestone (no UI, no network). The UI prerequisite cascade is skipped — nothing to exercise in a browser. Verification exercises the `/hulumi-threat-model` skill end-to-end at runtime (not just unit tests), covering every BDD row in [docs/runbook-milestones/hulumi-m1.md](../runbook-milestones/hulumi-m1.md#bdd-acceptance-scenarios).
+M1 is a pure CLI / skill-pack / docs milestone (no UI, no network). The UI prerequisite cascade is skipped — nothing to exercise in a browser. Verification exercises the `/hulumi-threat-model` skill end-to-end at runtime (not just unit tests), covering every BDD row in [docs/slo/runbook-milestones/hulumi-m1.md](../runbook-milestones/hulumi-m1.md#bdd-acceptance-scenarios).
 
 ## What was exercised
 
@@ -58,5 +58,5 @@ git status                  → nothing to commit, working tree clean
 
 ## Coverage gaps
 
-- **Demo gate** — manual install of the skill into `~/.claude/skills/hulumi-threat-model/` via `git clone` and invoking `/hulumi-threat-model aws-multi-account-baseline` in a fresh Claude Code session was **not** performed in this automated verification pass. Tracked as a deferred follow-up in [docs/completion/hulumi-m1.md](../completion/hulumi-m1.md) §Deferred follow-ups. All other runtime behaviour is covered by direct CLI invocation, which exercises the same entry points Claude Code would hit.
+- **Demo gate** — manual install of the skill into `~/.claude/skills/hulumi-threat-model/` via `git clone` and invoking `/hulumi-threat-model aws-multi-account-baseline` in a fresh Claude Code session was **not** performed in this automated verification pass. Tracked as a deferred follow-up in [docs/slo/completion/hulumi-m1.md](../completion/hulumi-m1.md) §Deferred follow-ups. All other runtime behaviour is covered by direct CLI invocation, which exercises the same entry points Claude Code would hit.
 - **CI workflow execution on GitHub Actions** — the workflow file is committed but has never been executed. Blocked on the GitHub remote not existing yet (`kerberosmansour/hulumi`). Tracked alongside the demo gate.

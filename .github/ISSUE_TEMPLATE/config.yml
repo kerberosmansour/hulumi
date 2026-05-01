@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/kerberosmansour/hulumi/security/advisories/new
+    about: Report security vulnerabilities privately. See SECURITY.md for the disclosure policy.
+  - name: Question or discussion
+    url: https://github.com/kerberosmansour/hulumi/discussions
+    about: Open-ended questions, ideas, and "is this the right shape" conversations belong in Discussions.
+  - name: Trade-mark / branding question
+    url: https://github.com/kerberosmansour/hulumi/issues/new?labels=trademark&title=Trademark+question%3A+
+    about: See TRADEMARKS.md for what permission you do and do not need.

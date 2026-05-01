@@ -14,7 +14,7 @@
 
 ### Added (docs)
 - `docs/components/detective-services-enable.md`.
-- `docs/lessons/hulumi-operations-m2.md`, `docs/completion/hulumi-operations-m2.md`.
+- `docs/slo/lessons/hulumi-operations-m2.md`, `docs/slo/completion/hulumi-operations-m2.md`.
 
 ### Modified
 - `packages/baseline/src/aws/index.ts` — re-exports.

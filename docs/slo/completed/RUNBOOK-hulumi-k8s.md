@@ -1,9 +1,9 @@
 # Hulumi for Kubernetes — AI-First Runbook v3
 
-> **Purpose**: Open a Kubernetes / EKS / Istio / RDS / Secrets-Manager / build-time-credential surface in Hulumi, in five milestones, as committed in [`docs/design/hulumi-k8s-surface.md`](./design/hulumi-k8s-surface.md). Hulumi v1.1 (AWS account-level + GitHub) is already shipped; this runbook is a feature-addition that ships a **new package** `@hulumi/k8s-baseline` alongside the existing three. The hard scope contract — **"Hulumi codifies security + stability defaults; cluster topology + workload shape stay in consumer hands"** — is pinned in the Global Execution Rules and is not negotiable per-milestone.
+> **Purpose**: Open a Kubernetes / EKS / Istio / RDS / Secrets-Manager / build-time-credential surface in Hulumi, in five milestones, as committed in [`docs/slo/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md). Hulumi v1.1 (AWS account-level + GitHub) is already shipped; this runbook is a feature-addition that ships a **new package** `@hulumi/k8s-baseline` alongside the existing three. The hard scope contract — **"Hulumi codifies security + stability defaults; cluster topology + workload shape stay in consumer hands"** — is pinned in the Global Execution Rules and is not negotiable per-milestone.
 > **Audience**: AI coding agents first, humans second. Written to reduce ambiguity, prevent scope drift into cluster-topology / workload-shape territory, and ship Hulumi for K8s at the same trust posture as the AWS and GitHub variants.
-> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/runbook-milestones/hulumi-k8s-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope into cluster-topology decisions.
-> **Prerequisite reading — Hulumi-for-K8s planning corpus**: The authoritative pre-implementation artifact is the design record at [`docs/design/hulumi-k8s-surface.md`](./design/hulumi-k8s-surface.md) (`/slo-architect` was inlined into the design doc per the design's status note — Hulumi-for-K8s is a feature addition to an already-designed workspace, not a new product). The eight upstream issues that motivated the surface ([#38](https://github.com/kerberosmansour/hulumi/issues/38)–[#45](https://github.com/kerberosmansour/hulumi/issues/45)) are the field evidence; the design record is the synthesis. `/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering. Each milestone file under [`docs/runbook-milestones/`](./runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
+> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/slo/runbook-milestones/hulumi-k8s-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope into cluster-topology decisions.
+> **Prerequisite reading — Hulumi-for-K8s planning corpus**: The authoritative pre-implementation artifact is the design record at [`docs/slo/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md) (`/slo-architect` was inlined into the design doc per the design's status note — Hulumi-for-K8s is a feature addition to an already-designed workspace, not a new product). The eight upstream issues that motivated the surface ([#38](https://github.com/kerberosmansour/hulumi/issues/38)–[#45](https://github.com/kerberosmansour/hulumi/issues/45)) are the field evidence; the design record is the synthesis. `/slo-tla` is N/A — no concurrent actors / distributed-state guarantees beyond Pulumi's standard apply ordering. Each milestone file under [`docs/slo/runbook-milestones/`](../runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
 
 ---
 
@@ -49,11 +49,11 @@ Update this table as each milestone is completed. This is the single source of t
 
 | #   | Milestone                                                                                                                      | Status | Started    | Completed  | Lessons File                                                | Completion Summary                                                |
 | --- | ------------------------------------------------------------------------------------------------------------------------------ | ------ | ---------- | ---------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | Package skeleton + `HardenedHelmRelease` + `EksSubnetTagger` (closes #38, cross-cutting #44, half-closes #42)                  | `done` | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-k8s-m1.md](./lessons/hulumi-k8s-m1.md) | [docs/completion/hulumi-k8s-m1.md](./completion/hulumi-k8s-m1.md) |
-| 2   | `IstioFoundation` (closes #39, full #42 close via the wrapper)                                                                 | `done` | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-k8s-m2.md](./lessons/hulumi-k8s-m2.md) | [docs/completion/hulumi-k8s-m2.md](./completion/hulumi-k8s-m2.md) |
-| 3   | `AlbMeshedHttpEntrypoint` (closes #41)                                                                                         | `done` | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-k8s-m3.md](./lessons/hulumi-k8s-m3.md) | [docs/completion/hulumi-k8s-m3.md](./completion/hulumi-k8s-m3.md) |
-| 4   | `KubernetesSecretFromAwsSecretsManager` + `RdsCredentialSecret` (closes #40)                                                   | `done` | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-k8s-m4.md](./lessons/hulumi-k8s-m4.md) | [docs/completion/hulumi-k8s-m4.md](./completion/hulumi-k8s-m4.md) |
-| 5   | `GitHubAppCredential` + shipped scripts + atomic four-package release of K8s package alongside the existing three (closes #43) | `done` | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-k8s-m5.md](./lessons/hulumi-k8s-m5.md) | [docs/completion/hulumi-k8s-m5.md](./completion/hulumi-k8s-m5.md) |
+| 1   | Package skeleton + `HardenedHelmRelease` + `EksSubnetTagger` (closes #38, cross-cutting #44, half-closes #42)                  | `done` | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-k8s-m1.md](../lessons/hulumi-k8s-m1.md) | [docs/slo/completion/hulumi-k8s-m1.md](../completion/hulumi-k8s-m1.md) |
+| 2   | `IstioFoundation` (closes #39, full #42 close via the wrapper)                                                                 | `done` | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-k8s-m2.md](../lessons/hulumi-k8s-m2.md) | [docs/slo/completion/hulumi-k8s-m2.md](../completion/hulumi-k8s-m2.md) |
+| 3   | `AlbMeshedHttpEntrypoint` (closes #41)                                                                                         | `done` | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-k8s-m3.md](../lessons/hulumi-k8s-m3.md) | [docs/slo/completion/hulumi-k8s-m3.md](../completion/hulumi-k8s-m3.md) |
+| 4   | `KubernetesSecretFromAwsSecretsManager` + `RdsCredentialSecret` (closes #40)                                                   | `done` | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-k8s-m4.md](../lessons/hulumi-k8s-m4.md) | [docs/slo/completion/hulumi-k8s-m4.md](../completion/hulumi-k8s-m4.md) |
+| 5   | `GitHubAppCredential` + shipped scripts + atomic four-package release of K8s package alongside the existing three (closes #43) | `done` | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-k8s-m5.md](../lessons/hulumi-k8s-m5.md) | [docs/slo/completion/hulumi-k8s-m5.md](../completion/hulumi-k8s-m5.md) |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 
@@ -264,9 +264,9 @@ Every namespace Hulumi K8s components create defaults to `pod-security.kubernete
 
 ## Global Entry Rules (Pre-Milestone Protocol)
 
-1. Read the full milestone file under `docs/runbook-milestones/hulumi-k8s-m<N>.md` + Global Execution Rules (especially Rule 0).
-2. Read prior-milestone lessons (`docs/lessons/hulumi-k8s-m<N-1>.md`).
-3. Read the design record [`docs/design/hulumi-k8s-surface.md`](./design/hulumi-k8s-surface.md) — every component's API shape and rationale lives there; the runbook only sequences and tests.
+1. Read the full milestone file under `docs/slo/runbook-milestones/hulumi-k8s-m<N>.md` + Global Execution Rules (especially Rule 0).
+2. Read prior-milestone lessons (`docs/slo/lessons/hulumi-k8s-m<N-1>.md`).
+3. Read the design record [`docs/slo/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md) — every component's API shape and rationale lives there; the runbook only sequences and tests.
 4. Read files listed in "Files to read before changing anything."
 5. Copy the Evidence Log template into the milestone's Evidence Log section.
 6. Re-state the milestone's load-bearing constraints in your own words in working notes before coding, **including the Rule 0 scope contract.**
@@ -278,8 +278,8 @@ Every namespace Hulumi K8s components create defaults to `pod-security.kubernete
 3. Compatibility checklist complete (incl. AWS + GitHub Hulumi v1.x interfaces unbroken).
 4. `git status` clean.
 5. `.gitignore` updated.
-6. `docs/lessons/hulumi-k8s-m<N>.md` written with surprises + decisions + deltas-from-plan.
-7. `docs/completion/hulumi-k8s-m<N>.md` written with changed files + tests added + documentation updated.
+6. `docs/slo/lessons/hulumi-k8s-m<N>.md` written with surprises + decisions + deltas-from-plan.
+7. `docs/slo/completion/hulumi-k8s-m<N>.md` written with changed files + tests added + documentation updated.
 8. Milestone Tracker above updated to `done`.
 9. Docs listed in Post-Flight updated.
 
@@ -289,7 +289,7 @@ Every namespace Hulumi K8s components create defaults to `pod-security.kubernete
 
 ### Current State
 
-Hulumi v1.0.0 (AWS) + v1.1.0 (GitHub) are shipped and stable. Master runbooks at [`docs/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md) and [`docs/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md), all milestones `done`. The AWS account-level surface includes `MonitoringFoundation` and `IdentityAlarms` (the most recent additions). No K8s / Istio / EKS / RDS / Secrets-Manager wrapper surface exists yet — consumers re-derive the patterns by hand on every deployment.
+Hulumi v1.0.0 (AWS) + v1.1.0 (GitHub) are shipped and stable. Master runbooks at [`docs/slo/completed/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md) and [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md), all milestones `done`. The AWS account-level surface includes `MonitoringFoundation` and `IdentityAlarms` (the most recent additions). No K8s / Istio / EKS / RDS / Secrets-Manager wrapper surface exists yet — consumers re-derive the patterns by hand on every deployment.
 
 ### Problem
 
@@ -297,7 +297,7 @@ A consumer running production workloads on EKS with Istio + ALB + RDS + private-
 
 ### Target Architecture
 
-See the End-to-End Architecture Diagram above. The detailed component-by-component design is committed in [`docs/design/hulumi-k8s-surface.md`](./design/hulumi-k8s-surface.md) — every "Decision" line in that doc is a commitment-point this runbook delivers against.
+See the End-to-End Architecture Diagram above. The detailed component-by-component design is committed in [`docs/slo/design/hulumi-k8s-surface.md`](../design/hulumi-k8s-surface.md) — every "Decision" line in that doc is a commitment-point this runbook delivers against.
 
 ### Key Design Principles
 
@@ -333,7 +333,7 @@ Inherits from the AWS + GitHub runbooks, plus eight K8s-specific additions:
 
 ## BDD and Runtime Validation Rules
 
-(Inherits from `docs/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The K8s-specific test-file naming is:)
+(Inherits from `docs/slo/completed/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The K8s-specific test-file naming is:)
 
 - Unit / BDD: `packages/k8s-baseline/tests/<feature>.test.ts`
 - Integration (kind cluster, every PR): `packages/k8s-baseline/tests/integration/kind/<feature>.kind.test.ts`
@@ -357,15 +357,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 | `AGENTS.md`                                       | —                                                | —                        | —                   | —                                              | UPDATE — pointer to `RUNBOOK-hulumi-k8s.md`                                      |
 | `docs/why-hulumi.md`                              | —                                                | —                        | —                   | —                                              | UPDATE — paragraph on K8s variant + scope contract                               |
 | `docs/getting-started.md`                         | —                                                | —                        | —                   | —                                              | UPDATE — "K8s variant" section                                                   |
-| `docs/RUNBOOK-hulumi-k8s.md` Milestone Tracker    | UPDATE                                           | UPDATE                   | UPDATE              | UPDATE                                         | UPDATE                                                                           |
-| `docs/RUNBOOK-hulumi-k8s.md` Doc Update Table     | —                                                | —                        | —                   | —                                              | UPDATE — final fill-in                                                           |
-| `docs/runbook-milestones/hulumi-k8s-m1.md`        | NEW                                              | —                        | —                   | —                                              | —                                                                                |
-| `docs/runbook-milestones/hulumi-k8s-m2.md`        | —                                                | NEW                      | —                   | —                                              | —                                                                                |
-| `docs/runbook-milestones/hulumi-k8s-m3.md`        | —                                                | —                        | NEW                 | —                                              | —                                                                                |
-| `docs/runbook-milestones/hulumi-k8s-m4.md`        | —                                                | —                        | —                   | NEW                                            | —                                                                                |
-| `docs/runbook-milestones/hulumi-k8s-m5.md`        | —                                                | —                        | —                   | —                                              | NEW                                                                              |
-| `docs/lessons/hulumi-k8s-m1..m5.md`               | NEW (m1)                                         | NEW (m2)                 | NEW (m3)            | NEW (m4)                                       | NEW (m5)                                                                         |
-| `docs/completion/hulumi-k8s-m1..m5.md`            | NEW (m1)                                         | NEW (m2)                 | NEW (m3)            | NEW (m4)                                       | NEW (m5)                                                                         |
+| `docs/slo/completed/RUNBOOK-hulumi-k8s.md` Milestone Tracker    | UPDATE                                           | UPDATE                   | UPDATE              | UPDATE                                         | UPDATE                                                                           |
+| `docs/slo/completed/RUNBOOK-hulumi-k8s.md` Doc Update Table     | —                                                | —                        | —                   | —                                              | UPDATE — final fill-in                                                           |
+| `docs/slo/runbook-milestones/hulumi-k8s-m1.md`        | NEW                                              | —                        | —                   | —                                              | —                                                                                |
+| `docs/slo/runbook-milestones/hulumi-k8s-m2.md`        | —                                                | NEW                      | —                   | —                                              | —                                                                                |
+| `docs/slo/runbook-milestones/hulumi-k8s-m3.md`        | —                                                | —                        | NEW                 | —                                              | —                                                                                |
+| `docs/slo/runbook-milestones/hulumi-k8s-m4.md`        | —                                                | —                        | —                   | NEW                                            | —                                                                                |
+| `docs/slo/runbook-milestones/hulumi-k8s-m5.md`        | —                                                | —                        | —                   | —                                              | NEW                                                                              |
+| `docs/slo/lessons/hulumi-k8s-m1..m5.md`               | NEW (m1)                                         | NEW (m2)                 | NEW (m3)            | NEW (m4)                                       | NEW (m5)                                                                         |
+| `docs/slo/completion/hulumi-k8s-m1..m5.md`            | NEW (m1)                                         | NEW (m2)                 | NEW (m3)            | NEW (m4)                                       | NEW (m5)                                                                         |
 | `docs/cookbooks/README.md`                        | —                                                | —                        | —                   | —                                              | UPDATE — three new cookbooks indexed                                             |
 | `docs/cookbooks/psa-baseline-istio-sidecar.md`    | —                                                | —                        | —                   | —                                              | UPDATE — replace hand-rolled Pulumi snippets with `IstioFoundation`              |
 | `docs/cookbooks/k8s-helm-release-rename.md`       | —                                                | —                        | —                   | —                                              | NEW — migration cookbook for adopting `HardenedHelmRelease` on suffixed releases |
@@ -396,15 +396,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 
 ## Per-Milestone Specs
 
-Each milestone has its own file under [`docs/runbook-milestones/`](./runbook-milestones/):
+Each milestone has its own file under [`docs/slo/runbook-milestones/`](../runbook-milestones/):
 
-- [M1: package skeleton + `HardenedHelmRelease` + `EksSubnetTagger`](./runbook-milestones/hulumi-k8s-m1.md)
-- [M2: `IstioFoundation`](./runbook-milestones/hulumi-k8s-m2.md)
-- [M3: `AlbMeshedHttpEntrypoint`](./runbook-milestones/hulumi-k8s-m3.md)
-- [M4: `KubernetesSecretFromAwsSecretsManager` + `RdsCredentialSecret`](./runbook-milestones/hulumi-k8s-m4.md)
-- [M5: `GitHubAppCredential` + shipped scripts + atomic four-package release](./runbook-milestones/hulumi-k8s-m5.md)
+- [M1: package skeleton + `HardenedHelmRelease` + `EksSubnetTagger`](../runbook-milestones/hulumi-k8s-m1.md)
+- [M2: `IstioFoundation`](../runbook-milestones/hulumi-k8s-m2.md)
+- [M3: `AlbMeshedHttpEntrypoint`](../runbook-milestones/hulumi-k8s-m3.md)
+- [M4: `KubernetesSecretFromAwsSecretsManager` + `RdsCredentialSecret`](../runbook-milestones/hulumi-k8s-m4.md)
+- [M5: `GitHubAppCredential` + shipped scripts + atomic four-package release](../runbook-milestones/hulumi-k8s-m5.md)
 
-Lessons learned: `docs/lessons/hulumi-k8s-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/completion/hulumi-k8s-m{1..5}.md` — written during each milestone's exit.
+Lessons learned: `docs/slo/lessons/hulumi-k8s-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/slo/completion/hulumi-k8s-m{1..5}.md` — written during each milestone's exit.
 
 ---
 

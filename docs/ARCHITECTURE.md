@@ -1,6 +1,6 @@
-# ARCHITECTURE — Hulumi (today, v1.1.x with v1.2 K8s in flight)
+# ARCHITECTURE — Hulumi (today, post-v1.2 release train)
 
-> Reality-first orientation doc. Describes **what exists at HEAD**, not what the runbooks plan to add. Planned architecture for in-flight work lives in the per-runbook Target Architecture sections — see [`docs/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md) (AWS, shipped), [`docs/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md) (GitHub, shipped at v1.1), [`docs/RUNBOOK-hulumi-k8s.md`](./RUNBOOK-hulumi-k8s.md) (K8s baseline, shipped at v1.0.0-pre.1), and [`docs/RUNBOOK-hulumi-operations-k8s-security.md`](./RUNBOOK-hulumi-operations-k8s-security.md) (combined Operations + K8s security, in flight).
+> Reality-first orientation doc. Describes **what exists at HEAD**, not what the runbooks plan to add. Planned architecture for in-flight work lives in the per-runbook Target Architecture sections under [docs/slo/completed/](./slo/completed/) — `RUNBOOK-hulumi.md` (AWS, shipped at v1.0.0), `RUNBOOK-hulumi-github.md` (GitHub, shipped at v1.1.0), `RUNBOOK-hulumi-k8s.md` (K8s baseline, pre-release shipped at v1.0.0-pre.1), and `RUNBOOK-hulumi-operations-k8s-security.md` (combined Operations + K8s security tranche, ready for the v1.2.0 release).
 
 ## Overview
 
@@ -29,10 +29,13 @@ hulumi/
 │   ├── license-boundary-lint.mjs      # CCM/CIS/NIST verbatim-prose guard
 │   ├── exact-pin-guard.mjs            # @pulumi/* integrity-hash drift guard
 │   └── cooling-off-diff.mjs           # 72h/24h cooling-off CI gate helper
-├── docs/                              # extensive — RUNBOOK-hulumi.md, runbook-milestones/,
-│                                      # lessons/, completion/, cookbooks/, components/,
-│                                      # mappings/, deployment/, verify/, launch/,
-│                                      # threat-model-examples/, idea/ (gitignored), research/ (gitignored)
+├── docs/                              # code-level docs (cookbooks/, components/, mappings/,
+│                                      # deployment/, launch/, threat-model-examples/,
+│                                      # ARCHITECTURE.md, getting-started.md, etc.)
+│   └── slo/                           # /slo-* runbooks + milestone artifacts
+│                                      # (current/, completed/, future/, lessons/,
+│                                      # completion/, idea/, design/, critique/,
+│                                      # research/, verify/, runbook-milestones/, templates/)
 └── .github/workflows/
     ├── ci.yml                         # build + test + lint + license-boundary + DCO
     ├── release.yml                    # SLSA-L3 release pipeline
@@ -111,7 +114,7 @@ Drift triage (separate path):
                                                                                   → DriftVerdict + DriftSource + confidence
 ```
 
-No GitHub side exists at HEAD. The Hulumi-for-GitHub runbook adds `@hulumi/baseline.github.*`, `@hulumi/policies.github.*`, and a fifth drift adapter (`GithubWebhookFallbackAdapter`) — see [`docs/RUNBOOK-hulumi-github.md`](./RUNBOOK-hulumi-github.md).
+No GitHub side exists at HEAD. The Hulumi-for-GitHub runbook adds `@hulumi/baseline.github.*`, `@hulumi/policies.github.*`, and a fifth drift adapter (`GithubWebhookFallbackAdapter`) — see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./slo/completed/RUNBOOK-hulumi-github.md).
 
 ## Test Architecture
 

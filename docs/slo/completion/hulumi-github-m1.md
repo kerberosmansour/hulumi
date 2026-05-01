@@ -10,8 +10,8 @@ After M1, the `/hulumi-threat-model` skill produces framework-ID-cited threat mo
 
 ### Modified (12)
 
-- `docs/RUNBOOK-hulumi-github.md` — Milestone Tracker M1 → in_progress (start) → done (close)
-- `docs/runbook-milestones/hulumi-github-m1.md` — Refactor-budget paragraph amended with allow-list rationale; Evidence Log filled
+- `docs/slo/completed/RUNBOOK-hulumi-github.md` — Milestone Tracker M1 → in_progress (start) → done (close)
+- `docs/slo/runbook-milestones/hulumi-github-m1.md` — Refactor-budget paragraph amended with allow-list rationale; Evidence Log filled
 - `packages/baseline/package.json` — `@pulumi/github@6.13.0` added to peerDependencies + devDependencies
 - `packages/baseline/src/index.ts` — `export * as github from "./github"` added
 - `packages/baseline/tests/setup.ts` — mock-runtime extended to populate state for `github:index/repository:Repository` and `github:index/repositoryRuleset:RepositoryRuleset` resources
@@ -25,8 +25,8 @@ After M1, the `/hulumi-threat-model` skill produces framework-ID-cited threat mo
 
 ### New (12+)
 
-- `docs/lessons/hulumi-github-m1.md` — surprises + decisions + deltas + rules-for-next-milestone
-- `docs/completion/hulumi-github-m1.md` — this file
+- `docs/slo/lessons/hulumi-github-m1.md` — surprises + decisions + deltas + rules-for-next-milestone
+- `docs/slo/completion/hulumi-github-m1.md` — this file
 - `docs/threat-model-examples/github-actions-supply-chain.md`
 - `docs/threat-model-examples/github-app-token-exposure.md`
 - `docs/threat-model-examples/github-oidc-trust-cloud-account.md`

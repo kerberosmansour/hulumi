@@ -2,8 +2,8 @@
 
 > **Purpose**: Extend Hulumi's hardened-by-default IaC pattern from AWS to GitHub-as-Infrastructure, in five milestones. Hulumi v1.0.0 (AWS) is already shipped; this runbook is a feature addition to the same workspace, not a replacement. The hard scope contract — **"the I in IaC is Infrastructure"** — is pinned in the Global Execution Rules and is not negotiable per-milestone.
 > **Audience**: AI coding agents first, humans second. Written to reduce ambiguity, prevent scope drift back into appsec, and ship Hulumi for GitHub at the same trust posture as the AWS variant.
-> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/runbook-milestones/hulumi-github-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope back into appsec.
-> **Prerequisite reading — Hulumi-for-GitHub planning corpus**: Authoritative pre-implementation artifacts produced by `/slo-ideate` (skipped — well-specified) and `/slo-research` are checked into this repo at `docs/idea/hulumi-github.md` and `docs/research/hulumi-github/{raw,dossier,sources,synthesis}.md`. `/slo-architect` and `/slo-tla` were skipped per the idea doc's recommendation: this is a feature addition to an already-designed workspace and introduces no new concurrency surface beyond what the AWS drift classifier already verified in `HulumiDrift.tla`. Maintainers MUST read those four research artifacts plus the existing AWS runbook ([`docs/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md)) before opening a PR that materially changes the GitHub architecture. Each milestone file under [`docs/runbook-milestones/`](./runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
+> **How to use**: Work milestones sequentially. Before starting any milestone, read its full file under `docs/slo/runbook-milestones/hulumi-github-m{N}.md`, the Global Execution Rules, and the prior milestone's lessons file. After completing it, follow the Global Exit Rules. Never skip ahead. Never silently widen scope back into appsec.
+> **Prerequisite reading — Hulumi-for-GitHub planning corpus**: Authoritative pre-implementation artifacts produced by `/slo-ideate` (skipped — well-specified) and `/slo-research` are checked into this repo at `docs/slo/idea/hulumi-github.md` and `docs/slo/research/hulumi-github/{raw,dossier,sources,synthesis}.md`. `/slo-architect` and `/slo-tla` were skipped per the idea doc's recommendation: this is a feature addition to an already-designed workspace and introduces no new concurrency surface beyond what the AWS drift classifier already verified in `HulumiDrift.tla`. Maintainers MUST read those four research artifacts plus the existing AWS runbook ([`docs/slo/completed/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md)) before opening a PR that materially changes the GitHub architecture. Each milestone file under [`docs/slo/runbook-milestones/`](../runbook-milestones/) cites the relevant subset in its "Files to read before changing anything" row.
 
 ---
 
@@ -16,7 +16,7 @@
   - `@hulumi/baseline.github.SecureRepository` + `Args` + `Outputs` (lands in M1)
   - `@hulumi/baseline.github.OrgFoundation` + `Args` + `Outputs` (lands in M2)
   - `@hulumi/policies.github.HulumiGithubHardeningPack` (lands in M3, separate PolicyPack module per the one-pack-per-process invariant)
-  - `@hulumi/policies.github.CisGithubV1Pack` (lands in M3, IDs-only mapping; full sections deferred until CIS WorkBench access — see open question #2 in `docs/research/hulumi-github/dossier.md`)
+  - `@hulumi/policies.github.CisGithubV1Pack` (lands in M3, IDs-only mapping; full sections deferred until CIS WorkBench access — see open question #2 in `docs/slo/research/hulumi-github/dossier.md`)
   - `@hulumi/policies.github.G_OIDC_1` rule (lands in M3)
   - `@hulumi/drift.adapters.GithubWebhookFallbackAdapter` (lands in M4; classic-PAT-authed `GithubAuditLogAdapter` is **deferred to v1.1** per tier decision)
   - `DriftVerdict` extended with `tier-degraded: boolean` and `feature-not-licensed: string[]` (lands in M4)
@@ -51,11 +51,11 @@ Update this table as each milestone is completed. This is the single source of t
 
 | #   | Milestone                                                                                                  | Status        | Started | Completed | Lessons File                                                              | Completion Summary                                                              |
 | --- | ---------------------------------------------------------------------------------------------------------- | ------------- | ------- | --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1   | `/hulumi-threat-model` GitHub scenarios + `@hulumi/baseline.github.SecureRepository` + sandbox-org E2E     | `done`        | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-github-m1.md](./lessons/hulumi-github-m1.md)         | [docs/completion/hulumi-github-m1.md](./completion/hulumi-github-m1.md)         |
-| 2   | `@hulumi/baseline.github.OrgFoundation` + Code-Security-Configurations switchable backend                  | `done`        | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-github-m2.md](./lessons/hulumi-github-m2.md)         | [docs/completion/hulumi-github-m2.md](./completion/hulumi-github-m2.md)         |
-| 3   | `@hulumi/policies.github.HulumiGithubHardeningPack` H1–H4 + `CisGithubV1Pack` + `G_OIDC_1`                 | `done`        | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-github-m3.md](./lessons/hulumi-github-m3.md)         | [docs/completion/hulumi-github-m3.md](./completion/hulumi-github-m3.md)         |
-| 4   | `GithubWebhookFallbackAdapter` + verdict matrix (`tier-degraded`, `feature-not-licensed`) + adapter quorum | `done`        | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-github-m4.md](./lessons/hulumi-github-m4.md)         | [docs/completion/hulumi-github-m4.md](./completion/hulumi-github-m4.md)         |
-| 5   | SLSA-L3 atomic-three-package release of GitHub additions + launch readiness (cookbooks, examples, docs)    | `done`        | 2026-04-26 | 2026-04-26 | [docs/lessons/hulumi-github-m5.md](./lessons/hulumi-github-m5.md)         | [docs/completion/hulumi-github-m5.md](./completion/hulumi-github-m5.md)         |
+| 1   | `/hulumi-threat-model` GitHub scenarios + `@hulumi/baseline.github.SecureRepository` + sandbox-org E2E     | `done`        | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-github-m1.md](../lessons/hulumi-github-m1.md)         | [docs/slo/completion/hulumi-github-m1.md](../completion/hulumi-github-m1.md)         |
+| 2   | `@hulumi/baseline.github.OrgFoundation` + Code-Security-Configurations switchable backend                  | `done`        | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-github-m2.md](../lessons/hulumi-github-m2.md)         | [docs/slo/completion/hulumi-github-m2.md](../completion/hulumi-github-m2.md)         |
+| 3   | `@hulumi/policies.github.HulumiGithubHardeningPack` H1–H4 + `CisGithubV1Pack` + `G_OIDC_1`                 | `done`        | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-github-m3.md](../lessons/hulumi-github-m3.md)         | [docs/slo/completion/hulumi-github-m3.md](../completion/hulumi-github-m3.md)         |
+| 4   | `GithubWebhookFallbackAdapter` + verdict matrix (`tier-degraded`, `feature-not-licensed`) + adapter quorum | `done`        | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-github-m4.md](../lessons/hulumi-github-m4.md)         | [docs/slo/completion/hulumi-github-m4.md](../completion/hulumi-github-m4.md)         |
+| 5   | SLSA-L3 atomic-three-package release of GitHub additions + launch readiness (cookbooks, examples, docs)    | `done`        | 2026-04-26 | 2026-04-26 | [docs/slo/lessons/hulumi-github-m5.md](../lessons/hulumi-github-m5.md)         | [docs/slo/completion/hulumi-github-m5.md](../completion/hulumi-github-m5.md)         |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 
@@ -219,7 +219,7 @@ The SafetyRealistic and Monotonicity properties from `docs/TLAdocs/hulumi/Hulumi
 - Per-PR scanning workflows, Action workflow yaml authoring.
 - Anything requiring reading the contents of users' source code to function.
 
-A PR that adds a CodeQL pack, a Semgrep ruleset, a custom secret-scanning regex, or a workflow rewriter is **rejected at review** and the rejection cites this rule. The boundary precedent is GitHub's own Well-Architected SSDF mapping (`docs/research/hulumi-github/sources.md` → frameworks).
+A PR that adds a CodeQL pack, a Semgrep ruleset, a custom secret-scanning regex, or a workflow rewriter is **rejected at review** and the rejection cites this rule. The boundary precedent is GitHub's own Well-Architected SSDF mapping (`docs/slo/research/hulumi-github/sources.md` → frameworks).
 
 ### 1) Stay inside scope
 
@@ -253,9 +253,9 @@ Pulumi checkpoints, integration-test sandbox-org state, webhook-fixture artifact
 
 ## Global Entry Rules (Pre-Milestone Protocol)
 
-1. Read the full milestone file under `docs/runbook-milestones/hulumi-github-m<N>.md` + Global Execution Rules (especially Rule 0).
-2. Read prior-milestone lessons (`docs/lessons/hulumi-github-m<N-1>.md`).
-3. Read the Hulumi-for-GitHub research synthesis (`docs/research/hulumi-github/synthesis.md`) and the relevant section of the dossier.
+1. Read the full milestone file under `docs/slo/runbook-milestones/hulumi-github-m<N>.md` + Global Execution Rules (especially Rule 0).
+2. Read prior-milestone lessons (`docs/slo/lessons/hulumi-github-m<N-1>.md`).
+3. Read the Hulumi-for-GitHub research synthesis (`docs/slo/research/hulumi-github/synthesis.md`) and the relevant section of the dossier.
 4. Read files listed in "Files to read before changing anything."
 5. Copy the Evidence Log template into the milestone's Evidence Log section.
 6. Re-state the milestone's load-bearing constraints in your own words in working notes before coding, **including the Rule 0 scope contract.**
@@ -267,8 +267,8 @@ Pulumi checkpoints, integration-test sandbox-org state, webhook-fixture artifact
 3. Compatibility checklist complete (incl. AWS-Hulumi-v1.0.0 interfaces unbroken).
 4. `git status` clean.
 5. `.gitignore` updated.
-6. `docs/lessons/hulumi-github-m<N>.md` written with surprises + decisions + deltas-from-plan.
-7. `docs/completion/hulumi-github-m<N>.md` written with changed files + tests added + documentation updated.
+6. `docs/slo/lessons/hulumi-github-m<N>.md` written with surprises + decisions + deltas-from-plan.
+7. `docs/slo/completion/hulumi-github-m<N>.md` written with changed files + tests added + documentation updated.
 8. Milestone Tracker above updated to `done`.
 9. Docs listed in Post-Flight updated.
 
@@ -278,7 +278,7 @@ Pulumi checkpoints, integration-test sandbox-org state, webhook-fixture artifact
 
 ### Current State
 
-Hulumi v1.0.0 (AWS) is shipped and stable. Master runbook at [`docs/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md), all 5 milestones `done`. Current branch policy and GitHub workflows are configured for the AWS variant only.
+Hulumi v1.0.0 (AWS) is shipped and stable. Master runbook at [`docs/slo/completed/RUNBOOK-hulumi.md`](./RUNBOOK-hulumi.md), all 5 milestones `done`. Current branch policy and GitHub workflows are configured for the AWS variant only.
 
 ### Problem
 
@@ -286,11 +286,11 @@ Platform engineers who adopted Hulumi for AWS still hand-configure the GitHub si
 
 ### Target Architecture
 
-See the End-to-End Architecture Diagram above. No separate `docs/design/hulumi-github/ARCHITECTURE.md` is produced — `/slo-architect` was skipped per the idea doc's recommendation (feature addition to an already-designed workspace, not a new design).
+See the End-to-End Architecture Diagram above. No separate `docs/slo/design/hulumi-github/ARCHITECTURE.md` is produced — `/slo-architect` was skipped per the idea doc's recommendation (feature addition to an already-designed workspace, not a new design).
 
 ### Key Design Principles
 
-Inherits all principles from the AWS Hulumi runbook (`docs/RUNBOOK-hulumi.md` § Key Design Principles), plus three GitHub-specific additions:
+Inherits all principles from the AWS Hulumi runbook (`docs/slo/completed/RUNBOOK-hulumi.md` § Key Design Principles), plus three GitHub-specific additions:
 
 - **Tier-aware drift verdicts.** `tier-degraded: true` and `feature-not-licensed: string[]` are first-class verdict outcomes. The classifier never silently emits `no-drift` when the underlying signal source is tier-gated or feature-gated.
 - **OIDC sub claim is `job_workflow_ref` + `environment` by default.** Policy rule `G_OIDC_1` rejects wildcard / `StringLike` `sub` conditions on AWS / Azure / GCP trust policies. UNC6426 (March 2026) is the named adversary.
@@ -306,7 +306,7 @@ Nothing in the AWS surface. All changes are additive sub-paths under the three e
 
 ### Global Red Lines
 
-Inherits from the AWS runbook (`docs/RUNBOOK-hulumi.md` § Global Red Lines), plus seven GitHub-specific additions:
+Inherits from the AWS runbook (`docs/slo/completed/RUNBOOK-hulumi.md` § Global Red Lines), plus seven GitHub-specific additions:
 
 - **No CodeQL queries, Semgrep rules, or custom secret-scanning patterns shipped in this repo.** The infra-only contract (Rule 0) is enforced by code review and the `license-boundary-lint` extension that flags any file path containing `codeql/`, `semgrep/`, or `secret-scanning/patterns/`.
 - **No GHEC-tier-only features in the M1–M5 default path.** `EnterpriseSecurityAnalysisSettings` use, audit-log REST polling, audit-log streams configuration are all v1.1 deferrals. M4's webhook-fallback adapter is the ONLY drift adapter shipped in v1 of Hulumi-for-GitHub.
@@ -320,7 +320,7 @@ Inherits from the AWS runbook (`docs/RUNBOOK-hulumi.md` § Global Red Lines), pl
 
 ## BDD and Runtime Validation Rules
 
-(Inherits from `docs/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The GitHub-specific test-file naming is:)
+(Inherits from `docs/slo/completed/RUNBOOK-hulumi.md` § BDD and Runtime Validation Rules. The GitHub-specific test-file naming is:)
 
 - Unit / BDD: `packages/<pkg>/tests/github/<feature>.test.ts`
 - Integration (real GitHub sandbox org): `packages/<pkg>/tests/integration/github/<feature>.integration.test.ts`
@@ -344,15 +344,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 | `AGENTS.md`                                       | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — pointer to `RUNBOOK-hulumi-github.md`                                              |
 | `docs/why-hulumi.md`                              | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — paragraph on GitHub variant + infra-only scope contract                            |
 | `docs/getting-started.md`                         | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — "GitHub variant" section with copy-pasteable steps                                 |
-| `docs/RUNBOOK-hulumi-github.md` Milestone Tracker | UPDATE                                                              | UPDATE                                              | UPDATE                                                      | UPDATE                                              | UPDATE                                                                                      |
-| `docs/RUNBOOK-hulumi-github.md` Doc Update Table  | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — final fill-in                                                                      |
-| `docs/runbook-milestones/hulumi-github-m1.md`     | NEW                                                                 | —                                                   | —                                                           | —                                                   | —                                                                                           |
-| `docs/runbook-milestones/hulumi-github-m2.md`     | —                                                                   | NEW                                                 | —                                                           | —                                                   | —                                                                                           |
-| `docs/runbook-milestones/hulumi-github-m3.md`     | —                                                                   | —                                                   | NEW                                                         | —                                                   | —                                                                                           |
-| `docs/runbook-milestones/hulumi-github-m4.md`     | —                                                                   | —                                                   | —                                                           | NEW                                                 | —                                                                                           |
-| `docs/runbook-milestones/hulumi-github-m5.md`     | —                                                                   | —                                                   | —                                                           | —                                                   | NEW                                                                                         |
-| `docs/lessons/hulumi-github-m1..m5.md`            | NEW (m1)                                                            | NEW (m2)                                            | NEW (m3)                                                    | NEW (m4)                                            | NEW (m5)                                                                                    |
-| `docs/completion/hulumi-github-m1..m5.md`         | NEW (m1)                                                            | NEW (m2)                                            | NEW (m3)                                                    | NEW (m4)                                            | NEW (m5)                                                                                    |
+| `docs/slo/completed/RUNBOOK-hulumi-github.md` Milestone Tracker | UPDATE                                                              | UPDATE                                              | UPDATE                                                      | UPDATE                                              | UPDATE                                                                                      |
+| `docs/slo/completed/RUNBOOK-hulumi-github.md` Doc Update Table  | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — final fill-in                                                                      |
+| `docs/slo/runbook-milestones/hulumi-github-m1.md`     | NEW                                                                 | —                                                   | —                                                           | —                                                   | —                                                                                           |
+| `docs/slo/runbook-milestones/hulumi-github-m2.md`     | —                                                                   | NEW                                                 | —                                                           | —                                                   | —                                                                                           |
+| `docs/slo/runbook-milestones/hulumi-github-m3.md`     | —                                                                   | —                                                   | NEW                                                         | —                                                   | —                                                                                           |
+| `docs/slo/runbook-milestones/hulumi-github-m4.md`     | —                                                                   | —                                                   | —                                                           | NEW                                                 | —                                                                                           |
+| `docs/slo/runbook-milestones/hulumi-github-m5.md`     | —                                                                   | —                                                   | —                                                           | —                                                   | NEW                                                                                         |
+| `docs/slo/lessons/hulumi-github-m1..m5.md`            | NEW (m1)                                                            | NEW (m2)                                            | NEW (m3)                                                    | NEW (m4)                                            | NEW (m5)                                                                                    |
+| `docs/slo/completion/hulumi-github-m1..m5.md`         | NEW (m1)                                                            | NEW (m2)                                            | NEW (m3)                                                    | NEW (m4)                                            | NEW (m5)                                                                                    |
 | `docs/threat-model-examples/github-*.md` (×4)     | NEW                                                                 | —                                                   | —                                                           | —                                                   | UPDATE (citation polish)                                                                    |
 | `docs/threat-model-examples/README.md`            | UPDATE                                                              | —                                                   | —                                                           | —                                                   | UPDATE                                                                                      |
 | `docs/cookbooks/README.md`                        | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — five new cookbooks indexed                                                         |
@@ -376,8 +376,8 @@ Tracks which documentation files each milestone touches. Maintainers update this
 | `CHANGELOG.md`                                    | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — v1.1.0 entry                                                                       |
 | `docs/issue-candidates.md`                        | —                                                                   | —                                                   | UPDATE — WorkBench follow-up                                | —                                                   | UPDATE — v1.1 deferral list                                                                 |
 | `docs/ARCHITECTURE.md`                            | UPDATE — describe M1 additions                                      | UPDATE — M2                                         | UPDATE — M3                                                 | UPDATE — M4                                         | UPDATE — M5 launch state                                                                    |
-| `docs/design/hulumi-github-threat-model.md`       | —                                                                   | —                                                   | UPDATE — extend STRIDE rows with policy-pack rows           | UPDATE — extend with M4 abuse-case rows             | UPDATE — final pass + lessons-learned cross-references                                       |
-| `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md` | —                                                           | —                                                   | UPDATE — append D4 (CIS WorkBench completion) details if any change | —                                           | UPDATE — sync with `docs/issue-candidates.md` at release tag                                |
+| `docs/slo/design/hulumi-github-threat-model.md`       | —                                                                   | —                                                   | UPDATE — extend STRIDE rows with policy-pack rows           | UPDATE — extend with M4 abuse-case rows             | UPDATE — final pass + lessons-learned cross-references                                       |
+| `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` | —                                                           | —                                                   | UPDATE — append D4 (CIS WorkBench completion) details if any change | —                                           | UPDATE — sync with `docs/issue-candidates.md` at release tag                                |
 | `.github/workflows/weekly-integration.yml`        | —                                                                   | —                                                   | —                                                           | —                                                   | UPDATE — extend matrix                                                                      |
 | `.github/workflows/release.yml`                   | —                                                                   | —                                                   | —                                                           | —                                                   | POSSIBLY UPDATE                                                                             |
 | `scripts/exact-pin-guard.mjs`                     | UPDATE — add `@pulumi/github`                                       | —                                                   | —                                                           | —                                                   | —                                                                                           |
@@ -388,15 +388,15 @@ Tracks which documentation files each milestone touches. Maintainers update this
 
 ## Per-Milestone Specs
 
-Each milestone has its own file under [`docs/runbook-milestones/`](./runbook-milestones/):
+Each milestone has its own file under [`docs/slo/runbook-milestones/`](../runbook-milestones/):
 
-- [M1: `/hulumi-threat-model` GitHub scenarios + `SecureRepository` + sandbox-org E2E](./runbook-milestones/hulumi-github-m1.md)
-- [M2: `OrgFoundation` + Code-Security-Configurations switchable backend](./runbook-milestones/hulumi-github-m2.md)
-- [M3: `HulumiGithubHardeningPack` + `CisGithubV1Pack` + `G_OIDC_1`](./runbook-milestones/hulumi-github-m3.md)
-- [M4: `GithubWebhookFallbackAdapter` + verdict matrix extension](./runbook-milestones/hulumi-github-m4.md)
-- [M5: SLSA-L3 release + launch readiness](./runbook-milestones/hulumi-github-m5.md)
+- [M1: `/hulumi-threat-model` GitHub scenarios + `SecureRepository` + sandbox-org E2E](../runbook-milestones/hulumi-github-m1.md)
+- [M2: `OrgFoundation` + Code-Security-Configurations switchable backend](../runbook-milestones/hulumi-github-m2.md)
+- [M3: `HulumiGithubHardeningPack` + `CisGithubV1Pack` + `G_OIDC_1`](../runbook-milestones/hulumi-github-m3.md)
+- [M4: `GithubWebhookFallbackAdapter` + verdict matrix extension](../runbook-milestones/hulumi-github-m4.md)
+- [M5: SLSA-L3 release + launch readiness](../runbook-milestones/hulumi-github-m5.md)
 
-Lessons learned: `docs/lessons/hulumi-github-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/completion/hulumi-github-m{1..5}.md` — written during each milestone's exit.
+Lessons learned: `docs/slo/lessons/hulumi-github-m{1..5}.md` — written during each milestone's exit. Completion summaries: `docs/slo/completion/hulumi-github-m{1..5}.md` — written during each milestone's exit.
 
 ---
 

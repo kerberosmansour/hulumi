@@ -1,6 +1,6 @@
 # Milestone 4 — Drift classifier + 4 adapters + TLA+-bound verdict matrix + security BDDs
 
-Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
+Parent runbook: [docs/slo/completed/RUNBOOK-hulumi.md](../completed/RUNBOOK-hulumi.md).
 
 **Goal**: After M4, `@hulumi/drift` is shipped, composing four pluggable adapters (`AutomationApiAdapter`, `CloudTrailAdapter`, `ProviderVersionAdapter`, `GitLogAdapter`) behind a `DriftClassifier` whose verdict logic **exactly matches** `HardenedVerdict` in `docs/TLAdocs/hulumi/HulumiDrift.tla`. A BDD feature file walks the 5-row verdict matrix from [HulumiDrift.trace.md](../TLAdocs/hulumi/HulumiDrift.trace.md) cell by cell (critique E6). Six security BDDs land: shell-injection refusal on `GitLogAdapter` (S3), shallow-clone guard (E5), cache file perms `0600` (S2), probe-timeout graceful degradation (E1), namespace-rejection (E4), cache-based rate limit (S7).
 
@@ -41,7 +41,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 ## Pre-Flight
 
 1. Global Entry Rules.
-2. Read `docs/lessons/hulumi-m{1,2,3}.md`; apply corrections.
+2. Read `docs/slo/lessons/hulumi-m{1,2,3}.md`; apply corrections.
 3. Read the TLA+ trio in full — `HardenedVerdict` is the authoritative spec.
 4. Read allowed files.
 5. Copy Evidence Log template.
@@ -233,7 +233,7 @@ Parent runbook: [docs/RUNBOOK-hulumi.md](../RUNBOOK-hulumi.md).
 - `git status` clean.
 - `.gitignore` updated.
 - `docs/components/drift-classifier.md`, `docs/drift-classifier-deployment.md` complete.
-- `docs/lessons/hulumi-m4.md` + `docs/completion/hulumi-m4.md` written.
+- `docs/slo/lessons/hulumi-m4.md` + `docs/slo/completion/hulumi-m4.md` written.
 - Milestone Tracker `done`.
 
 ## Post-Flight

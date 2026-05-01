@@ -8,7 +8,7 @@
 
 The M2 design rule explicitly anticipated this: "the existing `packages/baseline/src/aws/probes/poll.ts` workaround for the vitest worker-pool gotcha is the documented pattern; the CSC backend's mock-runtime tests use `dependsOn` instead of dynamic resources for that reason." But "use dependsOn instead" turned out to be insufficient — the failing path is `pulumi/runtime/closure/createClosure.ts` calling `node:trace_events` which is unavailable under vitest's worker model. This happens at *construction* time, not just at use-via-`dependsOn` time.
 
-**Fix**: replaced the `pulumi.dynamic.Resource` with a thin `pulumi.ComponentResource` of type `hulumi:baseline:github:CodeSecurityConfiguration`. The mock-runtime BDD assertion ("a resource of this type is registered") still holds; the ComponentResource doesn't trigger closure serialization. Real REST hooks are deferred to v1.1 (added a new D1.5 entry to `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`).
+**Fix**: replaced the `pulumi.dynamic.Resource` with a thin `pulumi.ComponentResource` of type `hulumi:baseline:github:CodeSecurityConfiguration`. The mock-runtime BDD assertion ("a resource of this type is registered") still holds; the ComponentResource doesn't trigger closure serialization. Real REST hooks are deferred to v1.1 (added a new D1.5 entry to `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`).
 
 **Rule for the next milestone (M3)**: **avoid `pulumi.dynamic.Resource` in any code path mock-runtime tests will execute**. ComponentResource registration is sufficient when tests assert on type-string presence; dynamic-resource REST hooks belong in code paths exercised only by real `pulumi up` (deferred to integration-only or later milestones).
 
@@ -42,7 +42,7 @@ The shell-metachar blacklist regex `[;\`$()&|<>\\\r\n\t\x00-\x1f]` triggered ESL
 
 ### CSC backend reframed from `pulumi.dynamic.Resource` to `ComponentResource` placeholder
 
-The M2 contract said "ships the CSC backend abstraction" with both implementations selectable. The CSC implementation in M2 is now a thin `ComponentResource` placeholder that registers the resource shape but does not issue real REST calls. Real REST integration is **D1.5 in the v1.1 deferrals** (added to `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md` during execution).
+The M2 contract said "ships the CSC backend abstraction" with both implementations selectable. The CSC implementation in M2 is now a thin `ComponentResource` placeholder that registers the resource shape but does not issue real REST calls. Real REST integration is **D1.5 in the v1.1 deferrals** (added to `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` during execution).
 
 This is a quiet narrowing of the M2 contract: M2 ships the *abstraction* with a real flat-fields backend and a placeholder CSC backend. Per the "err on side of security" stance from the user's earlier directive, this is a security-positive trade — the placeholder fails closed (no half-applied REST state), and the production REST hooks land alongside the v1.1 audit-log adapter where the test infrastructure for dynamic-resource testing can be solved once for both surfaces.
 

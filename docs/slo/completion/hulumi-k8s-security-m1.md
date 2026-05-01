@@ -17,15 +17,15 @@
 - `.github/workflows/release.yml` — four-package pack loop, four SBOMs, four `pnpm publish` lines.
 - `.github/workflows/ci.yml` — new `k8s-baseline-test` job; attestation-dry-run pack loop now four packages.
 - `.github/workflows/weekly-integration.yml` — k8s-baseline integration lanes always run (contract-only by default).
-- `docs/RUNBOOK-hulumi-operations-k8s-security.md` — Milestone Tracker M1 → `in_progress` (will flip to `done` on close).
+- `docs/slo/completed/RUNBOOK-hulumi-operations-k8s-security.md` — Milestone Tracker M1 → `in_progress` (will flip to `done` on close).
 
 ### Added
 - `packages/k8s-baseline/tests/release-readiness.test.ts` — 4 BDD scenarios (static-shape invariants).
 - `packages/k8s-baseline/tests/integration/kind/release-readiness.kind.test.ts` — kind-gated contract test.
 - `packages/k8s-baseline/tests/integration/eks/release-readiness.eks.test.ts` — EKS-gated contract test.
 - `packages/k8s-baseline/vitest.integration.config.ts` — sibling config so integration lanes can run.
-- `docs/lessons/hulumi-k8s-security-m1.md` — lessons file (this milestone).
-- `docs/completion/hulumi-k8s-security-m1.md` — this file.
+- `docs/slo/lessons/hulumi-k8s-security-m1.md` — lessons file (this milestone).
+- `docs/slo/completion/hulumi-k8s-security-m1.md` — this file.
 
 ## Tests added
 

@@ -62,7 +62,7 @@ The wedge persona is **Team / Pro tier (no GitHub Enterprise Cloud)**, confirmed
 - **`OrgFoundation` audit-log streaming**: not implemented in v1; the audit-log streams REST escape hatch is documented as a v1.1 follow-up. `EnterpriseSecurityAnalysisSettings` is similarly out of scope at the wedge tier.
 - **`OrganizationSettings`-based hardening**: in scope, with the GitHub-flagged "endpoint closing down notice" on the flat `*_enabled_for_new_repositories` fields treated as a known forward risk — `OrgFoundation` encapsulates org-level security defaults behind an internal abstraction so the Code Security Configurations REST escape hatch can flip in as a backend without a public API break.
 
-This is consistent with `docs/research/hulumi-github/synthesis.md`'s Option B + Option C composition recommendation.
+This is consistent with `docs/slo/research/hulumi-github/synthesis.md`'s Option B + Option C composition recommendation.
 
 ## Open questions for /slo-research
 

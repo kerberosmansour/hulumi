@@ -19,15 +19,15 @@ After M2, `@hulumi/baseline.github.OrgFoundation` ships as a composing `Componen
 - `packages/baseline/src/github/org-security-defaults.ts`
 - `packages/baseline/tests/github/org-foundation.test.ts`
 - `packages/baseline/tests/integration/github/org-foundation.integration.test.ts`
-- `docs/lessons/hulumi-github-m2.md`
-- `docs/completion/hulumi-github-m2.md`
+- `docs/slo/lessons/hulumi-github-m2.md`
+- `docs/slo/completion/hulumi-github-m2.md`
 
 ### Modified (4)
 
 - `packages/baseline/src/github/index.ts` — re-export `OrgFoundation`, `ORG_FOUNDATION_COMPONENT_TYPE`, args / outputs types, `HULUMI_OIDC_DEFAULT_CLAIM_KEYS`
 - `packages/baseline/tests/setup.ts` — mock state for `OrganizationRuleset`, `ActionsOrganizationPermissions`, OIDC template, `OrganizationSettings`, and `hulumi:baseline:github:CodeSecurityConfiguration`
-- `docs/RUNBOOK-hulumi-github.md` Milestone Tracker — M2 → in_progress (start) → done (close)
-- `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md` — added D1.5 (real REST hooks for CSC backend, deferred from M2 due to vitest dynamic-resource gotcha)
+- `docs/slo/completed/RUNBOOK-hulumi-github.md` Milestone Tracker — M2 → in_progress (start) → done (close)
+- `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` — added D1.5 (real REST hooks for CSC backend, deferred from M2 due to vitest dynamic-resource gotcha)
 
 ## Tests added
 

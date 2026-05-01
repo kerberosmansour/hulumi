@@ -1,0 +1,17 @@
+Hulumi
+Copyright 2026 Sherif Mansour
+
+Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+See LICENSE for the full text.
+
+Trade-mark notice: see TRADEMARKS.md. Apache 2.0 (section 6) does not grant
+any rights in the project's name or logo. The `@hulumi/*` npm scope is owned
+by Sherif Mansour; publishing under that scope requires written permission.
+
+Framework citations: Hulumi cites third-party security frameworks (CSA CCM /
+AICM / CAIQ, CIS Benchmarks, NIST SP 800-53 r5, NIST SP 800-218A, MITRE ATLAS)
+by ID only. No verbatim control text or licensed prose appears in `skills/`
+or `packages/` source. See SECURITY.md and docs/mappings/licensing.md.
+
+Provenance: every published `@hulumi/*` tarball ships with SLSA Build L3
+attestation. See docs/cookbooks/verify-provenance.md for verification.

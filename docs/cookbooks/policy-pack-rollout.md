@@ -28,7 +28,7 @@ export { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 EOF
 ```
 
-> Important: `@pulumi/policy`'s `new PolicyPack()` constructor starts a gRPC server at module load and only one is allowed per process. Always import packs from their dedicated entrypoint files (`@hulumi/policies/aws/packs/*`), never side-by-side from one file. See [lessons/hulumi-m2.md](../lessons/hulumi-m2.md) for the rationale.
+> Important: `@pulumi/policy`'s `new PolicyPack()` constructor starts a gRPC server at module load and only one is allowed per process. Always import packs from their dedicated entrypoint files (`@hulumi/policies/aws/packs/*`), never side-by-side from one file. See [lessons/hulumi-m2.md](../slo/lessons/hulumi-m2.md) for the rationale.
 
 ### 2. Run advisory-only
 

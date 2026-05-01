@@ -1,6 +1,6 @@
 // BDD scenarios for @hulumi/baseline.aws.SecureBucket. Each describe block
 // corresponds to one row of the M2 BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-m2.md. Pulumi mocks are installed in
+// docs/slo/runbook-milestones/hulumi-m2.md. Pulumi mocks are installed in
 // tests/setup.ts (vitest setupFile) so that `new SecureBucket(…)` below does
 // not require a real Pulumi engine.
 

@@ -1,6 +1,6 @@
 // BDD scenarios for @hulumi/policies.HulumiHardeningPack. Each describe
 // block corresponds to one row of M2's BDD Acceptance Scenarios table
-// (docs/runbook-milestones/hulumi-m2.md) covering H1 / H2 / H3 / H4 and
+// (docs/slo/runbook-milestones/hulumi-m2.md) covering H1 / H2 / H3 / H4 and
 // Suppression behaviour. Policies are invoked directly via their exported
 // validateResource / validateStack handlers so we don't need a running
 // Pulumi engine.

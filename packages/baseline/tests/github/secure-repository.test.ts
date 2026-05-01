@@ -1,6 +1,6 @@
 // BDD scenarios for @hulumi/baseline.github.SecureRepository. Each describe
 // block corresponds to one row of the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-github-m1.md. Pulumi mocks are installed
+// docs/slo/runbook-milestones/hulumi-github-m1.md. Pulumi mocks are installed
 // in tests/setup.ts (vitest setupFile) — `new SecureRepository(…)` does not
 // require a real Pulumi engine.
 //

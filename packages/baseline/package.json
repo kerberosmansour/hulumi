@@ -39,14 +39,14 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/aws": "7.27.0",
-    "@pulumi/github": "6.13.0",
-    "@pulumi/pulumi": "3.232.0"
+    "@pulumi/aws": "7.28.0",
+    "@pulumi/github": "6.13.1",
+    "@pulumi/pulumi": "3.234.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.27.0",
-    "@pulumi/github": "6.13.0",
-    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.28.0",
+    "@pulumi/github": "6.13.1",
+    "@pulumi/pulumi": "3.234.0",
     "@types/node": "20.19.39",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

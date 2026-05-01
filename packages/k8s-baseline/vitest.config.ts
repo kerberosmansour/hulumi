@@ -8,5 +8,12 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     testTimeout: 15000,
     reporters: "default",
+    // M2 fail-closed BDD scenarios throw `FailClosedError` inside Pulumi
+    // apply chains. Pulumi's `cmd/run` path installs an unhandled-rejection
+    // handler in production; the mock runtime in tests does not. The
+    // per-file `process.on("unhandledRejection")` listeners filter these
+    // (only FailClosedError is suppressed); this flag stops vitest from
+    // also flagging them as suite-level errors.
+    dangerouslyIgnoreUnhandledErrors: true,
   },
 });

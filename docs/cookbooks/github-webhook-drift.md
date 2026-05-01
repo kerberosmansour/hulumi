@@ -186,4 +186,4 @@ After the receiver is deployed and the GitHub webhook subscription is provisione
 - **D1.5** — Real REST hooks for the GHAS Code Security Configurations backend in `OrgFoundation`. Currently a `ComponentResource` placeholder.
 - **D5** — Threat-model skill scenario for GitHub Apps with broad org-admin scopes (post-Vercel-April-2026).
 
-See [`docs/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../runbook-milestones/hulumi-github-v1.1-deferrals.md) for the full list.
+See [`docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md`](../slo/runbook-milestones/hulumi-github-v1.1-deferrals.md) for the full list.

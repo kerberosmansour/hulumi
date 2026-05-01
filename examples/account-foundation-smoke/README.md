@@ -30,6 +30,6 @@ pnpm --filter @hulumi-examples/account-foundation-smoke typecheck
 - Real AWS deployment (`pulumi up` against a sandbox account) — that's
   the weekly integration workflow.
 - The `pulumi.dynamic.Resource` GuardDuty readiness probe — it conflicts
-  with vitest's worker pool (see [docs/lessons/hulumi-m3.md](../../docs/lessons/hulumi-m3.md));
+  with vitest's worker pool (see [docs/slo/lessons/hulumi-m3.md](../../docs/slo/lessons/hulumi-m3.md));
   the deterministic `dependsOn` chain in `securityhub.ts` provides
   equivalent ordering for the real-AWS path.

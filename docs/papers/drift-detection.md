@@ -323,7 +323,7 @@ All adapters are **constructor-injected** with their underlying dependency (a Pu
 - `detected = true` iff the resource has any entry in `detailedDiff`, OR there are any `update`/`replace` ops in the change summary.
 - `ok = false` iff the preview call itself threw.
 
-**Why it's the right shape**: Pulumi's Automation API exposes preview as a function call rather than a CLI invocation. Wrapping it lets us call it from inside vitest workers without spawning subprocesses (which would re-introduce the `pulumi.dynamic.Resource` / `trace_events` issue documented in [M3 lessons](../lessons/hulumi-m3.md)).
+**Why it's the right shape**: Pulumi's Automation API exposes preview as a function call rather than a CLI invocation. Wrapping it lets us call it from inside vitest workers without spawning subprocesses (which would re-introduce the `pulumi.dynamic.Resource` / `trace_events` issue documented in [M3 lessons](../slo/lessons/hulumi-m3.md)).
 
 ### 4.2 CloudTrailAdapter — was a non-IaC principal involved?
 
@@ -382,7 +382,7 @@ The classifier runs all four adapters via `Promise.allSettled` ([classifier.ts:8
 2. **CloudTrail late-event override** ([classifier.ts:131-137](../../packages/drift/src/classifier.ts#L131-L137)): if the probe was unavailable but the long-window CloudTrail lookup surfaced events, promote to `ConsoleBreakGlass / high`. The TLA+ matrix assumes a working probe; in practice the long lookup can catch events the probe missed.
 3. **GitLog promotion** ([classifier.ts:139-142](../../packages/drift/src/classifier.ts#L139-L142)): if the verdict is `Unknown` AND git-log shows commits, promote to `GenuineIacDrift / medium`.
 
-Step 1 is TLA+-bound. Steps 2 and 3 are operational refinements documented in [M4 lessons § Cache promotes ConsoleBreakGlass](../lessons/hulumi-m4.md) — they extend the verdict beyond what the model says, in the conservative direction (more-confident, not less). The monotonicity guard makes this safe: a refined verdict can only raise confidence, never demote.
+Step 1 is TLA+-bound. Steps 2 and 3 are operational refinements documented in [M4 lessons § Cache promotes ConsoleBreakGlass](../slo/lessons/hulumi-m4.md) — they extend the verdict beyond what the model says, in the conservative direction (more-confident, not less). The monotonicity guard makes this safe: a refined verdict can only raise confidence, never demote.
 
 ---
 

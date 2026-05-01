@@ -58,9 +58,51 @@ The policy is codified in `SECURITY.md` once M5 lands.
 - `.gitignore` covers any new generated artifacts.
 - `git status` clean after running tests.
 
+## Runbook discipline (for non-trivial work)
+
+Hulumi follows the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` discipline for non-trivial features: every feature lives in a `docs/slo/current/RUNBOOK-<feature>.md` with allowed files, forbidden shortcuts, BDD scenarios, abuse cases, and regression tests. The full layout convention is at [docs/slo/README.md](./docs/slo/README.md).
+
+**Recommended workflow** for a new component / policy rule / drift adapter / threat-model scenario:
+
+1. **Open an issue first.** The runbook discipline only pays off when scope is agreed before code is written. Tiny fixes (typos, broken links, one-line bug fixes) can skip this step.
+2. **Use the `/slo-*` skills on yourself.** `/slo-ideate` → `/slo-research` → `/slo-architect` → `/slo-plan` produces a runbook the maintainers can review *before* any code lands. This is the lowest-friction path to merging — reviewers can sign off on the plan and trust the execution.
+3. **Pass the baseline** — the `Pre-submit checks` section above.
+4. **Open a PR** following the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). Link to the runbook + closed-milestone summary if there is one.
+
+The runbook templates live at [docs/slo/templates/](./docs/slo/templates/). Runbooks completed against the older v3 template stay completed; new runbooks should use v4.
+
+## What's currently most welcome
+
+- **Real-world false-positive shakedown** of `HulumiHardeningPack` / `CisV5Pack` / `HulumiK8sHardeningPack` / `HulumiOperationsHardeningPack` against your own Pulumi programs, with PRs tightening any over-broad rules.
+- **New component proposals** — open a feature-request issue with the proposed shape, then run `/slo-ideate` if accepted.
+- **`/hulumi-threat-model` scenarios** anchored on named real-world incidents.
+- **kind / EKS integration tests** — the runbook anticipates them and the gating skeletons exist; what's missing is real-cluster wiring in CI.
+- **Documentation polish** — typos, broken links, clearer examples.
+
+## What is out of scope
+
+- Switching the licence from Apache-2.0 to anything else. The Apache-2.0 + IDs-only-citations stance is load-bearing — see [SECURITY.md](./SECURITY.md) and [docs/mappings/licensing.md](./docs/mappings/licensing.md).
+- Adding new runtime dependencies to `@hulumi/baseline` / `@hulumi/policies` / `@hulumi/drift` / `@hulumi/k8s-baseline` without supply-chain rationale (see "No runtime dependency additions without discussion" above).
+- Extending `/hulumi-threat-model` to non-Apache-2.0-compatible framework prose. Citations only.
+
 ## Code of Conduct
 
 Participation in this project is governed by the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). By participating you are expected to uphold this code. Report unacceptable behavior to the project maintainers.
+
+## New source files — copyright and SPDX header
+
+For **new** source files you create, add this header at the top:
+
+```ts
+// Copyright 2026 Sherif Mansour and Hulumi contributors.
+// SPDX-License-Identifier: Apache-2.0
+```
+
+(Adjust comment syntax for the language.) Existing files do not need to be retroactively headered — the project-level [NOTICE](./NOTICE) and [LICENSE](./LICENSE) cover the repo as a whole. The per-file header is belt-and-braces for new code, not a requirement to bulk-edit existing code.
+
+## Trade-marks
+
+The Apache-2.0 licence grants no rights in the project name or logo. See [TRADEMARKS.md](./TRADEMARKS.md) for what permission you do and do not need before using the name in a fork, derivative, or downstream product. The `@hulumi/*` npm scope is owned by Sherif Mansour; publishing under that scope requires written permission.
 
 ## Security
 

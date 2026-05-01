@@ -28,7 +28,7 @@ export { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 EOF
 ```
 
-> Important: `@pulumi/policy`'s `new PolicyPack()` constructor starts a gRPC server at module load and only one is allowed per process. Always import packs from their dedicated entrypoint files (`@hulumi/policies/aws/packs/*`), never side-by-side from one file. See [lessons/hulumi-m2.md](../lessons/hulumi-m2.md) for the rationale.
+> Important: `@pulumi/policy`'s `new PolicyPack()` constructor starts a gRPC server at module load and only one is allowed per process. Always import packs from their dedicated entrypoint files (`@hulumi/policies/aws/packs/*`), never side-by-side from one file. See [lessons/hulumi-m2.md](../slo/lessons/hulumi-m2.md) for the rationale.
 
 ### 2. Run advisory-only
 
@@ -100,6 +100,42 @@ hulumiHardeningPack.policies.find((p) => p.name.includes("H3")).enforcementLevel
 Do this only if you're already applying the SCP template — otherwise expect drive-by failures from teams that haven't tagged their IaC role yet.
 
 **Both `HulumiHardeningPack` and `CisV5Pack` need to load — preview crashes.** Don't import them in the same file. Use one entrypoint per process and call `pulumi preview --policy-pack ./policies-hulumi --policy-pack ./policies-cis`. Each pack's instance lives in its own gRPC server.
+
+## Rolling out the K8s / EKS packs
+
+Three additional CrossGuard packs ship in `@hulumi/policies` for K8s/EKS Pulumi programs (added in runbook `hulumi-operations-k8s-security` Milestone 3):
+
+- `@hulumi/policies/k8s/packs/hulumi-k8s-hardening` — workload + Service rules (`WL-1` privileged · `WL-2` host namespaces · `WL-3` mutable image tags · `WL-4` resources advisory · `SVC-1` public LoadBalancer needs justification).
+- `@hulumi/policies/k8s/packs/hulumi-k8s-rbac` — RBAC rules (`RBAC-1` wildcard verbs · `RBAC-2` Secret list/watch · `RBAC-3` cluster-admin binding).
+- `@hulumi/policies/k8s/packs/hulumi-eks-cluster` — EKS control-plane rules (`EKS-CL-1` public endpoint CIDR · `EKS-CL-2` audit logging required).
+
+### Phased rollout pattern
+
+1. **Day 0** — point `PulumiPolicy.yaml` at `hulumi-k8s-hardening`. The four mandatory rules (WL-1, WL-2, WL-3, SVC-1) catch the highest-blast-radius shapes; `WL-4` is advisory by default and surfaces as a warning rather than a deploy-blocker.
+2. **Day 7** — add `hulumi-k8s-rbac`. RBAC violations often shake out platform-team tooling on the first preview; expect to add 1-3 suppressions for legitimate cluster operators (external-secrets, metrics-server) — each requires a written `reason` on the suppression entry.
+3. **Day 14** — add `hulumi-eks-cluster`. `EKS-CL-1` typically catches "we set `endpointPublicAccess: true` but forgot to restrict `publicAccessCidrs`"; `EKS-CL-2` catches "audit logs got disabled in a quick test and never re-enabled".
+
+`@pulumi/policy` only allows one PolicyPack per process — load each pack with its own `--policy-pack` flag:
+
+```bash
+pulumi preview \
+  --policy-pack ./policies-hulumi \
+  --policy-pack ./policies-k8s-hardening \
+  --policy-pack ./policies-k8s-rbac \
+  --policy-pack ./policies-eks-cluster
+```
+
+### Suppressions
+
+Each rule respects the existing `Suppression` API — a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored (M3 invariant). Trailing-`*` glob in `urnScope` matches by URN prefix; an exact URN matches that one resource.
+
+```ts
+// PulumiPolicy.yaml or stack config
+suppressions:
+  - ruleId: HULUMI-K8S-RBAC-2
+    urnScope: "urn:pulumi:prod::p::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::external-secrets"
+    reason: "external-secrets operator needs cluster-wide secret list/watch."
+```
 
 ## See also
 

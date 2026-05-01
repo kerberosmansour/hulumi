@@ -141,7 +141,7 @@ class FlatFieldsBackend implements OrganizationSecurityDefaultsBackend {
  * "a resource of this type is registered" holds in mock-runtime tests.
  * Real REST integration (POST/PATCH/DELETE against `/orgs/{org}/
  * code-security/configurations`) is a v1.1 deferral tracked in
- * `docs/runbook-milestones/hulumi-github-v1.1-deferrals.md` (D2 / D3
+ * `docs/slo/runbook-milestones/hulumi-github-v1.1-deferrals.md` (D2 / D3
  * neighborhood — added during /slo-execute M2).
  */
 export const CSC_RESOURCE_TYPE = "hulumi:baseline:github:CodeSecurityConfiguration";

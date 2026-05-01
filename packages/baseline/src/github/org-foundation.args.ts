@@ -57,7 +57,7 @@ export interface OrgFoundationArgs {
    * Required by GitHub's `OrganizationSettings` resource. Owners API does not
    * default this; Hulumi's `OrgFoundation` exposes it as a required field
    * rather than baking in a placeholder. (Captured as an intentional addition
-   * during /slo-execute M2 — see `docs/lessons/hulumi-github-m2.md`.)
+   * during /slo-execute M2 — see `docs/slo/lessons/hulumi-github-m2.md`.)
    */
   billingEmail: pulumi.Input<string>;
   /** Defaults to `"flat-fields"`. */

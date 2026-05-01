@@ -13,7 +13,7 @@
 // `trace_events` module is unavailable in test workers). AWS's
 // CreateDetector API resolves only after status === ENABLED, so the
 // dependsOn chain provides equivalent ordering for real deployments.
-// Documented in docs/lessons/hulumi-m3.md.
+// Documented in docs/slo/lessons/hulumi-m3.md.
 
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";

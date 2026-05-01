@@ -67,5 +67,71 @@ export type {
 } from "./github-app-credential.args";
 export type { GitHubAppCredentialOutputs } from "./github-app-credential.outputs";
 
+export {
+  NamespaceFoundation,
+  NAMESPACE_FOUNDATION_COMPONENT_TYPE,
+} from "./namespace-foundation";
+
+export {
+  EksRuntimeDetectionFoundation,
+  EKS_RUNTIME_DETECTION_FOUNDATION_COMPONENT_TYPE,
+} from "./eks-runtime-detection-foundation";
+export type {
+  EksRuntimeDetectionFoundationArgs,
+  EksComputeMode,
+} from "./eks-runtime-detection-foundation.args";
+export { MAX_RUNTIME_ALARM_RULES } from "./eks-runtime-detection-foundation.args";
+export type { EksRuntimeDetectionFoundationOutputs } from "./eks-runtime-detection-foundation.outputs";
+
+export {
+  EksAddonFoundation,
+  EKS_ADDON_FOUNDATION_COMPONENT_TYPE,
+} from "./eks-addon-foundation";
+export type { EksAddonFoundationArgs, EksAddonSpec } from "./eks-addon-foundation.args";
+export { MAX_EKS_ADDONS } from "./eks-addon-foundation.args";
+export type { EksAddonFoundationOutputs } from "./eks-addon-foundation.outputs";
+
+export {
+  planUpgrade,
+  reportToMarkdown,
+  MAX_UPGRADE_PLANNER_ADDONS,
+} from "./eks-upgrade-planner";
+export type {
+  EksSupportStatus,
+  EksAddonInventory,
+  EksUpgradeInventory,
+  UpgradeVerdict,
+  UpgradeReport,
+} from "./eks-upgrade-planner";
+
+export {
+  EksBackupFoundation,
+  EKS_BACKUP_FOUNDATION_COMPONENT_TYPE,
+} from "./eks-backup-foundation";
+export type {
+  EksBackupFoundationArgs,
+  EksBackupLifecycleRule,
+} from "./eks-backup-foundation.args";
+export {
+  MAX_BACKUP_LIFECYCLE_RULES,
+  MAX_BACKUP_SELECTIONS,
+} from "./eks-backup-foundation.args";
+export type { EksBackupFoundationOutputs } from "./eks-backup-foundation.outputs";
+export type {
+  NamespaceFoundationArgs,
+  NamespaceFoundationQuota,
+  NamespaceFoundationLimitRange,
+  NamespaceFoundationNetworkDefaults,
+  PsaLevel,
+  AutomountTokenMode,
+} from "./namespace-foundation.args";
+export {
+  MAX_NAMESPACE_LABELS,
+  MAX_QUOTA_ENTRIES,
+  MAX_NETWORK_POLICY_PEERS,
+  RECOMMENDED_NETWORK_POLICY_PEERS,
+} from "./namespace-foundation.args";
+export type { NamespaceFoundationOutputs } from "./namespace-foundation.outputs";
+
 export { TESTED_VERSIONS, assertVersionTested } from "./compatibility";
 export type { TestedChartName } from "./compatibility";

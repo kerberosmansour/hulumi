@@ -2,7 +2,7 @@
 
 Hardened S3 bucket `ComponentResource` with Sandbox and Startup-Hardened tiers. All sub-resources are children of the `hulumi:baseline:aws:SecureBucket` component; every one carries the `hulumi:component`, `hulumi:tier`, and `hulumi:controls` tag triple.
 
-**Stability**: `stable` from v0.2 per [interfaces.md §1](../design/hulumi/interfaces.md).
+**Stability**: `stable` from v0.2 per [interfaces.md §1](../slo/design/hulumi/interfaces.md).
 **Ships**: M2.
 **Paired policies**: `HulumiHardeningPack` H1 (blocks raw `aws.s3.BucketV2`), H4 (Startup-Hardened requires logging sibling).
 
@@ -71,7 +71,7 @@ All children of a `SecureBucket` carry:
 | `hulumi:tier`      | `sandbox` \| `startup-hardened` | Tier metadata; consumed by H4 and the M4 drift classifier.             |
 | `hulumi:controls`  | comma-separated framework IDs   | Which CCM/CIS/NIST IDs this component claims to address (≥ 5 entries). |
 
-Tag-key schema is `stable` per [interfaces.md §6](../design/hulumi/interfaces.md).
+Tag-key schema is `stable` per [interfaces.md §6](../slo/design/hulumi/interfaces.md).
 
 ## Framework IDs cited
 

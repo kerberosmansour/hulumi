@@ -111,7 +111,7 @@ See [integration-testing.md](./integration-testing.md) for cost contract and tea
 
 ## Build pipeline
 
-Each package has its own `tsconfig.build.json` that excludes tests and emits `dist/` with declarations. The publishable shape (`exports` map, `peerDependencies`) is fixed per [interfaces.md](./design/hulumi/interfaces.md) (upstream planning corpus); changing it is a v2.0 concern.
+Each package has its own `tsconfig.build.json` that excludes tests and emits `dist/` with declarations. The publishable shape (`exports` map, `peerDependencies`) is fixed per [interfaces.md](./slo/design/hulumi/interfaces.md) (upstream planning corpus); changing it is a v2.0 concern.
 
 Notable build-shape decisions:
 
@@ -162,7 +162,7 @@ If you want to add a new scenario, add the JSON, update SKILL.md's prebuilt-scen
 - **Pulumi mocks fire async.** Awaiting one output doesn't barrier sibling registrations. Use the `settlePulumi()` helper.
 - **`pulumi.dynamic.Resource` doesn't run under vitest's worker pool** (Pulumi's closure serialization needs Node's `trace_events`). Both M3 and M4 use direct `dependsOn` instead. The escape hatch lives at `packages/baseline/src/aws/probes/poll.ts` — preserved but unused.
 
-The lessons docs ([docs/lessons/hulumi-m\*.md](./lessons/)) capture the full per-milestone list. When you trip over something not yet documented, add it.
+The lessons docs ([docs/slo/lessons/hulumi-m\*.md](./slo/lessons/)) capture the full per-milestone list. When you trip over something not yet documented, add it.
 
 ## Releasing
 
@@ -180,4 +180,4 @@ If a publish goes wrong, **don't `npm unpublish`.** Cut a `<x.y.z+1>` patch inst
 - Bugs / feature requests → GitHub issues.
 - Design or roadmap questions → GitHub Discussions.
 - Security disclosures → see [SECURITY.md](../SECURITY.md).
-- Conventions ambiguities → check [docs/lessons/](./lessons/) first; many gotchas have already been documented per-milestone.
+- Conventions ambiguities → check [docs/slo/lessons/](./slo/lessons/) first; many gotchas have already been documented per-milestone.

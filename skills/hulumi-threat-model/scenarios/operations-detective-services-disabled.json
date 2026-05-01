@@ -1,0 +1,69 @@
+{
+  "id": "operations-detective-services-disabled",
+  "title": "Operations — Detective Services Disabled / Routes Broken",
+  "description": "An engineer wires up GuardDuty + Inspector v2 + Access Analyzer + Cost Anomaly Detection through `DetectiveServicesEnable` (M8), but the EventBridge route to MonitoringFoundation's SNS topic was never tested end-to-end. KEV findings (CISA Known Exploited Vulnerabilities) flow through the primary topic instead of a pager-targeted secondary topic — the M8 dual-routing path. Threats focus on detection gaps and the route that exists in IaC but doesn't actually deliver.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-AWS-v5.0.0"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "On-call SRE (consumer of the SNS topic)",
+    "External Attacker (post-compromise; objective: delay detection)"
+  ],
+  "assets": [
+    "GuardDuty findings stream",
+    "Inspector v2 KEV findings (CISA-tagged code vulnerabilities)",
+    "Cost Anomaly Detection daily report",
+    "MonitoringFoundation SNS topic ARNs (primary + KEV pager)"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "Spoofed EventBridge target",
+      "description": "An attacker with `events:PutTargets` permission can swap the SNS target on the primary route, redirecting findings to an attacker-controlled topic. Mitigation: SCP-style guardrails on `events:PutTargets` in production accounts; EventBridge target ARNs are visible in CloudTrail.",
+      "controls": ["CCM:IAM-09", "NIST-800-53-r5:AC-6"]
+    },
+    {
+      "type": "T",
+      "name": "Tampered Inspector v2 enabler — partial coverage",
+      "description": "An attacker (or careless author) reconfigures `aws.inspector2.Enabler.resourceTypes` to drop LAMBDA. Lambda-layer CVEs go undetected. Mitigation: `O_INSPECTOR_1` (M10) refuses partial coverage at preview; suppression with reason is auditable.",
+      "controls": ["CCM:VUL-01", "NIST-800-53-r5:RA-5"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via KEV findings buried in primary topic",
+      "description": "Without `findingsKevRoutingSnsArn`, KEV (Known Exploited) findings are interleaved with low-priority Inspector findings on the primary topic. On-call rotation skims past the KEV alert. Mitigation: M8 dual routing pattern + the typed `kevDualRoutingActive: Output<true>` operator-confirmation flag.",
+      "controls": ["CCM:LOG-01", "ATLAS:AML.T0006"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via Cost Anomaly to wrong subscriber",
+      "description": "Cost Anomaly Subscriptions specify the SNS topic in plain text. A misconfigured subscriber reveals service-level cost patterns to the wrong tenant. Mitigation: `findingsRoutingSnsArn` is required (no default); KMS encryption on the SNS topic is the consumer's responsibility.",
+      "controls": ["CCM:DSP-04", "NIST-800-53-r5:SC-28"]
+    },
+    {
+      "type": "D",
+      "name": "Denial via Access Analyzer disabled in a fresh account",
+      "description": "Newly-onboarded accounts that skip `enableAccessAnalyzer: true` have no external-access analyzer. Mitigation: M8 default-on flag.",
+      "controls": ["CCM:IAM-09", "CIS-AWS-v5.0.0:1.19"]
+    },
+    {
+      "type": "E",
+      "name": "Elevation via unmonitored cross-account assume-role",
+      "description": "Without Access Analyzer, cross-account assume-role chains accumulate without external-access review. Mitigation: M8's Access Analyzer + the `IdentityAlarms.iam-role-policy-change` event firing on every assume-role-policy edit.",
+      "controls": ["CCM:IAM-10", "NIST-800-53-r5:CA-7"]
+    }
+  ],
+  "abuseCases": [
+    {
+      "id": "tm-hulumi-ops-abuse-detective-route-untested",
+      "title": "Detective EventBridge route exists in IaC but is never delivered",
+      "description": "Mitigation: real-AWS sandbox integration test (deferred from M8); periodic delivery probe.",
+      "controls": ["CCM:LOG-01"]
+    },
+    {
+      "id": "tm-hulumi-ops-abuse-kev-buried",
+      "title": "KEV findings buried in the primary topic",
+      "description": "Mitigation: M8 dual-routing pattern.",
+      "controls": ["CCM:LOG-01"]
+    }
+  ]
+}

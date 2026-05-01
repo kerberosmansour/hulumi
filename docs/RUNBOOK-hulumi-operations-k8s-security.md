@@ -68,7 +68,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | 4 | Namespace and network security foundations | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m4.md` | `docs/completion/hulumi-k8s-security-m4.md` |
 | 5 | EKS detection and disaster recovery foundations | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m5.md` | `docs/completion/hulumi-k8s-security-m5.md` |
 | 6 | EKS upgrade, add-on, drift, and threat-model expansion | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-k8s-security-m6.md` | `docs/completion/hulumi-k8s-security-m6.md` |
-| 7 | Ops M1: `Ec2PatchBaseline` + `Ec2PatchWaves` | `not_started` | | | `docs/lessons/hulumi-operations-m1.md` | `docs/completion/hulumi-operations-m1.md` |
+| 7 | Ops M1: `Ec2PatchBaseline` + `Ec2PatchWaves` | `done` | 2026-05-01 | 2026-05-01 | `docs/lessons/hulumi-operations-m1.md` | `docs/completion/hulumi-operations-m1.md` |
 | 8 | Ops M2: `DetectiveServicesEnable` | `not_started` | | | `docs/lessons/hulumi-operations-m2.md` | `docs/completion/hulumi-operations-m2.md` |
 | 9 | Ops M3: `AuditTrail` + `IdentityAlarms` extension | `not_started` | | | `docs/lessons/hulumi-operations-m3.md` | `docs/completion/hulumi-operations-m3.md` |
 | 10 | Ops M4: `HulumiOperationsHardeningPack` | `not_started` | | | `docs/lessons/hulumi-operations-m4.md` | `docs/completion/hulumi-operations-m4.md` |

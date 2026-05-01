@@ -83,7 +83,9 @@ The design doc's Rule 0 governs scope. Restated for cross-reference:
 
 Each component lands in a milestone (M1–M4). The fifth column ("M5") covers release-pipeline / supply-chain risks.
 
-### `Ec2PatchBaseline` (M1)
+### `Ec2PatchBaseline` + `Ec2PatchWaves` (M1)
+
+> Updated 2026-05-01: M1 ships both `Ec2PatchBaseline` and the wave-composer `Ec2PatchWaves`. STRIDE rows below cover both surfaces. Two new abuse cases (`tm-hulumi-ops-abuse-tag-outside-enum`, `tm-hulumi-ops-abuse-skip-wave-gate`) reflect the wave model.
 
 | STRIDE                       | Threat                                                                                 | Eliminated / mitigated / residual                                                                                                                                                          | Abuse-case row                                          |
 | ---------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
@@ -94,8 +96,12 @@ Each component lands in a milestone (M1–M4). The fifth column ("M5") covers re
 | **I** Information Disclosure | Maintenance Window task script (`AWS-RunPatchBaseline` document) parameter values leak via SSM Run Command history | Eliminated by using AWS-managed documents only (no Hulumi-authored Run Command documents that could embed sensitive values); class V6 sensitive data exposure                              | `tm-hulumi-ops-abuse-no-runcmd-secrets`                 |
 | **D** Denial of Service      | Maintenance Window cron set to `cron(*/1 * * * ? *)` (every minute) — runaway scheduling | Mitigated by a CrossGuard rule (`O_PATCH_3`, advisory in v1.2) that flags windows scheduled more frequently than every 24h; class V11 race                                                  | `tm-hulumi-ops-abuse-runaway-window`                    |
 | **E** Elevation of Privilege | Maintenance Window service role over-granted (e.g., `*:*` for SSM convenience)         | Eliminated by Hulumi-authored least-privilege service role policy template (`ssm:SendCommand` + `ssm:GetCommandInvocation` + `ec2:DescribeInstances` only); class V14                       | `tm-hulumi-ops-abuse-service-role-least-priv`           |
+| **T** Tampering              | Consumer tags an EC2 with `Patch:Group=experiment` (free-form value outside the wave enum) — instance silently slips out of any wave's selector | Eliminated by `O_PATCH_1` (M4) tightening from "any value" to enum check `Patch:Group ∈ {dev, staging, production}`; class V14 hardened defaults                                                | `tm-hulumi-ops-abuse-tag-outside-enum`                  |
+| **D** Denial of Service / safety | Consumer manually flips a wave's `MaintenanceWindow.enabled: true` to bypass a fired health gate, mid-incident         | Mitigated by CloudTrail capture of `ssm:UpdateMaintenanceWindow` events routed through `MonitoringFoundation.high` (existing path); residual: this is a deliberate human override and Hulumi does not block it (consumer ops decision); class V11 race           | `tm-hulumi-ops-abuse-skip-wave-gate`                    |
 
 ### `DetectiveServicesEnable` (M2)
+
+> Updated 2026-05-01: design revised after Inspector v2 KEV-native research. `findingsKevRoutingSnsArn` is a new arg; the dual-route default (firehose at HIGH, KEV-only at high-priority) replaces the single-route prior shape. STRIDE rows below cover the dual-route surface.
 
 | STRIDE                       | Threat                                                                                              | Eliminated / mitigated / residual                                                                                                                                                              | Abuse-case row                                          |
 | ---------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -105,6 +111,8 @@ Each component lands in a milestone (M1–M4). The fifth column ("M5") covers re
 | **I** Information Disclosure | Cost Anomaly Detection findings route to a SNS topic with public access policy                     | Eliminated by relying on `MonitoringFoundation`'s SNS topic — its access policy is hardened; class V6                                                                                          | `tm-hulumi-ops-abuse-sns-public-access`                 |
 | **D** Denial of Service      | Inspector v2 fanout scans saturate the consumer's CW Logs ingestion budget                          | Residual risk — Hulumi cannot bound AWS-side scanning rate. Mitigation surfaced in component reference docs: `findingsSeverityFloor` filters routing, but ingestion is on Inspector's side. | `tm-hulumi-ops-abuse-inspector-fanout-residual`         |
 | **E** Elevation of Privilege | A consumer who can call `pulumi up` can disable detective services across the account               | Mitigated by `O_DETECT_1` policy rule (mandatory at StartupHardened) that rejects a stack diff that removes a `DetectiveServicesEnable` declaration; class V14                                  | `tm-hulumi-ops-abuse-detect-removal-rejected`           |
+| **T** Tampering              | EventBridge rule pattern uses a wildcard `{}` and routes ALL Inspector findings to high-priority SNS | Eliminated by mandatory pattern shape: KEV route requires `$.detail.findingDetails.kev.dateAdded` exists; firehose route requires `$.detail.severity ∈ ["HIGH", "CRITICAL"]`; assertion in mock-runtime test verifies the JSON shape | `tm-hulumi-ops-abuse-eventbridge-pattern-wildcard`      |
+| **I** Information Disclosure | KEV route bypassed because EventBridge matches on `kev.dateAdded` field that doesn't exist when KEV is empty | Mitigated by null-safe pattern `{"detail.findingDetails.kev.dateAdded": [{"exists": true}]}`; the firehose route still fires on severity floor regardless, so high-severity non-KEV findings still page | `tm-hulumi-ops-abuse-kev-pattern-null-bypass`           |
 
 ### `AuditTrail` (M3)
 
@@ -140,8 +148,8 @@ Each component lands in a milestone (M1–M4). The fifth column ("M5") covers re
 
 The full per-row STRIDE table above produces `tm-hulumi-ops-abuse-N` IDs. The minimum three-per-surface bar from `/slo-architect` Step 3.5 is satisfied by:
 
-- **`Ec2PatchBaseline`**: `noreboot-without-decision`, `stagger-fail-loud`, `service-role-least-priv` (3+ more in table).
-- **`DetectiveServicesEnable`**: `routing-required-hardened`, `severity-null-routing`, `detect-removal-rejected` (3+ more in table).
+- **`Ec2PatchBaseline` + `Ec2PatchWaves`**: `noreboot-without-decision`, `stagger-fail-loud`, `service-role-least-priv`, `tag-outside-enum`, `skip-wave-gate` (5+ more in table).
+- **`DetectiveServicesEnable`**: `routing-required-hardened`, `severity-null-routing`, `detect-removal-rejected`, `eventbridge-pattern-wildcard`, `kev-pattern-null-bypass` (5+ more in table).
 - **`AuditTrail`**: `trail-tamper`, `bucket-publicread-bpb`, `bucket-policy-ordering` (3+ more in table).
 - **`HulumiOperationsHardeningPack`**: `raw-ec2-rejected`, `scanonpush-false-rejected`, `tier-monotonicity-violation`, `suppression-without-reason` (4 — meta-tests count).
 
@@ -200,4 +208,4 @@ Ec2PatchBaseline ships with a default MaintenanceWindow schedule (e.g., cron(0 0
 - M4's BDD must include `raw-ec2-rejected`, `scanonpush-false-rejected`, `tier-monotonicity-violation`, `suppression-without-reason`.
 - M5's BDD covers `rule-pack-feature-flag` plus the existing supply-chain abuse cases (no net-new ones — release pipeline is unchanged).
 
-The full abuse-case row count for this runbook is **17 net-new + 4 inherited = 21 total**, sized appropriately for a five-milestone runbook (the `hulumi-github` runbook had 19 abuse-case rows over five milestones for comparison).
+The full abuse-case row count for this runbook is **21 net-new + 4 inherited = 25 total** (after the 2026-05-01 diff added `tag-outside-enum`, `skip-wave-gate`, `eventbridge-pattern-wildcard`, `kev-pattern-null-bypass`), sized appropriately for a five-milestone runbook (the `hulumi-github` runbook had 19 abuse-case rows over five milestones for comparison).

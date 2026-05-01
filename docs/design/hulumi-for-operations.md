@@ -80,7 +80,7 @@ The line we draw, mirroring the `hulumi-k8s` Rule 0 boundary contract:
 ```ts
 new baseline.aws.Ec2PatchBaseline("prod-linux-patches", {
   tier: Tier.StartupHardened,            // Sandbox | StartupHardened — same enum as the rest of @hulumi/baseline
-  patchGroupTagValue: "production",       // selects EC2s tagged Patch:Group=production
+  patchGroupTagValue: "production",       // enum: "dev" | "staging" | "production" — REVISED 2026-05-01 per Flaw 2; refused otherwise
   operatingSystem: "AMAZON_LINUX_2023",   // also: UBUNTU, WINDOWS, AMAZON_LINUX_2, REDHAT_ENTERPRISE_LINUX
   approvalRules: {
     approveAfterDays: 7,                  // PCI-DSS-aligned (Req 6.3.3 — within 1 month, 7 days = sane buffer)
@@ -107,6 +107,57 @@ new baseline.aws.Ec2PatchBaseline("prod-linux-patches", {
 **Outputs.** `patchBaselineId`, `patchBaselineArn`, `maintenanceWindowId`, `serviceRoleArn`, `complianceMetricFilterName`, `complianceAlarmArn`. Stable names (`stable` interface level — see [§ Public interfaces](#public-interfaces--stability-levels)).
 
 **Why a single `Ec2PatchBaseline` and not split** (`PatchBaseline`, `MaintenanceWindow`, `MaintenanceWindowTask` as separate components). Splitting would mirror `aws.ssm.*` 1:1 but the value Hulumi adds is *bundling* the six resources with the right inter-dependencies (target selector → window task → patch baseline → service role) so that `pulumi destroy` cleans up cleanly. Five of every six adopters re-derive the same six-resource glue — that is exactly the hand-rolled-boilerplate cost the [§ Why this doc exists](#why-this-doc-exists-and-what-it-isnt) section above is designed to delete.
+
+## Decision: `Ec2PatchWaves` shape (M1 — added 2026-05-01 per Flaw 2)
+
+**Decision.** Build a sibling `ComponentResource` `Ec2PatchWaves` that composes three `Ec2PatchBaseline`s — one per environment wave — with sequenced `MaintenanceWindow` schedules and a CloudWatch composite-alarm health gate between waves. Ships in the same milestone (M1) as `Ec2PatchBaseline` because they share ~90% of the implementation.
+
+**Why.** The original "production-only Patch Group" framing was wrong: dev and staging drift from production fast, regress patch coverage, and provide no canary signal before production patches roll. The wave model — dev → staging → production with health gates between — is how every team running >1 environment actually does this safely. Hulumi's tier ladder maps onto wave count (Sandbox: dev only; StartupHardened: all three).
+
+**API shape (proposed).**
+
+```ts
+new baseline.aws.Ec2PatchWaves("fleet-patches", {
+  tier: Tier.StartupHardened,
+  // Each wave is a full Ec2PatchBaseline arg minus tier (inherited) and patchGroupTagValue (set by the wave key)
+  waves: {
+    dev: {
+      operatingSystem: "AMAZON_LINUX_2023",
+      approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
+      maintenanceWindow: { schedule: "cron(0 02 ? * SUN *)", durationHours: 2, cutoffHours: 1, rebootOption: { kind: "RebootIfNeeded" } },
+      staggering: { bucketCount: 1, bucketWindowOffsetMinutes: 0 },
+    },
+    staging: {
+      operatingSystem: "AMAZON_LINUX_2023",
+      approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
+      maintenanceWindow: { schedule: "cron(0 02 ? * MON *)", durationHours: 2, cutoffHours: 1, rebootOption: { kind: "RebootIfNeeded" } },
+      staggering: { bucketCount: 2, bucketWindowOffsetMinutes: 30 },
+    },
+    production: {
+      operatingSystem: "AMAZON_LINUX_2023",
+      approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
+      maintenanceWindow: { schedule: "cron(0 02 ? * TUE *)", durationHours: 4, cutoffHours: 2, rebootOption: { kind: "RebootIfNeeded" } },
+      staggering: { bucketCount: 4, bucketWindowOffsetMinutes: 15 },
+    },
+  },
+  complianceMetric: { snsTopicArn: monitoring.high.arn, severityThreshold: "Critical" },  // shared across all three waves
+  // Wave health gate inputs — composite alarm gates the next wave
+  waveHealthGate: {
+    appHealthAlarmArns: [albAlarm.arn, apdexAlarm.arn],   // consumer-supplied; combined with prior wave's SSM-Compliance-Failed
+    onAlarmFireDisableNextWave: true,                     // default true — fail-loud
+  },
+});
+```
+
+**Outputs.** `waves: { dev: Ec2PatchBaselineOutputs; staging?: ...; production?: ... }`, `compositeAlarmArns: pulumi.Output<{ devToStaging: string; stagingToProduction: string }>`.
+
+**Tier ladder.**
+- **Sandbox**: degrades to single-wave (`dev` only). The `waves.staging` / `waves.production` keys may be present but produce no resources. No composite alarm. Sandbox accounts often don't have three environments — refusing to construct would be hostile.
+- **StartupHardened**: all three waves required. Refusing construction with a clear error if any wave is missing.
+
+**Health gate mechanism — no Lambda.** The gate is an `aws.cloudwatch.CompositeAlarm` whose `OK` state is wired via Pulumi `Output<bool>` chain into the next wave's `MaintenanceWindow.enabled` field. When the alarm fires (any of: prior-wave SSM-Compliance-Failed, consumer app-health alarm), the next wave's window is `enabled: false` until a human resets the alarm to `OK` and re-runs `pulumi up`. This is rollback-as-IaC, not rollback-as-runtime-code. Rule 0 (no Hulumi-shipped Lambdas) holds.
+
+**Generalization beyond sunlit.** Every team running >1 environment hits this. The wave keys (`dev`, `staging`, `production`) are an industry-standard set; teams with extra environments (e.g., `qa`, `pre-prod`) compose multiple `Ec2PatchWaves` instances or extend in v1.3 if demand surfaces.
 
 ## Decision: `RebootOption` default per tier
 
@@ -138,7 +189,7 @@ The idea doc's prolonged-outage risk is "50 EC2s reboot at the same Maintenance 
 
 **Why required at StartupHardened.** A detective service that emits findings to a console nobody reads is operationally identical to "off." The hardened-by-default discipline says we make the routing the path of least resistance.
 
-**API shape (revised from [#49](https://github.com/kerberosmansour/hulumi/issues/49)).**
+**API shape (revised twice — first per [#49](https://github.com/kerberosmansour/hulumi/issues/49), then 2026-05-01 per Flaw 1 research-resolution).**
 
 ```ts
 new baseline.aws.DetectiveServicesEnable("detective", {
@@ -150,11 +201,36 @@ new baseline.aws.DetectiveServicesEnable("detective", {
   guardDutyPublishingFrequency: "FIFTEEN_MINUTES",
   costAnomalyThresholdUsd: 20,
   inspectorScanResourceTypes: ["EC2", "ECR", "LAMBDA"],
-  // Required at StartupHardened, optional at Sandbox:
-  findingsRoutingSnsArn: monitoring.high.arn,
-  findingsSeverityFloor: "HIGH",          // route HIGH+CRITICAL only
+  // Routing is dual at StartupHardened — see § Decision: dual-route default below.
+  // - findingsRoutingSnsArn / findingsSeverityFloor route the firehose (HIGH+CRITICAL by default)
+  // - findingsKevRoutingSnsArn routes the high-priority subset (KEV catalog membership)
+  findingsRoutingSnsArn: monitoring.med.arn,    // medium-priority firehose at hardened
+  findingsSeverityFloor: "HIGH",                 // route HIGH+CRITICAL only
+  findingsKevRoutingSnsArn: monitoring.high.arn, // high-priority KEV-only route — NEW arg per Flaw 1
 });
 ```
+
+### Decision: KEV is native — no Step Functions, no Lambda (added 2026-05-01)
+
+**Research finding (2026-05-01).** Amazon Inspector v2 has surfaced **CISA KEV catalog membership inline in finding payloads since 2023**. Each Inspector v2 `Inspector2 Finding` event includes:
+
+- `kev.dateAdded` — the date CISA added the CVE to the Known Exploited Vulnerabilities catalog (key existence indicates KEV membership)
+- `kev.dateDue` — CISA's federal-agency remediation deadline
+- `epss.score` — Exploit Prediction Scoring System score (0.0–1.0)
+- `exploitAvailable` — boolean indicating whether public exploit code exists
+
+This collapses the prior speculation about "EventBridge Pipes + Step Functions joining cisa.gov KEV JSON." **No external fetch. No Step Functions. No Lambda.** EventBridge rule patterns can match the KEV fields directly.
+
+**Decision: dual-route default.** At `tier: StartupHardened`, `DetectiveServicesEnable` ships two EventBridge routes:
+
+1. **Firehose route** — `findingsRoutingSnsArn` (typically `MonitoringFoundation.med.arn`) receives every finding at or above `findingsSeverityFloor` (default `HIGH`).
+2. **KEV-only route** — `findingsKevRoutingSnsArn` (typically `MonitoringFoundation.high.arn`) receives only findings with `$.detail.findingDetails.kev.dateAdded` present (i.e., the CVE is on CISA's actively-exploited list).
+
+The EventBridge rule patterns are pure JSON — no runtime code. Sandbox tier defaults to KEV route only (cost-conscious, signal-rich).
+
+**Cost (confirmed 2026-05-01).** Inspector v2 EC2 scanning is **$1.258/instance/month** continuous. ECR is **$0.09/image first scan, $0.01/re-scan**. 15-day free trial per new account. For a sub-10-instance fleet with ~50 ECR pushes/month, expect ~$5–15/month total — sub-line-item to a Client VPN. Documented in M5's `detective-services-enable.md` cookbook with a worked example.
+
+**Cost-zero alternative (cookbook only).** Trivy-in-CI runs in the consumer's GitHub Actions, scans ECR images at build time with the same KEV catalog awareness Inspector v2 has, free. Pair with SSM Patch Compliance scanning (free side-effect of `Ec2PatchBaseline`) for EC2-side coverage. Hulumi ships **no** components for this path; M5 cookbook documents the YAML.
 
 **Outputs.** `guardDutyDetectorId`, `accessAnalyzerArn`, `costAnomalyDetectorArn`, `inspectorAccountStatus`, `findingsEventRuleArn`. All `stable`.
 
@@ -302,9 +378,14 @@ No concurrent actors / distributed-state guarantees beyond Pulumi's standard app
 These are the four `/slo-research` open-question buckets from the idea doc, reframed against the architecture decisions above. Answering them is **not** blocking for `/slo-plan` to produce M1's contract block — they refine M2–M5.
 
 1. **(was Q1, Q3 from idea doc)** SSM Patch Manager + PCI-DSS Req 6.3.3 — is `complianceMetric` time-to-deploy, time-to-scan, or compliance-state-failed the right primary signal? This shapes M1's `complianceMetric` output.
-2. **(was Q2 from idea doc)** AWS Inspector v2 EventBridge schema stability in 2026 — does the `Inspector2 Finding` event shape have a documented `at-version-N` SLA? Shapes M2's EventBridge rule pattern.
+2. **(was Q2 from idea doc) — RESOLVED 2026-05-01.** AWS Inspector v2 surfaces KEV catalog membership + EPSS scores inline in finding payloads since 2023. The `Inspector2 Finding` event shape is stable. M2 ships dual-route via pure EventBridge JSON patterns; no external fetch or runtime code.
 3. **(was Q4 from idea doc)** CIS AWS Foundations Benchmark v5.0.0 patch-management coverage — historically v8 has patch IDs that v5 doesn't. If v5 has no patch ID, the `O_PATCH_*` mappings cite v8 and we surface the version skew in [`docs/mappings/`](../mappings/) docs honestly.
-4. **(was Q9 from idea doc)** Cross-account Maintenance Window Targets — does `MaintenanceWindowTarget.Targets[].TargetAccountIds` work cleanly via the Pulumi provider? If yes, M1 surfaces a `targetAccounts` knob; if no, defer to v1.2.
+4. **(was Q9 from idea doc)** Cross-account Maintenance Window Targets — does `MaintenanceWindowTarget.Targets[].TargetAccountIds` work cleanly via the Pulumi provider? If yes, M1 surfaces a `targetAccounts` knob; if no, defer to v1.3.
+
+### New questions surfaced 2026-05-01
+
+5. **DHI catalog coverage for sunlit-shaped runtimes** — does Docker Hardened Images carry `rust:1.88`-equivalent, Node, and HashiCorp Vault images? Verification is a 30-min `docker pull` exercise; if gaps exist, document the Chainguard fallback in the M5 hardened-base-images cookbook. Tracked in [`docs/idea/hulumi-for-operations-v1-3.md`](../idea/hulumi-for-operations-v1-3.md) for the v1.3 ECR pull-through-cache work.
+6. **Wave gate semantics under partial failure** — when the dev-wave-to-staging-wave composite alarm fires mid-window (e.g., a single dev EC2 fails patch compliance but the rest succeed), should the gate disable the staging wave for the *current* week or permanently until reset? Decision: current week only; the `MaintenanceWindow.enabled: false` is a flop, not a latch. Document in M1 lessons file when implemented.
 
 ## Glossary
 

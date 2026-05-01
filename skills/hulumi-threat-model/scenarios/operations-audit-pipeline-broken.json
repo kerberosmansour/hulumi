@@ -1,0 +1,69 @@
+{
+  "id": "operations-audit-pipeline-broken",
+  "title": "Operations — Audit Pipeline Broken (CloudTrail / CW Logs / S3 archive)",
+  "description": "An engineer configures `AuditTrail` (M9) but the consumer-supplied SecureBucket archive bucket policy doesn't grant CloudTrail write access; or the CW Logs group's KMS key is rotated without granting CT IAM role kms:Encrypt; or an attacker calls StopLogging on the trail before exfiltrating. Threats focus on the integrity, availability, and tamper-resistance of the audit pipeline.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-AWS-v5.0.0"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "External Attacker (post-compromise; objective: cover tracks via StopLogging)",
+    "Compromised privileged AWS principal with `cloudtrail:*` (could disable trail)"
+  ],
+  "assets": [
+    "CloudTrail trail (multi-region, log-file-validated)",
+    "S3 audit archive bucket (SecureBucket-shaped)",
+    "CloudWatch Logs group `/aws/cloudtrail/*` (KMS-encrypted)",
+    "CT-to-CWL IAM role (`cloudWatchLogsRoleArn`)"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "Spoofed source on StopLogging",
+      "description": "An attacker with `cloudtrail:StopLogging` disables the trail before lateral movement. Mitigation: `IdentityAlarms` event 5 (`cloudtrail-tampered`) fires on `StopLogging` / `DeleteTrail` / `UpdateTrail`. Pair with SCP denying those actions to non-IaC principals.",
+      "controls": ["CCM:LOG-04", "NIST-800-53-r5:AU-9", "CIS-AWS-v5.0.0:3.3"]
+    },
+    {
+      "type": "T",
+      "name": "Tampered S3 archive (without log-file validation)",
+      "description": "An attacker with `s3:PutObject` on the archive bucket modifies historical log files. Mitigation: `enableLogFileValidation: true` (M9 invariant) makes any post-hoc modification cryptographically detectable via `aws cloudtrail validate-logs`. SecureBucket's BucketOwnerEnforced + TLS-only policy prevent the tamper at the bucket-policy level.",
+      "controls": ["CCM:LOG-04", "NIST-800-53-r5:AU-9"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via missing CW Logs delivery",
+      "description": "If the CT-to-CWL IAM role policy lacks `logs:CreateLogStream` for the specific log group ARN, the trail emits to S3 but not to CW Logs — `IdentityAlarms` are silent. Mitigation: M9's `RolePolicy` is scoped to `${logGroup.arn}:*`; consumer can verify with `aws cloudtrail get-trail-status`.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-12"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via unencrypted CW Logs group",
+      "description": "If a consumer points `IdentityAlarms.trailLogGroupName` at a log group that ISN'T `kmsKeyId`-set, CloudTrail events at rest in CW Logs are readable by any cross-account principal with `logs:GetLogEvents`. Mitigation: M9 sets `kmsKeyId` on the log group; M10's `O_AUDIT_2` enforces it at preview for every `/aws/cloudtrail/*` group.",
+      "controls": ["CCM:CEK-04", "NIST-800-53-r5:SC-28"]
+    },
+    {
+      "type": "D",
+      "name": "Denial via S3 archive bucket policy regression",
+      "description": "If the archive bucket policy is updated to deny CloudTrail (e.g. via a typo in a Pulumi update), the trail starts failing delivery. Mitigation: `aws cloudtrail get-trail-status` exposes `LatestDeliveryError`; pair with a CloudWatch alarm watching the trail's delivery error count.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:CP-2"]
+    },
+    {
+      "type": "E",
+      "name": "Elevation via cross-account access to the audit archive",
+      "description": "An attacker with cross-account read on the archive bucket can correlate IaC-author identity with workload behavior. Mitigation: SecureBucket's BucketOwnerEnforced + VPC endpoint policy + per-account KMS keys.",
+      "controls": ["CCM:DSP-12", "NIST-800-53-r5:AC-6"]
+    }
+  ],
+  "abuseCases": [
+    {
+      "id": "tm-hulumi-ops-abuse-stoplogging",
+      "title": "StopLogging before exfiltration",
+      "description": "Mitigation: M9 + IdentityAlarms 5.",
+      "controls": ["CCM:LOG-04"]
+    },
+    {
+      "id": "tm-hulumi-ops-abuse-archive-policy-regression",
+      "title": "Archive bucket policy regression breaks delivery",
+      "description": "Mitigation: M9 trail-status check + alarm on delivery errors.",
+      "controls": ["CCM:LOG-01"]
+    }
+  ]
+}

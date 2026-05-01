@@ -1,6 +1,6 @@
 // BDD scenarios for @hulumi/baseline.github.OrgFoundation. Each describe
 // block corresponds to one row of the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-github-m2.md.
+// docs/slo/runbook-milestones/hulumi-github-m2.md.
 //
 // Critical contracts (per critique decisions applied during /slo-execute M1
 // + M2):

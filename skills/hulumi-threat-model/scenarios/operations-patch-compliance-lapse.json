@@ -1,0 +1,62 @@
+{
+  "id": "operations-patch-compliance-lapse",
+  "title": "Operations — Patch Compliance Lapse via Silent Un-Patching",
+  "description": "An engineer (or AI agent) configures `Ec2PatchBaseline` with `rebootOption: { kind: \"NoReboot\" }` at startup-hardened tier, intending to avoid disrupting tenants. The component refuses construction (M7 invariant), but the threat path remains real: a sandbox-tier consumer might accept silent un-patching, leaving a kernel CVE exposed for sixty days. Target end state matches Hulumi's `Ec2PatchBaseline` (M7) + `Ec2PatchWaves` (M7) + `HulumiOperationsHardeningPack`'s `O_PATCH_1` (M10). Threats focus on the gap between an EC2 patch announcement and the cluster reboot that activates it.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-AWS-v5.0.0"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, but may suggest NoReboot for tenant-stability reasons)",
+    "External Attacker (post-patch-announcement, racing to exploit before reboot)"
+  ],
+  "assets": [
+    "EC2 instance kernel and userspace package state",
+    "SSM Patch Compliance metric (per Patch:Group)",
+    "Patch:Group tag (load-bearing for wave membership)"
+  ],
+  "stride": [
+    {
+      "type": "T",
+      "name": "Tampered Patch:Group tag bypasses the wave-composer",
+      "description": "An attacker (or a misconfigured IaC author) sets a Patch:Group value outside {dev, staging, production} on an EC2 instance. The MaintenanceWindowTarget no longer matches; the instance is silently excluded from patching. Mitigation: `O_PATCH_1` (M10) rejects the tag value at preview; SCP-style guardrails on `ec2:CreateTags` for that tag complement at runtime.",
+      "controls": ["CCM:CEK-08", "CIS-AWS-v5.0.0:1.20", "NIST-800-53-r5:CM-2"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via missing compliance metric",
+      "description": "Without `complianceMetric.topicArn` wired to a real SNS, patch-compliance regressions surface as a CloudWatch metric nobody reads. Mitigation: `Ec2PatchBaseline` requires the SNS ARN (M7 invariant); the alarm fires when non-compliant instance count >= 1.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-6"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via NoReboot pile-up",
+      "description": "A `NoReboot` posture at startup-hardened tier means kernel CVEs accumulate without activation. `Ec2PatchBaseline` refuses this combination at construction (M7 type system); the sandbox-only escape requires a written `hulumi_decision_comment` (>= 8 chars) tagged on the resource for audit.",
+      "controls": ["CCM:VUL-01", "NIST-800-53-r5:RA-5", "ATLAS:AML.T0001"]
+    },
+    {
+      "type": "D",
+      "name": "Denial via synchronized-reboot storm",
+      "description": "Without CRC32-bucket staggering, all instances reboot at the maintenance window's start, taking the service offline simultaneously. Mitigation: `staggering.bucketCount` defaults to 4 and is bound at 16; max-concurrency on the run-command task scales inversely with bucket count.",
+      "controls": ["CCM:UEM-09", "NIST-800-53-r5:CP-2"]
+    },
+    {
+      "type": "E",
+      "name": "Elevation via unpatched root-exploit kernel",
+      "description": "An unpatched local-privilege-escalation kernel exploit lets a compromised non-root process become root. Sixty days is the empirical compromise window. Mitigation: tier-aware patch approval delay (3 days at startup-hardened, 7 at sandbox).",
+      "controls": ["CCM:VUL-01", "ATLAS:AML.T0001"]
+    }
+  ],
+  "abuseCases": [
+    {
+      "id": "tm-hulumi-ops-abuse-noreboot-without-decision",
+      "title": "NoReboot at startup-hardened tier",
+      "description": "Mitigation: M7 constructor refuses the combination.",
+      "controls": ["CCM:VUL-01"]
+    },
+    {
+      "id": "tm-hulumi-ops-abuse-patch-group-tag-tamper",
+      "title": "Free-form Patch:Group tag bypasses wave-composer",
+      "description": "Mitigation: `O_PATCH_1` (M10) at preview.",
+      "controls": ["CCM:CEK-08"]
+    }
+  ]
+}

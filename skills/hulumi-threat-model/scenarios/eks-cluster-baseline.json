@@ -1,0 +1,82 @@
+{
+  "id": "eks-cluster-baseline",
+  "title": "EKS Cluster Baseline — control plane, RBAC, network defaults, audit",
+  "description": "An engineer is standing up an EKS cluster baseline: control-plane endpoint posture, audit logging, default-deny NetworkPolicy + IMDS egress restrictions, no-wildcard RBAC, and explicit selectors on AuthorizationPolicies. Target end state matches Hulumi's `NamespaceFoundation` (M4), `HulumiK8sHardeningPack` + `HulumiK8sRbacPack` + `HulumiEksClusterPack` (M3). Threats focus on the graph edges from the public internet to a pod, from a pod to the API server, from a pod to AWS IMDS, and from a compromised SA to cluster admin.",
+  "requiredFrameworks": ["CCM", "NIST-800-53-r5", "ATLAS", "CIS-K8S", "CIS-EKS"],
+  "actors": [
+    "Platform Engineer (trusted)",
+    "AI Coding Agent (trusted, authoring K8s IaC)",
+    "External Attacker (via exposed control-plane endpoint or pod-network egress)",
+    "Compromised Workload (semi-trusted, could escalate via secrets / IMDS / RBAC)"
+  ],
+  "assets": [
+    "EKS control-plane endpoint",
+    "Audit log stream (control-plane events)",
+    "Cluster RBAC bindings (ClusterRole / ClusterRoleBinding)",
+    "Workload Secrets (especially CSI / SM-derived)",
+    "EKS node IAM role and IMDS-derived credentials"
+  ],
+  "stride": [
+    {
+      "type": "S",
+      "name": "Spoofed identity via wildcard RBAC binding",
+      "description": "A consumer-authored ClusterRoleBinding to `cluster-admin` (or a Role with `verbs: [\"*\"]`) effectively grants any subject full control of the cluster. Mitigation: `HulumiK8sRbacPack`'s RBAC-1 (no wildcard verbs) and RBAC-3 (no cluster-admin binding) reject these at preview time.",
+      "controls": ["CCM:IAM-09", "NIST-800-53-r5:AC-6", "CIS-K8S:5.1.1", "CIS-K8S:5.1.3"]
+    },
+    {
+      "type": "T",
+      "name": "Tampered IRSA chain via untrusted OIDC provider",
+      "description": "An IRSA-style ServiceAccount whose annotations point at an attacker-controlled OIDC issuer can be assumed by an attacker workload. Mitigation: the cluster OIDC provider is configured at AccountFoundation level and IRSA bindings are pinned to that issuer's URL.",
+      "controls": ["CCM:IAM-10", "NIST-800-53-r5:IA-5", "CIS-EKS:3.1.2"]
+    },
+    {
+      "type": "R",
+      "name": "Repudiation via missing audit logs",
+      "description": "If the EKS control-plane `audit` log type is disabled (or never enabled) the runtime detection lane and the K8s drift adapters lose their primary event source. Mitigation: `HulumiEksClusterPack`'s EKS-CL-2 enforces audit logging at preview; `EksRuntimeDetectionFoundation` (M5) wires CW alarms keyed off audit events.",
+      "controls": ["CCM:LOG-01", "NIST-800-53-r5:AU-2", "CIS-EKS:2.1.2"]
+    },
+    {
+      "type": "I",
+      "name": "Information disclosure via Secret list/watch RBAC",
+      "description": "A Role granting `list` or `watch` on `secrets` allows any pod bound to it to read every Secret in scope. Mitigation: RBAC-2 rejects unsuppressed `list`/`watch` on secrets in the core API group; legitimate operators (external-secrets) opt in via a suppression with reason.",
+      "controls": ["CCM:DSP-12", "NIST-800-53-r5:AC-6", "CIS-K8S:5.1.2"]
+    },
+    {
+      "type": "D",
+      "name": "Denial of service via missing resources / privileged escape",
+      "description": "Pods without `resources.limits` can starve neighbors; pods with `securityContext.privileged: true` can compromise the node. Mitigation: WL-1 (privileged) and WL-4 (resources advisory) — paired, they keep neighbor-scheduling and node integrity intact.",
+      "controls": ["CCM:UEM-09", "CCM:CEK-08", "CIS-K8S:5.2.1"]
+    },
+    {
+      "type": "E",
+      "name": "Elevation of privilege via host namespace / IMDS",
+      "description": "A pod with `hostNetwork: true` bypasses all NetworkPolicy enforcement; a pod that can reach `169.254.169.254` can steal node-IAM credentials. Mitigation: WL-2 (host namespace) blocks the pod shape; `NamespaceFoundation` (M4) emits a default-deny + IMDS-deny NetworkPolicy. CNI must enforce.",
+      "controls": [
+        "CCM:UEM-09",
+        "NIST-800-53-r5:SC-7",
+        "CIS-K8S:5.2.4",
+        "CIS-EKS:4.4.1"
+      ]
+    }
+  ],
+  "abuseCases": [
+    {
+      "id": "tm-eks-public-endpoint-abuse",
+      "title": "EKS public endpoint with `0.0.0.0/0` enables global control-plane reachability",
+      "description": "Default `endpointPublicAccess: true` with unset `publicAccessCidrs` resolves to `0.0.0.0/0`. Mitigation: EKS-CL-1 rejects this shape at preview unless suppressed with a reason.",
+      "controls": ["CCM:DSP-04", "NIST-800-53-r5:SC-7", "CIS-EKS:2.1.1"]
+    },
+    {
+      "id": "tm-k8s-rbac-star-abuse",
+      "title": "Wildcard RBAC enables lateral escalation",
+      "description": "A `verbs: [\"*\"]` rule grants `escalate` and `bind` primitives. Mitigation: RBAC-1.",
+      "controls": ["CCM:IAM-09", "CIS-K8S:5.1.1"]
+    },
+    {
+      "id": "tm-k8s-privileged-pod-abuse",
+      "title": "Privileged pod is root on the node",
+      "description": "Mitigation: WL-1.",
+      "controls": ["CCM:UEM-09", "CIS-K8S:5.2.1"]
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+name: Bug report
+description: A Hulumi component, policy pack, drift adapter, or skill does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please complete the fields below — the more concrete the repro, the faster we can fix it.
+        For security vulnerabilities, do **not** file a public issue — see [SECURITY.md](../../SECURITY.md).
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing the bug.
+      placeholder: e.g. `KubernetesSecretFromAwsSecretsManager` emits an empty Secret instead of failing closed when the SM ARN is unreachable.
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected package
+      options:
+        - "@hulumi/baseline"
+        - "@hulumi/policies"
+        - "@hulumi/drift"
+        - "@hulumi/k8s-baseline"
+        - "/hulumi-threat-model skill"
+        - "release / CI workflow"
+        - "docs"
+        - "other"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps. Include the exact commands you ran.
+      placeholder: |
+        1. `pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0`
+        2. Pulumi program: <minimal snippet>
+        3. `pulumi preview`
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages and stack traces (redact secrets).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version(s)
+      description: Output of `pnpm list @hulumi/baseline @hulumi/policies @hulumi/drift @hulumi/k8s-baseline @pulumi/aws @pulumi/pulumi @pulumi/kubernetes`.
+      placeholder: e.g. `@hulumi/baseline 1.2.0`, `@pulumi/aws 7.27.0`, `@pulumi/pulumi 3.232.0`
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Node version, pnpm version, OS.
+      placeholder: e.g. Node 20.19, pnpm 9.12, macOS 15.4
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: SLSA attestation verification output, CloudTrail link, anything else relevant.

@@ -8,8 +8,8 @@
 
 ## Runbooks in this repo
 
-- [`docs/RUNBOOK-hulumi.md`](./docs/RUNBOOK-hulumi.md) — AWS Hulumi v1.0.0 (shipped 2026-04-25).
-- [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md) — Hulumi-for-GitHub v1.1.0 (shipped 2026-04-26). Hard infra-only scope contract (Rule 0).
+- [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md) — AWS Hulumi v1.0.0 (shipped 2026-04-25).
+- [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md) — Hulumi-for-GitHub v1.1.0 (shipped 2026-04-26). Hard infra-only scope contract (Rule 0).
 
 ## License posture for agents
 
@@ -18,7 +18,7 @@ When this skill pack is invoked, the agent MUST:
 - Cite CCM / AICM / CIS / NIST SSDF / Scorecard control IDs only. **Never** emit verbatim CCM, AICM, CAIQ, CIS Benchmark (AWS Foundations or GitHub), or NIST SSDF control text into any output file or message. See [`docs/mappings/licensing.md`](./docs/mappings/licensing.md).
 - Never `eval`, `exec`, or spawn a shell with an interpolated user-supplied string.
 - Never write outside the user's current working directory or `~/.claude/` without explicit permission.
-- For Hulumi-for-GitHub work: respect the infra-only scope contract — never author CodeQL queries, Semgrep rules, or custom secret-scanning patterns. See [`docs/RUNBOOK-hulumi-github.md`](./docs/RUNBOOK-hulumi-github.md) Global Execution Rule 0 for the full boundary.
+- For Hulumi-for-GitHub work: respect the infra-only scope contract — never author CodeQL queries, Semgrep rules, or custom secret-scanning patterns. See [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md) Global Execution Rule 0 for the full boundary.
 
 ## Version
 

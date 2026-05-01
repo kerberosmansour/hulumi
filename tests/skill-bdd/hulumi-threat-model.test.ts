@@ -1,6 +1,6 @@
 // Behavioural tests for the /hulumi-threat-model Claude Code skill.
 // Each test corresponds to one row of the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-m1.md. Do not reshape the scenario table
+// docs/slo/runbook-milestones/hulumi-m1.md. Do not reshape the scenario table
 // here — the runbook's table is the contract.
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -311,7 +311,7 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
     expect(pass.stdout).toMatch(/license-boundary-lint: OK/);
   });
 
-  it("[happy path] lister returns the nine prebuilt scenario IDs in declared order (5 AWS + 4 GitHub)", async () => {
+  it("[happy path] lister returns the prebuilt scenario IDs in declared order (5 AWS + 4 GitHub + 2 K8s + 3 Ops)", async () => {
     const list = await importLister();
     const ids = list();
     expect(ids).toEqual([
@@ -324,12 +324,17 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
       "github-actions-supply-chain",
       "github-app-token-exposure",
       "github-self-hosted-runner",
+      "eks-cluster-baseline",
+      "eks-runtime-and-backup",
+      "operations-patch-compliance-lapse",
+      "operations-detective-services-disabled",
+      "operations-audit-pipeline-broken",
     ]);
   });
 });
 
 // Tests below correspond to the BDD Acceptance Scenarios table in
-// docs/runbook-milestones/hulumi-github-m1.md. Do not reshape the scenario
+// docs/slo/runbook-milestones/hulumi-github-m1.md. Do not reshape the scenario
 // table here — the runbook's table is the contract.
 describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model markdown for GitHub scenarios", () => {
   let tmp: string;

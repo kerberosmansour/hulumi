@@ -53,3 +53,37 @@ export { matchSuppression } from "./aws/suppressions";
 //   - @hulumi/policies/github/packs/hulumi-hardening
 //   - @hulumi/policies/github/packs/cis-v1
 export * as github from "./github";
+
+// K8s-side rule + pack module — added in runbook hulumi-operations-k8s-security M3.
+// PolicyPack instances live at:
+//   - @hulumi/policies/k8s/packs/hulumi-k8s-hardening
+//   - @hulumi/policies/k8s/packs/hulumi-k8s-rbac
+//   - @hulumi/policies/k8s/packs/hulumi-eks-cluster
+export {
+  hulumiK8sHardeningPackMetadata,
+  k8sWl1NoPrivilegedContainer,
+  k8sWl2NoHostNamespace,
+  k8sWl3NoLatestImage,
+  k8sWl4ResourcesRequired,
+  k8sSvc1PublicLoadBalancerNeedsJustification,
+} from "./k8s/hulumi-hardening-pack";
+export {
+  hulumiK8sRbacPackMetadata,
+  k8sRbac1NoWildcardVerbs,
+  k8sRbac2NoSecretListWatch,
+  k8sRbac3NoClusterAdminBinding,
+} from "./k8s/rbac-pack";
+export {
+  hulumiEksClusterPackMetadata,
+  eksCl1NoBroadPublicEndpoint,
+  eksCl2AuditLoggingRequired,
+} from "./k8s/eks-cluster-pack";
+
+// Operations hardening — added in runbook hulumi-operations-k8s-security M10.
+export {
+  hulumiOperationsHardeningPackMetadata,
+  oPatch1RestrictPatchGroupTag,
+  oAudit1CloudTrailPosture,
+  oAudit2CloudTrailLogGroupEncrypted,
+  oInspector1FullCoverage,
+} from "./aws/operations-hardening-pack";

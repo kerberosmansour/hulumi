@@ -44,7 +44,8 @@ pulumi.runtime.setMocks({
     } else if (args.type === "kubernetes:core/v1:Secret") {
       baseState.id = `${args.name}-mock-id`;
     } else if (args.type === "aws:secretsmanager/secret:Secret") {
-      baseState.arn = baseState.arn ?? `arn:aws:secretsmanager:us-east-1:111:secret:${args.name}-mock`;
+      baseState.arn =
+        baseState.arn ?? `arn:aws:secretsmanager:us-east-1:111:secret:${args.name}-mock`;
       baseState.id = baseState.arn;
     } else if (args.type === "aws:iam/policy:Policy") {
       baseState.arn = baseState.arn ?? `arn:aws:iam::111:policy/${args.name}-mock`;

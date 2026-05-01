@@ -37,66 +37,66 @@ const reason = !INTEGRATION
     ? "HULUMI_GITHUB_SANDBOX_ORG unset — no target sandbox org"
     : "HULUMI_GITHUB_APP_* env vars unset — see docs/cookbooks for sandbox provisioning";
 
-describe.skipIf(!ENABLED)("SecureRepository integration — real sandbox-org create + teardown", () => {
-  let stack: Stack;
+describe.skipIf(!ENABLED)(
+  "SecureRepository integration — real sandbox-org create + teardown",
+  () => {
+    let stack: Stack;
 
-  beforeAll(async () => {
-    if (!ENABLED) return;
-    stack = await LocalWorkspace.createOrSelectStack({
-      stackName: `secure-repository-m1-${TEST_ID}`,
-      projectName: "hulumi-github-m1",
-      program: async () => {
-        const provider = new github.Provider("sandbox-provider", {
-          owner: SANDBOX_ORG!,
-          appAuth: {
-            id: APP_ID!,
-            installationId: APP_INSTALLATION_ID!,
-            pemFile: APP_PEM!,
-          },
-        });
-        const repo = new SecureRepository(
-          TEST_ID,
-          {
+    beforeAll(async () => {
+      if (!ENABLED) return;
+      stack = await LocalWorkspace.createOrSelectStack({
+        stackName: `secure-repository-m1-${TEST_ID}`,
+        projectName: "hulumi-github-m1",
+        program: async () => {
+          const provider = new github.Provider("sandbox-provider", {
+            owner: SANDBOX_ORG!,
+            appAuth: {
+              id: APP_ID!,
+              installationId: APP_INSTALLATION_ID!,
+              pemFile: APP_PEM!,
+            },
+          });
+          const repo = new SecureRepository(TEST_ID, {
             tier: "startup-hardened",
             visibility: "private",
             description: "Hulumi-for-GitHub M1 integration test fixture",
             provider,
-          },
-        );
-        return {
-          fullName: repo.repoFullName,
-          rulesetId: repo.rulesetId,
-        };
-      },
-    });
-  }, 60_000);
+          });
+          return {
+            fullName: repo.repoFullName,
+            rulesetId: repo.rulesetId,
+          };
+        },
+      });
+    }, 60_000);
 
-  afterAll(async () => {
-    if (!ENABLED || stack === undefined) return;
-    // Best-effort teardown: destroy + remove the stack. If destroy fails for
-    // a transient reason, log and continue — a sweep job (M5 deliverable)
-    // catches stragglers via the `hulumi-github-m1-` prefix.
-    try {
-      await stack.destroy({ onOutput: () => undefined });
-    } catch (err) {
-      console.error(`[m1-integration] destroy failed: ${String(err)}`);
-    }
-    try {
-      await stack.workspace.removeStack(stack.name);
-    } catch (err) {
-      console.error(`[m1-integration] removeStack failed: ${String(err)}`);
-    }
-  }, 120_000);
+    afterAll(async () => {
+      if (!ENABLED || stack === undefined) return;
+      // Best-effort teardown: destroy + remove the stack. If destroy fails for
+      // a transient reason, log and continue — a sweep job (M5 deliverable)
+      // catches stragglers via the `hulumi-github-m1-` prefix.
+      try {
+        await stack.destroy({ onOutput: () => undefined });
+      } catch (err) {
+        console.error(`[m1-integration] destroy failed: ${String(err)}`);
+      }
+      try {
+        await stack.workspace.removeStack(stack.name);
+      } catch (err) {
+        console.error(`[m1-integration] removeStack failed: ${String(err)}`);
+      }
+    }, 120_000);
 
-  it("creates and destroys a real sandbox repo at startup-hardened tier", async () => {
-    const up = await stack.up({ onOutput: () => undefined });
-    expect(up.summary.result).toBe("succeeded");
-    const fullName = up.outputs.fullName?.value as string | undefined;
-    expect(fullName).toBeDefined();
-    expect(fullName).toContain(SANDBOX_ORG!);
-    expect(fullName).toContain(TEST_ID);
-  }, 240_000);
-});
+    it("creates and destroys a real sandbox repo at startup-hardened tier", async () => {
+      const up = await stack.up({ onOutput: () => undefined });
+      expect(up.summary.result).toBe("succeeded");
+      const fullName = up.outputs.fullName?.value as string | undefined;
+      expect(fullName).toBeDefined();
+      expect(fullName).toContain(SANDBOX_ORG!);
+      expect(fullName).toContain(TEST_ID);
+    }, 240_000);
+  },
+);
 
 if (!ENABLED) {
   describe("SecureRepository integration — gated skip notice", () => {

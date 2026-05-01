@@ -19,9 +19,7 @@ function assertActionsPatternSafe(pattern: string): void {
     );
   }
   if (pattern.length > 256) {
-    throw new Error(
-      `Actions allowlist pattern too long (${pattern.length} chars; max 256)`,
-    );
+    throw new Error(`Actions allowlist pattern too long (${pattern.length} chars; max 256)`);
   }
   // Reject path-traversal explicitly — `..` only valid inside owner names is
   // not a legal allowlist token and is a clear smell.
@@ -54,10 +52,8 @@ export function createActionsOrganizationPermissions(
   //   startup-hardened → allowedActions: "selected", shaPinningRequired: true
   //   sandbox          → allowedActions: "local_only", shaPinningRequired: false
   const allowedActions =
-    args.allowlist?.allowedActions ??
-    (isStartupHardened ? "selected" : "local_only");
-  const shaPinningRequired =
-    args.allowlist?.shaPinningRequired ?? isStartupHardened;
+    args.allowlist?.allowedActions ?? (isStartupHardened ? "selected" : "local_only");
+  const shaPinningRequired = args.allowlist?.shaPinningRequired ?? isStartupHardened;
 
   // Validate every pattern character-by-character before issuing the API call.
   const patterns = args.allowlist?.selectedActionsPatterns ?? [];
@@ -82,9 +78,5 @@ export function createActionsOrganizationPermissions(
     };
   }
 
-  return new github.ActionsOrganizationPermissions(
-    `${args.name}-actions-perms`,
-    permArgs,
-    opts,
-  );
+  return new github.ActionsOrganizationPermissions(`${args.name}-actions-perms`, permArgs, opts);
 }

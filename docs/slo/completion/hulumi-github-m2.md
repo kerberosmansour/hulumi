@@ -66,7 +66,7 @@ pnpm run lint:exact-pin-guard:    OK (4 @pulumi/* deps match pinned hashes)
 
 ## Demo gate (deferred follow-ups)
 
-- **Sandbox-org integration runs (both backends)**: deferred — same env-var gating as M1 (HULUMI_INTEGRATION + HULUMI_GITHUB_SANDBOX_ORG + HULUMI_GITHUB_APP_*) plus a new `HULUMI_GITHUB_SANDBOX_BILLING_EMAIL` for the `OrganizationSettings` requirement. Both `describe.skipIf(!ENABLED)` blocks ship with skip-with-reason markers. M5 launch readiness includes the first real sandbox runs.
+- **Sandbox-org integration runs (both backends)**: deferred — same env-var gating as M1 (HULUMI*INTEGRATION + HULUMI_GITHUB_SANDBOX_ORG + HULUMI_GITHUB_APP*\*) plus a new `HULUMI_GITHUB_SANDBOX_BILLING_EMAIL` for the `OrganizationSettings` requirement. Both `describe.skipIf(!ENABLED)` blocks ship with skip-with-reason markers. M5 launch readiness includes the first real sandbox runs.
 - **CSC backend real REST hooks**: D1.5 in v1.1 deferrals — landed alongside D1's audit-log adapter when dynamic-resource testing infrastructure is solved once for both surfaces.
 
 ## Forward-references opened

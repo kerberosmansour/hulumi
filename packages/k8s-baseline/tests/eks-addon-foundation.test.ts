@@ -60,14 +60,14 @@ describe("EksAddonFoundation — invalid input refusals", () => {
     for (let i = 0; i < 33; i++) {
       tooMany.push({ name: `addon-${i}`, version: "1.0.0" });
     }
-    expect(
-      () => new EksAddonFoundation("c", { clusterName: "x", addons: tooMany }),
-    ).toThrow(/addons has 33.*max 32/);
+    expect(() => new EksAddonFoundation("c", { clusterName: "x", addons: tooMany })).toThrow(
+      /addons has 33.*max 32/,
+    );
   });
 
   test("empty addons rejected", () => {
-    expect(
-      () => new EksAddonFoundation("c", { clusterName: "x", addons: [] }),
-    ).toThrow(/addons must be non-empty/);
+    expect(() => new EksAddonFoundation("c", { clusterName: "x", addons: [] })).toThrow(
+      /addons must be non-empty/,
+    );
   });
 });

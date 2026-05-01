@@ -7,6 +7,7 @@ K8s primitives are fail-closed by default: secret extraction failures and missin
 ## Files changed
 
 ### Modified
+
 - `packages/k8s-baseline/src/kubernetes-secret-from-asm.ts` — fail-closed default, `failureMode` / `missingKeyMode` flag handling, `MAX_KEY_MAPPING_ENTRIES` enforcement.
 - `packages/k8s-baseline/src/kubernetes-secret-from-asm.args.ts` — `SecretFailureMode`, `MissingKeyMode` discriminated unions; `MAX_KEY_MAPPING_ENTRIES` constant; flow-through args on `RdsCredentialSecretArgs`.
 - `packages/k8s-baseline/src/alb-meshed-http-entrypoint.ts` — `workloadSelector` resolution, internet-facing cert+justification gate, `MAX_*` bounds, `hulumi.dev/public-justification` annotation emission.
@@ -20,12 +21,14 @@ K8s primitives are fail-closed by default: secret extraction failures and missin
 - `docs/components/rds-credential-secret.md` — M2 section noting fail-closed inheritance.
 
 ### Added
+
 - `docs/slo/lessons/hulumi-k8s-security-m2.md` — lessons file.
 - `docs/slo/completion/hulumi-k8s-security-m2.md` — this file.
 
 ## Tests added
 
 **`tests/kubernetes-secret-from-asm.test.ts` (6 new):**
+
 - Secret fetch failure fails closed (default logs error + aborts deploy).
 - `failureMode: "warn-empty"` preserves degraded behavior.
 - Missing required key fails by default (`missingKeyMode` default is `"fail"`).
@@ -34,9 +37,11 @@ K8s primitives are fail-closed by default: secret extraction failures and missin
 - `keyMapping` at the bound (64 keys) still constructs.
 
 **`tests/rds-credential-secret.test.ts` (1 new):**
+
 - RDS password missing fails (M2 fail-closed for required keys).
 
 **`tests/alb-meshed-http-entrypoint.test.ts` (8 new):**
+
 - Explicit `workloadSelector` wins over inferred `app:name`.
 - Inferred selector requires acknowledgement (M2 default rejects implicit inference).
 - Inferred selector with explicit acknowledgement constructs and warns.
@@ -53,15 +58,15 @@ K8s primitives are fail-closed by default: secret extraction failures and missin
 
 ## Static analysis and formatter evidence
 
-| Check | Command | Result |
-|---|---|---|
-| Format (touched files) | `npx prettier --check <files>` | clean (auto-applied to docs/components/*) |
-| Typecheck | `pnpm -r typecheck` | green across 10 projects |
-| Build | `pnpm -r build` | green |
-| Lint | `pnpm -r lint` | green |
-| License boundary | `pnpm -w run lint:license-boundary` | OK |
-| Exact-pin guard | `pnpm -w run lint:exact-pin-guard` | OK (6 `@pulumi/*` deps match pinned hashes) |
-| Full tests | `pnpm -r test` | 67 / 59 / 54 / **102** / 28 / 4 — exit 0 |
+| Check                  | Command                             | Result                                      |
+| ---------------------- | ----------------------------------- | ------------------------------------------- |
+| Format (touched files) | `npx prettier --check <files>`      | clean (auto-applied to docs/components/\*)  |
+| Typecheck              | `pnpm -r typecheck`                 | green across 10 projects                    |
+| Build                  | `pnpm -r build`                     | green                                       |
+| Lint                   | `pnpm -r lint`                      | green                                       |
+| License boundary       | `pnpm -w run lint:license-boundary` | OK                                          |
+| Exact-pin guard        | `pnpm -w run lint:exact-pin-guard`  | OK (6 `@pulumi/*` deps match pinned hashes) |
+| Full tests             | `pnpm -r test`                      | 67 / 59 / 54 / **102** / 28 / 4 — exit 0    |
 
 ## Compatibility checks performed
 

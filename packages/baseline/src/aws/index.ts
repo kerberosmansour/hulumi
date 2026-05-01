@@ -23,10 +23,7 @@ export type {
 export { ALERT_SEVERITIES } from "./monitoring-foundation.args";
 export type { MonitoringFoundationOutputs } from "./monitoring-foundation.outputs";
 export { IdentityAlarms, IDENTITY_ALARMS_COMPONENT_TYPE } from "./identity-alarms";
-export type {
-  IdentityAlarmsArgs,
-  IdentityAlarmExtraEvent,
-} from "./identity-alarms.args";
+export type { IdentityAlarmsArgs, IdentityAlarmExtraEvent } from "./identity-alarms.args";
 export type { IdentityAlarmsOutputs } from "./identity-alarms.outputs";
 
 export { Ec2PatchBaseline, EC2_PATCH_BASELINE_COMPONENT_TYPE } from "./ec2-patch-baseline";

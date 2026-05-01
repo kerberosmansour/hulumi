@@ -7,20 +7,24 @@
 ## Files changed
 
 ### Added (source)
+
 - `packages/baseline/src/aws/ec2-patch-baseline.{args,outputs,ts}.ts`.
 - `packages/baseline/src/aws/ec2-patch-waves.{args,outputs,ts}.ts`.
 
 ### Added (tests)
+
 - `packages/baseline/tests/ec2-patch-baseline.test.ts` — 10 BDD scenarios.
 - `packages/baseline/tests/ec2-patch-waves.test.ts` — 4 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/ec2-patch-baseline.md`.
 - `docs/components/ec2-patch-waves.md`.
 - `docs/slo/lessons/hulumi-operations-m1.md`.
 - `docs/slo/completion/hulumi-operations-m1.md`.
 
 ### Modified
+
 - `packages/baseline/src/aws/index.ts` — re-exports.
 
 ## Tests added
@@ -28,6 +32,7 @@
 14 BDD tests:
 
 **Ec2PatchBaseline** (10):
+
 - Emits all SSM resources + compliance alarm.
 - `Patch:Group` tag enum tightened to `dev|staging|production`.
 - Default reboot is `RebootIfNeeded`.
@@ -41,6 +46,7 @@
 - `complianceMetric.severities > 4` rejected.
 
 **Ec2PatchWaves** (4):
+
 - `startup-hardened` with all three waves emits the composite alarm gate.
 - `sandbox` degrades cleanly to single-wave (no composite alarm).
 - `startup-hardened` without staging refused.
@@ -48,13 +54,13 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| license-boundary       | OK    |
-| Full tests             | **74** baseline (was 59; +15) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                      |
+| `pnpm -r build`     | green                                                                                                      |
+| `pnpm -r lint`      | green                                                                                                      |
+| license-boundary    | OK                                                                                                         |
+| Full tests          | **74** baseline (was 59; +15) / 96 policies / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility
 

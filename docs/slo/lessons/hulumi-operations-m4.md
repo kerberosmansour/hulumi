@@ -3,6 +3,7 @@
 ## What changed
 
 Four-rule CrossGuard pack `HulumiOperationsHardeningPack`:
+
 - `O_PATCH_1`: `Patch:Group` tag value enum (dev|staging|production).
 - `O_AUDIT_1`: CloudTrail multi-region + log-file validation required.
 - `O_AUDIT_2`: CT log groups (`/aws/cloudtrail/*`) KMS-encrypted.

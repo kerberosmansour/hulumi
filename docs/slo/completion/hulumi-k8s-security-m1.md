@@ -7,6 +7,7 @@
 ## Files changed
 
 ### Modified
+
 - `README.md` — adds K8s package row to "What's in the box" and install snippet.
 - `CHANGELOG.md` — `[Unreleased]` section captures M1 deliverables.
 - `docs/ARCHITECTURE.md` — overview, workspace tree, components table reflect K8s.
@@ -20,6 +21,7 @@
 - `docs/slo/completed/RUNBOOK-hulumi-operations-k8s-security.md` — Milestone Tracker M1 → `in_progress` (will flip to `done` on close).
 
 ### Added
+
 - `packages/k8s-baseline/tests/release-readiness.test.ts` — 4 BDD scenarios (static-shape invariants).
 - `packages/k8s-baseline/tests/integration/kind/release-readiness.kind.test.ts` — kind-gated contract test.
 - `packages/k8s-baseline/tests/integration/eks/release-readiness.eks.test.ts` — EKS-gated contract test.
@@ -42,14 +44,14 @@
 
 ## Static analysis and formatter evidence
 
-| Check | Command | Result |
-|---|---|---|
-| Format (touched files) | `npx prettier --check <files>` | clean |
-| Typecheck | `pnpm -r typecheck` | green across 10 projects |
-| Build | `pnpm -r build` | green |
-| Lint | `pnpm -r lint` | green (3 warnings I introduced were fixed before final pass) |
-| License boundary | `pnpm -w run lint:license-boundary` | OK |
-| Exact-pin guard | `pnpm -w run lint:exact-pin-guard` | OK (6 `@pulumi/*` deps match pinned hashes) |
+| Check                  | Command                             | Result                                                       |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
+| Format (touched files) | `npx prettier --check <files>`      | clean                                                        |
+| Typecheck              | `pnpm -r typecheck`                 | green across 10 projects                                     |
+| Build                  | `pnpm -r build`                     | green                                                        |
+| Lint                   | `pnpm -r lint`                      | green (3 warnings I introduced were fixed before final pass) |
+| License boundary       | `pnpm -w run lint:license-boundary` | OK                                                           |
+| Exact-pin guard        | `pnpm -w run lint:exact-pin-guard`  | OK (6 `@pulumi/*` deps match pinned hashes)                  |
 
 ## Compatibility checks performed
 

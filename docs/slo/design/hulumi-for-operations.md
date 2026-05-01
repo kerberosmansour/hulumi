@@ -10,13 +10,13 @@ compliance: [soc2, pci-dss, nist-800-53, iso-27001]
 
 # Design — Hulumi for Operations (decision record)
 
-> Decision record for opening a *time-based* hardening surface in Hulumi. Authored 2026-05-01 in response to the [`hulumi-for-operations`](../idea/hulumi-for-operations.md) idea doc, the two real-world consumer guides ([sunlit-guardian's AWS-SETUP-GUIDE](../../../sunlit-guardian/apps/desktop/docs/Guides/AWS-SETUP-GUIDE.md) and [MAINTENANCE-GUIDE](../../../sunlit-guardian/apps/desktop/docs/Guides/MAINTENANCE-GUIDE.md)) that surfaced the gap, and the two open issues ([#47 AuditTrail](https://github.com/kerberosmansour/hulumi/issues/47) and [#49 DetectiveServicesEnable](https://github.com/kerberosmansour/hulumi/issues/49)) that this runbook closes.
+> Decision record for opening a _time-based_ hardening surface in Hulumi. Authored 2026-05-01 in response to the [`hulumi-for-operations`](../idea/hulumi-for-operations.md) idea doc, the two real-world consumer guides ([sunlit-guardian's AWS-SETUP-GUIDE](../../../sunlit-guardian/apps/desktop/docs/Guides/AWS-SETUP-GUIDE.md) and [MAINTENANCE-GUIDE](../../../sunlit-guardian/apps/desktop/docs/Guides/MAINTENANCE-GUIDE.md)) that surfaced the gap, and the two open issues ([#47 AuditTrail](https://github.com/kerberosmansour/hulumi/issues/47) and [#49 DetectiveServicesEnable](https://github.com/kerberosmansour/hulumi/issues/49)) that this runbook closes.
 >
 > Status: **proposed**. Every "Decision" line below is a commitment-point that survives PR review or gets revised. Open questions live in [§ Open questions](#open-questions). `/slo-architect` was inlined into this design doc — Hulumi-for-Operations is a feature addition to an already-designed workspace, not a new product. Mirrors the [`hulumi-k8s-surface.md`](./hulumi-k8s-surface.md) precedent.
 
 ## Why this doc exists (and what it isn't)
 
-Hulumi v1.1 ships hardened defaults *at the moment infrastructure is created*. `SecureBucket`, `AccountFoundation`, `MonitoringFoundation`, `IdentityAlarms`, `SecureRepository`, `OrgFoundation`, the seven `@hulumi/k8s-baseline` components — every single one is a **create-time** control. "Is the EC2 instance you spun up four months ago patched today?" is not a create-time question. It is a *time-based* control, and Hulumi has no answer for it.
+Hulumi v1.1 ships hardened defaults _at the moment infrastructure is created_. `SecureBucket`, `AccountFoundation`, `MonitoringFoundation`, `IdentityAlarms`, `SecureRepository`, `OrgFoundation`, the seven `@hulumi/k8s-baseline` components — every single one is a **create-time** control. "Is the EC2 instance you spun up four months ago patched today?" is not a create-time question. It is a _time-based_ control, and Hulumi has no answer for it.
 
 A consumer who lands on Hulumi v1.1 with a simple AWS account, a small EC2 fleet, and an ECR repository now has to re-derive five separate patterns by hand:
 
@@ -24,7 +24,7 @@ A consumer who lands on Hulumi v1.1 with a simple AWS account, a small EC2 fleet
 2. Inspector v2 enablement + EventBridge rule routing CRITICAL findings to an SNS topic (the [§3.7 of `MAINTENANCE-GUIDE.md`](../../../sunlit-guardian/apps/desktop/docs/Guides/MAINTENANCE-GUIDE.md#37-ecr-image-vulnerability-scans) gap; partial scope of [#49](https://github.com/kerberosmansour/hulumi/issues/49))
 3. The four "always-on" detective services as a bundle: GuardDuty + IAM Access Analyzer + Cost Anomaly Detection + Inspector v2 ([#49](https://github.com/kerberosmansour/hulumi/issues/49) verbatim)
 4. CloudTrail multi-region trail with CW Logs delivery + S3 bucket-policy ordering correctly + lifecycle ([#47](https://github.com/kerberosmansour/hulumi/issues/47) verbatim)
-5. CrossGuard policies that *enforce* the time-based controls at create time (mirroring the existing `HulumiHardeningPack` H1–H4 pattern)
+5. CrossGuard policies that _enforce_ the time-based controls at create time (mirroring the existing `HulumiHardeningPack` H1–H4 pattern)
 
 These are not sunlit-specific patterns. **Anyone running EC2 + ECR on AWS, in any account that produces audit-relevant signal, hits all five.** The [§4.8 of `MAINTENANCE-GUIDE.md`](../../../sunlit-guardian/apps/desktop/docs/Guides/MAINTENANCE-GUIDE.md#48-ecr-scan-finds-critical-cve) instruction "if any `CRITICAL`, rebuild with updated base image" is the smoking gun: a maintenance guide in 2026 telling a single developer to run a query manually because there is no notification path.
 
@@ -34,7 +34,7 @@ This doc is **not** a runbook. The runbook is the v1.x milestone breakdown that 
 
 The line we draw, mirroring the `hulumi-k8s` Rule 0 boundary contract:
 
-> **Hulumi codifies *time-based* defaults as IaC. The consumer's *findings triage* and *runtime orchestration* are theirs.**
+> **Hulumi codifies _time-based_ defaults as IaC. The consumer's _findings triage_ and _runtime orchestration_ are theirs.**
 
 **In scope.** Declarable AWS-managed-service configuration that runs on a schedule and produces signal a consumer-supplied SNS topic can subscribe to:
 
@@ -79,26 +79,26 @@ The line we draw, mirroring the `hulumi-k8s` Rule 0 boundary contract:
 
 ```ts
 new baseline.aws.Ec2PatchBaseline("prod-linux-patches", {
-  tier: Tier.StartupHardened,            // Sandbox | StartupHardened — same enum as the rest of @hulumi/baseline
-  patchGroupTagValue: "production",       // enum: "dev" | "staging" | "production" — REVISED 2026-05-01 per Flaw 2; refused otherwise
-  operatingSystem: "AMAZON_LINUX_2023",   // also: UBUNTU, WINDOWS, AMAZON_LINUX_2, REDHAT_ENTERPRISE_LINUX
+  tier: Tier.StartupHardened, // Sandbox | StartupHardened — same enum as the rest of @hulumi/baseline
+  patchGroupTagValue: "production", // enum: "dev" | "staging" | "production" — REVISED 2026-05-01 per Flaw 2; refused otherwise
+  operatingSystem: "AMAZON_LINUX_2023", // also: UBUNTU, WINDOWS, AMAZON_LINUX_2, REDHAT_ENTERPRISE_LINUX
   approvalRules: {
-    approveAfterDays: 7,                  // PCI-DSS-aligned (Req 6.3.3 — within 1 month, 7 days = sane buffer)
-    severities: ["Critical", "Important", "Medium"],  // tier-aware default
+    approveAfterDays: 7, // PCI-DSS-aligned (Req 6.3.3 — within 1 month, 7 days = sane buffer)
+    severities: ["Critical", "Important", "Medium"], // tier-aware default
   },
   maintenanceWindow: {
-    schedule: "cron(0 02 ? * WED *)",     // explicit — no Hulumi default for StartupHardened
+    schedule: "cron(0 02 ? * WED *)", // explicit — no Hulumi default for StartupHardened
     durationHours: 2,
     cutoffHours: 1,
-    rebootOption: "RebootIfNeeded",       // see § Decision: RebootOption default
+    rebootOption: "RebootIfNeeded", // see § Decision: RebootOption default
     timezone: "Etc/UTC",
   },
   staggering: {
-    bucketCount: 4,                       // splits target by tag-hash modulo 4 — see § Decision: synchronized-reboot
+    bucketCount: 4, // splits target by tag-hash modulo 4 — see § Decision: synchronized-reboot
     bucketWindowOffsetMinutes: 15,
   },
   complianceMetric: {
-    snsTopicArn: monitoring.high.arn,     // routes "patch compliance failed" through MonitoringFoundation
+    snsTopicArn: monitoring.high.arn, // routes "patch compliance failed" through MonitoringFoundation
     severityThreshold: "Critical",
   },
 });
@@ -106,7 +106,7 @@ new baseline.aws.Ec2PatchBaseline("prod-linux-patches", {
 
 **Outputs.** `patchBaselineId`, `patchBaselineArn`, `maintenanceWindowId`, `serviceRoleArn`, `complianceMetricFilterName`, `complianceAlarmArn`. Stable names (`stable` interface level — see [§ Public interfaces](#public-interfaces--stability-levels)).
 
-**Why a single `Ec2PatchBaseline` and not split** (`PatchBaseline`, `MaintenanceWindow`, `MaintenanceWindowTask` as separate components). Splitting would mirror `aws.ssm.*` 1:1 but the value Hulumi adds is *bundling* the six resources with the right inter-dependencies (target selector → window task → patch baseline → service role) so that `pulumi destroy` cleans up cleanly. Five of every six adopters re-derive the same six-resource glue — that is exactly the hand-rolled-boilerplate cost the [§ Why this doc exists](#why-this-doc-exists-and-what-it-isnt) section above is designed to delete.
+**Why a single `Ec2PatchBaseline` and not split** (`PatchBaseline`, `MaintenanceWindow`, `MaintenanceWindowTask` as separate components). Splitting would mirror `aws.ssm.*` 1:1 but the value Hulumi adds is _bundling_ the six resources with the right inter-dependencies (target selector → window task → patch baseline → service role) so that `pulumi destroy` cleans up cleanly. Five of every six adopters re-derive the same six-resource glue — that is exactly the hand-rolled-boilerplate cost the [§ Why this doc exists](#why-this-doc-exists-and-what-it-isnt) section above is designed to delete.
 
 ## Decision: `Ec2PatchWaves` shape (M1 — added 2026-05-01 per Flaw 2)
 
@@ -124,27 +124,42 @@ new baseline.aws.Ec2PatchWaves("fleet-patches", {
     dev: {
       operatingSystem: "AMAZON_LINUX_2023",
       approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
-      maintenanceWindow: { schedule: "cron(0 02 ? * SUN *)", durationHours: 2, cutoffHours: 1, rebootOption: { kind: "RebootIfNeeded" } },
+      maintenanceWindow: {
+        schedule: "cron(0 02 ? * SUN *)",
+        durationHours: 2,
+        cutoffHours: 1,
+        rebootOption: { kind: "RebootIfNeeded" },
+      },
       staggering: { bucketCount: 1, bucketWindowOffsetMinutes: 0 },
     },
     staging: {
       operatingSystem: "AMAZON_LINUX_2023",
       approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
-      maintenanceWindow: { schedule: "cron(0 02 ? * MON *)", durationHours: 2, cutoffHours: 1, rebootOption: { kind: "RebootIfNeeded" } },
+      maintenanceWindow: {
+        schedule: "cron(0 02 ? * MON *)",
+        durationHours: 2,
+        cutoffHours: 1,
+        rebootOption: { kind: "RebootIfNeeded" },
+      },
       staggering: { bucketCount: 2, bucketWindowOffsetMinutes: 30 },
     },
     production: {
       operatingSystem: "AMAZON_LINUX_2023",
       approvalRules: { approveAfterDays: 0, severities: ["Critical", "Important", "Medium"] },
-      maintenanceWindow: { schedule: "cron(0 02 ? * TUE *)", durationHours: 4, cutoffHours: 2, rebootOption: { kind: "RebootIfNeeded" } },
+      maintenanceWindow: {
+        schedule: "cron(0 02 ? * TUE *)",
+        durationHours: 4,
+        cutoffHours: 2,
+        rebootOption: { kind: "RebootIfNeeded" },
+      },
       staggering: { bucketCount: 4, bucketWindowOffsetMinutes: 15 },
     },
   },
-  complianceMetric: { snsTopicArn: monitoring.high.arn, severityThreshold: "Critical" },  // shared across all three waves
+  complianceMetric: { snsTopicArn: monitoring.high.arn, severityThreshold: "Critical" }, // shared across all three waves
   // Wave health gate inputs — composite alarm gates the next wave
   waveHealthGate: {
-    appHealthAlarmArns: [albAlarm.arn, apdexAlarm.arn],   // consumer-supplied; combined with prior wave's SSM-Compliance-Failed
-    onAlarmFireDisableNextWave: true,                     // default true — fail-loud
+    appHealthAlarmArns: [albAlarm.arn, apdexAlarm.arn], // consumer-supplied; combined with prior wave's SSM-Compliance-Failed
+    onAlarmFireDisableNextWave: true, // default true — fail-loud
   },
 });
 ```
@@ -152,6 +167,7 @@ new baseline.aws.Ec2PatchWaves("fleet-patches", {
 **Outputs.** `waves: { dev: Ec2PatchBaselineOutputs; staging?: ...; production?: ... }`, `compositeAlarmArns: pulumi.Output<{ devToStaging: string; stagingToProduction: string }>`.
 
 **Tier ladder.**
+
 - **Sandbox**: degrades to single-wave (`dev` only). The `waves.staging` / `waves.production` keys may be present but produce no resources. No composite alarm. Sandbox accounts often don't have three environments — refusing to construct would be hostile.
 - **StartupHardened**: all three waves required. Refusing construction with a clear error if any wave is missing.
 
@@ -165,7 +181,7 @@ This is the **breach-risk lever** identified in the idea doc's Top risks. The "p
 
 **Decision.** Both tiers default to `RebootIfNeeded` (the patch-applies-and-reboots path). The `NoReboot` option is available but requires the consumer to write it explicitly with a `// HULUMI_DECISION:` comment. Sandbox does **not** default to `NoReboot`.
 
-**Why.** The failure mode of a sandbox tenant being surprised by a 2am reboot is *visible and recoverable* (single-developer sandbox: re-launch a container, re-establish a VPN session). The failure mode of a sandbox running on the same kernel for sixty days is *invisible until exploited*. Hulumi's hardened-by-default discipline says we choose the visible-failure default.
+**Why.** The failure mode of a sandbox tenant being surprised by a 2am reboot is _visible and recoverable_ (single-developer sandbox: re-launch a container, re-establish a VPN session). The failure mode of a sandbox running on the same kernel for sixty days is _invisible until exploited_. Hulumi's hardened-by-default discipline says we choose the visible-failure default.
 
 **What we ship to make it tolerable.** Sandbox tier defaults `MaintenanceWindow.schedule` to `cron(0 04 ? * SUN *)` (Sunday 04:00 UTC — the lowest-collision window across UK / EU / US time zones for solo developers). StartupHardened tier ships **no schedule default** — the consumer must set it explicitly. Fail-loud is the right discipline for production.
 
@@ -194,18 +210,18 @@ The idea doc's prolonged-outage risk is "50 EC2s reboot at the same Maintenance 
 ```ts
 new baseline.aws.DetectiveServicesEnable("detective", {
   tier: Tier.StartupHardened,
-  enableGuardDuty: true,                  // default true
-  enableAccessAnalyzer: true,             // default true
-  enableCostAnomalyDetection: true,       // default true
-  enableInspectorV2: true,                // default true; covers EC2 + ECR + Lambda scan resource types
+  enableGuardDuty: true, // default true
+  enableAccessAnalyzer: true, // default true
+  enableCostAnomalyDetection: true, // default true
+  enableInspectorV2: true, // default true; covers EC2 + ECR + Lambda scan resource types
   guardDutyPublishingFrequency: "FIFTEEN_MINUTES",
   costAnomalyThresholdUsd: 20,
   inspectorScanResourceTypes: ["EC2", "ECR", "LAMBDA"],
   // Routing is dual at StartupHardened — see § Decision: dual-route default below.
   // - findingsRoutingSnsArn / findingsSeverityFloor route the firehose (HIGH+CRITICAL by default)
   // - findingsKevRoutingSnsArn routes the high-priority subset (KEV catalog membership)
-  findingsRoutingSnsArn: monitoring.med.arn,    // medium-priority firehose at hardened
-  findingsSeverityFloor: "HIGH",                 // route HIGH+CRITICAL only
+  findingsRoutingSnsArn: monitoring.med.arn, // medium-priority firehose at hardened
+  findingsSeverityFloor: "HIGH", // route HIGH+CRITICAL only
   findingsKevRoutingSnsArn: monitoring.high.arn, // high-priority KEV-only route — NEW arg per Flaw 1
 });
 ```
@@ -247,12 +263,12 @@ The EventBridge rule patterns are pure JSON — no runtime code. Sandbox tier de
 new baseline.aws.AuditTrail("audit", {
   tier: Tier.StartupHardened,
   name: "management-events",
-  cwLogsRetentionDays: 90,                // tier-aware default; StartupHardened: 365
+  cwLogsRetentionDays: 90, // tier-aware default; StartupHardened: 365
   s3LifecycleArchiveDays: 90,
   s3LifecycleExpireDays: 365,
-  captureS3DataEvents: false,             // off by default (cost)
-  captureLambdaDataEvents: false,         // off by default (cost)
-  kmsKeyAliasName: foundation.kmsLogsAlias.name,  // optional; falls back to hulumi-managed alias
+  captureS3DataEvents: false, // off by default (cost)
+  captureLambdaDataEvents: false, // off by default (cost)
+  kmsKeyAliasName: foundation.kmsLogsAlias.name, // optional; falls back to hulumi-managed alias
 });
 ```
 
@@ -262,25 +278,25 @@ new baseline.aws.AuditTrail("audit", {
 
 **Decision.** Add a new CrossGuard policy pack `HulumiOperationsHardeningPack` to `@hulumi/policies`, mirroring `HulumiHardeningPack`'s tier-aware `advisory | mandatory` shape. Five rules, all prefix `O_`:
 
-| Rule ID         | Tier-aware level                     | What it catches                                                                              |
-| --------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `O_PATCH_1`     | Sandbox: advisory; Hardened: mandatory | `aws.ec2.Instance` without a `Patch:Group=*` tag                                              |
-| `O_PATCH_2`     | both: mandatory                       | `aws.ssm.PatchBaseline` not associated to a `MaintenanceWindow` (orphan baseline)             |
-| `O_DETECT_1`    | Sandbox: advisory; Hardened: mandatory | account-level stack with EC2 / ECR resources but no `DetectiveServicesEnable`                 |
-| `O_AUDIT_1`     | Sandbox: advisory; Hardened: mandatory | account-level stack without an `AuditTrail` (or documented `Suppression`)                    |
-| `O_INSPECTOR_1` | both: mandatory                       | `aws.ecr.Repository` with `imageScanningConfiguration.scanOnPush != true`                     |
+| Rule ID         | Tier-aware level                       | What it catches                                                                   |
+| --------------- | -------------------------------------- | --------------------------------------------------------------------------------- |
+| `O_PATCH_1`     | Sandbox: advisory; Hardened: mandatory | `aws.ec2.Instance` without a `Patch:Group=*` tag                                  |
+| `O_PATCH_2`     | both: mandatory                        | `aws.ssm.PatchBaseline` not associated to a `MaintenanceWindow` (orphan baseline) |
+| `O_DETECT_1`    | Sandbox: advisory; Hardened: mandatory | account-level stack with EC2 / ECR resources but no `DetectiveServicesEnable`     |
+| `O_AUDIT_1`     | Sandbox: advisory; Hardened: mandatory | account-level stack without an `AuditTrail` (or documented `Suppression`)         |
+| `O_INSPECTOR_1` | both: mandatory                        | `aws.ecr.Repository` with `imageScanningConfiguration.scanOnPush != true`         |
 
 `Suppression` API (existing) accepts these rule IDs. Tier monotonicity meta-test (existing pattern, H4-shape) extends to verify Sandbox emits ≤ controls than StartupHardened across this pack — a regression in tier ladder is a CI failure.
 
 **Compliance mappings (IDs only, per Hulumi's licence-boundary discipline).**
 
-| Rule          | CIS AWS FB v5     | NIST 800-53 r5  | PCI-DSS v4.0.1   |
-| ------------- | ----------------- | --------------- | ---------------- |
-| `O_PATCH_1`   | (no v5 patch ID — see [§ Open question 4](#open-questions)) | SI-2(2)         | 6.3.3            |
-| `O_PATCH_2`   | (same)            | SI-2(3)         | 6.3.3            |
-| `O_DETECT_1`  | 4.16              | AU-12, SI-4(2)  | 10.1, 11.5.1     |
-| `O_AUDIT_1`   | 3.x section       | AU-2, AU-3      | 10.2.1           |
-| `O_INSPECTOR_1` | 5.5             | RA-5(2)         | 6.3.2            |
+| Rule            | CIS AWS FB v5                                               | NIST 800-53 r5 | PCI-DSS v4.0.1 |
+| --------------- | ----------------------------------------------------------- | -------------- | -------------- |
+| `O_PATCH_1`     | (no v5 patch ID — see [§ Open question 4](#open-questions)) | SI-2(2)        | 6.3.3          |
+| `O_PATCH_2`     | (same)                                                      | SI-2(3)        | 6.3.3          |
+| `O_DETECT_1`    | 4.16                                                        | AU-12, SI-4(2) | 10.1, 11.5.1   |
+| `O_AUDIT_1`     | 3.x section                                                 | AU-2, AU-3     | 10.2.1         |
+| `O_INSPECTOR_1` | 5.5                                                         | RA-5(2)        | 6.3.2          |
 
 The mapping table follows [`docs/mappings/`](../mappings/) house style — IDs only, framework URLs cited in the rule's metadata, no verbatim control text.
 
@@ -352,15 +368,15 @@ Dashed lines = added by this runbook.
 
 Downstream milestones cannot rename or reshape these without explicit migration. Stability ladder mirrors [`hulumi-k8s-surface.md`](./hulumi-k8s-surface.md).
 
-| Surface                                                              | Stability  | Notes                                                                                |
-| -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
-| `@hulumi/baseline.aws.Ec2PatchBaseline` constructor + `Args` shape    | `stable`   | M1 — frozen at v1.2.0. Args additions are non-breaking; existing fields are frozen.  |
-| `@hulumi/baseline.aws.DetectiveServicesEnable` constructor + `Args`   | `stable`   | M2. Resolves [#49](https://github.com/kerberosmansour/hulumi/issues/49).             |
-| `@hulumi/baseline.aws.AuditTrail` constructor + `Args`                | `stable`   | M3. Resolves [#47](https://github.com/kerberosmansour/hulumi/issues/47).             |
-| `@hulumi/policies.HulumiOperationsHardeningPack` rule IDs (`O_*`)     | `stable`   | M4. Renaming a rule ID is a major-version bump.                                      |
-| Tag keys: `Patch:Group`, `hulumi:patch-bucket`, `hulumi:operations`   | `stable`   | Cross-component contract.                                                            |
-| `Ec2PatchBaseline.staggering.bucketCount` semantics (CRC32 mod)       | `evolving` | Reserves the right to swap hash function in v2 with a documented migration.          |
-| Internal: shape of the IAM service role for Maintenance Window Task   | `internal` | Fair game — consumers should not depend on policy ARNs being stable.                 |
+| Surface                                                             | Stability  | Notes                                                                               |
+| ------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------- |
+| `@hulumi/baseline.aws.Ec2PatchBaseline` constructor + `Args` shape  | `stable`   | M1 — frozen at v1.2.0. Args additions are non-breaking; existing fields are frozen. |
+| `@hulumi/baseline.aws.DetectiveServicesEnable` constructor + `Args` | `stable`   | M2. Resolves [#49](https://github.com/kerberosmansour/hulumi/issues/49).            |
+| `@hulumi/baseline.aws.AuditTrail` constructor + `Args`              | `stable`   | M3. Resolves [#47](https://github.com/kerberosmansour/hulumi/issues/47).            |
+| `@hulumi/policies.HulumiOperationsHardeningPack` rule IDs (`O_*`)   | `stable`   | M4. Renaming a rule ID is a major-version bump.                                     |
+| Tag keys: `Patch:Group`, `hulumi:patch-bucket`, `hulumi:operations` | `stable`   | Cross-component contract.                                                           |
+| `Ec2PatchBaseline.staggering.bucketCount` semantics (CRC32 mod)     | `evolving` | Reserves the right to swap hash function in v2 with a documented migration.         |
+| Internal: shape of the IAM service role for Maintenance Window Task | `internal` | Fair game — consumers should not depend on policy ARNs being stable.                |
 
 ## Cross-package contracts
 
@@ -385,7 +401,7 @@ These are the four `/slo-research` open-question buckets from the idea doc, refr
 ### New questions surfaced 2026-05-01
 
 5. **DHI catalog coverage for sunlit-shaped runtimes** — does Docker Hardened Images carry `rust:1.88`-equivalent, Node, and HashiCorp Vault images? Verification is a 30-min `docker pull` exercise; if gaps exist, document the Chainguard fallback in the M5 hardened-base-images cookbook. Tracked in [`docs/slo/idea/hulumi-for-operations-v1-3.md`](../idea/hulumi-for-operations-v1-3.md) for the v1.3 ECR pull-through-cache work.
-6. **Wave gate semantics under partial failure** — when the dev-wave-to-staging-wave composite alarm fires mid-window (e.g., a single dev EC2 fails patch compliance but the rest succeed), should the gate disable the staging wave for the *current* week or permanently until reset? Decision: current week only; the `MaintenanceWindow.enabled: false` is a flop, not a latch. Document in M1 lessons file when implemented.
+6. **Wave gate semantics under partial failure** — when the dev-wave-to-staging-wave composite alarm fires mid-window (e.g., a single dev EC2 fails patch compliance but the rest succeed), should the gate disable the staging wave for the _current_ week or permanently until reset? Decision: current week only; the `MaintenanceWindow.enabled: false` is a flop, not a latch. Document in M1 lessons file when implemented.
 
 ## Glossary
 

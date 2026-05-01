@@ -69,10 +69,7 @@ function validateStaggering(name: string, s: StaggeringConfig | undefined): numb
   return count;
 }
 
-export class Ec2PatchBaseline
-  extends pulumi.ComponentResource
-  implements Ec2PatchBaselineOutputs
-{
+export class Ec2PatchBaseline extends pulumi.ComponentResource implements Ec2PatchBaselineOutputs {
   public readonly patchBaselineId: pulumi.Output<string>;
   public readonly patchGroupTagValue: pulumi.Output<string>;
   public readonly maintenanceWindowId: pulumi.Output<string>;
@@ -82,11 +79,7 @@ export class Ec2PatchBaseline
   public readonly complianceAlarmArn: pulumi.Output<string>;
   public readonly staggerBucketCount: pulumi.Output<number>;
 
-  constructor(
-    name: string,
-    args: Ec2PatchBaselineArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: Ec2PatchBaselineArgs, opts?: pulumi.ComponentResourceOptions) {
     super(EC2_PATCH_BASELINE_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
     if (!PATCH_GROUP_VALUES.has(args.patchGroup)) {

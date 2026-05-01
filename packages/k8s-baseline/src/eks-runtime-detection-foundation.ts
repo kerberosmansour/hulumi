@@ -142,8 +142,7 @@ export class EksRuntimeDetectionFoundation
         {
           name: filterName,
           logGroupName: args.auditLogGroupName,
-          pattern:
-            '{ ($.objectRef.resource = "pods") && ($.objectRef.subresource = "exec") }',
+          pattern: '{ ($.objectRef.resource = "pods") && ($.objectRef.subresource = "exec") }',
           metricTransformation: {
             namespace: "Hulumi/EksRuntimeDetection",
             name: `${name}-pod-exec-count`,

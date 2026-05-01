@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  planUpgrade,
-  reportToMarkdown,
-  type EksUpgradeInventory,
-} from "../src";
+import { planUpgrade, reportToMarkdown, type EksUpgradeInventory } from "../src";
 
 const baseInv: EksUpgradeInventory = {
   clusterName: "prod-eks",
@@ -97,9 +93,7 @@ describe("EksUpgradePlanner — verdict matrix", () => {
         targetCompatibleWithK8sTarget: true,
       });
     }
-    expect(() => planUpgrade({ ...baseInv, addons: tooMany })).toThrow(
-      /max 32 per call/,
-    );
+    expect(() => planUpgrade({ ...baseInv, addons: tooMany })).toThrow(/max 32 per call/);
   });
 
   test("reportToMarkdown produces a structured report", () => {

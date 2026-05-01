@@ -14,11 +14,7 @@ export const ISTIO_FOUNDATION_COMPONENT_TYPE = "hulumi:k8s:IstioFoundation";
 const ISTIO_HELM_REPO = "https://istio-release.storage.googleapis.com/charts";
 
 const VALID_MTLS = new Set(["STRICT", "PERMISSIVE"]);
-const VALID_PSA: ReadonlySet<PodSecurityLevel> = new Set([
-  "baseline",
-  "restricted",
-  "privileged",
-]);
+const VALID_PSA: ReadonlySet<PodSecurityLevel> = new Set(["baseline", "restricted", "privileged"]);
 
 const DEFAULT_INGRESS_GATEWAY: Required<IstioIngressGatewayArgs> = {
   enabled: true,

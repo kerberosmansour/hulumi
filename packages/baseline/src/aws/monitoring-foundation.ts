@@ -30,8 +30,7 @@ import type {
 import { ALERT_SEVERITIES } from "./monitoring-foundation.args";
 import type { MonitoringFoundationOutputs } from "./monitoring-foundation.outputs";
 
-export const MONITORING_FOUNDATION_COMPONENT_TYPE =
-  "hulumi:baseline:aws:MonitoringFoundation";
+export const MONITORING_FOUNDATION_COMPONENT_TYPE = "hulumi:baseline:aws:MonitoringFoundation";
 
 const CONTROLS_CLAIMED: readonly string[] = [
   // CIS-AWS v5.0.0 §3.4 — log metric filters and alarms (we don't create
@@ -90,11 +89,7 @@ export class MonitoringFoundation
         tags: { ...tags, Severity: severity },
         ...(args.kmsKeyArn !== undefined ? { kmsMasterKeyId: args.kmsKeyArn } : {}),
       };
-      const topic = new aws.sns.Topic(
-        `${name}-topic-${severity}`,
-        topicArgs,
-        parent,
-      );
+      const topic = new aws.sns.Topic(`${name}-topic-${severity}`, topicArgs, parent);
       topics[severity] = topic;
 
       const subs = args.subscriptions?.[severity] ?? [];

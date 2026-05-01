@@ -2,27 +2,17 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 import { Ec2PatchBaseline } from "./ec2-patch-baseline";
-import type {
-  Ec2PatchWaveArgs,
-  Ec2PatchWavesArgs,
-} from "./ec2-patch-waves.args";
+import type { Ec2PatchWaveArgs, Ec2PatchWavesArgs } from "./ec2-patch-waves.args";
 import type { Ec2PatchWavesOutputs } from "./ec2-patch-waves.outputs";
 import { assertValidTier } from "./tier";
 
 export const EC2_PATCH_WAVES_COMPONENT_TYPE = "hulumi:baseline:aws:Ec2PatchWaves";
 
-export class Ec2PatchWaves
-  extends pulumi.ComponentResource
-  implements Ec2PatchWavesOutputs
-{
+export class Ec2PatchWaves extends pulumi.ComponentResource implements Ec2PatchWavesOutputs {
   public readonly waveNames: pulumi.Output<string[]>;
   public readonly healthGateAlarmArn: pulumi.Output<string | undefined>;
 
-  constructor(
-    name: string,
-    args: Ec2PatchWavesArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: Ec2PatchWavesArgs, opts?: pulumi.ComponentResourceOptions) {
     super(EC2_PATCH_WAVES_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
 
@@ -38,8 +28,7 @@ export class Ec2PatchWaves
     }
 
     const parent = { parent: this } as const;
-    const waves: Array<{ tag: "dev" | "staging" | "production"; baseline: Ec2PatchBaseline }> =
-      [];
+    const waves: Array<{ tag: "dev" | "staging" | "production"; baseline: Ec2PatchBaseline }> = [];
 
     function buildWave(
       tag: "dev" | "staging" | "production",
@@ -69,9 +58,7 @@ export class Ec2PatchWaves
           alarmRule: pulumi
             .all(arns)
             .apply((aArns) =>
-              aArns
-                .map((a) => `ALARM("${a.split(":alarm:")[1] ?? a}")`)
-                .join(" OR "),
+              aArns.map((a) => `ALARM("${a.split(":alarm:")[1] ?? a}")`).join(" OR "),
             ),
           alarmDescription:
             "Hulumi Ec2PatchWaves wave-to-wave health gate: OK transitions to next wave; ALARM blocks progression.",

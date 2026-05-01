@@ -12,8 +12,8 @@ description: Composes up to three Ec2PatchBaseline instances (dev â†’ staging â†
 ```ts
 new Ec2PatchWaves("prod-waves", {
   tier: "startup-hardened",
-  dev:        { ...waveBase, scheduleCron: "cron(0 1 ? * MON *)" },
-  staging:    { ...waveBase, scheduleCron: "cron(0 3 ? * WED *)" },
+  dev: { ...waveBase, scheduleCron: "cron(0 1 ? * MON *)" },
+  staging: { ...waveBase, scheduleCron: "cron(0 3 ? * WED *)" },
   production: { ...waveBase, scheduleCron: "cron(0 5 ? * SUN *)" },
 });
 ```

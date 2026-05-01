@@ -9,14 +9,8 @@ import { createActionsOrganizationPermissions } from "./org-actions";
 import { createActionsOrganizationOidcSubjectClaimCustomizationTemplate } from "./org-oidc-template";
 import { applySecurityDefaults } from "./org-security-defaults";
 
-import type {
-  OrgFoundationArgs,
-  OrganizationSecurityBackend,
-} from "./org-foundation.args";
-import type {
-  OrgFoundationOutputs,
-  SecurityDefaultsOutput,
-} from "./org-foundation.outputs";
+import type { OrgFoundationArgs, OrganizationSecurityBackend } from "./org-foundation.args";
+import type { OrgFoundationOutputs, SecurityDefaultsOutput } from "./org-foundation.outputs";
 
 export const ORG_FOUNDATION_COMPONENT_TYPE = "hulumi:baseline:github:OrgFoundation";
 
@@ -53,27 +47,19 @@ const CONTROLS_CLAIMED_BY_ORG_FOUNDATION: readonly string[] = [
  * M2 deliberately omits the `hulumi:controls` tag from outputs — M3 adds
  * it as the staged-migration completion (see lessons file).
  */
-export class OrgFoundation
-  extends pulumi.ComponentResource
-  implements OrgFoundationOutputs
-{
+export class OrgFoundation extends pulumi.ComponentResource implements OrgFoundationOutputs {
   public readonly organizationRulesetId: pulumi.Output<string>;
   public readonly actionsPermissionsId: pulumi.Output<string>;
   public readonly oidcTemplateId: pulumi.Output<string>;
   public readonly securityDefaults: pulumi.Output<SecurityDefaultsOutput>;
   public readonly hulumiControls: pulumi.Output<readonly string[]>;
 
-  constructor(
-    name: string,
-    args: OrgFoundationArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: OrgFoundationArgs, opts?: pulumi.ComponentResourceOptions) {
     super(ORG_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
 
     const isStartupHardened = args.tier === "startup-hardened";
-    const backend: OrganizationSecurityBackend =
-      args.organizationSecurityBackend ?? "flat-fields";
+    const backend: OrganizationSecurityBackend = args.organizationSecurityBackend ?? "flat-fields";
 
     // Resolve the default repository permission tier-gated when not
     // explicitly supplied. Sandbox is "none"; startup-hardened is "read".
@@ -131,9 +117,7 @@ export class OrgFoundation
       this.securityDefaults = pulumi.output(empty);
     }
 
-    this.hulumiControls = pulumi.output(
-      CONTROLS_CLAIMED_BY_ORG_FOUNDATION as readonly string[],
-    );
+    this.hulumiControls = pulumi.output(CONTROLS_CLAIMED_BY_ORG_FOUNDATION as readonly string[]);
 
     this.registerOutputs({
       organizationRulesetId: this.organizationRulesetId,

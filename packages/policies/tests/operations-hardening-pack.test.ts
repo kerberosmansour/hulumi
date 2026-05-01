@@ -38,10 +38,12 @@ describe("Scenario: O_PATCH_1 — Patch:Group tag enum enforcement", () => {
       name: "bad",
       props: { targets: [{ key: "tag:Patch:Group", values: ["qa"] }] },
     });
-    (oPatch1RestrictPatchGroupTag.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oPatch1RestrictPatchGroupTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/"qa".*not in \{dev, staging, production\}/);
   });
@@ -55,10 +57,12 @@ describe("Scenario: O_PATCH_1 — Patch:Group tag enum enforcement", () => {
         name: `ok-${v}`,
         props: { targets: [{ key: "tag:Patch:Group", values: [v] }] },
       });
-      (oPatch1RestrictPatchGroupTag.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void)(args, report);
+      (
+        oPatch1RestrictPatchGroupTag.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
       expect(violations).toHaveLength(0);
     }
   });
@@ -72,10 +76,12 @@ describe("Scenario: O_AUDIT_1 — CloudTrail multi-region + log-file validation"
       name: "bad-1",
       props: { isMultiRegionTrail: false, enableLogFileValidation: true },
     });
-    (oAudit1CloudTrailPosture.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oAudit1CloudTrailPosture.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations.some((m) => /not multi-region/.test(m))).toBe(true);
   });
 
@@ -86,10 +92,12 @@ describe("Scenario: O_AUDIT_1 — CloudTrail multi-region + log-file validation"
       name: "bad-2",
       props: { isMultiRegionTrail: true, enableLogFileValidation: false },
     });
-    (oAudit1CloudTrailPosture.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oAudit1CloudTrailPosture.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations.some((m) => /log-file validation/.test(m))).toBe(true);
   });
 
@@ -100,10 +108,12 @@ describe("Scenario: O_AUDIT_1 — CloudTrail multi-region + log-file validation"
       name: "ok",
       props: { isMultiRegionTrail: true, enableLogFileValidation: true },
     });
-    (oAudit1CloudTrailPosture.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oAudit1CloudTrailPosture.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(0);
   });
 });
@@ -116,10 +126,12 @@ describe("Scenario: O_AUDIT_2 — CT log group KMS-encrypted", () => {
       name: "bad",
       props: { name: "/aws/cloudtrail/account-trail" },
     });
-    (oAudit2CloudTrailLogGroupEncrypted.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oAudit2CloudTrailLogGroupEncrypted.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(1);
   });
 
@@ -130,10 +142,12 @@ describe("Scenario: O_AUDIT_2 — CT log group KMS-encrypted", () => {
       name: "ok",
       props: { name: "/aws/lambda/my-fn" },
     });
-    (oAudit2CloudTrailLogGroupEncrypted.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oAudit2CloudTrailLogGroupEncrypted.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(0);
   });
 });
@@ -146,10 +160,12 @@ describe("Scenario: O_INSPECTOR_1 — Inspector v2 covers EC2 + ECR + LAMBDA", (
       name: "bad",
       props: { resourceTypes: ["EC2", "ECR"] }, // missing LAMBDA
     });
-    (oInspector1FullCoverage.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oInspector1FullCoverage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations.some((m) => /"LAMBDA"/.test(m))).toBe(true);
   });
 
@@ -160,10 +176,12 @@ describe("Scenario: O_INSPECTOR_1 — Inspector v2 covers EC2 + ECR + LAMBDA", (
       name: "ok",
       props: { resourceTypes: ["EC2", "ECR", "LAMBDA"] },
     });
-    (oInspector1FullCoverage.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oInspector1FullCoverage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(0);
   });
 });
@@ -185,10 +203,12 @@ describe("Suppression with reason silences O-INSPECTOR-1", () => {
         ],
       })) as ResourceValidationArgs["getConfig"],
     });
-    (oInspector1FullCoverage.validateResource as (
-      a: ResourceValidationArgs,
-      r: (m: string) => void,
-    ) => void)(args, report);
+    (
+      oInspector1FullCoverage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
     expect(violations).toHaveLength(0);
   });
 });

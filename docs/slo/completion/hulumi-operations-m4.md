@@ -7,18 +7,21 @@
 ## Files changed
 
 ### Added
+
 - `packages/policies/src/aws/operations-hardening-pack.ts` — rules + metadata.
 - `packages/policies/src/aws/packs/hulumi-operations-hardening.ts` — entry point.
 - `packages/policies/tests/operations-hardening-pack.test.ts` — 10 BDD scenarios.
 - `docs/slo/lessons/hulumi-operations-m4.md`, `docs/slo/completion/hulumi-operations-m4.md`.
 
 ### Modified
+
 - `packages/policies/src/index.ts` — re-exports.
 - `docs/components/README.md` — pack row appended.
 
 ## Tests added
 
 10 BDD scenarios:
+
 - `O_PATCH_1`: free-form value rejected; canonical 3 values allowed.
 - `O_AUDIT_1`: single-region rejected; missing log-file validation rejected; compliant trail allowed.
 - `O_AUDIT_2`: `/aws/cloudtrail/*` group without `kmsKeyId` rejected; non-CT log groups ignored.
@@ -27,11 +30,11 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| Full tests             | 86 baseline / **106** policies (was 96; +10) / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                       |
+| `pnpm -r build`     | green                                                                                                       |
+| Full tests          | 86 baseline / **106** policies (was 96; +10) / 58 drift / 149 k8s-baseline / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility
 

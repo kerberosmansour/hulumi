@@ -15,11 +15,7 @@
 // RV.1.
 
 export const nistSsdfV11 = {
-  secureRepository: [
-    "NIST-SSDF-v1.1:PO.3",
-    "NIST-SSDF-v1.1:PW.5",
-    "NIST-SSDF-v1.1:RV.1",
-  ],
+  secureRepository: ["NIST-SSDF-v1.1:PO.3", "NIST-SSDF-v1.1:PW.5", "NIST-SSDF-v1.1:RV.1"],
   orgFoundation: [
     "NIST-SSDF-v1.1:PO.3",
     "NIST-SSDF-v1.1:PO.4",
@@ -27,21 +23,10 @@ export const nistSsdfV11 = {
     "NIST-SSDF-v1.1:PS.1",
     "NIST-SSDF-v1.1:PW.7",
   ],
-  orgRulesets: [
-    "NIST-SSDF-v1.1:PW.6",
-    "NIST-SSDF-v1.1:PW.7",
-  ],
-  orgActions: [
-    "NIST-SSDF-v1.1:PO.3",
-    "NIST-SSDF-v1.1:PW.5",
-  ],
-  orgOidcTemplate: [
-    "NIST-SSDF-v1.1:PO.5",
-  ],
-  orgSecurityDefaults: [
-    "NIST-SSDF-v1.1:PO.4",
-    "NIST-SSDF-v1.1:RV.1",
-  ],
+  orgRulesets: ["NIST-SSDF-v1.1:PW.6", "NIST-SSDF-v1.1:PW.7"],
+  orgActions: ["NIST-SSDF-v1.1:PO.3", "NIST-SSDF-v1.1:PW.5"],
+  orgOidcTemplate: ["NIST-SSDF-v1.1:PO.5"],
+  orgSecurityDefaults: ["NIST-SSDF-v1.1:PO.4", "NIST-SSDF-v1.1:RV.1"],
 } as const;
 
 export type NistSsdfV11Id = (typeof nistSsdfV11.secureRepository)[number];

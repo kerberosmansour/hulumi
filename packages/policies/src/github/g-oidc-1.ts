@@ -16,20 +16,16 @@ import type { ResourceValidationPolicy } from "@pulumi/policy";
 
 import { matchSuppression, type Suppression } from "./suppressions";
 
-const DOCS_URL =
-  "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/g-oidc-1.md";
+const DOCS_URL = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/g-oidc-1.md";
 
 const AWS_IAM_ROLE_TYPE = "aws:iam/role:Role";
 const AZURE_FEDERATED_CRED_TYPE =
   "azuread:index/applicationFederatedIdentityCredential:ApplicationFederatedIdentityCredential";
-const GCP_WIF_PROVIDER_TYPE =
-  "gcp:iam/workloadIdentityPoolProvider:WorkloadIdentityPoolProvider";
+const GCP_WIF_PROVIDER_TYPE = "gcp:iam/workloadIdentityPoolProvider:WorkloadIdentityPoolProvider";
 
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
 
-function readSuppressions(
-  config: Record<string, unknown> | undefined,
-): Suppression[] {
+function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
   if (!Array.isArray(raw)) return [];
   return raw.filter((x): x is Suppression => {

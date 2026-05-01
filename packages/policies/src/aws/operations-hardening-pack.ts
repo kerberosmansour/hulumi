@@ -14,8 +14,7 @@ import type { ResourceValidationPolicy } from "@pulumi/policy";
 import type { PackMetadata } from "../metadata";
 import { matchSuppression, type Suppression } from "./suppressions";
 
-const DOCS_BASE =
-  "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/README.md";
+const DOCS_BASE = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/README.md";
 
 const PATCH_GROUP_TAG = "Patch:Group";
 const VALID_PATCH_GROUPS = new Set(["dev", "staging", "production"]);
@@ -28,18 +27,14 @@ const CLOUDTRAIL_TYPE = "aws:cloudtrail/trail:Trail";
 const LOG_GROUP_TYPE = "aws:cloudwatch/logGroup:LogGroup";
 const INSPECTOR_ENABLER_TYPE = "aws:inspector2/enabler:Enabler";
 
-function readSuppressions(
-  config: Record<string, unknown> | undefined,
-): readonly Suppression[] {
+function readSuppressions(config: Record<string, unknown> | undefined): readonly Suppression[] {
   const raw = config?.suppressions;
   if (!Array.isArray(raw)) return [];
   return raw.filter((x): x is Suppression => {
     if (x === null || typeof x !== "object") return false;
     const o = x as Record<string, unknown>;
     return (
-      typeof o.ruleId === "string" &&
-      typeof o.reason === "string" &&
-      o.reason.trim().length > 0
+      typeof o.ruleId === "string" && typeof o.reason === "string" && o.reason.trim().length > 0
     );
   });
 }

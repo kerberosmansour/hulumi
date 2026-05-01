@@ -7,19 +7,23 @@
 ## Files changed
 
 ### Added (source)
+
 - `packages/k8s-baseline/src/namespace-foundation.args.ts` — types + `MAX_*` constants.
 - `packages/k8s-baseline/src/namespace-foundation.outputs.ts` — outputs interface.
 - `packages/k8s-baseline/src/namespace-foundation.ts` — component.
 
 ### Added (tests)
+
 - `packages/k8s-baseline/tests/namespace-foundation.test.ts` — 17 BDD scenarios.
 
 ### Added (docs)
+
 - `docs/components/namespace-foundation.md`.
 - `docs/slo/lessons/hulumi-k8s-security-m4.md`.
 - `docs/slo/completion/hulumi-k8s-security-m4.md`.
 
 ### Modified
+
 - `packages/k8s-baseline/src/index.ts` — re-exports `NamespaceFoundation` + types + bounds.
 - `docs/components/README.md` — adds the new component row.
 
@@ -42,14 +46,14 @@
 
 ## Static analysis evidence
 
-| Check                  | Result |
-| ---------------------- | ------ |
-| `pnpm -r typecheck`    | green |
-| `pnpm -r build`        | green |
-| `pnpm -r lint`         | green |
-| license-boundary       | OK    |
-| exact-pin-guard        | OK    |
-| Full tests             | 67 baseline / 96 policies / 54 drift / **119** k8s-baseline (was 102; +17) / 28 skill-bdd / 4 example smoke |
+| Check               | Result                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pnpm -r typecheck` | green                                                                                                       |
+| `pnpm -r build`     | green                                                                                                       |
+| `pnpm -r lint`      | green                                                                                                       |
+| license-boundary    | OK                                                                                                          |
+| exact-pin-guard     | OK                                                                                                          |
+| Full tests          | 67 baseline / 96 policies / 54 drift / **119** k8s-baseline (was 102; +17) / 28 skill-bdd / 4 example smoke |
 
 ## Compatibility checks
 

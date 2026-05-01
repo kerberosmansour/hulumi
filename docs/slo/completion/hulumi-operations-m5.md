@@ -7,15 +7,18 @@ Three Operations threat-model scenarios shipped in `/hulumi-threat-model`. All f
 ## Files changed
 
 ### Added (scenarios)
+
 - `skills/hulumi-threat-model/scenarios/operations-patch-compliance-lapse.json`.
 - `skills/hulumi-threat-model/scenarios/operations-detective-services-disabled.json`.
 - `skills/hulumi-threat-model/scenarios/operations-audit-pipeline-broken.json`.
 
 ### Added (docs)
+
 - `docs/slo/lessons/hulumi-operations-m5.md`.
 - `docs/slo/completion/hulumi-operations-m5.md`.
 
 ### Modified
+
 - `skills/hulumi-threat-model/scripts/list-scenarios.mjs` — appends the three new IDs.
 - `tests/skill-bdd/hulumi-threat-model.test.ts` — asserts the 14-scenario ordered lister.
 - `packages/baseline/package.json` — `1.1.0` → `1.2.0`.
@@ -31,25 +34,25 @@ Three Operations threat-model scenarios shipped in `/hulumi-threat-model`. All f
 
 ## Runbook close — final test totals
 
-| Package         | Tests passing | Δ vs. baseline (M0) |
-| --------------- | ------------: | ------------------: |
-| `@hulumi/baseline`     | 86 (8 skipped) | +27 |
-| `@hulumi/policies`     | 106            | +47 |
-| `@hulumi/drift`        | 58             | +4  |
-| `@hulumi/k8s-baseline` | 149            | +66 |
-| `tests/skill-bdd`      | 28             | unchanged (3 scenarios added; lister assertion modified) |
-| examples (4)           | 4              | unchanged |
-| **Total**              | **431**        | |
+| Package                |  Tests passing |                                      Δ vs. baseline (M0) |
+| ---------------------- | -------------: | -------------------------------------------------------: |
+| `@hulumi/baseline`     | 86 (8 skipped) |                                                      +27 |
+| `@hulumi/policies`     |            106 |                                                      +47 |
+| `@hulumi/drift`        |             58 |                                                       +4 |
+| `@hulumi/k8s-baseline` |            149 |                                                      +66 |
+| `tests/skill-bdd`      |             28 | unchanged (3 scenarios added; lister assertion modified) |
+| examples (4)           |              4 |                                                unchanged |
+| **Total**              |        **431** |                                                          |
 
 ## Static analysis evidence
 
-| Check                          | Result |
-| ------------------------------ | ------ |
-| `pnpm -r typecheck`            | green |
-| `pnpm -r build`                | green |
-| `pnpm -r lint`                 | green |
-| `pnpm -w run lint:license-boundary` | OK    |
-| `pnpm -w run lint:exact-pin-guard`  | OK (6 @pulumi/* deps) |
+| Check                               | Result                 |
+| ----------------------------------- | ---------------------- |
+| `pnpm -r typecheck`                 | green                  |
+| `pnpm -r build`                     | green                  |
+| `pnpm -r lint`                      | green                  |
+| `pnpm -w run lint:license-boundary` | OK                     |
+| `pnpm -w run lint:exact-pin-guard`  | OK (6 @pulumi/\* deps) |
 
 ## Atomic four-package release readiness
 

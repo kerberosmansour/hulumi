@@ -37,9 +37,7 @@ describe("IdentityAlarms — canonical 6 events", () => {
     );
     expect(filters).toHaveLength(6);
 
-    const alarms = registrations.filter(
-      (r) => r.type === "aws:cloudwatch/metricAlarm:MetricAlarm",
-    );
+    const alarms = registrations.filter((r) => r.type === "aws:cloudwatch/metricAlarm:MetricAlarm");
     expect(alarms).toHaveLength(6);
   });
 
@@ -170,14 +168,10 @@ describe("IdentityAlarms — additionalEvents", () => {
     });
     await settlePulumi();
 
-    const alarms = registrations.filter(
-      (r) => r.type === "aws:cloudwatch/metricAlarm:MetricAlarm",
-    );
+    const alarms = registrations.filter((r) => r.type === "aws:cloudwatch/metricAlarm:MetricAlarm");
     expect(alarms).toHaveLength(7);
 
-    const extra = alarms.find(
-      (a) => a.inputs.name === "ia-identity-s3-bucket-policy-change",
-    );
+    const extra = alarms.find((a) => a.inputs.name === "ia-identity-s3-bucket-policy-change");
     expect(extra).toBeDefined();
     expect(extra!.inputs.alarmActions).toEqual([HIGH_ARN]);
     expect(extra!.inputs.metricName).toBe("S3BucketPolicyChange");

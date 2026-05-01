@@ -33,11 +33,7 @@ function validateName(name: string): void {
   }
 }
 
-function validatePsa(
-  level: PsaLevel | undefined,
-  field: string,
-  fallback: PsaLevel,
-): PsaLevel {
+function validatePsa(level: PsaLevel | undefined, field: string, fallback: PsaLevel): PsaLevel {
   if (level === undefined) return fallback;
   if (!PSA_LEVELS.has(level)) {
     throw new Error(
@@ -69,9 +65,7 @@ function validateQuota(
   }
   const count = Object.keys(quota.hard).length;
   if (count === 0) {
-    throw new Error(
-      `NamespaceFoundation: quota.hard must be non-empty (component "${name}")`,
-    );
+    throw new Error(`NamespaceFoundation: quota.hard must be non-empty (component "${name}")`);
   }
   if (count > MAX_QUOTA_ENTRIES) {
     throw new Error(
@@ -112,11 +106,7 @@ export class NamespaceFoundation
   public readonly networkPolicyNames: pulumi.Output<string[]>;
   public readonly defaultServiceAccountAutomountDisabled: pulumi.Output<boolean>;
 
-  constructor(
-    name: string,
-    args: NamespaceFoundationArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: NamespaceFoundationArgs, opts?: pulumi.ComponentResourceOptions) {
     super(NAMESPACE_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     validateName(args.name);
     validateLabels(args.labels, name);
@@ -267,9 +257,7 @@ export class NamespaceFoundation
             policyTypes: ["Egress"],
             egress: [
               {
-                to: [
-                  { ipBlock: { cidr: "0.0.0.0/0", except: [IMDS_CIDR] } },
-                ],
+                to: [{ ipBlock: { cidr: "0.0.0.0/0", except: [IMDS_CIDR] } }],
               },
             ],
           },
@@ -297,7 +285,9 @@ export class NamespaceFoundation
                         {
                           key: "kubernetes.io/metadata.name",
                           operator: "In",
-                          values: [pulumi.output(net.meshIngressNamespace).apply((ns) => ns)] as unknown as string[],
+                          values: [
+                            pulumi.output(net.meshIngressNamespace).apply((ns) => ns),
+                          ] as unknown as string[],
                         },
                       ],
                     },

@@ -5,6 +5,7 @@
 ## Goal achieved
 
 After M3, the Hulumi-for-GitHub policy surface is in place. `@hulumi/policies/github` ships:
+
 - `HulumiGithubHardeningPack` — H1 (no raw `github.Repository`), H2 (no wildcard OIDC custom template), H3 (= `G_OIDC_1`, AWS/Azure/GCP trust-policy guard).
 - `G_OIDC_1` — exported as a standalone CrossGuard rule for direct composition.
 - `CisGithubV1Pack` — single placeholder advisory rule (real per-section rules deferred to v1.1 D4 pending CIS WorkBench access).

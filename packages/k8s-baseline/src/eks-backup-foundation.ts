@@ -2,10 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 import type { EksBackupFoundationArgs } from "./eks-backup-foundation.args";
-import {
-  MAX_BACKUP_LIFECYCLE_RULES,
-  MAX_BACKUP_SELECTIONS,
-} from "./eks-backup-foundation.args";
+import { MAX_BACKUP_LIFECYCLE_RULES, MAX_BACKUP_SELECTIONS } from "./eks-backup-foundation.args";
 import type { EksBackupFoundationOutputs } from "./eks-backup-foundation.outputs";
 
 export const EKS_BACKUP_FOUNDATION_COMPONENT_TYPE = "hulumi:k8s:EksBackupFoundation";
@@ -21,11 +18,7 @@ export class EksBackupFoundation
   public readonly selectionArn: pulumi.Output<string>;
   public readonly immutableVaultLockManualStepRequired: pulumi.Output<boolean>;
 
-  constructor(
-    name: string,
-    args: EksBackupFoundationArgs,
-    opts?: pulumi.ComponentResourceOptions,
-  ) {
+  constructor(name: string, args: EksBackupFoundationArgs, opts?: pulumi.ComponentResourceOptions) {
     super(EKS_BACKUP_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     if (args.rules === undefined || args.rules.length === 0) {
       throw new Error(`EksBackupFoundation: rules must be non-empty (component "${name}")`);
@@ -36,9 +29,7 @@ export class EksBackupFoundation
       );
     }
     if (args.resourceArns === undefined || args.resourceArns.length === 0) {
-      throw new Error(
-        `EksBackupFoundation: resourceArns must be non-empty (component "${name}")`,
-      );
+      throw new Error(`EksBackupFoundation: resourceArns must be non-empty (component "${name}")`);
     }
     if (args.resourceArns.length > MAX_BACKUP_SELECTIONS) {
       throw new Error(
@@ -51,10 +42,7 @@ export class EksBackupFoundation
           `EksBackupFoundation: rule "${r.ruleName}" retentionDays must be > 0 (got ${r.retentionDays}) (component "${name}")`,
         );
       }
-      if (
-        r.coldStorageAfterDays !== undefined &&
-        r.coldStorageAfterDays > r.retentionDays - 90
-      ) {
+      if (r.coldStorageAfterDays !== undefined && r.coldStorageAfterDays > r.retentionDays - 90) {
         throw new Error(
           `EksBackupFoundation: rule "${r.ruleName}" coldStorageAfterDays (${r.coldStorageAfterDays}) must be at least 90 days less than retentionDays (${r.retentionDays}) (AWS Backup hard limit) (component "${name}")`,
         );

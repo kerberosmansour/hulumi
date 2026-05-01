@@ -80,61 +80,67 @@ describe.skipIf(!ENABLED)("OrgFoundation integration — flat-fields backend", (
   it("provisions org-level ruleset + OIDC template + flat-fields settings against real sandbox org", async () => {
     const up = await stack.up({ onOutput: () => undefined });
     expect(up.summary.result).toBe("succeeded");
-    const sd = up.outputs.securityDefaults?.value as { backend?: string; appliedFlags?: Record<string, boolean> };
+    const sd = up.outputs.securityDefaults?.value as {
+      backend?: string;
+      appliedFlags?: Record<string, boolean>;
+    };
     expect(sd.backend).toBe("flat-fields");
     expect(Object.keys(sd.appliedFlags ?? {}).length).toBeGreaterThan(0);
   }, 240_000);
 });
 
-describe.skipIf(!ENABLED)("OrgFoundation integration — code-security-configurations backend", () => {
-  let stack: Stack;
+describe.skipIf(!ENABLED)(
+  "OrgFoundation integration — code-security-configurations backend",
+  () => {
+    let stack: Stack;
 
-  beforeAll(async () => {
-    if (!ENABLED) return;
-    stack = await LocalWorkspace.createOrSelectStack({
-      stackName: `org-foundation-csc-${TEST_ID}`,
-      projectName: "hulumi-github-m2",
-      program: async () => {
-        const provider = new github.Provider("sandbox-provider", {
-          owner: SANDBOX_ORG!,
-          appAuth: { id: APP_ID!, installationId: APP_INSTALLATION_ID!, pemFile: APP_PEM! },
-        });
-        const f = new OrgFoundation(`${TEST_ID}-csc`, {
-          tier: "startup-hardened",
-          organization: SANDBOX_ORG!,
-          billingEmail: BILLING_EMAIL!,
-          organizationSecurityBackend: "code-security-configurations",
-          provider,
-        });
-        return {
-          rulesetId: f.organizationRulesetId,
-          securityDefaults: f.securityDefaults,
-        };
-      },
-    });
-  }, 60_000);
+    beforeAll(async () => {
+      if (!ENABLED) return;
+      stack = await LocalWorkspace.createOrSelectStack({
+        stackName: `org-foundation-csc-${TEST_ID}`,
+        projectName: "hulumi-github-m2",
+        program: async () => {
+          const provider = new github.Provider("sandbox-provider", {
+            owner: SANDBOX_ORG!,
+            appAuth: { id: APP_ID!, installationId: APP_INSTALLATION_ID!, pemFile: APP_PEM! },
+          });
+          const f = new OrgFoundation(`${TEST_ID}-csc`, {
+            tier: "startup-hardened",
+            organization: SANDBOX_ORG!,
+            billingEmail: BILLING_EMAIL!,
+            organizationSecurityBackend: "code-security-configurations",
+            provider,
+          });
+          return {
+            rulesetId: f.organizationRulesetId,
+            securityDefaults: f.securityDefaults,
+          };
+        },
+      });
+    }, 60_000);
 
-  afterAll(async () => {
-    if (!ENABLED || stack === undefined) return;
-    try {
-      await stack.destroy({ onOutput: () => undefined });
-    } catch (err) {
-      console.error(`[m2-integration-csc] destroy failed: ${String(err)}`);
-    }
-    try {
-      await stack.workspace.removeStack(stack.name);
-    } catch (err) {
-      console.error(`[m2-integration-csc] removeStack failed: ${String(err)}`);
-    }
-  }, 120_000);
+    afterAll(async () => {
+      if (!ENABLED || stack === undefined) return;
+      try {
+        await stack.destroy({ onOutput: () => undefined });
+      } catch (err) {
+        console.error(`[m2-integration-csc] destroy failed: ${String(err)}`);
+      }
+      try {
+        await stack.workspace.removeStack(stack.name);
+      } catch (err) {
+        console.error(`[m2-integration-csc] removeStack failed: ${String(err)}`);
+      }
+    }, 120_000);
 
-  it("registers CSC placeholder resource (REST integration deferred to v1.1 D1.5)", async () => {
-    const up = await stack.up({ onOutput: () => undefined });
-    expect(up.summary.result).toBe("succeeded");
-    const sd = up.outputs.securityDefaults?.value as { backend?: string };
-    expect(sd.backend).toBe("code-security-configurations");
-  }, 240_000);
-});
+    it("registers CSC placeholder resource (REST integration deferred to v1.1 D1.5)", async () => {
+      const up = await stack.up({ onOutput: () => undefined });
+      expect(up.summary.result).toBe("succeeded");
+      const sd = up.outputs.securityDefaults?.value as { backend?: string };
+      expect(sd.backend).toBe("code-security-configurations");
+    }, 240_000);
+  },
+);
 
 if (!ENABLED) {
   describe("OrgFoundation integration — gated skip notice", () => {

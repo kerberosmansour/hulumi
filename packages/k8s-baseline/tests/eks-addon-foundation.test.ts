@@ -56,7 +56,7 @@ describe("EksAddonFoundation — invalid input refusals", () => {
   });
 
   test("Scenario: Add-on count bound enforced (33 → reject)", () => {
-    const tooMany = [];
+    const tooMany: Array<{ name: string; version: string }> = [];
     for (let i = 0; i < 33; i++) {
       tooMany.push({ name: `addon-${i}`, version: "1.0.0" });
     }

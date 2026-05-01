@@ -83,7 +83,12 @@ describe("EksUpgradePlanner — verdict matrix", () => {
   });
 
   test("Bound: 33 add-ons → rejects", () => {
-    const tooMany = [];
+    const tooMany: Array<{
+      name: string;
+      currentVersion: string;
+      targetVersion: string;
+      targetCompatibleWithK8sTarget: boolean;
+    }> = [];
     for (let i = 0; i < 33; i++) {
       tooMany.push({
         name: `a-${i}`,

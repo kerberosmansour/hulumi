@@ -17,6 +17,7 @@
 - **Primary stack**: TypeScript 5.x on Node 20 LTS, pnpm workspaces, Pulumi CrossGuard v2+, Vitest, Apache-2.0 — same as existing Hulumi workspace; this runbook **extends** `@hulumi/baseline` with new exports under `@hulumi/baseline.aws.*` (no new package — see design record § Decision: package layout).
 - **Primary surface added by this runbook**:
   - `@hulumi/baseline.aws.Ec2PatchBaseline` + `Args` + `Outputs` (lands in M1)
+  - `@hulumi/baseline.aws.Ec2PatchWaves` + `Args` + `Outputs` (**lands in M1, added 2026-05-01 per Flaw 2** — wraps multiple `Ec2PatchBaseline`s with sequenced wave gates)
   - `@hulumi/baseline.aws.DetectiveServicesEnable` + `Args` + `Outputs` (lands in M2; closes [#49](https://github.com/kerberosmansour/hulumi/issues/49))
   - `@hulumi/baseline.aws.AuditTrail` + `Args` + `Outputs` (lands in M3; closes [#47](https://github.com/kerberosmansour/hulumi/issues/47))
   - `@hulumi/policies.HulumiOperationsHardeningPack` (`O_PATCH_1`, `O_PATCH_2`, `O_DETECT_1`, `O_AUDIT_1`, `O_INSPECTOR_1` — lands in M4)
@@ -51,7 +52,7 @@ Update this table as each milestone is completed. This is the single source of t
 
 | #   | Milestone                                                                                                                                                | Status        | Started | Completed | Lessons File                                                       | Completion Summary                                                       |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- | --------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| 1   | `Ec2PatchBaseline` (Patch Baseline + Maintenance Window + tier ladder + compliance → SNS routing)                                                        | `not_started` | —       | —         | [docs/lessons/hulumi-operations-m1.md](./lessons/hulumi-operations-m1.md) (TBD) | [docs/completion/hulumi-operations-m1.md](./completion/hulumi-operations-m1.md) (TBD) |
+| 1   | `Ec2PatchBaseline` + `Ec2PatchWaves` (Patch Baseline + Maintenance Window + tier ladder + compliance → SNS routing + dev/staging/prod wave gates) — *renamed 2026-05-01 per Flaw 2* | `not_started` | —       | —         | [docs/lessons/hulumi-operations-m1.md](./lessons/hulumi-operations-m1.md) (TBD) | [docs/completion/hulumi-operations-m1.md](./completion/hulumi-operations-m1.md) (TBD) |
 | 2   | `DetectiveServicesEnable` — closes [#49](https://github.com/kerberosmansour/hulumi/issues/49)                                                            | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
 | 3   | `AuditTrail` + `IdentityAlarms` extension — closes [#47](https://github.com/kerberosmansour/hulumi/issues/47)                                            | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
 | 4   | `HulumiOperationsHardeningPack` (`O_PATCH_*` / `O_DETECT_*` / `O_AUDIT_*` / `O_INSPECTOR_*`)                                                             | `not_started` | —       | —         | TBD                                                                | TBD                                                                      |
@@ -104,11 +105,19 @@ flowchart TB
         S3Audit["S3 audit bucket (NEW: AuditTrail wraps SecureBucket)"]
     end
 
-    subgraph Deferred["Out of scope at v1.2"]
-        AutoRebuild["Hulumi-shipped Lambda for auto-rebuild (Approach B — deferred)"]
-        TriageLogic["CVE triage / suppression logic"]
+    subgraph Deferred["Deferred — landing in v1.3 (see docs/idea/hulumi-for-operations-v1-3.md)"]
+        EcrCache["EcrPullThroughCache (v1.3 M1)"]
+        AmiPipeline["Ec2GoldenAmiPipeline (v1.3 M2)"]
+        AsgRefresh["AsgInstanceRefresh (v1.3 M3)"]
+        RebuildTrigger["ContainerImageRebuildTrigger — declarative EventBridge → GitHub dispatch, no Lambda (v1.3 M4)"]
+    end
+
+    subgraph OutOfScope["Out of scope entirely (different runbook OR cookbook-only)"]
+        TriageLogic["CVE triage / suppression logic (consumer's)"]
         VpnFederated["AwsClientVpnFederated (different runbook)"]
         EksOidcBundle["EksGithubActionsAccessBundle (different runbook)"]
+        DevLaptopErgonomics["Renovate / devcontainer / pre-commit hooks (cookbook-only — repo-level, not IaC)"]
+        HulumiLambda["Hulumi-shipped Lambda runtime code (Rule 0 — principles-level decision)"]
     end
 
     Eng -->|prompts| CC
@@ -152,14 +161,15 @@ flowchart TB
     class IacRole,Foundation,Monitoring,Ec2Fleet,EcrRepos,Lambda exists
     class Ssm,Inspector,GuardDuty,AccessAnalyzer,CostAnomaly,CloudTrail,EventBridge,CwLogs,S3Audit new
     class Git,StateBackend persist
-    class AutoRebuild,TriageLogic,VpnFederated,EksOidcBundle oos
+    class EcrCache,AmiPipeline,AsgRefresh,RebuildTrigger,TriageLogic,VpnFederated,EksOidcBundle,DevLaptopErgonomics,HulumiLambda oos
 ```
 
 ### Component Summary Table
 
 | Component                                              | Milestone | Purpose                                                                                                                                        |
 | ------------------------------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@hulumi/baseline.aws.Ec2PatchBaseline`                | M1        | SSM Patch Baseline + Maintenance Window + tag-based target + compliance metric routed via `MonitoringFoundation`. Tier-aware reboot + stagger. |
+| `@hulumi/baseline.aws.Ec2PatchBaseline`                | M1        | SSM Patch Baseline + Maintenance Window + tag-based target (`Patch:Group ∈ {dev, staging, production}` enum tightened 2026-05-01) + compliance metric routed via `MonitoringFoundation`. Tier-aware reboot + stagger. |
+| `@hulumi/baseline.aws.Ec2PatchWaves`                   | M1        | **Added 2026-05-01 per Flaw 2.** Composes 1–3 `Ec2PatchBaseline`s with sequenced Maintenance Windows + CloudWatch composite-alarm health gates between waves. Sandbox: dev only. StartupHardened: all three required. No Lambda. |
 | `@hulumi/baseline.aws.DetectiveServicesEnable`         | M2        | Bundles GuardDuty + IAM Access Analyzer + Cost Anomaly Detection + Inspector v2 with EventBridge → SNS routing. Closes [#49](https://github.com/kerberosmansour/hulumi/issues/49). |
 | `@hulumi/baseline.aws.AuditTrail`                      | M3        | CloudTrail multi-region + log-file validation + CW Logs delivery + S3 lifecycle (uses `SecureBucket` underneath). Closes [#47](https://github.com/kerberosmansour/hulumi/issues/47). |
 | `@hulumi/policies.HulumiOperationsHardeningPack`       | M4        | `O_PATCH_*` / `O_DETECT_*` / `O_AUDIT_*` / `O_INSPECTOR_*` rules; tier-aware advisory→mandatory ladder; suppression-discipline tests.           |
@@ -489,8 +499,10 @@ Tracks which documentation files each milestone touches. Maintainers update this
 | `docs/cookbooks/ec2-patch-baseline-bootstrap.md`           | —                        | —                        | —                        | —                                           | NEW — bootstrap cookbook for adopting `Ec2PatchBaseline` on a fleet               |
 | `docs/cookbooks/detective-services-enable.md`              | —                        | —                        | —                        | —                                           | NEW — bootstrap cookbook                                                          |
 | `docs/cookbooks/audit-trail-from-scratch.md`               | —                        | —                        | —                        | —                                           | NEW — bootstrap cookbook                                                          |
+| `docs/cookbooks/hardened-base-images.md`                   | —                        | —                        | —                        | —                                           | NEW (2026-05-01) — DHI vs Chainguard vs AL2023-Minimal vs Distroless decision tree + FROM-digest pinning + ECR pull-through cache + devcontainer integration; cookbook-only, no Hulumi component in v1.2 |
 | `docs/components/README.md`                                | —                        | —                        | —                        | —                                           | UPDATE                                                                            |
 | `docs/components/ec2-patch-baseline.md`                    | NEW (one-line stub)      | —                        | —                        | —                                           | UPDATE — full reference                                                           |
+| `docs/components/ec2-patch-waves.md`                       | NEW (one-line stub)      | —                        | —                        | —                                           | UPDATE — full reference (added 2026-05-01)                                        |
 | `docs/components/detective-services-enable.md`             | —                        | NEW (one-line stub)      | —                        | —                                           | UPDATE — full reference                                                           |
 | `docs/components/audit-trail.md`                           | —                        | —                        | NEW (one-line stub)      | —                                           | UPDATE — full reference                                                           |
 | `docs/components/hulumi-operations-hardening-pack.md`      | —                        | —                        | —                        | NEW (one-line stub)                         | UPDATE — full reference                                                           |
@@ -513,7 +525,7 @@ Tracks which documentation files each milestone touches. Maintainers update this
 
 Each milestone has its own file under [`docs/runbook-milestones/`](./runbook-milestones/):
 
-- [M1: `Ec2PatchBaseline`](./runbook-milestones/hulumi-operations-m1.md) — wedge milestone, full execution-ready detail.
+- [M1: `Ec2PatchBaseline` + `Ec2PatchWaves`](./runbook-milestones/hulumi-operations-m1.md) — wedge milestone, full execution-ready detail. Renamed 2026-05-01 per Flaw 2: ships both components together (~90% shared implementation), keeps milestone count at 5.
 - [M2: `DetectiveServicesEnable`](./runbook-milestones/hulumi-operations-m2.md) — closes [#49](https://github.com/kerberosmansour/hulumi/issues/49).
 - [M3: `AuditTrail` + `IdentityAlarms` extension](./runbook-milestones/hulumi-operations-m3.md) — closes [#47](https://github.com/kerberosmansour/hulumi/issues/47).
 - [M4: `HulumiOperationsHardeningPack`](./runbook-milestones/hulumi-operations-m4.md) — five `O_*` rules + tier-monotonicity meta-test.
@@ -549,6 +561,22 @@ If any answer is "no", the milestone is not complete — the Self-Review Gate fa
 
 ## Recommended next step
 
-Before any implementation begins, run **`/slo-critique hulumi-operations`** to walk the four-persona adversarial review (CEO, eng-lead, security; design pass auto-skipped — no UI surface). Critique will find what this plan got wrong before code lands. Then `/slo-execute M1` to begin shipping `Ec2PatchBaseline`.
+Before any implementation begins, run **`/slo-critique hulumi-operations`** to walk the four-persona adversarial review (CEO, eng-lead, security; design pass auto-skipped — no UI surface). Critique will find what this plan got wrong before code lands. Then `/slo-execute M1` to begin shipping `Ec2PatchBaseline` + `Ec2PatchWaves` (single milestone — see Flaw 2 rename note above).
 
-The four open questions in the design record's [§ Open questions](./design/hulumi-for-operations.md#open-questions) are not blocking for `/slo-critique` to run, but Q1 (PCI-DSS Req 6.3.3 primary signal) should be answered before M1's `complianceMetric` output shape is frozen — flag in the M1 contract block as a "decide during implementation, document in lessons" line.
+The six open questions in the design record's [§ Open questions](./design/hulumi-for-operations.md#open-questions) are not blocking for `/slo-critique` to run, but Q1 (PCI-DSS Req 6.3.3 primary signal) should be answered before M1's `complianceMetric` output shape is frozen — flag in the M1 contract block as a "decide during implementation, document in lessons" line. Q2 (Inspector v2 KEV surfacing) was resolved 2026-05-01 — Inspector v2 carries KEV catalog membership inline in finding payloads since 2023, so M2's dual-route is pure EventBridge JSON with no Step Functions / Lambda. Q5 + Q6 were added 2026-05-01 (DHI catalog coverage — verified, all of Rust 1.88, Node, Vault present at `dhi.io/<image>:<tag>`; wave gate flop-not-latch semantics).
+
+## Forward path — v1.3 (post-v1.2 release)
+
+The v1.3 idea doc at [`docs/idea/hulumi-for-operations-v1-3.md`](./idea/hulumi-for-operations-v1-3.md) commits the next layer of the patching story: **image pipelines** (so new EC2s + new container images start patched on day one) and **ASG-orchestrated rolling refresh** (so a critical CVE rollout drains connections cleanly). v1.3's five-milestone shape:
+
+- **M1**: `EcrPullThroughCache` — wraps `aws.ecr.PullThroughCacheRule` for DHI / Chainguard / Docker Hub upstreams (closes the hardened-base-images cookbook from v1.2 M5 with a real component).
+- **M2**: `Ec2GoldenAmiPipeline` — EC2 Image Builder wrapper with tier-aware rebuild cadence + KEV-trigger path (consumes `DetectiveServicesEnable`'s findingsKevRoutingSnsArn from v1.2 M2).
+- **M3**: `AsgInstanceRefresh` — safe ASG instance-refresh defaults + ALB drain + `triggerOnAmiBump`.
+- **M4**: `ContainerImageRebuildTrigger` — declarative EventBridge → GitHub `repository_dispatch` (no Hulumi Lambda — uses `aws.cloudwatch.EventApiDestination`) + `O_PATCH_4` policy rule requiring every `aws.autoscaling.LaunchTemplate` to reference a Hulumi-pipeline-baked AMI.
+- **M5**: three new `/hulumi-threat-model` scenarios + atomic v1.3.0 release.
+
+**Items previously thought to be v1.3 that landed in v1.2 instead** (per the 2026-05-01 design diffs): `Ec2PatchWaves` (now M1 of v1.2), KEV-aware severity escalation (now M2 of v1.2 via dual-route + Inspector v2 native KEV).
+
+**Items deliberately kept out of v1.3 scope per Rule 0** (cookbook-only, not Hulumi components): Renovate config for FROM-digest pinning, devcontainer integration, pre-commit hooks for laptop base-image refresh. These are repo-level developer ergonomics, not IaC; v1.2 M5's `hardened-base-images.md` cookbook covers them.
+
+**Research kickoff**: a one-shot scheduled agent (`hulumi-ops-v1-3-research-kickoff`, fires Fri 2026-05-29 09:00 UTC at https://claude.ai/code/routines) checks whether v1.2 has shipped on its fire date and, if yes, kicks off the v1.3 dossier against the four open questions in the v1.3 idea doc. Don't start v1.3 implementation until v1.2 ships — v1.3 components depend on v1.2 surfaces (especially `DetectiveServicesEnable.findingsKevRoutingSnsArn` and `Ec2PatchWaves` outputs).

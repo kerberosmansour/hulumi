@@ -78,3 +78,12 @@ export {
   eksCl1NoBroadPublicEndpoint,
   eksCl2AuditLoggingRequired,
 } from "./k8s/eks-cluster-pack";
+
+// Operations hardening — added in runbook hulumi-operations-k8s-security M10.
+export {
+  hulumiOperationsHardeningPackMetadata,
+  oPatch1RestrictPatchGroupTag,
+  oAudit1CloudTrailPosture,
+  oAudit2CloudTrailLogGroupEncrypted,
+  oInspector1FullCoverage,
+} from "./aws/operations-hardening-pack";

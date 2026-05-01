@@ -5,31 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] — 2026-05-01
+
+The Hulumi-K8s-Security + Hulumi-Operations release. Atomic four-package
+publish: `@hulumi/baseline@1.2.0`, `@hulumi/policies@1.2.0`,
+`@hulumi/drift@1.2.0`, and the first stable `@hulumi/k8s-baseline@1.0.0`.
+All four ship with SLSA Build L3 attestation. AWS-side v1.x surface
+unchanged for existing consumers; new components are additive.
 
 ### Added
 
-- **Atomic four-package release path** — the release workflow now packs,
-  attests, and publishes `@hulumi/k8s-baseline` alongside `@hulumi/baseline`,
-  `@hulumi/policies`, and `@hulumi/drift`. CycloneDX SBOM is generated for
-  each tarball; SLSA Build L3 attestation covers all four. (Runbook
-  `hulumi-operations-k8s-security` Milestone 1.)
-- **`@hulumi/k8s-baseline` publish-readiness** — `private:true` removed;
-  `publishConfig.provenance:true` retained. Package metadata is now ready
-  for the v1.2 release train. Currently shipping at `1.0.0-pre.1`.
-- **kind / EKS integration test skeleton** — `tests/integration/kind/` and
-  `tests/integration/eks/` lanes with a sibling `vitest.integration.config.ts`.
-  Both lanes skip cleanly when their flags are unset and fail visibly when
-  flagged but missing the prerequisite (kind binary or EKS sandbox). Wired
-  into `ci.yml` (always-on contract test) and `weekly-integration.yml`.
-- **`packages/k8s-baseline/COMPATIBILITY.md`** synced with the runtime
-  `TESTED_VERSIONS` typed const (Istio `istiod`/`cni`/`gateway` at `1.24.2`),
-  with a BDD invariant test enforcing the lockstep going forward.
+- **`@hulumi/k8s-baseline@1.0.0`** — first stable release of the K8s/EKS
+  package. Existing components (`HardenedHelmRelease`, `EksSubnetTagger`,
+  `IstioFoundation`, `AlbMeshedHttpEntrypoint`,
+  `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`,
+  `GitHubAppCredential`) now ship at v1.0.0; new in v1.0.0:
+  `NamespaceFoundation`, `EksRuntimeDetectionFoundation`,
+  `EksBackupFoundation`, `EksAddonFoundation`, plus the `planUpgrade()` /
+  `reportToMarkdown()` upgrade-planner library functions.
+- **K8s/EKS CrossGuard packs** under `@hulumi/policies/k8s/packs/`:
+  `hulumi-k8s-hardening` (5 rules), `hulumi-k8s-rbac` (3 rules),
+  `hulumi-eks-cluster` (2 rules).
+- **`KubernetesSecretFromAwsSecretsManager`** is now fail-closed by default
+  on fetch / parse / depth / missing-key failures. Legacy degraded behavior
+  available via `failureMode: "warn-empty"` / `missingKeyMode: "warn"`.
+- **`AlbMeshedHttpEntrypoint`** requires explicit `workloadSelector` (or
+  typed `acknowledgeInferredSelector`) AND certificate + ≥ 8-char
+  `publicJustification` for `scheme: "internet-facing"`.
+- **`@hulumi/drift`** adds `KubernetesApiAdapter` for live-vs-desired K8s
+  state comparison with a bounded `p-timeout` probe.
+- **`Ec2PatchBaseline` + `Ec2PatchWaves`** in `@hulumi/baseline.aws` —
+  SSM patch orchestration with tier-aware reboot defaults, CRC32-bucket
+  staggering, and a CompositeAlarm-gated wave model (no Lambda).
+- **`DetectiveServicesEnable`** — Access Analyzer + Inspector v2 + Cost
+  Anomaly Detection, with EventBridge primary routing + optional KEV
+  dual-routing topic.
+- **`AuditTrail`** — multi-region CloudTrail with log-file validation,
+  KMS-encrypted CW Logs, and a SecureBucket-backed S3 archive.
+- **`HulumiOperationsHardeningPack`** under `@hulumi/policies/aws/packs/` —
+  4 rules covering Patch:Group enum, CloudTrail posture, CT log-group KMS,
+  and Inspector v2 coverage.
+- **5 new threat-model scenarios** under `/hulumi-threat-model`:
+  `eks-cluster-baseline`, `eks-runtime-and-backup`,
+  `operations-patch-compliance-lapse`,
+  `operations-detective-services-disabled`,
+  `operations-audit-pipeline-broken`. Total prebuilt scenarios: 14
+  (5 AWS + 4 GitHub + 2 K8s + 3 Ops).
+- **Atomic four-package release** — `release.yml` packs, generates SBOMs
+  for, attests, and publishes all four packages in lockstep. Any preflight
+  failure aborts before any `npm publish`.
 
 ### Changed
 
 - README, `docs/ARCHITECTURE.md`, `docs/README.md`, `docs/components/README.md`
-  now describe the K8s package surface alongside AWS and GitHub.
+  describe the K8s + Operations surfaces alongside AWS and GitHub.
+- `packages/k8s-baseline/COMPATIBILITY.md` synced with the runtime
+  `TESTED_VERSIONS` typed const (Istio `istiod`/`cni`/`gateway` at `1.24.2`),
+  with a BDD invariant test enforcing the lockstep going forward.
+
+### Migration
+
+For consumers on v1.1.x: `@hulumi/baseline` and `@hulumi/policies` upgrades
+are additive — no construction changes required. `@hulumi/k8s-baseline`
+consumers using the pre-release `1.0.0-pre.1` see two breaking-shaped
+defaults that need a one-line migration each:
+
+1. `KubernetesSecretFromAwsSecretsManager` now fails closed by default. To
+   preserve the v1.0.0-pre.1 "log + emit empty Secret" behavior, opt back
+   in with `failureMode: "warn-empty"` and `missingKeyMode: "warn"`.
+2. `AlbMeshedHttpEntrypoint` now refuses construction unless either
+   `workloadSelector` or `acknowledgeInferredSelector: true` is set; and
+   `scheme: "internet-facing"` requires both `alb.certificateArn` and
+   `alb.publicJustification` (≥ 8 chars).
+
+See `docs/components/{kubernetes-secret-from-asm,alb-meshed-http-entrypoint,rds-credential-secret}.md`
+for the exact migration snippets.
 
 ## [1.1.0] — 2026-04-26
 

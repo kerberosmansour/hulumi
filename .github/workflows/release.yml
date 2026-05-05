@@ -28,13 +28,13 @@ jobs:
     name: pre-flight (build + test + lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
         with:
           version: 9.12.0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
           cache: pnpm
@@ -57,11 +57,11 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
         with:
           version: 9.12.0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
           cache: pnpm
@@ -86,7 +86,7 @@ jobs:
           npx --yes @cyclonedx/cyclonedx-npm@2.1.0 --output-format json --output-file .release-artifacts/sbom-k8s-baseline.cdx.json packages/k8s-baseline
 
       - name: Attest provenance for tarballs
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: ".release-artifacts/*.tgz"
 
@@ -99,7 +99,7 @@ jobs:
           pnpm --filter @hulumi/k8s-baseline publish --no-git-checks --provenance --access public
 
       - name: Create GitHub release with SBOMs + tarballs
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           files: |
             .release-artifacts/*.tgz

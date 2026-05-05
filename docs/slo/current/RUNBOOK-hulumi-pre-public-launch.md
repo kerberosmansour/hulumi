@@ -63,7 +63,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | #   | Milestone                                                                      | Status        | Started    | Completed  | Lessons File                                                                                 | Completion Summary                                                                                 |
 | --- | ------------------------------------------------------------------------------ | ------------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | 1   | NPM publish-readiness pass                                                     | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m1.md](../lessons/hulumi-pre-public-launch-m1.md) | [docs/slo/completion/hulumi-pre-public-launch-m1.md](../completion/hulumi-pre-public-launch-m1.md) |
-| 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `not_started` |            |            |                                                                                              |                                                                                                    |
+| 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m2.md](../lessons/hulumi-pre-public-launch-m2.md) | [docs/slo/completion/hulumi-pre-public-launch-m2.md](../completion/hulumi-pre-public-launch-m2.md) |
 | 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `not_started` |            |            |                                                                                              |                                                                                                    |
 | 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `not_started` |            |            |                                                                                              |                                                                                                    |
 | 5   | Docs polish + v2.0 migration prep (#22, #34, #17)                              | `not_started` |            |            |                                                                                              |                                                                                                    |
@@ -132,7 +132,7 @@ This runbook does not change runtime architecture. It pays down publish-readines
 | `README.md` (root)                                                           | top-level project overview              | changed               | M1        | version line v1.1.0 → v1.2.0; scenario count narrative reconciled in M5                         |
 | `.github/SECURITY-CONTACTS`                                                  | PGP fingerprint or rationale-for-no-PGP | NEW                   | M2        | promised at SECURITY.md:23                                                                      |
 | `.github/workflows/{ci,release,weekly-integration,pulumi-cooling-off}.yml`   | CI pipelines                            | changed               | M2        | third-party actions converted from `@vN` to `@<40-char-sha>`                                    |
-| `docs/slo/lessons/hulumi-m3.md`                                              | sandbox-account narrative               | changed               | M2        | account ID `<sandbox-acct>` → `123456789012` placeholder                                          |
+| `docs/slo/lessons/hulumi-m3.md`                                              | sandbox-account narrative               | changed               | M2        | account ID `<sandbox-acct>` → `123456789012` placeholder                                        |
 | `docs/slo/research/hulumi-github/.research-scratch-iter-*.md`                | iteration scratch                       | DELETED-or-DOCUMENTED | M2        | decision gate: keep with rationale OR move to non-published location                            |
 | `packages/baseline/tests/integration/account-foundation.integration.test.ts` | stubbed integration test                | changed               | M3        | implements 3 stub `expect(true).toBe(true)` slots against real AWS                              |
 | `packages/drift/tests/integration/drift-classify.integration.test.ts`        | stubbed integration test                | changed               | M3        | same — implements 4 stub slots                                                                  |
@@ -743,8 +743,196 @@ Complete the Global Exit Rules. Key documentation updates:
 
 ---
 
-<!-- Milestones M2–M5 will be drafted after M1 is confirmed. The Milestone Tracker
-     above shows their titles and order so the document is browsable end-to-end. -->
+### Milestone 2 — `Public-launch hygiene`
+
+**Goal**: Eliminate the four public-launch hygiene findings — SHA-pin every GitHub Action across all four workflows, ship `.github/SECURITY-CONTACTS` (closing the SECURITY.md:23 forward reference), redact the sandbox AWS account ID from `docs/slo/lessons/hulumi-m3.md`, and resolve the four orphan `.research-scratch-iter-*.md` files (keep-with-rationale or remove).
+
+**Context**: M1 cleared the publish-readiness blockers; M2 closes the trust-posture gaps. The audit found `pnpm/action-setup@v6`, `aws-actions/configure-aws-credentials@v6`, `softprops/action-gh-release@v3`, and various `actions/*@vN` references — for a hardened-by-default project this is brand-inconsistent. M2 SHA-pins **all** action uses (first-party + third-party) so M4's pin-guard extension has clean targets. SECURITY.md:23 promises a `.github/SECURITY-CONTACTS` file as a "post-v1.0.0 follow-up"; M2 ships it. The AWS account ID `<sandbox-acct>` widens recon surface; redacted to placeholder `123456789012`. The four `.research-scratch-iter-*.md` files in `docs/slo/research/hulumi-github/` are not sensitive but read as in-progress thinking-out-loud — M2 chooses keep (with one-line "this is iteration history" preface) or remove.
+
+**Carmack-style reliability goal**: "No silent failure" + "Inspect state, do not guess" — a tag-pinned action is a moving reference; SHA-pinned actions are immutable. M2 makes the supply-chain trust boundary inspectable: every action ref names the SHA + tag-as-comment, so a reader can both verify and update. SECURITY-CONTACTS makes the disclosure path inspectable rather than "implied by SECURITY.md".
+
+**Important design rule**: **SHA-pinned actions keep the tag as a trailing `# vN` comment.** Format: `uses: pnpm/action-setup@<40-char-sha> # v6`. Do NOT drop the tag-as-comment — Dependabot's action-pin updates depend on it.
+
+**Refactor budget**: `Minimal local refactor permitted in listed files only` — workflow YAMLs, one new SECURITY-CONTACTS file, one lessons file edit, possibly four scratch file removals.
+
+#### Contract Block
+
+| Field                                  | Value                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs                                 | M1's commit + the four workflow YAMLs + SECURITY.md + the lessons file + the four scratch files                                                                                                                                                                                                                                     |
+| Outputs                                | All workflow `uses:` lines SHA-pinned with tag-as-comment; `.github/SECURITY-CONTACTS` shipped; account ID redacted; scratch files resolved                                                                                                                                                                                         |
+| Interfaces touched                     | `.github/workflows/*.yml`, `.github/SECURITY-CONTACTS` (NEW), `docs/slo/lessons/hulumi-m3.md`, `docs/slo/research/hulumi-github/.research-scratch-iter-*.md`, `SECURITY.md`                                                                                                                                                         |
+| Files allowed to change                | `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/workflows/weekly-integration.yml`, `.github/workflows/pulumi-cooling-off.yml`, `docs/slo/lessons/hulumi-m3.md`, `docs/slo/research/hulumi-github/.research-scratch-iter-{1,2,3,4}.md`, `SECURITY.md`, `CHANGELOG.md` (one-line entry under [1.2.0] "Changed") |
+| Files to read before changing anything | All four workflow YAMLs in full; `SECURITY.md`; `docs/slo/lessons/hulumi-m3.md`; the four scratch files                                                                                                                                                                                                                             |
+| New files allowed                      | `.github/SECURITY-CONTACTS`, `tests/skill-bdd/workflow-action-pinning.test.ts`                                                                                                                                                                                                                                                      |
+| New dependencies allowed               | `none`                                                                                                                                                                                                                                                                                                                              |
+| Migration allowed                      | `no`                                                                                                                                                                                                                                                                                                                                |
+| Compatibility commitments              | All existing CI jobs continue to run identically — SHA-pinning does not change action semantics. OIDC trusted publishing preserved (no NPM_TOKEN). DCO check + license-boundary + exact-pin-guard preserved.                                                                                                                        |
+| Resource bounds introduced/changed     | None                                                                                                                                                                                                                                                                                                                                |
+| Invariants/assertions required         | Every `uses:` line in `.github/workflows/*.yml` matches `^[[:space:]]*-?[[:space:]]*uses:[[:space:]]+[^@]+@[0-9a-f]{40}([[:space:]]+#.*)?$` (tag-as-comment optional in regex but required by lint message). Encoded as a vitest test.                                                                                              |
+| Debugger / inspection expectation      | For each SHA pin, verify upstream existence via `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`. Don't trust SHAs from memory.                                                                                                                                                                                  |
+| Static analysis gates                  | Same as M1                                                                                                                                                                                                                                                                                                                          |
+| Forbidden shortcuts                    | NO touching `pnpm-lock.yaml`; NO bumping `@pulumi/*`; NO altering job-level `permissions:` blocks; NO removing `registry-url: https://registry.npmjs.org`; NO adding `NPM_TOKEN` / `NODE_AUTH_TOKEN`; NO copy-pasting SHAs without verifying; NO dropping the `# vN` tag-as-comment.                                                |
+| Data classification                    | `Public`                                                                                                                                                                                                                                                                                                                            |
+| Proactive controls in play             | OWASP Proactive Controls C2 (SHA-pinning); C8 (explicit disclosure path); CSA CCM `IVS-04` (Secure SDLC); SLSA Build L3 supply-chain posture preserved                                                                                                                                                                              |
+| Abuse acceptance scenarios             | `tm-pre-public-launch-abuse-2: tag-rewrite injection` — see BDD row "abuse case" below. **N/A for the rest** of the abuse-case classes — no new endpoints, IPC handlers, file writes outside repo, subprocess invocations, or outbound requests.                                                                                    |
+
+#### Out of Scope / Must Not Do
+
+- Registering `hulumi.io` (user action — M2 keeps `security@hulumi.io` references and adds GHSA path as alternative)
+- Bumping any action across major versions (only the SHA gets pinned; `@v6` stays at v6)
+- Adding a PGP key (SECURITY-CONTACTS will document either the fingerprint or "no PGP — use GHSA")
+- Generating a new GPG key for code signing
+- Touching the integration test stubs (M3's job)
+- Touching `scripts/exact-pin-guard.mjs` (M4's job)
+- Renaming any workflow file
+- Changing job-level `permissions:` blocks
+
+#### Pre-Flight
+
+1. Complete the Global Entry Rules.
+2. Read `docs/slo/lessons/hulumi-pre-public-launch-m1.md` and apply: format-after-edit discipline; `gh tag` check before treating CHANGELOG as historical.
+3. Read the allowed files before editing.
+4. Copy the Evidence Log template into this milestone section.
+5. Re-state the milestone constraints before coding.
+
+#### Files Allowed To Change
+
+| File                                                                  | Planned Change                                                                                                                                                                                        |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml`                                            | Convert every `uses: <action>@<tag>` → `uses: <action>@<sha> # <tag>`. Affected: `actions/checkout@v6` (×9), `actions/setup-node@v6` (×11), `pnpm/action-setup@v6` (×9).                              |
+| `.github/workflows/release.yml`                                       | Same pattern. Affected: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`, `actions/attest-build-provenance@v4`, `actions/upload-artifact@v7`, `softprops/action-gh-release@v3`. |
+| `.github/workflows/weekly-integration.yml`                            | Same pattern. Affected: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`, `aws-actions/configure-aws-credentials@v6`.                                                           |
+| `.github/workflows/pulumi-cooling-off.yml`                            | Same pattern. Affected: `actions/checkout@v6`, `actions/setup-node@v6`.                                                                                                                               |
+| `.github/SECURITY-CONTACTS`                                           | NEW: contact info per [k8s.io/SECURITY-CONTACTS convention](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-release/security-release-process.md#disclosures).              |
+| `SECURITY.md`                                                         | Update line 23 from "post-v1.0.0 follow-up" to a working reference.                                                                                                                                   |
+| `docs/slo/lessons/hulumi-m3.md`                                       | Replace `<sandbox-acct>` → `123456789012`.                                                                                                                                                            |
+| `docs/slo/research/hulumi-github/.research-scratch-iter-{1,2,3,4}.md` | DECISION: keep with one-line "Iteration history — see synthesis.md" preface, OR delete. Documented in lessons.                                                                                        |
+| `tests/skill-bdd/workflow-action-pinning.test.ts`                     | NEW: vitest test enforcing SHA-pin invariant.                                                                                                                                                         |
+| `CHANGELOG.md`                                                        | One-line note under [1.2.0] "Changed" about SHA-pinning + SECURITY-CONTACTS.                                                                                                                          |
+
+#### Step-by-Step
+
+1. Write the BDD test first (`tests/skill-bdd/workflow-action-pinning.test.ts`); confirm fails on current tag-pinned state.
+2. For each unique action, fetch the upstream SHA at the pinned tag using `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`. Cache results.
+3. Edit each workflow YAML — replace `@<tag>` → `@<sha> # <tag>`.
+4. Run the BDD test — must pass.
+5. Author `.github/SECURITY-CONTACTS`. Update SECURITY.md:23.
+6. Redact AWS account ID in `docs/slo/lessons/hulumi-m3.md`.
+7. Decide research-scratch fate; execute; document rationale in M2 lessons.
+8. Add the one-line CHANGELOG entry.
+9. Run `pnpm run format`.
+10. Run full lint/typecheck/test gate.
+11. Verify `git status` clean; complete the Self-Review Gate.
+
+#### BDD Acceptance Scenarios
+
+**Feature: Workflow action pinning + public-launch hygiene**
+
+| Scenario                                                                     | Category               | Given                                                                                                                        | When                                                   | Then                                                                                                             |
+| ---------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Every `uses:` in `.github/workflows/*.yml` is SHA-pinned with tag-as-comment | happy path             | repo at end of M2                                                                                                            | the new BDD walks all four workflow files              | every `uses:` matches the SHA-pin regex; failure names file:line                                                 |
+| Every action's pinned SHA exists at its claimed tag                          | happy path             | repo at end of M2                                                                                                            | for each unique `<owner>/<repo>@<sha> # <tag>` triple  | `gh api` returns the same SHA (recorded in lessons, not encoded as test)                                         |
+| `.github/SECURITY-CONTACTS` exists with canonical disclosure paths           | happy path             | repo at end of M2                                                                                                            | grep                                                   | references `kerberosmansour`, GHSA link, deferred `security@hulumi.io` (status note)                             |
+| `SECURITY.md:23` no longer says "post-v1.0.0 follow-up"                      | compatibility          | repo at end of M2                                                                                                            | grep `SECURITY.md`                                     | match count zero                                                                                                 |
+| `<sandbox-acct>` is gone from `docs/slo/lessons/hulumi-m3.md`                | invalid input          | repo at end of M2                                                                                                            | grep                                                   | match count zero                                                                                                 |
+| Tag-only pins are rejected by the BDD                                        | invalid input          | a regression sets `actions/checkout@v6` (no SHA)                                                                             | BDD runs                                               | fails with file:line                                                                                             |
+| Job-level `permissions:` blocks unchanged                                    | compatibility          | M1 baseline state                                                                                                            | grep all four workflows for `permissions:`             | per-job blocks unchanged                                                                                         |
+| OIDC trusted publishing preserved                                            | compatibility          | release.yml end of M2                                                                                                        | grep                                                   | `registry-url: https://registry.npmjs.org` present; no `NPM_TOKEN` / `NODE_AUTH_TOKEN` introduced                |
+| Research-scratch decision documented                                         | dependency on judgment | end of M2                                                                                                                    | read `docs/slo/lessons/hulumi-pre-public-launch-m2.md` | "Research-scratch decision" section present with rationale                                                       |
+| abuse case: tag-rewrite injection (`tm-pre-public-launch-abuse-2`)           | abuse case             | upstream third-party action repo (e.g. `pnpm/action-setup`) is compromised AND the attacker rewrites `v6` to a malicious SHA | a Hulumi CI run starts                                 | because every `uses:` is SHA-pinned, CI continues to fetch the original honest SHA — tag rewrite has zero effect |
+
+#### Regression Tests
+
+- All M1 BDD tests in `release-readiness.test.ts` continue to pass.
+- `pnpm run lint:license-boundary` clean.
+- `pnpm run lint:exact-pin-guard` clean (M2 doesn't touch `@pulumi/*`).
+- `pnpm run format:check` clean.
+
+#### Compatibility Checklist
+
+- [ ] All workflow file SHAs verified against upstream tags (recorded in lessons)
+- [ ] No job-level `permissions:` block was modified
+- [ ] No `NPM_TOKEN` / `NODE_AUTH_TOKEN` references added
+- [ ] OIDC `registry-url: https://registry.npmjs.org` preserved in release.yml + ci.yml
+- [ ] DCO check still active
+- [ ] license-boundary lint runs in CI
+- [ ] exact-pin-guard runs in CI
+- [ ] No workflow file renamed
+- [ ] M1 invariants still hold (release-readiness.test.ts green)
+
+#### E2E Runtime Validation
+
+**File**: `tests/skill-bdd/workflow-action-pinning.test.ts` (NEW)
+
+| E2E Test                                                        | What It Proves                                        | Pass Criteria                                                                                                        |
+| --------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `every workflow action use is SHA-pinned with tag-as-comment`   | Supply-chain integrity at the GitHub Actions boundary | walks all `.github/workflows/*.yml`; every `uses:` matches the SHA regex; fails with `file:line` and offending value |
+| `tag-as-comment present for every SHA pin`                      | Human readability + Dependabot compatibility          | every SHA-pinned `uses:` has `# vN` comment                                                                          |
+| `OIDC trusted publishing preserved across release.yml + ci.yml` | No NPM_TOKEN regression                               | both contain `registry-url: https://registry.npmjs.org`; neither contains `NPM_TOKEN` or `NODE_AUTH_TOKEN`           |
+
+#### Smoke Tests
+
+- [ ] `pnpm -r test` green (incl. new workflow-action-pinning test)
+- [ ] `cat .github/SECURITY-CONTACTS` shows expected content
+- [ ] `grep -c '<sandbox-acct>' docs/slo/lessons/hulumi-m3.md` returns `0`
+- [ ] `grep 'post-v1.0.0 follow-up' SECURITY.md` returns no match
+- [ ] `git diff --stat` for M2 shows only the M2 allow-list files
+- [ ] `pnpm run format:check` clean
+- [ ] `git status` shows no untracked test artifacts
+
+#### Evidence Log
+
+| Step                                 | Command / Check                                                                   | Expected Result                                        | Actual Result | Pass/Fail | Notes                       |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------- | --------- | --------------------------- |
+| Repo hygiene                         | `git status` + branch check                                                       | on M1's task branch or successor; clean tree           |               |           |                             |
+| Baseline tests                       | `pnpm -r test`                                                                    | all green (M1's 470)                                   |               |           |                             |
+| BDD test created                     | `tests/skill-bdd/workflow-action-pinning.test.ts`                                 | fails for the right reason on current tag-pinned state |               |           |                             |
+| Implementation: SHA fetches          | `gh api repos/.../git/ref/tags/<tag>` per unique action                           | each returns a 40-char SHA                             |               |           | record each pair in lessons |
+| Implementation: workflow edits       | per workflow file                                                                 | every `uses:` line uses `<sha> # <tag>` form           |               |           |                             |
+| Implementation: SECURITY-CONTACTS    | author file                                                                       | follows k8s convention; links GHSA + deferred email    |               |           |                             |
+| Implementation: account ID redaction | edit hulumi-m3.md                                                                 | `<sandbox-acct>` → `123456789012`                      |               |           |                             |
+| Implementation: scratch decision     | keep-or-delete                                                                    | rationale in M2 lessons                                |               |           |                             |
+| Formatter                            | `pnpm run format:check`                                                           | clean                                                  |               |           |                             |
+| Typecheck / build                    | `pnpm -r typecheck && pnpm -r build`                                              | clean                                                  |               |           |                             |
+| Static analyzer                      | `pnpm -r lint && pnpm run lint:license-boundary && pnpm run lint:exact-pin-guard` | clean                                                  |               |           |                             |
+| Full tests                           | `pnpm -r test`                                                                    | green incl. new workflow-pinning test                  |               |           |                             |
+| Resource-bound verification          | N/A                                                                               | —                                                      |               |           | no new resources            |
+| Invariant verification               | new BDD walks all four workflow files                                             | all `uses:` lines match SHA-pin regex                  |               |           |                             |
+| Debugger / state inspection          | spot-check 2-3 SHAs against upstream                                              | match                                                  |               |           |                             |
+| Test artifact cleanup                | `git status`                                                                      | no untracked                                           |               |           |                             |
+| .gitignore review                    | review                                                                            | no new patterns expected                               |               |           |                             |
+| Compatibility checks                 | per checklist                                                                     | no regressions                                         |               |           |                             |
+
+#### Definition of Done
+
+- Every `uses:` line in all four workflow YAMLs is SHA-pinned with a tag-as-comment
+- Every SHA verified against upstream tag (recorded in lessons)
+- `.github/SECURITY-CONTACTS` exists; SECURITY.md:23 reconciled
+- `<sandbox-acct>` does not appear in `docs/slo/lessons/hulumi-m3.md`
+- Research-scratch decision executed; rationale in lessons
+- New BDD test green; all M1 tests still pass
+- Full lint/typecheck/test/format gate green
+- Compatibility checklist complete
+- Lessons + completion files written
+- Milestone Tracker updated
+
+#### Post-Flight
+
+Documentation updates:
+
+- **README.md**: none.
+- **docs/ARCHITECTURE.md**: none.
+- **SECURITY.md**: line 23 reconciled.
+- **CHANGELOG.md**: one-line note under [1.2.0] "Changed" about SHA-pinning + SECURITY-CONTACTS.
+
+#### Notes
+
+- The four workflow files have ~40 `uses:` lines total. Cache per-tag SHAs in working notes to avoid duplicate `gh api` calls.
+
+---
+
+<!-- Milestones M3–M5 will be drafted after each preceding milestone is confirmed. -->
 
 ---
 

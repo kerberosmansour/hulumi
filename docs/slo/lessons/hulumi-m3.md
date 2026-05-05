@@ -38,7 +38,9 @@ Completed 2026-04-25.
   `aws-multi-account-baseline.json`, `iam-least-privilege.json`,
   `rds-encryption-at-rest.json` (data-only string edits; output
   schema unchanged).
-- **Sandbox account bootstrapped** in AWS account `<sandbox-acct>`
+- **Sandbox account bootstrapped** in AWS account `123456789012`
+  (placeholder — actual account ID redacted from public docs per
+  runbook hulumi-pre-public-launch M2)
   with `hulumi-sandbox-iac-role` (tagged `hulumi:iac-role=true`),
   $20/month budget alarm, GitHub repo variables set. OIDC verified
   via the (now-deleted) one-off `oidc-verify.yml` workflow.

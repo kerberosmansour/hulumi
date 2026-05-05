@@ -1,0 +1,70 @@
+# SECURITY CONTACTS for Hulumi
+#
+# This file follows the Kubernetes SECURITY-CONTACTS convention:
+# https://github.com/kubernetes/community/blob/master/contributors/devel/sig-release/security-release-process.md#disclosures
+#
+# It documents who to contact for security-related matters and what
+# disclosure paths are available. SECURITY.md (in the repo root) holds
+# the full disclosure policy, supported-versions table, and SLSA
+# verification instructions.
+
+primary_contacts:
+  - github_login: kerberosmansour
+    role: Maintainer / project lead
+    handles:
+      - GitHub: https://github.com/kerberosmansour
+
+# Preferred reporting path: GitHub Security Advisories.
+# This creates a private fork of the repo and lets us coordinate the
+# fix without public disclosure.
+preferred_reporting_url: https://github.com/kerberosmansour/hulumi/security/advisories/new
+
+# Email reporting path.
+#
+# `security@hulumi.io` is the canonical contact named in SECURITY.md and
+# the published canonical install paths. As of the v1.2.0 public-launch
+# preparation, the `hulumi.io` domain is being registered out-of-band by
+# the maintainer; the email address may not yet route. Until it does:
+#
+#   1. Use the GitHub Security Advisory link above (preferred), OR
+#   2. Reach the maintainer via their GitHub profile.
+#
+# This entry will be updated when the domain is live and MX is
+# configured.
+email_contacts:
+  - address: security@hulumi.io
+    status: deferred-until-domain-registered
+    note: |
+      `hulumi.io` registration + MX setup is tracked as a launch-blocker.
+      Until then, prefer the GitHub Security Advisory path above.
+
+# PGP / age key for encrypted communication.
+#
+# No PGP key is published at this time. If you need to send encrypted
+# material, request a key via the Security Advisory path and the
+# maintainer will publish one. A public PGP fingerprint will be added
+# here when one is generated.
+pgp_keys: []
+
+# Coordinated-disclosure window
+#
+# The SECURITY.md policy commits to:
+#   - acknowledgement within 72 hours
+#   - confirmed-fix publish within 30 days for confirmed issues
+#   - negotiable timeline for complex issues — say so in the initial email
+disclosure_window_acknowledge_hours: 72
+disclosure_window_fix_days: 30
+
+# Out of scope
+#
+# Forks and mirrors of Hulumi are unofficial. The only authoritative
+# repository is `kerberosmansour/hulumi`. Reports against forks should
+# go to the fork's maintainers; typosquatting reports should also go to
+# the registries (npmjs.com for `@hulumi/*` lookalikes).
+out_of_scope:
+  - forks-of-this-repo
+  - npm-typosquats (report to npmjs.com support + this contact)
+
+# Reference: SECURITY.md (full policy)
+#
+# https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md

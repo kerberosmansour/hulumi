@@ -75,6 +75,18 @@ components are additive.
   `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
   removed in favour of the canonical `pnpm-lock.yaml`. Extended
   `release-readiness.test.ts` enforces these invariants going forward.
+- **Pre-public-launch hygiene pass** (runbook `hulumi-pre-public-launch`
+  M2): every GitHub Actions `uses:` reference across all four workflow
+  files now SHA-pinned with a tag-as-comment (e.g.
+  `actions/checkout@<40-char-sha> # v6`) so a tag-rewrite attack on any
+  upstream action repo cannot land in Hulumi CI. `.github/SECURITY-CONTACTS`
+  shipped (k8s.io convention; closes the SECURITY.md:23 forward
+  reference). Sandbox AWS account ID redacted from
+  `docs/slo/lessons/hulumi-m3.md`. Four `docs/slo/research/hulumi-github/`
+  iteration-scratch files removed (synthesis.md captures the consolidated
+  output; iteration history belongs in git, not docs/). New BDD test at
+  `tests/skill-bdd/workflow-action-pinning.test.ts` enforces the SHA-pin
+  invariant and OIDC-trusted-publishing posture going forward.
 
 ### Migration
 

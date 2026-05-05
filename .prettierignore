@@ -22,3 +22,9 @@ docs/threat-model-examples/
 # intentionally adjacent to the table separator; prettier does not understand
 # that.
 skills/hulumi-threat-model/templates/
+
+# cooling-off-diff fixtures must preserve real pnpm-lock.yaml shape
+# (single-quoted version keys). Prettier rewrites them to double-quoted YAML
+# strings, which the cooling-off-diff regex (which mirrors pnpm's actual
+# lockfile format) no longer matches.
+tests/skill-bdd/fixtures/cooling-off-diff/

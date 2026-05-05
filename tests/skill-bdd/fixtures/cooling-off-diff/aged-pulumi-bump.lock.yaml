@@ -1,0 +1,19 @@
+# Same as baseline but @pulumi/pulumi pinned to a much older release
+# (3.100.0 was published 2024-02; > 72h ago by any reasonable test
+# clock, so cooling-off accepts the bump when used as base→head).
+packages:
+
+  '@pulumi/pulumi@3.100.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/aws@7.27.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/policy@1.20.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/github@6.13.1':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/kubernetes@4.30.0':
+    resolution: { tarball: synthetic }

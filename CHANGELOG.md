@@ -75,6 +75,21 @@ components are additive.
   `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
   removed in favour of the canonical `pnpm-lock.yaml`. Extended
   `release-readiness.test.ts` enforces these invariants going forward.
+- **Pre-public-launch test-surface battle-test** (runbook
+  `hulumi-pre-public-launch` M3): closed the audit's "stubbed integration
+  tests masquerading as coverage" finding. New
+  `tests/skill-bdd/cooling-off-diff.test.ts` exercises
+  `scripts/cooling-off-diff.mjs` against synthetic lockfile fixtures
+  (network-gated via `HULUMI_NETWORK_TESTS=1` for the 2 scenarios that
+  hit npm). New `tests/skill-bdd/scp-teardown-harness.ts` plus
+  `scp-teardown.test.ts` encode the SCP teardown manual procedure as a
+  5-state phase machine with a bounded poll budget plus
+  illegal-transition invariants. The 7 previously-tautological
+  integration test bodies in
+  `packages/{baseline,drift}/tests/integration/*.integration.test.ts`
+  are converted to `it.todo()` slots backed by a new
+  `docs/integration-testing-roadmap.md` that contracts the follow-up
+  real-AWS implementation runbook.
 - **Pre-public-launch hygiene pass** (runbook `hulumi-pre-public-launch`
   M2): every GitHub Actions `uses:` reference across all four workflow
   files now SHA-pinned with a tag-as-comment (e.g.

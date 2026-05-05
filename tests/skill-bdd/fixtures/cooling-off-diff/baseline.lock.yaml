@@ -1,0 +1,20 @@
+# Synthetic pnpm-lock.yaml fragment for cooling-off-diff tests.
+# Only the @pulumi/* version-key lines matter — cooling-off-diff.mjs
+# extracts versions via the regex `^  '${pkg}@(\\d+\\.\\d+\\.\\d+)':$`,
+# which mirrors pnpm's real lockfile format (single-quoted keys).
+packages:
+
+  '@pulumi/pulumi@3.232.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/aws@7.27.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/policy@1.20.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/github@6.13.1':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/kubernetes@4.30.0':
+    resolution: { tarball: synthetic }

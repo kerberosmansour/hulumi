@@ -64,7 +64,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | --- | ------------------------------------------------------------------------------ | ------------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | 1   | NPM publish-readiness pass                                                     | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m1.md](../lessons/hulumi-pre-public-launch-m1.md) | [docs/slo/completion/hulumi-pre-public-launch-m1.md](../completion/hulumi-pre-public-launch-m1.md) |
 | 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m2.md](../lessons/hulumi-pre-public-launch-m2.md) | [docs/slo/completion/hulumi-pre-public-launch-m2.md](../completion/hulumi-pre-public-launch-m2.md) |
-| 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `not_started` |            |            |                                                                                              |                                                                                                    |
+| 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m3.md](../lessons/hulumi-pre-public-launch-m3.md) | [docs/slo/completion/hulumi-pre-public-launch-m3.md](../completion/hulumi-pre-public-launch-m3.md) |
 | 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `not_started` |            |            |                                                                                              |                                                                                                    |
 | 5   | Docs polish + v2.0 migration prep (#22, #34, #17)                              | `not_started` |            |            |                                                                                              |                                                                                                    |
 
@@ -932,7 +932,196 @@ Documentation updates:
 
 ---
 
-<!-- Milestones M3–M5 will be drafted after each preceding milestone is confirmed. -->
+### Milestone 3 — `Integration test surface battle-test`
+
+**Goal**: Convert the four stubbed integration tests from "tautologies that pass when run" into genuine coverage. Specifically: fully implement #26 (cooling-off-diff fixtures) as local unit tests, fully implement #30 (SCP teardown verification) as a fixture-replay test, and convert #21 + #24 from `expect(true).toBe(true)` bodies to honest `it.todo("see roadmap")` slots backed by a new `docs/integration-testing-roadmap.md` that captures what each test SHOULD verify.
+
+**Context**: The audit's specific complaint was "stubbed integration tests masquerading as coverage" — the README sells SLSA-L3 + integration coverage, four `expect(RUN_INTEGRATION).toBe(true)` slots undercut that. There are two honest fixes: (a) write the real implementation, or (b) make the gap explicit. M3 does both — (a) for #26 + #30 because they're feasible without the full Pulumi+AWS deploy rig, and (b) for #21 + #24 because they need a real Pulumi Cloud + sandbox AWS deploy harness that's a separate workstream. The roadmap doc becomes the contract for that follow-up.
+
+**Carmack-style reliability goal**: "No silent failure" + "Make invalid states unrepresentable". Tautological tests that pass-by-design are silent failures (they look green when they're empty); replacing them with `it.todo()` makes the gap impossible to misread. Fixture-replay for SCP teardown encodes the control flow as an executable invariant — refactors that break the teardown sequence will fail the test, even without `requires-aws-org-write` permissions.
+
+**Important design rule**: **Don't fake real AWS coverage.** A test that runs against fixtures + skips against real AWS is fine; a test that _claims_ to run against real AWS but actually does `expect(true).toBe(true)` is the anti-pattern. After M3, every `it()` either: runs real local code, runs real AWS-API code under `HULUMI_INTEGRATION=1` and skips otherwise, or is `it.todo()` with a roadmap pointer.
+
+**Refactor budget**: `Targeted refactor permitted for replacing stub test bodies with real implementations / it.todo + roadmap pointers; must not refactor production code.`
+
+#### Contract Block
+
+| Field                                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs                                 | `scripts/cooling-off-diff.mjs` (existing); `docs/deployment/scp-guide.md` + `docs/deployment/scp.json` (existing); the two stub test files (existing)                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Outputs                                | One new test file for cooling-off-diff fixtures; SCP-teardown logic exposed as a typed module with an accompanying fixture-replay test; #21 + #24 stubs converted to `it.todo` with roadmap link; new `docs/integration-testing-roadmap.md`; CHANGELOG entry                                                                                                                                                                                                                                                                                                    |
+| Interfaces touched                     | `tests/scripts/` (new sub-package OR existing tests/skill-bdd extension); `packages/baseline/tests/integration/account-foundation.integration.test.ts`; `packages/drift/tests/integration/drift-classify.integration.test.ts`; `docs/integration-testing-roadmap.md` (NEW); `CHANGELOG.md`                                                                                                                                                                                                                                                                      |
+| Files allowed to change                | `packages/baseline/tests/integration/account-foundation.integration.test.ts`, `packages/drift/tests/integration/drift-classify.integration.test.ts`, `tests/skill-bdd/cooling-off-diff.test.ts` (NEW), `tests/skill-bdd/fixtures/cooling-off-diff/` (NEW directory of synthetic fixtures), `tests/skill-bdd/scp-teardown.test.ts` (NEW), `tests/skill-bdd/fixtures/scp-teardown/` (NEW directory of recorded AWS responses), `docs/integration-testing-roadmap.md` (NEW), `CHANGELOG.md`, `docs/ARCHITECTURE.md` (one-line update on test-architecture section) |
+| Files to read before changing anything | `scripts/cooling-off-diff.mjs` (full); `docs/deployment/scp-guide.md`; `docs/deployment/scp.json`; the two existing integration test files; `packages/drift/src/adapters/cloudtrail.ts` (to understand what the integration test would assert against); `packages/baseline/src/aws/account-foundation.ts` (to understand the deployed-state shape)                                                                                                                                                                                                              |
+| New files allowed                      | The four NEW listed above (test files + fixture directories), plus the roadmap doc                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| New dependencies allowed               | `none` (fixtures are inert JSON/YAML; tests use existing vitest + node fs)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Migration allowed                      | `no`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Compatibility commitments              | M1 + M2 invariants preserved (release-readiness.test.ts and workflow-action-pinning.test.ts both green); `HULUMI_INTEGRATION=1` skip-gate behavior preserved; `cooling-off-diff.mjs` CLI surface unchanged.                                                                                                                                                                                                                                                                                                                                                     |
+| Resource bounds introduced/changed     | cooling-off-diff fixture set: ≤ 20 fixtures (hard limit 50, fixture-loader rejects past 50 with diagnostic); SCP teardown poll loop: max 10 polls (hard limit 12, hard-fail with explicit message).                                                                                                                                                                                                                                                                                                                                                             |
+| Invariants/assertions required         | (1) `cooling-off-diff.mjs` returns exit 0 on no bumps; (2) returns exit 1 on a too-recent bump; (3) returns exit 0 on an aged-enough bump; (4) returns exit 2 on malformed lockfile; (5) SCP teardown phase machine cannot transition `Idle → Detached` directly (must pass `DetachInFlight`); (6) `it.todo` count for #21 + #24 stubs is exactly 7 (3 drift + 3 account-foundation + 1 teardown variant — match the existing stub count).                                                                                                                      |
+| Debugger / inspection expectation      | For cooling-off-diff: capture exit code + stdout for each fixture run, record in lessons. For SCP teardown: log the phase transitions per test, verify against expected sequence.                                                                                                                                                                                                                                                                                                                                                                               |
+| Static analysis gates                  | Same as M1/M2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Forbidden shortcuts                    | NO making the cooling-off-diff fixtures match production lockfile shapes byte-for-byte (synthesize the minimum); NO running the SCP teardown against real AWS Organizations (fixture-replay only); NO `vi.mock` of the AWS SDK at test-import time (use AWS SDK Client Mock or recorded fixtures); NO making `it.todo` slots empty — each must include a one-line "see docs/integration-testing-roadmap.md#section" pointer; NO touching production source under `packages/*/src/`.                                                                             |
+| Data classification                    | `Public` — fixtures contain synthetic data; recorded AWS responses are scrubbed of account IDs / ARNs / per-org details.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Proactive controls in play             | OWASP Proactive Controls C5 (Validate All Inputs — fixture-loader rejects > 50 fixtures); C9 (Implement Security Logging — phase-transition logging in SCP teardown test); CSA CCM `IVS-04` (Secure SDLC — explicit test coverage for supply-chain code).                                                                                                                                                                                                                                                                                                       |
+| Abuse acceptance scenarios             | `tm-pre-public-launch-abuse-3: malformed lockfile bypasses cooling-off` — see BDD row "abuse case: malformed lockfile" below. **N/A for the rest** of the abuse-case classes — no new endpoints, IPC handlers, file writes outside repo, subprocess invocations, or outbound requests in production paths.                                                                                                                                                                                                                                                      |
+
+#### Out of Scope / Must Not Do
+
+- Real Pulumi Cloud + sandbox AWS deploys for #21 / #24 (deferred to follow-up runbook tracked via the new roadmap doc)
+- Real `aws organizations attach-policy` against a real org (out of scope; #30 is fixture-replay only)
+- Touching `packages/*/src/` (this milestone is test-only + a roadmap doc)
+- Bumping any `@pulumi/*` version
+- Rewriting `cooling-off-diff.mjs` (only test it as a black box via subprocess)
+- Adding any new runtime dependency
+- Renaming any existing file (only adding NEW files)
+
+#### Pre-Flight
+
+1. Complete the Global Entry Rules.
+2. Read M1 + M2 lessons; apply: format-after-edit; check-tags-before-history-edits; comment-strip in YAML matching; redact runbook meta-references; annotated-tag-dereferencing pattern (referenced for M4).
+3. Read all listed files.
+4. Copy the Evidence Log template into this milestone section.
+5. Re-state the milestone constraints before coding.
+
+#### Files Allowed To Change
+
+| File                                                                         | Planned Change                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/skill-bdd/cooling-off-diff.test.ts`                                   | NEW: vitest test that runs `scripts/cooling-off-diff.mjs` as a subprocess against synthetic lockfile fixtures, asserts exit code + stdout per scenario.                                                      |
+| `tests/skill-bdd/fixtures/cooling-off-diff/`                                 | NEW directory: 8-12 synthetic lockfile pairs covering: no-bump, too-recent-major, aged-major, too-recent-minor, aged-minor, too-recent-patch, aged-patch, malformed-yaml, missing-package, version-rollback. |
+| `tests/skill-bdd/scp-teardown.test.ts`                                       | NEW: vitest test that imports a NEW `tests/skill-bdd/scp-teardown-harness.ts` exposing the teardown phase machine, asserts phase transitions against fixture-replayed AWS Organizations responses.           |
+| `tests/skill-bdd/fixtures/scp-teardown/`                                     | NEW: recorded AWS Organizations API response JSONs for happy + failure paths.                                                                                                                                |
+| `tests/skill-bdd/scp-teardown-harness.ts`                                    | NEW: pure-function teardown phase machine derived from `docs/deployment/scp-guide.md`'s manual procedure. Imports no AWS SDK; takes a typed "AWS responder" interface so tests inject fixtures.              |
+| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | Replace the 3 tautological `it()` bodies with `it.todo()` carrying explicit `// see docs/integration-testing-roadmap.md#account-foundation` comments.                                                        |
+| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | Same — replace the 4 tautological bodies with `it.todo()` + roadmap pointers.                                                                                                                                |
+| `docs/integration-testing-roadmap.md`                                        | NEW: captures what each currently-stubbed integration test SHOULD verify, what credentials it needs, the expected wall-clock cost, the cleanup invariant, and a tracking issue link.                         |
+| `CHANGELOG.md`                                                               | One-line entry under [1.2.0] "Changed" about the test-surface battle-test.                                                                                                                                   |
+| `docs/ARCHITECTURE.md`                                                       | One-line update on the Test Architecture section noting the new fixture-replay tests.                                                                                                                        |
+
+#### Step-by-Step
+
+1. Write BDD tests first for the cooling-off-diff fixtures. Confirm fails (no fixtures yet).
+2. Author 8-12 synthetic lockfile fixtures covering the scenarios above. Make BDD tests pass.
+3. Write BDD test for SCP teardown phase machine (against not-yet-existing harness). Confirm fails.
+4. Author the teardown harness as a pure-function module derived from `scp-guide.md`. Take a typed `AwsOrganizationsResponder` interface; tests inject fixtures.
+5. Make the SCP teardown BDD pass.
+6. Convert #21 + #24 stub bodies to `it.todo()` with roadmap pointers.
+7. Author `docs/integration-testing-roadmap.md`.
+8. Update `CHANGELOG.md` + `docs/ARCHITECTURE.md`.
+9. Run the full lint/typecheck/test/format gate.
+10. Verify `git status` clean; complete the Self-Review Gate.
+
+#### BDD Acceptance Scenarios
+
+**Feature: Integration test surface battle-test**
+
+| Scenario                                                             | Category            | Given                                                                        | When                                          | Then                                                                            |
+| -------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------- |
+| cooling-off-diff returns 0 on no-bump                                | happy path          | base = head lockfile (no @pulumi/\* changes)                                 | run `cooling-off-diff.mjs base head`          | exit code 0                                                                     |
+| cooling-off-diff returns 1 on too-recent major bump                  | invalid input       | head bumps `@pulumi/aws` to a release published < 72h ago                    | run script                                    | exit code 1, stdout names the offending package                                 |
+| cooling-off-diff returns 0 on aged major bump                        | happy path          | head bumps to a release published > 72h ago                                  | run script                                    | exit code 0                                                                     |
+| cooling-off-diff returns 1 on too-recent patch bump                  | invalid input       | head bumps with patch < 24h                                                  | run script                                    | exit code 1                                                                     |
+| cooling-off-diff returns 0 on aged patch bump                        | happy path          | patch ≥ 24h old                                                              | run script                                    | exit code 0                                                                     |
+| cooling-off-diff returns 2 on malformed lockfile                     | dependency failure  | head is malformed YAML                                                       | run script                                    | exit code 2; fail-closed                                                        |
+| cooling-off-diff bound: ≤ 50 fixtures                                | resource bound      | fixture loader walks fixture dir                                             | walks > 50 entries                            | rejects with diagnostic listing the offending files                             |
+| SCP teardown happy path: Idle → Attached → DetachInFlight → Detached | happy path          | fresh state with attached SCP                                                | run teardown harness with happy-path fixtures | phase sequence = expected; final state = Detached                               |
+| SCP teardown rejects illegal transition                              | assertion violation | state = Idle                                                                 | call advance(Detached)                        | harness throws "illegal transition" with phase context                          |
+| SCP teardown poll exhausted                                          | resource bound      | fixtures replay 12 polls without completion                                  | run teardown                                  | hard-fail with explicit message naming the last seen phase                      |
+| #21 / #24 stubs are it.todo                                          | compatibility       | `pnpm -r test` runs                                                          | the previously-tautological `it()` slots      | now report as `todo` (vitest), not `passed`                                     |
+| `it.todo` slots reference the roadmap                                | compatibility       | grep the two stub files                                                      | extract the test-context comments             | every `it.todo` carries a `docs/integration-testing-roadmap.md#…` link          |
+| abuse case: malformed lockfile (`tm-pre-public-launch-abuse-3`)      | abuse case          | a PR submits a deliberately malformed `pnpm-lock.yaml` to bypass cooling-off | the cooling-off-diff CI step runs             | exit code 2 (fail-closed); merge blocked; PR cannot bypass via parse-error path |
+
+#### Regression Tests
+
+- M1's release-readiness.test.ts — green (atomic version + per-package shape unchanged).
+- M2's workflow-action-pinning.test.ts — green (no workflow YAML touched in M3).
+- All other tests in `pnpm -r test` — green.
+
+#### Compatibility Checklist
+
+- [ ] M1 invariants still hold
+- [ ] M2 invariants still hold
+- [ ] `cooling-off-diff.mjs` CLI surface unchanged
+- [ ] `HULUMI_INTEGRATION=1` skip-gate preserved (the `it.todo` slots never run, regardless of env)
+- [ ] No production source under `packages/*/src/` modified
+- [ ] No new runtime dependency added
+- [ ] No `@pulumi/*` version touched
+- [ ] `docs/deployment/scp-guide.md` and `scp.json` unchanged
+
+#### E2E Runtime Validation
+
+**Files**: `tests/skill-bdd/cooling-off-diff.test.ts`, `tests/skill-bdd/scp-teardown.test.ts`
+
+| E2E Test                                                           | What It Proves                                                       | Pass Criteria                                                                                                                     |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `cooling-off-diff returns expected exit code per fixture`          | Supply-chain gate behavior is testable + regressions caught          | 8-12 fixtures × { exit code, stdout substring } match expectations                                                                |
+| `SCP teardown phase machine respects illegal-transition invariant` | Manual-procedure invariants are now executable                       | every fixture-replay run produces the documented phase sequence; illegal transitions throw; poll-exhaustion fails with diagnostic |
+| `#21 + #24 stubs report as todo, not passed`                       | The audit's "tautologies masquerading as coverage" finding is closed | `pnpm -r test` reports a `todo` count ≥ 7 for these test files                                                                    |
+
+#### Smoke Tests
+
+- [ ] `pnpm -r test` green (with new tests + `it.todo` slots)
+- [ ] `pnpm -r test` skips `HULUMI_INTEGRATION` paths cleanly when env unset
+- [ ] `cat docs/integration-testing-roadmap.md` shows the per-test contract
+- [ ] `git diff --stat` for M3 shows only the M3 allow-list files
+- [ ] `pnpm run format:check` clean
+- [ ] `git status` clean
+
+#### Evidence Log
+
+| Step                                    | Command / Check                                                                   | Expected Result                                      | Actual Result | Pass/Fail | Notes |
+| --------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------- | --------- | ----- |
+| Repo hygiene                            | `git status`                                                                      | clean tree on M2's task branch                       |               |           |       |
+| Baseline tests                          | `pnpm -r test`                                                                    | M2's 473 green                                       |               |           |       |
+| BDD test created (cooling-off)          | `tests/skill-bdd/cooling-off-diff.test.ts`                                        | fails before fixtures land                           |               |           |       |
+| Implementation: cooling-off fixtures    | 8-12 fixtures                                                                     | tests pass against scripts/cooling-off-diff.mjs      |               |           |       |
+| BDD test created (SCP teardown)         | `tests/skill-bdd/scp-teardown.test.ts`                                            | fails before harness lands                           |               |           |       |
+| Implementation: scp-teardown-harness.ts | NEW                                                                               | phase machine + injected responder                   |               |           |       |
+| BDD test passes (SCP teardown)          | `tests/skill-bdd/scp-teardown.test.ts`                                            | green                                                |               |           |       |
+| #21 / #24 stubs converted               | grep for `expect(RUN_INTEGRATION).toBe(true)`                                     | match count = 0                                      |               |           |       |
+| Roadmap doc                             | `docs/integration-testing-roadmap.md`                                             | NEW; covers each `it.todo` slot                      |               |           |       |
+| Formatter                               | `pnpm run format:check`                                                           | clean                                                |               |           |       |
+| Typecheck / build                       | `pnpm -r typecheck && pnpm -r build`                                              | clean                                                |               |           |       |
+| Static analyzer                         | `pnpm -r lint && pnpm run lint:license-boundary && pnpm run lint:exact-pin-guard` | clean                                                |               |           |       |
+| Full tests                              | `pnpm -r test`                                                                    | green; `it.todo` count ≥ 7 across the two stub files |               |           |       |
+| Resource-bound verification             | fixture loader > 50 fixtures                                                      | rejects with diagnostic                              |               |           |       |
+| Invariant verification                  | SCP phase machine                                                                 | illegal transition throws                            |               |           |       |
+| Debugger / state inspection             | log phase transitions per test                                                    | sequence matches expected                            |               |           |       |
+| Test artifact cleanup                   | `git status`                                                                      | no untracked                                         |               |           |       |
+| .gitignore review                       | review                                                                            | no new patterns expected                             |               |           |       |
+| Compatibility checks                    | per checklist                                                                     | no regressions                                       |               |           |       |
+
+#### Definition of Done
+
+- `tests/skill-bdd/cooling-off-diff.test.ts` exists with ≥ 8 scenarios, all green
+- `tests/skill-bdd/scp-teardown.test.ts` + harness exist; phase-machine invariants encoded
+- `expect(RUN_INTEGRATION).toBe(true)` removed from both integration stubs
+- 7 `it.todo` slots in the two stub files (3 drift + 3 account-foundation + 1 teardown variant)
+- `docs/integration-testing-roadmap.md` exists and references each `it.todo`
+- M1 + M2 BDD tests still pass
+- Full lint/typecheck/test/format gate green
+- Compatibility checklist complete
+- Lessons + completion files written
+- Milestone Tracker updated
+
+#### Post-Flight
+
+Documentation updates:
+
+- **README.md**: none.
+- **docs/ARCHITECTURE.md**: one-line update to Test Architecture section.
+- **CHANGELOG.md**: one-line entry under [1.2.0] "Changed".
+- **docs/integration-testing-roadmap.md**: NEW.
+
+#### Notes
+
+- The roadmap doc is the contract for a follow-up runbook (real Pulumi+AWS deploys for #21 + #24). Suggest spinning that as `hulumi-integration-real-aws` when capacity allows.
+- The fixture-replay pattern for SCP teardown is reusable — M4 may extend it for any other "manual procedure deserves an executable invariant" gap.
+
+---
+
+<!-- Milestones M4–M5 will be drafted after M3 is confirmed. -->
 
 ---
 

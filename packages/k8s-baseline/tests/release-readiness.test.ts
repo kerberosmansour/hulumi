@@ -54,15 +54,14 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
 
     it("release workflow generates a CycloneDX SBOM for k8s-baseline", () => {
       const yml = readRepoFile(".github/workflows/release.yml");
-      // SBOM output filename per package (post-M5 release.yml writes
-      // ".release-artifacts/sbom-${pkg}.cdx.json" inside a loop, so the
-      // file path appears via the loop's variable expansion in the run
-      // block; the literal `sbom-k8s-baseline.cdx.json` only appears if
-      // the loop variable is statically referenced — which it isn't
-      // post-pnpm-SBOM-fix. Instead, assert the loop iterates over the
-      // four-package set + invokes cyclonedx-npm.
+      // SBOM output filename per package: post-cdxgen-swap, release.yml
+      // writes `.release-artifacts/sbom-${pkg}.cdx.json` inside a loop
+      // that iterates the four-package set. cdxgen is the
+      // multi-package-manager CycloneDX generator that reads
+      // pnpm-lock.yaml natively (sidesteps the Corepack interception
+      // that broke the previous @cyclonedx/cyclonedx-npm approach).
       expect(yml).toMatch(/for pkg in baseline policies drift k8s-baseline/);
-      expect(yml).toMatch(/@cyclonedx\/cyclonedx-npm/);
+      expect(yml).toMatch(/@cyclonedx\/cdxgen/);
       // The output-file template uses the loop variable.
       expect(yml).toMatch(/sbom-\$\{pkg\}\.cdx\.json/);
     });

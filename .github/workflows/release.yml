@@ -88,26 +88,31 @@ jobs:
           done
           ls -la .release-artifacts/
 
-      - name: Generate SBOMs (CycloneDX)
-        # @cyclonedx/cyclonedx-npm requires npm-style evidence in each
-        # package directory: a `package-lock.json`, an `npm-shrinkwrap.json`,
-        # or a local `node_modules/`. Hulumi is a pnpm workspace — there is
-        # no `package-lock.json` (deleted in runbook hulumi-pre-public-launch
-        # M1) and pnpm hoists `node_modules/` to the workspace root rather
-        # than per-package. We generate a transient `package-lock.json` per
-        # package via `npm install --package-lock-only` (resolution only —
-        # no install happens; `--ignore-scripts` blocks any postinstall
-        # hooks), run the SBOM, then delete the transient lockfile so the
-        # repo's pnpm-only invariant is preserved across the workflow run.
+      - name: Generate SBOMs (CycloneDX, via cdxgen)
+        # cdxgen is the multi-package-manager CycloneDX generator. It reads
+        # `pnpm-lock.yaml` natively, so no transient `package-lock.json`
+        # round-trip is needed. The previous fix (`npm install
+        # --package-lock-only`) was intercepted by Corepack — when the
+        # workspace's `package.json#packageManager` is `pnpm@9.12.0`,
+        # Corepack rejects or rewrites direct npm calls, so the lockfile
+        # never got created and `@cyclonedx/cyclonedx-npm` errored with
+        # "No evidence: no package lock file nor `node_modules` dir".
+        # Switching to cdxgen sidesteps the Corepack interaction
+        # entirely.
+        env:
+          # cdxgen reads `pnpm-lock.yaml` from the workspace root and
+          # the package.json from the per-package directory. Run from
+          # the repo root so pnpm-lock.yaml is discoverable.
+          FETCH_LICENSE: "true"
         run: |
           set -euo pipefail
           for pkg in baseline policies drift k8s-baseline; do
-            (cd "packages/$pkg" && npm install --package-lock-only --ignore-scripts --silent)
-            npx --yes @cyclonedx/cyclonedx-npm@2.1.0 \
-              --output-format json \
-              --output-file ".release-artifacts/sbom-${pkg}.cdx.json" \
+            npx --yes @cyclonedx/cdxgen@11 \
+              --type js \
+              --no-recurse \
+              --spec-version 1.5 \
+              --output ".release-artifacts/sbom-${pkg}.cdx.json" \
               "packages/$pkg"
-            rm -f "packages/$pkg/package-lock.json"
           done
 
       - name: Attest provenance for tarballs

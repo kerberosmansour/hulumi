@@ -2,6 +2,11 @@
 node_modules/
 .pnpm-store/
 
+# pnpm is the canonical package manager (see package.json#packageManager).
+# Block npm/yarn-only lockfiles to prevent lockfile-divergence supply-chain bugs.
+package-lock.json
+yarn.lock
+
 # Build output
 dist/
 build/
@@ -35,6 +40,9 @@ coverage/
 .idea/
 .vscode/
 !.vscode/settings.json
+
+# Coding-agent harness session state
+.claude/
 
 # Drift classifier cache (users decide their own policy; we ignore in this repo)
 .hulumi/

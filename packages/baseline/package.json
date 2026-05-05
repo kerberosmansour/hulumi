@@ -3,11 +3,19 @@
   "version": "1.2.0",
   "description": "Hardened Pulumi baseline components for AWS and GitHub — SecureBucket, AccountFoundation, SecureRepository, OrgFoundation. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
-  "private": true,
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kerberosmansour/hulumi.git",
+    "directory": "packages/baseline"
+  },
+  "bugs": {
+    "url": "https://github.com/kerberosmansour/hulumi/issues"
+  },
+  "homepage": "https://github.com/kerberosmansour/hulumi/tree/main/packages/baseline#readme",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

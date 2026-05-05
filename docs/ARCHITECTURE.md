@@ -4,7 +4,7 @@
 
 ## Overview
 
-Hulumi is an Apache-2.0 TypeScript monorepo that ships hardened-by-default Pulumi components for AWS, GitHub, and Kubernetes/EKS, a CrossGuard policy pack, a local-first drift classifier, and a Claude Code skill. Four publishable npm packages share an atomic SLSA Build L3 release path: `@hulumi/baseline` (AWS + GitHub, v1.1.0), `@hulumi/policies` (v1.1.0), `@hulumi/drift` (v1.1.0), and `@hulumi/k8s-baseline` (v1.0.0-pre.1; first stable lands with the v1.2 train). The K8s package is publish-ready and CI exercises a kind/EKS integration test skeleton that skips cleanly when the cluster prerequisites are absent.
+Hulumi is an Apache-2.0 TypeScript monorepo that ships hardened-by-default Pulumi components for AWS, GitHub, and Kubernetes/EKS, a CrossGuard policy pack, a local-first drift classifier, and a Claude Code skill. Four publishable npm packages share an atomic SLSA Build L3 release path: `@hulumi/baseline` (AWS + GitHub, v1.2.0), `@hulumi/policies` (v1.2.0), `@hulumi/drift` (v1.2.0), and `@hulumi/k8s-baseline` (v1.2.0 — first stable, version-aligned with the atomic-release invariant). The K8s package is publish-ready and CI exercises a kind/EKS integration test skeleton that skips cleanly when the cluster prerequisites are absent.
 
 ## Workspace Structure
 

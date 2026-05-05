@@ -1,13 +1,21 @@
 {
   "name": "@hulumi/drift",
   "version": "1.2.0",
-  "private": true,
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "description": "Local-first drift classifier — distinguishes provider-API churn from console break-glass from genuine IaC drift via 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly. v1.1 adds GithubWebhookFallbackAdapter for non-GHEC tiers + tierDegraded / featureNotLicensed verdict fields. Cache schema v2.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kerberosmansour/hulumi.git",
+    "directory": "packages/drift"
+  },
+  "bugs": {
+    "url": "https://github.com/kerberosmansour/hulumi/issues"
+  },
+  "homepage": "https://github.com/kerberosmansour/hulumi/tree/main/packages/drift#readme",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

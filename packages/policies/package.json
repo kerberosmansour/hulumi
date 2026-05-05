@@ -1,13 +1,21 @@
 {
   "name": "@hulumi/policies",
   "version": "1.2.0",
-  "private": true,
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "description": "Pulumi CrossGuard policy packs for AWS and GitHub: HulumiHardeningPack + CisV5Pack on the AWS side; HulumiGithubHardeningPack (H1+H2+G_OIDC_1) + CisGithubV1Pack (placeholder pending CIS WorkBench) on the GitHub side. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kerberosmansour/hulumi.git",
+    "directory": "packages/policies"
+  },
+  "bugs": {
+    "url": "https://github.com/kerberosmansour/hulumi/issues"
+  },
+  "homepage": "https://github.com/kerberosmansour/hulumi/tree/main/packages/policies#readme",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

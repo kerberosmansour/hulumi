@@ -7,19 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] — 2026-05-01
 
-The Hulumi-K8s-Security + Hulumi-Operations release. Atomic four-package
-publish: `@hulumi/baseline@1.2.0`, `@hulumi/policies@1.2.0`,
-`@hulumi/drift@1.2.0`, and the first stable `@hulumi/k8s-baseline@1.0.0`.
-All four ship with SLSA Build L3 attestation. AWS-side v1.x surface
-unchanged for existing consumers; new components are additive.
+The Hulumi-K8s-Security + Hulumi-Operations + pre-public-launch release.
+Atomic four-package publish: `@hulumi/baseline@1.2.0`,
+`@hulumi/policies@1.2.0`, `@hulumi/drift@1.2.0`, and the first stable
+`@hulumi/k8s-baseline@1.2.0` (version reconciled from the planned 1.0.0
+to match the atomic-release invariant — see runbook
+`hulumi-pre-public-launch` M1). All four ship with SLSA Build L3
+attestation. AWS-side v1.x surface unchanged for existing consumers; new
+components are additive.
 
 ### Added
 
-- **`@hulumi/k8s-baseline@1.0.0`** — first stable release of the K8s/EKS
-  package. Existing components (`HardenedHelmRelease`, `EksSubnetTagger`,
-  `IstioFoundation`, `AlbMeshedHttpEntrypoint`,
-  `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`,
-  `GitHubAppCredential`) now ship at v1.0.0; new in v1.0.0:
+- **`@hulumi/k8s-baseline@1.2.0`** — first stable release of the K8s/EKS
+  package, version-aligned with the v1.2 train. Existing components
+  (`HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`,
+  `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`,
+  `RdsCredentialSecret`, `GitHubAppCredential`) now ship at v1.2.0; new in
+  this release:
   `NamespaceFoundation`, `EksRuntimeDetectionFoundation`,
   `EksBackupFoundation`, `EksAddonFoundation`, plus the `planUpgrade()` /
   `reportToMarkdown()` upgrade-planner library functions.
@@ -62,6 +66,15 @@ unchanged for existing consumers; new components are additive.
 - `packages/k8s-baseline/COMPATIBILITY.md` synced with the runtime
   `TESTED_VERSIONS` typed const (Istio `istiod`/`cni`/`gateway` at `1.24.2`),
   with a BDD invariant test enforcing the lockstep going forward.
+- **Pre-public-launch publish-readiness pass** (runbook
+  `hulumi-pre-public-launch` M1): all four `@hulumi/*` packages drop
+  `"private": true`, ship a per-package `README.md` (rendered on
+  npmjs.com) and adjacent `LICENSE` (Apache-2.0, byte-identical to the
+  repo root), and declare canonical `repository` / `bugs` / `homepage`
+  fields. `@hulumi/k8s-baseline` version reconciled from `1.0.0` to
+  `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
+  removed in favour of the canonical `pnpm-lock.yaml`. Extended
+  `release-readiness.test.ts` enforces these invariants going forward.
 
 ### Migration
 

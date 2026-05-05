@@ -67,17 +67,60 @@ const ALLOWED = [
     integrity:
       "sha512-dr4AbZ5hIDyecKHWyYy0LhK3h6q/jd6QWem46wyHulJ6IBRPENlpB7iXo7KKFWkgKSweCEqjHVB5W+3WB4JiYw==",
   },
+  // Added in runbook hulumi-pre-public-launch M4 (issue #27). Runtime deps of
+  // @hulumi/drift — published to npm alongside @pulumi/* + @hulumi/k8s-baseline,
+  // so they get the same exact-pin + integrity-hash defense-in-depth. A
+  // republish of any of these packages under the same version string with
+  // tampered bytes will fail this guard at CI.
+  {
+    name: "@aws-sdk/client-cloudtrail",
+    version: "3.1041.0",
+    integrity:
+      "sha512-bamKe057uPN+CWlRRmHCI0OCxAoVx0v6So4DIwVRq7xgzewr6qu05vV7+Njq/P0QFyj05gi49ljviZde1YCgwQ==",
+  },
+  {
+    name: "@aws-sdk/client-sts",
+    version: "3.1037.0",
+    integrity:
+      "sha512-Ye+BEvy1Fd/JtqfF1T9PiodIU52/Cd9sP4oBLnj8QQEyYRUcYG1OQ2xIFXF/gzAAMjfVN8HqGJo9LxdmScxZAQ==",
+  },
+  {
+    name: "@aws-sdk/credential-providers",
+    version: "3.1041.0",
+    integrity:
+      "sha512-Ps7dcWV1JbXKoFy8QpWhTpWkX0x2tiZFmDdgojK98/rqyybPdwEtGB8xY/N2uJjE0MZkrV9X7T3Xrnk/rGFoNw==",
+  },
+  {
+    name: "p-timeout",
+    version: "7.0.1",
+    integrity:
+      "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==",
+  },
+  {
+    name: "simple-git",
+    version: "3.36.0",
+    integrity:
+      "sha512-cGQjLjK8bxJw4QuYT7gxHw3/IouVESbhahSsHrX97MzCL1gu2u7oy38W6L2ZIGECEfIBG4BabsWDPjBxJENv9Q==",
+  },
 ];
 
 function resolveFromLockfile(lock, name, version) {
-  const header = `'${name}@${version}':`;
-  const idx = lock.indexOf(header);
+  // pnpm-lock.yaml uses two distinct shapes: scoped packages are quoted
+  // (`'@scope/pkg@ver':`); unscoped packages are bare (`pkg@ver:`).
+  // Try the quoted form first, fall back to the bare form. Bare form
+  // is anchored to a 2-space indent so we don't accidentally match
+  // dependency lines deeper in the lockfile.
+  const quotedHeader = `'${name}@${version}':`;
+  const bareHeader = `\n  ${name}@${version}:\n`;
+  let idx = lock.indexOf(quotedHeader);
   if (idx === -1) {
-    return { present: false, integrity: null };
+    idx = lock.indexOf(bareHeader);
+    if (idx === -1) {
+      return { present: false, integrity: null };
+    }
   }
   // The block begins at idx and continues until the next top-level package
-  // entry (unindented `'pkgname@ver':` or end-of-file). We only need the
-  // `resolution:` line within this block.
+  // entry. We only need the `resolution:` line within this block.
   const block = lock.slice(idx, idx + 4000);
   const match = block.match(/resolution: \{integrity: ([^}]+)\}/);
   return { present: true, integrity: match ? match[1].trim() : null };
@@ -109,7 +152,9 @@ function main() {
     );
     process.exit(1);
   }
-  console.log("exact-pin-guard: OK (" + ALLOWED.length + " @pulumi/* deps match pinned hashes)");
+  console.log(
+    "exact-pin-guard: OK (" + ALLOWED.length + " pinned deps match expected integrity hashes)",
+  );
 }
 
 main();

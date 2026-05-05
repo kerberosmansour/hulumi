@@ -75,6 +75,19 @@ components are additive.
   `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
   removed in favour of the canonical `pnpm-lock.yaml`. Extended
   `release-readiness.test.ts` enforces these invariants going forward.
+- **Pre-public-launch supply-chain guard extension + dead-code cleanup**
+  (runbook `hulumi-pre-public-launch` M4): `scripts/exact-pin-guard.mjs`
+  ALLOWED extended with 5 new entries — `@aws-sdk/client-cloudtrail`,
+  `@aws-sdk/client-sts`, `@aws-sdk/credential-providers`, `p-timeout`,
+  `simple-git` (all `@hulumi/drift` runtime deps). Pin-guard now covers
+  11 pinned deps total; a republish of any of these packages under the
+  same version string with tampered bytes will fail CI.
+  `resolveFromLockfile` enhanced to handle both quoted (`'@scope/pkg':`)
+  and bare (`pkg@ver:`) lockfile shapes. Unused
+  `packages/baseline/src/aws/probes/poll.ts` removed (zero callers; the
+  vitest-pool gotcha narrative survives in `docs/ARCHITECTURE.md`).
+  New BDD test at `tests/skill-bdd/exact-pin-guard.test.ts` enforces
+  ALLOWED coverage + dead-code absence going forward.
 - **Pre-public-launch test-surface battle-test** (runbook
   `hulumi-pre-public-launch` M3): closed the audit's "stubbed integration
   tests masquerading as coverage" finding. New

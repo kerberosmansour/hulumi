@@ -65,7 +65,7 @@ This is the single source of truth for progress. Update as each milestone comple
 | 1   | NPM publish-readiness pass                                                     | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m1.md](../lessons/hulumi-pre-public-launch-m1.md) | [docs/slo/completion/hulumi-pre-public-launch-m1.md](../completion/hulumi-pre-public-launch-m1.md) |
 | 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m2.md](../lessons/hulumi-pre-public-launch-m2.md) | [docs/slo/completion/hulumi-pre-public-launch-m2.md](../completion/hulumi-pre-public-launch-m2.md) |
 | 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m3.md](../lessons/hulumi-pre-public-launch-m3.md) | [docs/slo/completion/hulumi-pre-public-launch-m3.md](../completion/hulumi-pre-public-launch-m3.md) |
-| 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `not_started` |            |            |                                                                                              |                                                                                                    |
+| 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m4.md](../lessons/hulumi-pre-public-launch-m4.md) | [docs/slo/completion/hulumi-pre-public-launch-m4.md](../completion/hulumi-pre-public-launch-m4.md) |
 | 5   | Docs polish + v2.0 migration prep (#22, #34, #17)                              | `not_started` |            |            |                                                                                              |                                                                                                    |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
@@ -1121,7 +1121,188 @@ Documentation updates:
 
 ---
 
-<!-- Milestones M4–M5 will be drafted after M3 is confirmed. -->
+### Milestone 4 — `Supply-chain guard extension + dead-code cleanup`
+
+**Goal**: Close the remaining two P2 supply-chain hygiene findings — extend `scripts/exact-pin-guard.mjs` to cover `@hulumi/drift`'s runtime deps (the `@aws-sdk/*` set + `p-timeout` + `simple-git`), and remove the unused `packages/baseline/src/aws/probes/poll.ts` escape hatch (issue #28).
+
+**Context**: `@aws-sdk/client-secrets-manager@3.1041.0` is already in the pin-guard ALLOWED list (added in the K8s runbook for `@hulumi/k8s-baseline`); drift's three sibling `@aws-sdk/*` runtime deps + `p-timeout` + `simple-git` are not. Drift is shipped to npm with these deps; integrity-hash pinning the lockfile entries gives the same defense-in-depth as the existing `@pulumi/*` set. The `poll.ts` file at `packages/baseline/src/aws/probes/poll.ts` is documented in ARCHITECTURE.md as a "vitest-pool dynamic-resource escape hatch" but `grep -rn pollUntil` over the repo shows zero callers — it's dead code in a security-first repo.
+
+**Carmack-style reliability goal**: "Prefer deleting complexity over adding new layers" + "No silent failure". Dead code is silent failure with extra steps — a future refactor that breaks `poll.ts` won't fail any test or lint. Removal is the right move; the supply-chain gotcha narrative (vitest pool + pulumi.dynamic.Resource) survives in ARCHITECTURE.md prose without an unused implementation. Pin-guard extension makes drift's package-tarball provenance match the rest of the four-package set.
+
+**Important design rule**: **The pin-guard's ALLOWED table is the SINGLE source of truth for "which deps must match exact integrity hash."** Adding a new dep to the table is a deliberate review step. Removing one is too. The pin-guard's existing message "(N @pulumi/\* deps match pinned hashes)" undersells the actual coverage; M4 fixes the message to reflect the broader scope.
+
+**Refactor budget**: `Targeted refactor permitted for extending exact-pin-guard.mjs message text and ALLOWED entries; targeted removal of packages/baseline/src/aws/probes/poll.ts. Must not break existing CLI surface (no flag changes); must not modify the lockfile content.`
+
+#### Contract Block
+
+| Field                                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inputs                                 | `scripts/exact-pin-guard.mjs` (existing); `pnpm-lock.yaml` (read-only); `packages/drift/package.json` (read-only — to confirm dep set); `packages/baseline/src/aws/probes/poll.ts` (to be removed); `docs/ARCHITECTURE.md` (update narrative)                                                                                                                                                                                                                                                    |
+| Outputs                                | Pin-guard ALLOWED extended with 5 new entries (3 `@aws-sdk/*` + `p-timeout` + `simple-git`); `poll.ts` removed; ARCHITECTURE.md narrative updated; CHANGELOG entry                                                                                                                                                                                                                                                                                                                               |
+| Interfaces touched                     | `scripts/exact-pin-guard.mjs` (ALLOWED table + status message); `packages/baseline/src/aws/probes/poll.ts` (REMOVED); `docs/ARCHITECTURE.md` (lines 56 + 170 narrative); `CHANGELOG.md`                                                                                                                                                                                                                                                                                                          |
+| Files allowed to change                | `scripts/exact-pin-guard.mjs`, `docs/ARCHITECTURE.md`, `CHANGELOG.md`, `tests/skill-bdd/exact-pin-guard.test.ts` (NEW BDD test for the script)                                                                                                                                                                                                                                                                                                                                                   |
+| Files to read before changing anything | `scripts/exact-pin-guard.mjs`, `pnpm-lock.yaml` (to extract integrity hashes), `packages/drift/package.json`, `packages/baseline/src/aws/probes/poll.ts` (to confirm no callers — already verified), `docs/ARCHITECTURE.md` (lines 56 + 170)                                                                                                                                                                                                                                                     |
+| New files allowed                      | `tests/skill-bdd/exact-pin-guard.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Files removed                          | `packages/baseline/src/aws/probes/poll.ts` (verified zero in-repo callers)                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| New dependencies allowed               | `none`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Migration allowed                      | `no` (dep removal is not a migration — there are no callers)                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Compatibility commitments              | `pnpm-lock.yaml` content unchanged; `@pulumi/*` versions unchanged; no production source under `packages/*/src/` modified except the `poll.ts` removal; no public TypeScript exports affected (`pollUntil` is not in any `index.ts`); existing pin-guard CLI surface (no flags) preserved.                                                                                                                                                                                                       |
+| Resource bounds introduced/changed     | None                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Invariants/assertions required         | Pin-guard exits 0 when all ALLOWED entries match; exits 1 on any mismatch (existing). New BDD test asserts: (a) ALLOWED contains the 5 new drift entries; (b) `poll.ts` does not exist; (c) the pin-guard status message names the actual count.                                                                                                                                                                                                                                                 |
+| Debugger / inspection expectation      | When extending ALLOWED, copy each integrity hash directly from `pnpm-lock.yaml` (don't hand-compute). Cross-check by running `pnpm run lint:exact-pin-guard` after each addition.                                                                                                                                                                                                                                                                                                                |
+| Static analysis gates                  | Same as M1/M2/M3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Forbidden shortcuts                    | NO bumping any pinned version; NO removing existing ALLOWED entries; NO adding entries without copy-pasting the integrity hash from the lockfile; NO renaming the script's CLI; NO changing the script's exit-code semantics; NO touching `pnpm-lock.yaml`; NO removing the `pollUntil` rationale from `docs/ARCHITECTURE.md` (the gotcha narrative survives, just without the implementation pointer); NO adding tests against the removed `poll.ts` to assert its absence in some fragile way. |
+| Data classification                    | `Public`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Proactive controls in play             | OWASP Proactive Controls C2 (Leverage Security Frameworks — exact-pin + integrity hashes); CSA CCM `IVS-04` (Secure SDLC); SLSA Build L3 supply-chain posture (preserved + extended)                                                                                                                                                                                                                                                                                                             |
+| Abuse acceptance scenarios             | `tm-pre-public-launch-abuse-4: silent dependency substitution on @aws-sdk/* publish` — if an attacker compromises one of drift's npm-published `@aws-sdk/*` versions and republishes a malicious tarball with the same version string, the integrity hash mismatch fails the pin-guard at CI. **N/A for the rest** of the abuse-case classes — no new endpoints, IPC handlers, file writes outside repo, subprocess invocations, or outbound requests.                                           |
+
+#### Out of Scope / Must Not Do
+
+- Refactoring `cooling-off-diff.mjs` (the malformed-lockfile fail-open issue from M3 lessons stays a follow-up — different script, different scope)
+- Bumping any pinned version (would conflate hardening with supply-chain churn)
+- Adding any new runtime dependency to any of the four packages
+- Modifying `packages/*/src/` other than the `poll.ts` removal
+- Adding a "git pre-commit hook" or workflow change (the pin-guard already runs in CI)
+- Touching the M2 SHA-pin enforcement (workflow-action-pinning.test.ts)
+- Replacing the script with a TypeScript-based reimplementation (it's `.mjs` for a reason — runs without a build step in any pre-flight context)
+
+#### Pre-Flight
+
+1. Complete the Global Entry Rules.
+2. Read M1 + M2 + M3 lessons; apply: format-after-edit; check tags before treating CHANGELOG as historical; redact runbook meta-references; subprocess-test pattern from M3 cooling-off; use `it.todo` honestly.
+3. Read all listed files.
+4. Copy the Evidence Log template into this milestone section.
+5. Re-state the milestone constraints before coding.
+
+#### Files Allowed To Change
+
+| File                                       | Planned Change                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/exact-pin-guard.mjs`              | Add 5 ALLOWED entries: `@aws-sdk/client-cloudtrail`, `@aws-sdk/client-sts`, `@aws-sdk/credential-providers`, `p-timeout`, `simple-git`. Update the status message to reflect the actual count + scope ("N pinned deps match expected integrity hashes").                                       |
+| `packages/baseline/src/aws/probes/poll.ts` | REMOVED (zero callers).                                                                                                                                                                                                                                                                        |
+| `docs/ARCHITECTURE.md`                     | Line 56 — drop the row pointing at `probes/poll.ts`. Line 170 — keep the gotcha narrative ("`pulumi.dynamic.Resource` does NOT work under vitest's worker pool — use `dependsOn` instead. Documented gotcha"); drop the "; escape hatch at `packages/baseline/src/aws/probes/poll.ts`" suffix. |
+| `CHANGELOG.md`                             | One-line entry under [1.2.0] "Changed".                                                                                                                                                                                                                                                        |
+| `tests/skill-bdd/exact-pin-guard.test.ts`  | NEW: BDD test that asserts (a) the 5 new drift entries are in ALLOWED via subprocess + grep, (b) running the script against the current lockfile exits 0, (c) `poll.ts` no longer exists.                                                                                                      |
+
+#### Step-by-Step
+
+1. Write the BDD test first; confirm fails (no entries yet, poll.ts still present).
+2. Read each integrity hash from `pnpm-lock.yaml` for the 5 new deps.
+3. Add the 5 ALLOWED entries to `scripts/exact-pin-guard.mjs`. Update the status message.
+4. Run `pnpm run lint:exact-pin-guard` — must succeed with the new count.
+5. Remove `packages/baseline/src/aws/probes/poll.ts`. Confirm `pnpm -r build` + `pnpm -r typecheck` still pass (no callers).
+6. Update `docs/ARCHITECTURE.md` lines 56 + 170.
+7. Update CHANGELOG.md.
+8. Run the BDD test — must pass.
+9. Run the full lint/typecheck/test/format gate.
+10. Verify `git status` clean; complete the Self-Review Gate.
+
+#### BDD Acceptance Scenarios
+
+**Feature: Pin-guard extension + dead-code removal**
+
+| Scenario                                                             | Category      | Given                                                                                                             | When                                                     | Then                                                                                                        |
+| -------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Pin-guard ALLOWED includes drift's runtime deps                      | happy path    | repo at end of M4                                                                                                 | grep ALLOWED in `scripts/exact-pin-guard.mjs`            | finds 5 new entries (3 `@aws-sdk/*`, `p-timeout`, `simple-git`)                                             |
+| Pin-guard runs successfully against the current lockfile             | happy path    | repo at end of M4                                                                                                 | run `pnpm run lint:exact-pin-guard`                      | exit 0; status message names the new count                                                                  |
+| `poll.ts` no longer exists                                           | happy path    | repo at end of M4                                                                                                 | `existsSync('packages/baseline/src/aws/probes/poll.ts')` | false                                                                                                       |
+| Pin-guard fails closed on any integrity-hash drift                   | invalid input | a regression edits ALLOWED's `@pulumi/aws` integrity hash to a wrong value                                        | run pin-guard                                            | exit 1; failure message names the offending dep                                                             |
+| Pin-guard does not check `@hulumi/*` deps (out of scope)             | compatibility | repo at end of M4                                                                                                 | grep ALLOWED                                             | no entries with `@hulumi/` prefix (they're publish targets, not transitive deps)                            |
+| `pnpm -r build` + `pnpm -r typecheck` pass after `poll.ts` removal   | compatibility | repo at end of M4                                                                                                 | run both                                                 | clean                                                                                                       |
+| ARCHITECTURE.md gotcha narrative survives                            | compatibility | repo at end of M4                                                                                                 | grep ARCHITECTURE.md for "vitest" + "dynamic.Resource"   | match present (just without the `probes/poll.ts` pointer)                                                   |
+| abuse case: silent dep substitution (`tm-pre-public-launch-abuse-4`) | abuse case    | a malicious actor republishes one of drift's `@aws-sdk/*` deps under the same version string with different bytes | a Hulumi CI run starts                                   | the pnpm-lock.yaml's integrity field changes; pin-guard detects mismatch; CI fails with named offending dep |
+
+#### Regression Tests
+
+- M1's release-readiness.test.ts — green.
+- M2's workflow-action-pinning.test.ts — green.
+- M3's cooling-off-diff.test.ts + scp-teardown.test.ts — green.
+- All other tests in `pnpm -r test` — green.
+
+#### Compatibility Checklist
+
+- [ ] M1 + M2 + M3 invariants still hold
+- [ ] `pnpm-lock.yaml` content unchanged (no version bumps)
+- [ ] `pnpm run lint:exact-pin-guard` exits 0
+- [ ] `pnpm -r build` + `pnpm -r typecheck` pass after poll.ts removal
+- [ ] No production source under `packages/*/src/` modified other than `poll.ts` deletion
+- [ ] No new runtime dependency
+- [ ] No new pin-guard flag or CLI change
+- [ ] `docs/ARCHITECTURE.md` gotcha narrative preserved (escape-hatch pointer dropped only)
+
+#### E2E Runtime Validation
+
+**File**: `tests/skill-bdd/exact-pin-guard.test.ts`
+
+| E2E Test                                          | What It Proves                                        | Pass Criteria                                                                                                                                                                           |
+| ------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pin-guard succeeds against the current lockfile` | The extended ALLOWED matches `pnpm-lock.yaml` reality | subprocess exit 0; stdout matches expected status format                                                                                                                                |
+| `pin-guard fails on a regressed integrity hash`   | Tamper detection works end-to-end                     | (this scenario is exercised manually in the lessons file via temporary edit; not encoded as test fixture because tampering scripts/exact-pin-guard.mjs in CI is hostile to other tests) |
+| `poll.ts no longer exists`                        | Dead-code removal is durable                          | `existsSync` returns false                                                                                                                                                              |
+| `ALLOWED contains the 5 new entries`              | Pin-guard scope correctly extended                    | grep walks the script source and finds each `name: "<dep>"` line                                                                                                                        |
+
+#### Smoke Tests
+
+- [ ] `pnpm run lint:exact-pin-guard` exits 0; status message reflects new count
+- [ ] `pnpm -r build` clean
+- [ ] `pnpm -r typecheck` clean
+- [ ] `pnpm -r test` green
+- [ ] `git diff --stat` for M4 shows only the M4 allow-list files
+- [ ] `pnpm run format:check` clean
+- [ ] `git status` clean
+
+#### Evidence Log
+
+| Step                                      | Command / Check                                                                   | Expected Result                             | Actual Result | Pass/Fail | Notes            |
+| ----------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------- | ------------- | --------- | ---------------- |
+| Repo hygiene                              | `git status`                                                                      | clean                                       |               |           |                  |
+| Baseline tests                            | `pnpm -r test`                                                                    | M3's full suite green                       |               |           |                  |
+| BDD test created                          | `tests/skill-bdd/exact-pin-guard.test.ts`                                         | fails before extensions land                |               |           |                  |
+| Implementation: integrity-hash extraction | grep `pnpm-lock.yaml` for 5 new deps                                              | each has integrity field                    |               |           |                  |
+| Implementation: ALLOWED extension         | edit `scripts/exact-pin-guard.mjs`                                                | 5 new entries; status message updated       |               |           |                  |
+| Implementation: poll.ts removal           | `git rm packages/baseline/src/aws/probes/poll.ts`                                 | clean removal                               |               |           |                  |
+| Implementation: ARCHITECTURE.md update    | edit lines 56 + 170                                                               | gotcha narrative preserved; pointer dropped |               |           |                  |
+| Pin-guard run                             | `pnpm run lint:exact-pin-guard`                                                   | exit 0; new status message                  |               |           |                  |
+| Formatter                                 | `pnpm run format:check`                                                           | clean                                       |               |           |                  |
+| Typecheck / build                         | `pnpm -r typecheck && pnpm -r build`                                              | clean (no callers of poll.ts)               |               |           |                  |
+| Static analyzer                           | `pnpm -r lint && pnpm run lint:license-boundary && pnpm run lint:exact-pin-guard` | clean                                       |               |           |                  |
+| Full tests                                | `pnpm -r test`                                                                    | green                                       |               |           |                  |
+| Resource-bound verification               | N/A                                                                               | —                                           |               |           | no new resources |
+| Invariant verification                    | BDD test                                                                          | passes                                      |               |           |                  |
+| Debugger / state inspection               | spot-check 1-2 integrity hashes against lockfile                                  | match                                       |               |           |                  |
+| Test artifact cleanup                     | `git status`                                                                      | no untracked                                |               |           |                  |
+| .gitignore review                         | review                                                                            | no new patterns expected                    |               |           |                  |
+| Compatibility checks                      | per checklist                                                                     | no regressions                              |               |           |                  |
+
+#### Definition of Done
+
+- 5 new entries added to `scripts/exact-pin-guard.mjs` ALLOWED (3 `@aws-sdk/*` + `p-timeout` + `simple-git`)
+- Pin-guard status message updated to name the new count + scope
+- `packages/baseline/src/aws/probes/poll.ts` removed
+- `docs/ARCHITECTURE.md` updated (gotcha narrative preserved without the escape-hatch pointer)
+- BDD test green
+- M1 + M2 + M3 BDD tests still pass
+- Full lint/typecheck/test/format gate green
+- Compatibility checklist complete
+- Lessons + completion files written
+- Milestone Tracker updated
+
+#### Post-Flight
+
+Documentation updates:
+
+- **README.md**: none.
+- **docs/ARCHITECTURE.md**: lines 56 + 170 reconciled.
+- **CHANGELOG.md**: one-line entry under [1.2.0] "Changed".
+
+#### Notes
+
+- The 5 new pin-guard entries are NOT cooling-off-gated — that gate applies only to `@pulumi/*` (per the M5 SECURITY.md policy). The pin-guard provides exact-pin + integrity-hash defense; cooling-off is a separate, complementary gate.
+- A future enhancement could fold the M2 SHA-pinning of GitHub Actions into pin-guard.mjs as a unified script. M4 keeps them separate (BDD test for actions, script for npm deps) because the failure shapes are different.
+
+---
+
+<!-- Milestone M5 will be drafted after M4 is confirmed. -->
 
 ---
 

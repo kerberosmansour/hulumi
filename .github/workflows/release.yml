@@ -2,8 +2,18 @@
 # attestation + SBOM generation + signed GitHub release.
 #
 # Trigger: tag v*.*.* on main. The release is atomic — any step
-# failure aborts before any `npm publish`. There is NO long-lived
-# NPM_TOKEN; npm trusted publishing via OIDC is the only auth path.
+# failure aborts before any `npm publish`.
+#
+# Auth model — TEMPORARY DURING v1.2.0 BOOTSTRAP:
+# npm Trusted Publishing (OIDC) cannot be configured for a package
+# that does not yet exist on the registry. v1.2.0 is the FIRST publish
+# of @hulumi/{baseline,policies,drift,k8s-baseline}, so we use a
+# short-lived granular access token (`secrets.NPM_TOKEN`) for ONE
+# release run only. Immediately after v1.2.0 ships, Trusted Publisher
+# is configured per package, this token is revoked, and the
+# `NODE_AUTH_TOKEN` env block + the secret are removed via the revert
+# PR. From v1.2.1 onward the auth model returns to OIDC-only with no
+# long-lived token in CI.
 #
 # The four-package set is asserted by
 # packages/k8s-baseline/tests/release-readiness.test.ts:
@@ -91,12 +101,23 @@ jobs:
           subject-path: ".release-artifacts/*.tgz"
 
       - name: npm publish (atomic — any failure aborts before subsequent publishes)
+        # REMOVE AFTER v1.2.0 BOOTSTRAP: the `env:` block below wires
+        # `secrets.NPM_TOKEN` (a short-lived granular access token,
+        # scoped to @hulumi/* read+write, 7-day expiry) for the first
+        # publish only. npm Trusted Publishing requires the package to
+        # already exist on the registry — see the file-level comment
+        # at the top of this workflow for the full rationale. The
+        # revert PR (`chore/release-bootstrap-token-revert`) removes
+        # this block immediately after v1.2.0 ships and Trusted
+        # Publisher is configured per package on npmjs.com.
         run: |
           set -euo pipefail
           pnpm --filter @hulumi/baseline publish --no-git-checks --provenance --access public
           pnpm --filter @hulumi/policies publish --no-git-checks --provenance --access public
           pnpm --filter @hulumi/drift publish --no-git-checks --provenance --access public
           pnpm --filter @hulumi/k8s-baseline publish --no-git-checks --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release with SBOMs + tarballs
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3

@@ -87,9 +87,11 @@ That's coding-agent harness state. It's now in `.gitignore` (added in runbook `h
 
 ## Pre-launch / publication
 
-### Is `security@hulumi.io` actually monitored?
+### How do I report a security vulnerability?
 
-As of v1.2.0 release prep: the `hulumi.io` domain is being registered out-of-band by the maintainer. Until DNS + MX is configured, vulnerability reports should go through the [GitHub Security Advisory link](https://github.com/kerberosmansour/hulumi/security/advisories/new) (preferred) or the contacts named in [`.github/SECURITY-CONTACTS`](../.github/SECURITY-CONTACTS). The deferred status is documented in SECURITY-CONTACTS.
+Use the [GitHub Security Advisory flow](https://github.com/kerberosmansour/hulumi/security/advisories/new). It creates a private fork of the repo where the report can be assessed and a fix coordinated before public disclosure. If GHSA is unavailable for some reason, contact the maintainer through their public GitHub profile. **Do not open a public issue for vulnerabilities.** See [SECURITY.md](../SECURITY.md) for the full policy, response targets, and scope.
+
+This project intentionally does not publish a `security@` email address. Reports go through GHSA only.
 
 ### Why is `@hulumi/k8s-baseline` at 1.2.0 instead of 1.0.0?
 
@@ -101,7 +103,7 @@ The `*.integration.test.ts` files under `packages/{baseline,drift}/tests/integra
 
 ## Where do I report a problem?
 
-- **Security vulnerability** — [GitHub Security Advisory](https://github.com/kerberosmansour/hulumi/security/advisories/new) (preferred); `security@hulumi.io` once domain is live.
+- **Security vulnerability** — [GitHub Security Advisory](https://github.com/kerberosmansour/hulumi/security/advisories/new). See [SECURITY.md](../SECURITY.md) for the full policy.
 - **Bug / unexpected behavior** — [open an issue](https://github.com/kerberosmansour/hulumi/issues/new?template=bug_report.yml).
 - **Feature request** — [feature_request issue template](https://github.com/kerberosmansour/hulumi/issues/new?template=feature_request.yml).
 - **Open-ended question / "is this the right shape"** — [GitHub Discussions](https://github.com/kerberosmansour/hulumi/discussions).

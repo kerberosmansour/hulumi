@@ -81,7 +81,7 @@ None in M2 (M1 already added `package-lock.json`, `yarn.lock`, `.claude/`).
 - **`security@hulumi.io` mailbox status.** SECURITY-CONTACTS documents the address as `deferred-until-domain-registered`; the user must register `hulumi.io` and configure MX before that contact path is functional. Out of M2 scope.
 - **PGP key publication.** SECURITY-CONTACTS records "no PGP at this time"; if/when a key is generated, the file's `pgp_keys` array gets the fingerprint.
 - **Vitest test for SECURITY-CONTACTS YAML shape.** The file is verified by manual inspection in M2; a parse-and-assert test could be a future hygiene addition.
-- **Repo-wide grep for `<sandbox-acct>` in git history (not just HEAD).** M2 grepped tracked files at HEAD; the redaction does not rewrite history. If history-rewrite is desired before the public flip, that's a separate workstream (out of scope).
+- **Repo-wide grep for `<sandbox-acct-redacted>` in git history (not just HEAD).** M2 grepped tracked files at HEAD; the redaction does not rewrite history. If history-rewrite is desired before the public flip, that's a separate workstream (out of scope).
 
 ## Known non-blocking limitations
 

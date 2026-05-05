@@ -23,7 +23,7 @@ Public-launch hygiene pass closing four audit findings.
 - **`registry-url` check scoped to `release.yml` only.** Initial draft of the BDD test required `registry-url` in both `ci.yml` and `release.yml`. Wrong — `ci.yml` doesn't publish, doesn't need the OIDC registry-url. Loosened to: only assert on `release.yml`; assert no `NPM_TOKEN` / `NODE_AUTH_TOKEN` secret references across all workflows. Caught by a failing test, not by review — that's the BDD-first discipline working.
 - **Comment-stripping in the OIDC regression check.** The release.yml header has a comment that says "There is NO long-lived NPM_TOKEN" — my naive `\bNPM_TOKEN\b` regex matched the documentation string. Loosened to strip comment-only lines, then match actual secret-reference syntax (`${{ secrets.NPM_TOKEN }}` or `NPM_TOKEN:` as a YAML key). The intent is "no real secret reference," not "no string anywhere."
 - **Research-scratch files deleted, not kept.** Trade-off: keep = transparency about the iteration process; delete = cleaner public-facing repo. Chose delete because the synthesized outputs already exist (`synthesis.md`, `dossier.md`), git history preserves the iteration if anyone needs it, and the public-launch goal is to reduce noise that strangers have to wade through.
-- **`<sandbox-acct>` placeholder, not the real number.** The runbook itself referenced `<sandbox-acct>` in 5 places to describe the redaction work. Once the repo is public, those references would re-leak the account ID. Redacted to `<sandbox-acct>` so the runbook's narrative survives without re-exposing the ID.
+- **`<sandbox-acct>` placeholder, not the real number.** The runbook itself referenced `<sandbox-acct-redacted>` in 5 places to describe the redaction work. Once the repo is public, those references would re-leak the account ID. Redacted to `<sandbox-acct>` so the runbook's narrative survives without re-exposing the ID.
 - **Account ID placeholder in the lessons file uses `123456789012` (canonical AWS docs example).** That number is widely-recognized as a placeholder in AWS documentation; using it makes "this is a placeholder, not a real account" obvious to readers.
 
 ## Assumptions verified
@@ -38,7 +38,7 @@ Public-launch hygiene pass closing four audit findings.
 
 - **The 7 commit SHAs are valid and immutable.** I fetched them via `gh api`, but I haven't independently verified each commit exists in the upstream repo's history. Practically: if any SHA was hallucinated or copied wrong, CI would fail loudly on the next run. Not a silent risk.
 - **No first-party `actions/*` action will rotate its v6/v7 tag to a malicious commit.** The threat model assumes GitHub-published actions are trusted at release time; SHA-pinning protects against subsequent tag rewrites. If GitHub itself is compromised at the source, no amount of pinning helps. Out of M2 scope.
-- **The `<sandbox-acct>` runbook redaction is effective for the public-launch transition.** Verified `grep -r '<sandbox-acct>'` returns 0 matches across all tracked files. If the account ID appears somewhere I didn't scan (e.g., a binary asset, an obscure file extension), it would be missed. Cross-check with `git grep` over the full history would catch any leak; not done in M2 (out of scope — `git filter-repo` is a separate workstream).
+- **The `<sandbox-acct>` runbook redaction is effective for the public-launch transition.** Verified `grep -r '<sandbox-acct-redacted>'` returns 0 matches across all tracked files. If the account ID appears somewhere I didn't scan (e.g., a binary asset, an obscure file extension), it would be missed. Cross-check with `git grep` over the full history would catch any leak; not done in M2 (out of scope — `git filter-repo` is a separate workstream).
 
 ## Mistakes made
 
@@ -54,7 +54,7 @@ Public-launch hygiene pass closing four audit findings.
 ## What was harder than expected
 
 - **Annotated-tag dereferencing.** Three actions returned tag-object SHAs from the first `gh api ref/tags/<tag>` call; pinning to those would have worked but is non-standard. The dereference round-trip (`git/tags/<tag-sha> → object.sha`) was an extra step. Worth doing once and remembering.
-- **The runbook itself referenced `<sandbox-acct>` five times** as part of describing the redaction work. Easy to miss if you only scan source files. Mass-redacted with `sed -i '' 's/.../...//g'` once spotted.
+- **The runbook itself referenced `<sandbox-acct-redacted>` five times** as part of describing the redaction work. Easy to miss if you only scan source files. Mass-redacted with `sed -i '' 's/.../...//g'` once spotted.
 
 ## Invariants/assertions added or strengthened
 
@@ -62,7 +62,7 @@ Public-launch hygiene pass closing four audit findings.
 - Every SHA-pinned use carries a tag-as-comment — encoded.
 - `release.yml` retains `registry-url: https://registry.npmjs.org` — encoded.
 - No workflow file references `NPM_TOKEN` or `NODE_AUTH_TOKEN` as a secret/env reference — encoded (with comment-stripping).
-- Sandbox AWS account ID `<sandbox-acct>` does not appear anywhere in the repo — manually verified via grep across tracked files; not encoded as a vitest test (would require a fixture string that itself leaks the redaction; the manual grep on commit is sufficient).
+- Sandbox AWS account ID `<sandbox-acct-redacted>` does not appear anywhere in the repo — manually verified via grep across tracked files; not encoded as a vitest test (would require a fixture string that itself leaks the redaction; the manual grep on commit is sufficient).
 
 ## Resource bounds established or verified
 
@@ -72,7 +72,7 @@ None new. M2 is mechanical (workflow YAML edits, file authoring/deletion, redact
 
 - `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha,.object.type'` is the right inspection — surfaces both the SHA AND whether it's a `commit` or `tag` object. The `type` field tells you whether to dereference.
 - `python3` for the in-place workflow-file edit was cleaner than `sed` for this case — handled the regex with confident escaping and operated on multiple files in one script.
-- `grep -rn '<sandbox-acct>'` (with file extensions filter) is the right inspection for "is the redaction complete?"
+- `grep -rn '<sandbox-acct-redacted>'` (with file extensions filter) is the right inspection for "is the redaction complete?"
 
 ## Naming conventions established
 
@@ -87,7 +87,7 @@ None new. M2 is mechanical (workflow YAML edits, file authoring/deletion, redact
 ## Missing tests that should exist now
 
 - **A vitest test that asserts `.github/SECURITY-CONTACTS` exists and parses as YAML.** Today the file is verified by manual inspection; a test that loads it and checks for the expected keys (`primary_contacts`, `preferred_reporting_url`, `disclosure_window_acknowledge_hours`) would be tighter. Possible follow-up issue.
-- **A vitest test that asserts the sandbox account ID `<sandbox-acct>` is not present anywhere.** Adding the literal string to a test would itself recreate the leak; better to encode it as a hash-based check or skip in favor of the manual grep gate at PR review time. Not added.
+- **A vitest test that asserts the sandbox account ID `<sandbox-acct-redacted>` is not present anywhere.** Adding the literal string to a test would itself recreate the leak; better to encode it as a hash-based check or skip in favor of the manual grep gate at PR review time. Not added.
 
 ## Rules for the next milestone (M3)
 

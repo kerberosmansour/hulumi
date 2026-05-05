@@ -40,6 +40,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Want a controls-aligned threat model before writing IaC            | [Threat-modeling cookbook](./docs/cookbooks/threat-modeling.md)     |
 | Are wiring drift detection into CI                                 | [Drift detection cookbook](./docs/cookbooks/drift-detection.md)     |
 | Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                          |
+| Hit a recurring gotcha and want a quick answer                     | [FAQ](./docs/faq.md)                                                |
 
 ## What's in the box (v1.2.0)
 

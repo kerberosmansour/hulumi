@@ -75,6 +75,16 @@ components are additive.
   `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
   removed in favour of the canonical `pnpm-lock.yaml`. Extended
   `release-readiness.test.ts` enforces these invariants going forward.
+- **Pre-public-launch docs polish + v2.0 migration prep** (runbook
+  `hulumi-pre-public-launch` M5): four new docs covering the
+  stranger-facing gaps before the public flip — `docs/faq.md`
+  consolidates recurring gotchas from the lessons-learned files into a
+  top-level FAQ; `docs/v2-migration.md` is the design contract for the
+  future v2.0 BucketV2 → non-V2 migration (no v2 release commitment yet
+  — preserves user planning); `docs/cookbooks/migration-from-terraform.md`
+  - `docs/cookbooks/migration-mid-stack-adoption.md` cover the two
+    dominant first-time-adopter scenarios. Cookbooks index + root README
+    Documentation table updated to link the new docs.
 - **Pre-public-launch supply-chain guard extension + dead-code cleanup**
   (runbook `hulumi-pre-public-launch` M4): `scripts/exact-pin-guard.mjs`
   ALLOWED extended with 5 new entries — `@aws-sdk/client-cloudtrail`,

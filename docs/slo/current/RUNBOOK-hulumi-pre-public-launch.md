@@ -60,13 +60,13 @@
 
 This is the single source of truth for progress. Update as each milestone completes.
 
-| #   | Milestone                                                                      | Status        | Started    | Completed  | Lessons File                                                                                 | Completion Summary                                                                                 |
-| --- | ------------------------------------------------------------------------------ | ------------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1   | NPM publish-readiness pass                                                     | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m1.md](../lessons/hulumi-pre-public-launch-m1.md) | [docs/slo/completion/hulumi-pre-public-launch-m1.md](../completion/hulumi-pre-public-launch-m1.md) |
-| 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m2.md](../lessons/hulumi-pre-public-launch-m2.md) | [docs/slo/completion/hulumi-pre-public-launch-m2.md](../completion/hulumi-pre-public-launch-m2.md) |
-| 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m3.md](../lessons/hulumi-pre-public-launch-m3.md) | [docs/slo/completion/hulumi-pre-public-launch-m3.md](../completion/hulumi-pre-public-launch-m3.md) |
-| 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `done`        | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m4.md](../lessons/hulumi-pre-public-launch-m4.md) | [docs/slo/completion/hulumi-pre-public-launch-m4.md](../completion/hulumi-pre-public-launch-m4.md) |
-| 5   | Docs polish + v2.0 migration prep (#22, #34, #17)                              | `not_started` |            |            |                                                                                              |                                                                                                    |
+| #   | Milestone                                                                      | Status | Started    | Completed  | Lessons File                                                                                 | Completion Summary                                                                                 |
+| --- | ------------------------------------------------------------------------------ | ------ | ---------- | ---------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | NPM publish-readiness pass                                                     | `done` | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m1.md](../lessons/hulumi-pre-public-launch-m1.md) | [docs/slo/completion/hulumi-pre-public-launch-m1.md](../completion/hulumi-pre-public-launch-m1.md) |
+| 2   | Public-launch hygiene (scratch / SECURITY-CONTACTS / account ID / SHA pinning) | `done` | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m2.md](../lessons/hulumi-pre-public-launch-m2.md) | [docs/slo/completion/hulumi-pre-public-launch-m2.md](../completion/hulumi-pre-public-launch-m2.md) |
+| 3   | Integration test surface battle-test (#21, #24, #26, #30)                      | `done` | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m3.md](../lessons/hulumi-pre-public-launch-m3.md) | [docs/slo/completion/hulumi-pre-public-launch-m3.md](../completion/hulumi-pre-public-launch-m3.md) |
+| 4   | Supply-chain guard extension + dead-code cleanup (#27, #28)                    | `done` | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m4.md](../lessons/hulumi-pre-public-launch-m4.md) | [docs/slo/completion/hulumi-pre-public-launch-m4.md](../completion/hulumi-pre-public-launch-m4.md) |
+| 5   | Docs polish + v2.0 migration prep (#22, #34, #17)                              | `done` | 2026-05-05 | 2026-05-05 | [docs/slo/lessons/hulumi-pre-public-launch-m5.md](../lessons/hulumi-pre-public-launch-m5.md) | [docs/slo/completion/hulumi-pre-public-launch-m5.md](../completion/hulumi-pre-public-launch-m5.md) |
 
 <!-- Status values: not_started | in_progress | blocked | done -->
 <!-- Lessons files go in docs/slo/lessons/hulumi-pre-public-launch-m<N>.md -->
@@ -1302,7 +1302,187 @@ Documentation updates:
 
 ---
 
-<!-- Milestone M5 will be drafted after M4 is confirmed. -->
+### Milestone 5 — `Docs polish + v2.0 migration prep`
+
+**Goal**: Ship the three remaining stranger-facing docs gaps — a v2.0 BucketV2 → non-V2 migration design doc (issue #22), two migration cookbooks (Terraform→Pulumi+Hulumi, mid-stack adoption — issue #34), and a top-level FAQ extracting recurring gotchas from `docs/slo/lessons/` (issue #17).
+
+**Context**: After M1–M4 the repo is technically ready to flip public, but strangers' first ~30 minutes determine whether they bounce or adopt. The audit's stranger-facing concerns: (a) `BucketV2`-shaped output names will become contracts the moment public users start depending on them; a v2.0 migration sketch lets adopters plan past v1.x. (b) Two migration paths dominate first-time-adopter scenarios (coming from Terraform, retrofitting Hulumi into an existing Pulumi stack); cookbooks for both reduce the "is this for me" hesitation. (c) Recurring gotchas are scattered across 15+ lessons files; consolidating into a top-level FAQ surfaces them at the discoverability layer where strangers actually look. M5 is pure docs — no source / test / config changes.
+
+**Carmack-style reliability goal**: "Make invalid states unrepresentable" applied to docs. A documented v2.0 migration path lets v1.x users encode the `pulumi up` invariant they expect across the bump; an undocumented one means everyone re-derives it. The FAQ is the same applied to lessons-learned: gotchas that strangers would otherwise re-discover become preventable upfront.
+
+**Important design rule**: **No code, test, or config edits in M5.** If the docs reveal that something needs fixing, file an issue and stop. The audit framing is "docs polish"; conflating with implementation widens scope.
+
+**Refactor budget**: `No refactor permitted beyond direct implementation` — pure additive docs.
+
+#### Contract Block
+
+| Field                                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs                                 | `docs/slo/lessons/*.md` (mine for recurring gotchas); `packages/baseline/src/aws/secure-bucket.ts` (read-only — to confirm the BucketV2 → non-V2 surface); existing cookbooks under `docs/cookbooks/` (read-only — to mirror tone + structure)                                                                                                                                                                                                |
+| Outputs                                | `docs/v2-migration.md` (NEW); `docs/cookbooks/migration-from-terraform.md` (NEW); `docs/cookbooks/migration-mid-stack-adoption.md` (NEW); `docs/faq.md` (NEW); cookbooks index updated; `README.md` updated to link the FAQ                                                                                                                                                                                                                   |
+| Interfaces touched                     | `docs/cookbooks/README.md` (cookbooks index); `README.md` (Documentation table); `CHANGELOG.md`                                                                                                                                                                                                                                                                                                                                               |
+| Files allowed to change                | `docs/cookbooks/README.md`, `README.md`, `CHANGELOG.md`                                                                                                                                                                                                                                                                                                                                                                                       |
+| Files to read before changing anything | `docs/slo/lessons/hulumi-m{1..5}.md`, `docs/slo/lessons/hulumi-github-m{1..5}.md`, `docs/slo/lessons/hulumi-k8s-*.md`, `docs/slo/lessons/hulumi-operations*.md`, `docs/cookbooks/README.md`, `docs/cookbooks/account-bootstrap.md` (model for cookbook style), `docs/components/README.md`, `packages/baseline/src/aws/secure-bucket.ts`, `packages/baseline/src/aws/account-foundation.ts`                                                   |
+| New files allowed                      | `docs/v2-migration.md`, `docs/cookbooks/migration-from-terraform.md`, `docs/cookbooks/migration-mid-stack-adoption.md`, `docs/faq.md`                                                                                                                                                                                                                                                                                                         |
+| New dependencies allowed               | `none`                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Migration allowed                      | `no`                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Compatibility commitments              | M1–M4 invariants preserved; no test changes; no source changes; no config changes                                                                                                                                                                                                                                                                                                                                                             |
+| Resource bounds introduced/changed     | None                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Invariants/assertions required         | After M5: license-boundary lint passes (no verbatim CCM/CIS/NIST text in any new doc); root README links to all four new docs; `docs/cookbooks/README.md` lists the two new migration cookbooks.                                                                                                                                                                                                                                              |
+| Debugger / inspection expectation      | For the FAQ: walk every existing lessons file and grep for "gotcha", "lesson", "mistake" — synthesize the recurring patterns. Do not invent gotchas not seen in lessons.                                                                                                                                                                                                                                                                      |
+| Static analysis gates                  | Same as M1–M4                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Forbidden shortcuts                    | NO embedding verbatim CCM/CIS/NIST control text in any doc (license-boundary lint blocks); NO inventing gotchas not seen in lessons; NO making the v2-migration doc imply v2 is on a roadmap (it's a contract for future migrators, not a release commit); NO creating an "AGENTS.md" duplicate; NO adding cookbooks beyond the two listed; NO adding a "comparison" / "vs" doc that names competitor projects (out of scope and brand-risk). |
+| Data classification                    | `Public`                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Proactive controls in play             | None new (docs-only milestone). License-boundary discipline preserved (CSA / CIS / NIST IDs only).                                                                                                                                                                                                                                                                                                                                            |
+| Abuse acceptance scenarios             | **N/A** — no new endpoints, IPC handlers, file writes outside repo, subprocess invocations, outbound requests, or persistent-state changes. The docs are inert.                                                                                                                                                                                                                                                                               |
+
+#### Out of Scope / Must Not Do
+
+- Implementing the v2.0 migration code (this is a design doc; the code lands in a future v2 runbook).
+- Adding a v2 release tag or version bump.
+- Creating a "v2 branch" — premature.
+- Implementing a "Terraform → Pulumi" code translator.
+- Adding cookbooks for non-AWS / non-K8s scenarios (out of scope).
+- Embedding actual CCM / CIS / NIST control text in any new doc.
+- Updating ARCHITECTURE.md (no architecture change).
+- Touching any source / test / workflow file.
+
+#### Pre-Flight
+
+1. Complete the Global Entry Rules.
+2. Read M1–M4 lessons files. Apply: format-after-edit; markdown-list-with-leading-dash discipline; no-redact-leftovers; subprocess test patterns (informational only — M5 has no tests).
+3. Read all listed source-of-truth files for the cookbooks + FAQ.
+4. Copy the Evidence Log template into this milestone section.
+5. Re-state the milestone constraints before authoring.
+
+#### Files Allowed To Change
+
+| File                                             | Planned Change                                                                                                                                                                                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/v2-migration.md`                           | NEW: v2.0 BucketV2 → non-V2 migration plan. Sections: motivation, exact resource-name surface affected, output-name compatibility shim strategy, deprecation timeline, fixture/example diff, "what we're not committing to in v1.x".              |
+| `docs/cookbooks/migration-from-terraform.md`     | NEW: cookbook covering the canonical Terraform → Pulumi + Hulumi migration. Sections: when to migrate, `pulumi import` vs greenfield, mapping common Terraform resources to Hulumi components, state-file migration, drift-after-import handling. |
+| `docs/cookbooks/migration-mid-stack-adoption.md` | NEW: cookbook for adopting Hulumi inside an existing Pulumi project. Sections: `aliases` for shape-changing resources, `dependsOn` for ordering, drift expectations during the transition, rollback strategy.                                     |
+| `docs/faq.md`                                    | NEW: top-level FAQ. ≥ 10 entries extracted from `docs/slo/lessons/` recurring gotchas (vitest pool, `@pulumi/*` cooling-off, BucketV2 deprecation warnings, atomic-release invariant, license-boundary lint, DCO sign-off, etc.).                 |
+| `docs/cookbooks/README.md`                       | Add rows for the two new migration cookbooks.                                                                                                                                                                                                     |
+| `README.md`                                      | Documentation table — add a row for the FAQ.                                                                                                                                                                                                      |
+| `CHANGELOG.md`                                   | One-line entry under [1.2.0] "Changed".                                                                                                                                                                                                           |
+
+#### Step-by-Step
+
+1. Read every file in `docs/slo/lessons/` to identify recurring gotchas. Tally occurrences per gotcha.
+2. Author `docs/faq.md` with ≥ 10 entries, each citing the lessons file(s) that surfaced the gotcha.
+3. Author `docs/v2-migration.md` — reference the existing BucketV2 deprecation warnings in `examples/account-foundation-smoke` test output; structure as design doc, not promise of v2 release.
+4. Author `docs/cookbooks/migration-from-terraform.md` — mirror the structure of `docs/cookbooks/account-bootstrap.md`.
+5. Author `docs/cookbooks/migration-mid-stack-adoption.md` — same mirror.
+6. Update `docs/cookbooks/README.md` index.
+7. Update `README.md` Documentation table to link the FAQ.
+8. Update `CHANGELOG.md`.
+9. Run `pnpm run format` + `pnpm run format:check` + `pnpm run lint:license-boundary`.
+10. Run the full lint/typecheck/test gate to confirm no regressions.
+11. Verify `git status` clean; complete the Self-Review Gate.
+
+#### BDD Acceptance Scenarios
+
+**Feature: Docs polish + v2.0 migration prep**
+
+| Scenario                                          | Category               | Given             | When                                                                    | Then                                                        |
+| ------------------------------------------------- | ---------------------- | ----------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Four new docs exist                               | happy path             | repo at end of M5 | check existence of v2-migration.md, two migration cookbooks, faq.md     | all four exist with non-empty content                       |
+| FAQ has ≥ 10 entries                              | happy path             | repo at end of M5 | grep H2 / `## ` headings in `docs/faq.md`                               | count ≥ 10                                                  |
+| FAQ entries cite lessons files                    | dependency on judgment | repo at end of M5 | grep `docs/slo/lessons/` references in FAQ                              | at least 5 lessons-file references                          |
+| v2-migration.md does not imply v2 is on a roadmap | invalid input          | repo at end of M5 | grep for "v2.0 release" / "v2 ships" / "v2 timeline" in v2-migration.md | match count zero (the doc is design, not commitment)        |
+| License-boundary lint passes on new docs          | regression             | repo at end of M5 | run `pnpm run lint:license-boundary`                                    | exit 0; no verbatim CCM/CIS/NIST text                       |
+| README + cookbooks index updated                  | compatibility          | repo at end of M5 | grep README.md + docs/cookbooks/README.md                               | FAQ + both migration cookbooks linked                       |
+| No source / test / config changes                 | compatibility          | repo at end of M5 | git diff stat for M5                                                    | zero changes outside `docs/` + `CHANGELOG.md` + `README.md` |
+| All M1–M4 invariants still hold                   | regression             | repo at end of M5 | full test suite                                                         | green                                                       |
+
+#### Regression Tests
+
+- M1's release-readiness.test.ts — green.
+- M2's workflow-action-pinning.test.ts — green.
+- M3's cooling-off-diff.test.ts + scp-teardown.test.ts — green.
+- M4's exact-pin-guard.test.ts — green.
+- Full `pnpm -r test` — green.
+- `pnpm run lint:license-boundary` — green (no new prose embeddings).
+
+#### Compatibility Checklist
+
+- [ ] M1 invariants hold
+- [ ] M2 invariants hold
+- [ ] M3 invariants hold
+- [ ] M4 invariants hold
+- [ ] No source under `packages/*/src/` modified
+- [ ] No test under `packages/*/tests/` or `tests/skill-bdd/` modified
+- [ ] No workflow YAML modified
+- [ ] No `.gitignore` change
+- [ ] No `package.json` change
+- [ ] License-boundary lint passes
+
+#### E2E Runtime Validation
+
+No new test files (docs-only milestone). The existing CI matrix is the runtime validation — license-boundary lint + format-check on every doc.
+
+#### Smoke Tests
+
+- [ ] `cat docs/v2-migration.md` shows the design doc structure
+- [ ] `cat docs/cookbooks/migration-from-terraform.md` shows the cookbook structure
+- [ ] `cat docs/cookbooks/migration-mid-stack-adoption.md` shows the cookbook structure
+- [ ] `grep -c '^## ' docs/faq.md` returns ≥ 10
+- [ ] `grep 'FAQ' README.md` finds the FAQ link
+- [ ] `grep 'migration-from-terraform' docs/cookbooks/README.md` finds the link
+- [ ] `pnpm run lint:license-boundary` clean
+- [ ] `pnpm run format:check` clean
+- [ ] `pnpm -r test` green
+- [ ] `git status` clean
+
+#### Evidence Log
+
+| Step                                            | Command / Check                                    | Expected Result                          | Actual Result | Pass/Fail | Notes     |
+| ----------------------------------------------- | -------------------------------------------------- | ---------------------------------------- | ------------- | --------- | --------- |
+| Repo hygiene                                    | `git status`                                       | clean tree on M4's task branch           |               |           |           |
+| Baseline tests                                  | `pnpm -r test`                                     | all green                                |               |           |           |
+| Lessons mining                                  | grep `docs/slo/lessons/*.md` for recurring gotchas | identify ≥ 10 distinct patterns          |               |           |           |
+| Implementation: faq.md                          | author                                             | ≥ 10 entries, ≥ 5 lessons-file citations |               |           |           |
+| Implementation: v2-migration.md                 | author                                             | design-doc shape; no v2-release promises |               |           |           |
+| Implementation: migration-from-terraform.md     | author                                             | mirrors existing cookbook style          |               |           |           |
+| Implementation: migration-mid-stack-adoption.md | author                                             | mirrors existing cookbook style          |               |           |           |
+| Index updates                                   | edit README.md + docs/cookbooks/README.md          | new docs linked                          |               |           |           |
+| Formatter                                       | `pnpm run format:check`                            | clean                                    |               |           |           |
+| License-boundary                                | `pnpm run lint:license-boundary`                   | OK                                       |               |           |           |
+| Static analyzer                                 | `pnpm -r lint && pnpm run lint:exact-pin-guard`    | clean                                    |               |           |           |
+| Full tests                                      | `pnpm -r test`                                     | green                                    |               |           |           |
+| Resource-bound verification                     | N/A                                                | —                                        |               |           | docs only |
+| Invariant verification                          | per BDD acceptance scenarios                       | met                                      |               |           |           |
+| Test artifact cleanup                           | `git status`                                       | no untracked                             |               |           |           |
+| .gitignore review                               | review                                             | no new patterns expected                 |               |           |           |
+| Compatibility checks                            | per checklist                                      | no regressions                           |               |           |           |
+
+#### Definition of Done
+
+- `docs/v2-migration.md`, `docs/cookbooks/migration-from-terraform.md`, `docs/cookbooks/migration-mid-stack-adoption.md`, `docs/faq.md` all exist with substantive content
+- FAQ has ≥ 10 entries citing lessons files
+- v2-migration.md is a design doc, not a release-promise
+- README + cookbooks index link the new docs
+- License-boundary lint passes
+- Full lint/typecheck/test/format gate green
+- No source / test / config changes outside the M5 allow-list
+- M1–M4 BDD tests still pass
+- Compatibility checklist complete
+- Lessons + completion files written
+- Milestone Tracker updated
+
+#### Post-Flight
+
+Documentation updates:
+
+- **README.md**: Documentation table — add the FAQ row.
+- **docs/cookbooks/README.md**: add rows for the two migration cookbooks.
+- **CHANGELOG.md**: one-line entry under [1.2.0] "Changed".
+- **No ARCHITECTURE.md update** (no architecture change).
+
+#### Notes
+
+- The runbook is intentionally docs-light on M5. The v2 migration design doc is the highest-leverage of the three deliverables; the cookbooks address actual onboarding friction; the FAQ amortizes lessons-learned discoverability. Spending more than ~half a day on M5 is a smell — the docs should be tight, not exhaustive.
 
 ---
 

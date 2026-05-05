@@ -41,8 +41,33 @@ coverage/
 .vscode/
 !.vscode/settings.json
 
-# Coding-agent harness session state
+# Coding-agent harness session state — none of this should ever be
+# committed. Per-agent transcripts, scratch logs, prompt caches, and
+# project-local config can leak credentials, prior conversations, and
+# repo-internal context that doesn't belong in a public OSS repo.
+# When adopting a new agent, add its scratch dir here BEFORE first use.
 .claude/
+.sldo-logs/
+.cursor/
+.cursor-tutor/
+.cursorrules
+.aider*
+.continue/
+.codeium/
+.copilot/
+.cline/
+.cody/
+.tabby/
+.augmentcode/
+.windsurf/
+.devin/
+.zed/
+.roo/
+.smol/
+.gpt-engineer/
+.opencode/
+**/agent-logs/
+**/.agent-state/
 
 # Drift classifier cache (users decide their own policy; we ignore in this repo)
 .hulumi/

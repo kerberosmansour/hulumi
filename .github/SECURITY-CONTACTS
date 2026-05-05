@@ -21,22 +21,11 @@ preferred_reporting_url: https://github.com/kerberosmansour/hulumi/security/advi
 
 # Email reporting path.
 #
-# `security@hulumi.io` is the canonical contact named in SECURITY.md and
-# the published canonical install paths. As of the v1.2.0 public-launch
-# preparation, the `hulumi.io` domain is being registered out-of-band by
-# the maintainer; the email address may not yet route. Until it does:
-#
-#   1. Use the GitHub Security Advisory link above (preferred), OR
-#   2. Reach the maintainer via their GitHub profile.
-#
-# This entry will be updated when the domain is live and MX is
-# configured.
-email_contacts:
-  - address: security@hulumi.io
-    status: deferred-until-domain-registered
-    note: |
-      `hulumi.io` registration + MX setup is tracked as a launch-blocker.
-      Until then, prefer the GitHub Security Advisory path above.
+# This project intentionally does NOT publish a security@ email address.
+# All vulnerability reports go through GitHub Security Advisories
+# (preferred_reporting_url above). If GHSA is unavailable, contact the
+# maintainer through the public GitHub profile.
+email_contacts: []
 
 # PGP / age key for encrypted communication.
 #
@@ -49,11 +38,13 @@ pgp_keys: []
 # Coordinated-disclosure window
 #
 # The SECURITY.md policy commits to:
-#   - acknowledgement within 72 hours
-#   - confirmed-fix publish within 30 days for confirmed issues
-#   - negotiable timeline for complex issues — say so in the initial email
-disclosure_window_acknowledge_hours: 72
-disclosure_window_fix_days: 30
+#   - acknowledgement within 3 business days
+#   - triage within 7 business days
+#   - fix plan or status update within 14 business days
+#   - coordinated disclosure after a fix or agreed mitigation is available
+disclosure_window_acknowledge_business_days: 3
+disclosure_window_triage_business_days: 7
+disclosure_window_fix_plan_business_days: 14
 
 # Out of scope
 #

@@ -33,8 +33,8 @@ Repeat for `@hulumi/policies@1.0.0` and `@hulumi/drift@1.0.0`.
 
 A non-zero exit code from `gh attestation verify` means the
 attestation chain doesn't tie back to this repo's release
-workflow. **Do not install the package.** Report to
-`security@hulumi.io`.
+workflow. **Do not install the package.** Report through
+[GitHub's private security advisory flow](https://github.com/kerberosmansour/hulumi/security/advisories/new).
 
 ## Method 2: `cosign` (offline)
 
@@ -76,8 +76,8 @@ cosign verify-blob \
 
 ## Troubleshooting
 
-| Symptom                                                   | Likely cause                                | Fix                                                                                      |
-| --------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `gh attestation verify` fails with "no attestation found" | tarball downloaded from a typosquat         | Verify package name / scope; re-download from `@hulumi/*`                                |
-| cosign reports "rekor entry not found"                    | offline transparency-log fallback expired   | Use `gh attestation verify` (online path); or fetch the bundle within 90 days of release |
-| The verified workflow path does NOT match release.yml     | possible compromised release infrastructure | DO NOT install. Email `security@hulumi.io`.                                              |
+| Symptom                                                   | Likely cause                                | Fix                                                                                                                       |
+| --------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `gh attestation verify` fails with "no attestation found" | tarball downloaded from a typosquat         | Verify package name / scope; re-download from `@hulumi/*`                                                                 |
+| cosign reports "rekor entry not found"                    | offline transparency-log fallback expired   | Use `gh attestation verify` (online path); or fetch the bundle within 90 days of release                                  |
+| The verified workflow path does NOT match release.yml     | possible compromised release infrastructure | DO NOT install. Report via [GitHub Security Advisory](https://github.com/kerberosmansour/hulumi/security/advisories/new). |

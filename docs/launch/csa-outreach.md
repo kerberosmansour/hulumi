@@ -40,7 +40,7 @@ in v1.0.1.
 Thank you,
 Sherif Mansour
 maintainer, Hulumi
-`security@hulumi.io`
+https://github.com/kerberosmansour
 
 ---
 

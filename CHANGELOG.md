@@ -85,6 +85,20 @@ components are additive.
   - `docs/cookbooks/migration-mid-stack-adoption.md` cover the two
     dominant first-time-adopter scenarios. Cookbooks index + root README
     Documentation table updated to link the new docs.
+- **Release-pipeline SBOM fix + drop `security@hulumi.io` references**
+  (post-flip-public hardening): `release.yml`'s SBOM step now generates a
+  transient `package-lock.json` per package via `npm install
+--package-lock-only --ignore-scripts` (resolution only, no install)
+  before invoking `@cyclonedx/cyclonedx-npm`, then deletes the lockfile.
+  Fixes the pnpm-vs-npm evidence mismatch that broke the v1.2.0 publish
+  attempt. Separately: every `security@hulumi.io` reference is replaced
+  with the GitHub Security Advisory flow + GitHub-profile fallback
+  (mirroring the `SunLitSecurityLibraries` pattern). Hulumi will not
+  publish a `security@` email; all vulnerability reports route through
+  https://github.com/kerberosmansour/hulumi/security/advisories/new.
+  Affected files: `SECURITY.md` (full rewrite), `.github/SECURITY-CONTACTS`
+  (drops the `email_contacts` block), `CODE_OF_CONDUCT.md` (line 39),
+  `docs/faq.md`, `docs/launch/csa-outreach.md`, `.github/attestations/README.md`.
 - **Pre-public-launch supply-chain guard extension + dead-code cleanup**
   (runbook `hulumi-pre-public-launch` M4): `scripts/exact-pin-guard.mjs`
   ALLOWED extended with 5 new entries — `@aws-sdk/client-cloudtrail`,

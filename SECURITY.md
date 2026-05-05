@@ -19,8 +19,10 @@ publish a fix within 30 days. Coordinated disclosure timelines are
 negotiable for complex issues — please say so in the initial email.
 
 Do **not** open a public GitHub issue for a suspected vulnerability.
-Do not post to Discussions. PGP key fingerprint is published in
-`.github/SECURITY-CONTACTS` (post-v1.0.0 follow-up).
+Do not post to Discussions. The canonical contacts list — including
+the maintainer's GitHub login, GitHub Security Advisory URL,
+disclosure-window commitments, and current PGP-key status — lives at
+[`.github/SECURITY-CONTACTS`](./.github/SECURITY-CONTACTS).
 
 ## Canonical install paths (typosquat mitigation — S1)
 

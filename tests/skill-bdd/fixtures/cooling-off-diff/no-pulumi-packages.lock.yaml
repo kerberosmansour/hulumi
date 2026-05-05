@@ -1,0 +1,7 @@
+# Lockfile with no @pulumi/* keys at all. cooling-off-diff treats this
+# as "no bumps" and returns exit 0. Documents the silent-pass behavior;
+# any future fail-closed-on-empty fix would need new fixtures.
+packages:
+
+  'some-other-package@1.0.0':
+    resolution: { tarball: synthetic }

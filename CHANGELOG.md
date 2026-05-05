@@ -7,19 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] — 2026-05-01
 
-The Hulumi-K8s-Security + Hulumi-Operations release. Atomic four-package
-publish: `@hulumi/baseline@1.2.0`, `@hulumi/policies@1.2.0`,
-`@hulumi/drift@1.2.0`, and the first stable `@hulumi/k8s-baseline@1.0.0`.
-All four ship with SLSA Build L3 attestation. AWS-side v1.x surface
-unchanged for existing consumers; new components are additive.
+The Hulumi-K8s-Security + Hulumi-Operations + pre-public-launch release.
+Atomic four-package publish: `@hulumi/baseline@1.2.0`,
+`@hulumi/policies@1.2.0`, `@hulumi/drift@1.2.0`, and the first stable
+`@hulumi/k8s-baseline@1.2.0` (version reconciled from the planned 1.0.0
+to match the atomic-release invariant — see runbook
+`hulumi-pre-public-launch` M1). All four ship with SLSA Build L3
+attestation. AWS-side v1.x surface unchanged for existing consumers; new
+components are additive.
 
 ### Added
 
-- **`@hulumi/k8s-baseline@1.0.0`** — first stable release of the K8s/EKS
-  package. Existing components (`HardenedHelmRelease`, `EksSubnetTagger`,
-  `IstioFoundation`, `AlbMeshedHttpEntrypoint`,
-  `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`,
-  `GitHubAppCredential`) now ship at v1.0.0; new in v1.0.0:
+- **`@hulumi/k8s-baseline@1.2.0`** — first stable release of the K8s/EKS
+  package, version-aligned with the v1.2 train. Existing components
+  (`HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`,
+  `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`,
+  `RdsCredentialSecret`, `GitHubAppCredential`) now ship at v1.2.0; new in
+  this release:
   `NamespaceFoundation`, `EksRuntimeDetectionFoundation`,
   `EksBackupFoundation`, `EksAddonFoundation`, plus the `planUpgrade()` /
   `reportToMarkdown()` upgrade-planner library functions.
@@ -62,6 +66,65 @@ unchanged for existing consumers; new components are additive.
 - `packages/k8s-baseline/COMPATIBILITY.md` synced with the runtime
   `TESTED_VERSIONS` typed const (Istio `istiod`/`cni`/`gateway` at `1.24.2`),
   with a BDD invariant test enforcing the lockstep going forward.
+- **Pre-public-launch publish-readiness pass** (runbook
+  `hulumi-pre-public-launch` M1): all four `@hulumi/*` packages drop
+  `"private": true`, ship a per-package `README.md` (rendered on
+  npmjs.com) and adjacent `LICENSE` (Apache-2.0, byte-identical to the
+  repo root), and declare canonical `repository` / `bugs` / `homepage`
+  fields. `@hulumi/k8s-baseline` version reconciled from `1.0.0` to
+  `1.2.0` to satisfy the atomic-release invariant. `package-lock.json`
+  removed in favour of the canonical `pnpm-lock.yaml`. Extended
+  `release-readiness.test.ts` enforces these invariants going forward.
+- **Pre-public-launch docs polish + v2.0 migration prep** (runbook
+  `hulumi-pre-public-launch` M5): four new docs covering the
+  stranger-facing gaps before the public flip — `docs/faq.md`
+  consolidates recurring gotchas from the lessons-learned files into a
+  top-level FAQ; `docs/v2-migration.md` is the design contract for the
+  future v2.0 BucketV2 → non-V2 migration (no v2 release commitment yet
+  — preserves user planning); `docs/cookbooks/migration-from-terraform.md`
+  - `docs/cookbooks/migration-mid-stack-adoption.md` cover the two
+    dominant first-time-adopter scenarios. Cookbooks index + root README
+    Documentation table updated to link the new docs.
+- **Pre-public-launch supply-chain guard extension + dead-code cleanup**
+  (runbook `hulumi-pre-public-launch` M4): `scripts/exact-pin-guard.mjs`
+  ALLOWED extended with 5 new entries — `@aws-sdk/client-cloudtrail`,
+  `@aws-sdk/client-sts`, `@aws-sdk/credential-providers`, `p-timeout`,
+  `simple-git` (all `@hulumi/drift` runtime deps). Pin-guard now covers
+  11 pinned deps total; a republish of any of these packages under the
+  same version string with tampered bytes will fail CI.
+  `resolveFromLockfile` enhanced to handle both quoted (`'@scope/pkg':`)
+  and bare (`pkg@ver:`) lockfile shapes. Unused
+  `packages/baseline/src/aws/probes/poll.ts` removed (zero callers; the
+  vitest-pool gotcha narrative survives in `docs/ARCHITECTURE.md`).
+  New BDD test at `tests/skill-bdd/exact-pin-guard.test.ts` enforces
+  ALLOWED coverage + dead-code absence going forward.
+- **Pre-public-launch test-surface battle-test** (runbook
+  `hulumi-pre-public-launch` M3): closed the audit's "stubbed integration
+  tests masquerading as coverage" finding. New
+  `tests/skill-bdd/cooling-off-diff.test.ts` exercises
+  `scripts/cooling-off-diff.mjs` against synthetic lockfile fixtures
+  (network-gated via `HULUMI_NETWORK_TESTS=1` for the 2 scenarios that
+  hit npm). New `tests/skill-bdd/scp-teardown-harness.ts` plus
+  `scp-teardown.test.ts` encode the SCP teardown manual procedure as a
+  5-state phase machine with a bounded poll budget plus
+  illegal-transition invariants. The 7 previously-tautological
+  integration test bodies in
+  `packages/{baseline,drift}/tests/integration/*.integration.test.ts`
+  are converted to `it.todo()` slots backed by a new
+  `docs/integration-testing-roadmap.md` that contracts the follow-up
+  real-AWS implementation runbook.
+- **Pre-public-launch hygiene pass** (runbook `hulumi-pre-public-launch`
+  M2): every GitHub Actions `uses:` reference across all four workflow
+  files now SHA-pinned with a tag-as-comment (e.g.
+  `actions/checkout@<40-char-sha> # v6`) so a tag-rewrite attack on any
+  upstream action repo cannot land in Hulumi CI. `.github/SECURITY-CONTACTS`
+  shipped (k8s.io convention; closes the SECURITY.md:23 forward
+  reference). Sandbox AWS account ID redacted from
+  `docs/slo/lessons/hulumi-m3.md`. Four `docs/slo/research/hulumi-github/`
+  iteration-scratch files removed (synthesis.md captures the consolidated
+  output; iteration history belongs in git, not docs/). New BDD test at
+  `tests/skill-bdd/workflow-action-pinning.test.ts` enforces the SHA-pin
+  invariant and OIDC-trusted-publishing posture going forward.
 
 ### Migration
 

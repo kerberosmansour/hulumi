@@ -1,0 +1,19 @@
+# Same as baseline but @pulumi/pulumi bumped to a version that has not
+# been published. cooling-off-diff fetches publish time from npm and
+# fails closed (exit 2) when the registry returns no entry.
+packages:
+
+  '@pulumi/pulumi@99.99.99':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/aws@7.27.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/policy@1.20.0':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/github@6.13.1':
+    resolution: { tarball: synthetic }
+
+  '@pulumi/kubernetes@4.30.0':
+    resolution: { tarball: synthetic }

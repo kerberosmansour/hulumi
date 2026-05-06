@@ -1,0 +1,130 @@
+{
+  "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-05-06T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "hulumi",
+      "version": "1.2.0"
+    }
+  },
+  "declarations": {
+    "targets": {
+      "components": [
+        {
+          "bom-ref": "component:@hulumi/baseline",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "baseline",
+          "version": "1.2.0",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C1,OWASP-C5,OWASP-C7,OWASP-C8"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "aws-secure-bucket"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "aws-account-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "github-secure-repository"
+            }
+          ]
+        },
+        {
+          "bom-ref": "component:@hulumi/policies",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "policies",
+          "version": "1.2.0",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C1,OWASP-C5,OWASP-C9"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "pulumi-crossguard-hardening-pack"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cis-aws-foundations-checks"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "github-actions-hardening-policy"
+            }
+          ]
+        },
+        {
+          "bom-ref": "component:@hulumi/drift",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "drift",
+          "version": "1.2.0",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C9,OWASP-C10"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloud-drift-classification"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "provider-release-vs-console-click-verdict"
+            }
+          ]
+        },
+        {
+          "bom-ref": "component:@hulumi/k8s-baseline",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "k8s-baseline",
+          "version": "1.2.0",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C1,OWASP-C5,OWASP-C7,OWASP-C8"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "eks-add-on-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "istio-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "aws-secrets-manager-kubernetes-secret"
+            }
+          ]
+        }
+      ]
+    },
+    "claims": [
+      {
+        "bom-ref": "claim:hulumi:secure-bucket",
+        "target": "component:@hulumi/baseline",
+        "predicate": "Provides a secure-by-default AWS S3 bucket component with public access blocks, KMS encryption defaults, and TLS-only policy support.",
+        "reasoning": "Repository README describes SecureBucket as part of @hulumi/baseline and lists public-access blocks, SSE-KMS, and TLS-only policies."
+      },
+      {
+        "bom-ref": "claim:hulumi:drift-classifier",
+        "target": "component:@hulumi/drift",
+        "predicate": "Provides drift classification that distinguishes AWS console changes from provider release drift and other out-of-band changes.",
+        "reasoning": "Repository README describes the drift classifier verdict matrix and adapters."
+      }
+    ]
+  }
+}

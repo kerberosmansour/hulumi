@@ -20,7 +20,7 @@ the open-source threat model.
 - **Auth**: OIDC `AssumeRoleWithWebIdentity` against
   `AWS_SANDBOX_OIDC_ROLE_ARN`. No long-lived AWS credentials.
 - **State backend**: prefer a self-managed S3 backend via the
-  non-secret `PULUMI_BACKEND_URL` repository variable. Pulumi Cloud via
+  `PULUMI_BACKEND_URL` repository secret. Pulumi Cloud via
   `PULUMI_ACCESS_TOKEN` remains supported for maintainers who opt in,
   but the workflow refuses to run with both configured. When neither is
   set, the workflow runs **CONTRACT-ONLY mode** (mock unit + integration
@@ -30,10 +30,10 @@ the open-source threat model.
 
 | Type     | Name                        | Source                                              | Required?               |
 | -------- | --------------------------- | --------------------------------------------------- | ----------------------- |
-| Variable | `AWS_SANDBOX_ACCOUNT_ID`    | account ID of the sandbox AWS account               | yes                     |
-| Variable | `AWS_SANDBOX_OIDC_ROLE_ARN` | ARN of the IaC role with `hulumi:iac-role=true` tag | yes                     |
+| Secret   | `AWS_SANDBOX_ACCOUNT_ID`    | account ID of the sandbox AWS account               | yes                     |
+| Secret   | `AWS_SANDBOX_OIDC_ROLE_ARN` | ARN of the IaC role with `hulumi:iac-role=true` tag | yes                     |
 | Variable | `AWS_SANDBOX_REGION`        | AWS region (default `us-east-1`)                    | yes                     |
-| Variable | `PULUMI_BACKEND_URL`        | `s3://hulumi-...<account-id>?region=<region>`       | preferred real-AWS path |
+| Secret   | `PULUMI_BACKEND_URL`        | private S3 backend URL                              | preferred real-AWS path |
 | Secret   | `PULUMI_ACCESS_TOKEN`       | Pulumi Cloud personal access token                  | optional alternative    |
 
 The first three are set during sandbox bootstrap (see
@@ -43,13 +43,22 @@ SSE-encrypted S3 bucket in the same sandbox account. The workflow
 creates or hardens that bucket idempotently, blocks public access, and
 refuses non-S3 backends in CI.
 
+The S3 backend bucket is deliberately out-of-band from the Pulumi stacks
+under test. Routine `pulumi destroy` calls delete resources recorded in
+the stack being destroyed; they do not delete the backend bucket or its
+versioned state objects unless a Pulumi program explicitly manages that
+bucket as a resource. The weekly workflow may create or harden the
+backend bucket, but it never deletes it.
+
 ## Open-Source Threat Model
 
 The repository is public, so CI must assume hostile pull requests and
 curious readers:
 
 - Real AWS credentials are OIDC-only. No static AWS keys, Pulumi Cloud
-  tokens, passphrases, kubeconfigs, or app private keys are committed.
+  tokens, passphrases, kubeconfigs, app private keys, sandbox account
+  IDs, role ARNs, or backend bucket URLs are committed or stored as
+  public Actions variables.
 - The OIDC trust policy is branch-scoped to
   `repo:kerberosmansour/hulumi:ref:refs/heads/main`; forked PRs and
   feature branches cannot assume the sandbox role.
@@ -65,9 +74,9 @@ curious readers:
   buckets. AccountFoundation exercises account-level controls only:
   CloudTrail, Config, GuardDuty, Security Hub, IAM password policy, KMS,
   and private log/state buckets.
-- Logs must not print secrets or full state exports. Failure artifacts
-  are limited to Pulumi working metadata and should be deleted once the
-  failure is understood.
+- Logs must not print secrets, sandbox account IDs, backend bucket URLs,
+  or full state exports. Failure artifacts are limited to Pulumi working
+  metadata and should be deleted once the failure is understood.
 
 ## Cost contract
 

@@ -34,9 +34,9 @@ the gate-invariant catches it.
 Anything that lands real-AWS coverage will need:
 
 1. **Pulumi backend** in the workflow runner. Prefer
-   `PULUMI_BACKEND_URL=s3://hulumi-...<sandbox-account-id>?region=...`
-   for self-managed S3 state; `PULUMI_ACCESS_TOKEN` remains an optional
-   Pulumi Cloud alternative. The workflow refuses both at once.
+   `PULUMI_BACKEND_URL` as a repository secret for self-managed S3
+   state; `PULUMI_ACCESS_TOKEN` remains an optional Pulumi Cloud
+   alternative. The workflow refuses both at once.
 2. **Sandbox-AWS OIDC role.** Already wired
    (`aws-actions/configure-aws-credentials`, SHA-pinned in M2).
 3. **Stack lifecycle**: `pulumi up` → wait → assert → `pulumi destroy`.
@@ -53,8 +53,9 @@ Anything that lands real-AWS coverage will need:
    and `packages/baseline/tests/integration/.tmp/`; new tests must
    honour those paths.
 7. **Open-source safety**: no static credentials, no public ingress,
-   no public S3 buckets, no public repos, and no full state export in
-   logs. The sandbox role should use
+   no public S3 buckets, no public repos, no public sandbox account
+   identifiers, and no full state export in logs. The sandbox role
+   should use
    `docs/deployment/weekly-integration-iam-policy.json`, not
    administrator access.
 

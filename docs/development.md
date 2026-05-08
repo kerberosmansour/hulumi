@@ -102,7 +102,8 @@ account via OIDC. Without `PULUMI_BACKEND_URL` or `PULUMI_ACCESS_TOKEN`,
 the workflow runs in **contract-only mode** (mocks-only path) and proves
 the OIDC role is still alive. With exactly one backend configured, it is
 allowed to run real Pulumi operations. Prefer a private S3
-`PULUMI_BACKEND_URL` over a Pulumi Cloud token for this public repo.
+`PULUMI_BACKEND_URL` secret over a Pulumi Cloud token for this public
+repo.
 
 Local equivalent:
 

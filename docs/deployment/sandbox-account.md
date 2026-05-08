@@ -143,20 +143,26 @@ Neither auto-disables resources — they email you. The weekly workflow's
 `pulumi destroy` step is what actually keeps cost down; the alarm is
 the safety net for the rare orphaned-resource case.
 
-### 7. Publish the role + region to GitHub
+### 7. Publish the sandbox settings to GitHub
 
 `https://github.com/kerberosmansour/hulumi/settings/variables/actions`
-→ **Variables** tab (NOT Secrets) → **New repository variable** three
-times:
+→ **Variables** tab → **New repository variable**:
+
+| Name                 | Value                        |
+| -------------------- | ---------------------------- |
+| `AWS_SANDBOX_REGION` | `us-east-1` (or your choice) |
+
+Then open the **Secrets** tab → **New repository secret** twice:
 
 | Name                        | Value                                                    |
 | --------------------------- | -------------------------------------------------------- |
 | `AWS_SANDBOX_ACCOUNT_ID`    | the 12-digit ID                                          |
 | `AWS_SANDBOX_OIDC_ROLE_ARN` | `arn:aws:iam::<account-id>:role/hulumi-sandbox-iac-role` |
-| `AWS_SANDBOX_REGION`        | `us-east-1` (or your choice)                             |
 
-Variables are not secrets — the role ARN is not sensitive on its own
-(only the OIDC token is, and that's ephemeral and scoped to your repo).
+These identifiers are not credentials, but they are useful
+reconnaissance data in a public repo. Keep them in Actions Secrets so
+workflow logs mask them and public contributors cannot read them from
+repository variables.
 
 ### 8. Create the private S3 Pulumi state backend
 
@@ -186,7 +192,7 @@ aws s3api put-bucket-encryption \
     '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
 ```
 
-Then set a repository **variable**:
+Then set a repository **secret**:
 
 | Name                 | Value                                                    |
 | -------------------- | -------------------------------------------------------- |
@@ -195,6 +201,10 @@ Then set a repository **variable**:
 The workflow refuses state bucket names that do not start with
 `hulumi-` and end with the sandbox account ID. That prevents accidentally
 pointing an open-source CI run at a production or shared state bucket.
+The backend bucket is not part of the stacks under test, so normal
+`pulumi destroy` runs do not delete it or its versioned state objects.
+Treat backend retention and lifecycle expiration as an explicit sandbox
+account administration decision, separate from per-run cleanup.
 
 ### 9. (Optional) Pulumi Cloud token for real-AWS runs
 
@@ -226,9 +236,10 @@ workflow fails closed so state cannot split between two backends.
 - Keep the sandbox account separate from production and shared
   workloads. The integration should never need a VPC, public ALB, public
   security group, EC2 instance, EKS cluster, or public S3 bucket.
-- Use repository variables for non-secret identifiers and repository
-  secrets only for true secrets. The S3 backend URL is not a secret; AWS
-  credentials remain ephemeral OIDC credentials.
+- Keep the sandbox account ID, role ARN, and S3 backend URL in
+  repository secrets. They are not credentials, but in a public
+  repository they expose account topology and should not be available as
+  public CI configuration.
 - Review workflow logs before sharing failure artifacts. State exports
   can include ARNs, bucket names, and account topology even when they do
   not contain secret values.

@@ -5,10 +5,10 @@
 # lines).
 #
 # State backend: prefer a self-managed, private S3 backend via the
-# non-secret PULUMI_BACKEND_URL repository variable. Pulumi Cloud remains
-# supported via PULUMI_ACCESS_TOKEN for users who opt in. If neither is
-# present, the workflow runs CONTRACT-ONLY paths and logs that no pulumi
-# up will run. Documented at docs/integration-testing.md.
+# PULUMI_BACKEND_URL repository secret. Pulumi Cloud remains supported via
+# PULUMI_ACCESS_TOKEN for users who opt in. If neither is present, the
+# workflow runs CONTRACT-ONLY paths and logs that no pulumi up will run.
+# Documented at docs/integration-testing.md.
 
 name: weekly-integration
 on:
@@ -56,8 +56,8 @@ jobs:
       - name: Confirm required repo secrets/variables are set
         id: env
         run: |
-          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID variable not set}"
-          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN variable not set}"
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN secret not set}"
           : "${REGION:?AWS_SANDBOX_REGION variable not set}"
           node <<'NODE'
           const fs = require("node:fs");
@@ -67,9 +67,16 @@ jobs:
           const token = (process.env.PULUMI_ACCESS_TOKEN || "").trim();
           const region = (process.env.REGION || "").trim();
           const accountId = (process.env.ACCOUNT_ID || "").trim();
+          const roleArn = (process.env.ROLE_ARN || "").trim();
 
           function write(name, value) {
             fs.appendFileSync(out, `${name}=${value}\n`);
+          }
+
+          for (const value of [accountId, roleArn, backendUrl, token]) {
+            if (value) {
+              console.log(`::add-mask::${value}`);
+            }
           }
 
           if (backendUrl && token) {
@@ -114,6 +121,7 @@ jobs:
               );
               process.exit(1);
             }
+            console.log(`::add-mask::${bucket}`);
             write("contract_only", "false");
             write("backend_mode", "s3");
             write("state_bucket", bucket);
@@ -125,10 +133,10 @@ jobs:
           write("backend_mode", "pulumi-cloud");
           NODE
         env:
-          ACCOUNT_ID: ${{ vars.AWS_SANDBOX_ACCOUNT_ID }}
-          ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          ROLE_ARN: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
           REGION: ${{ vars.AWS_SANDBOX_REGION }}
-          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
@@ -143,7 +151,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
         with:
-          role-to-assume: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
           aws-region: ${{ vars.AWS_SANDBOX_REGION }}
           role-session-name: hulumi-weekly-integration-${{ matrix.tier }}
 
@@ -191,8 +199,8 @@ jobs:
         env:
           HULUMI_INTEGRATION: "1"
           HULUMI_TIER: ${{ matrix.tier }}
-          HULUMI_IAC_ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
-          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          HULUMI_IAC_ROLE_ARN: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: |
@@ -207,7 +215,7 @@ jobs:
         env:
           HULUMI_INTEGRATION: "1"
           HULUMI_TIER: ${{ matrix.tier }}
-          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: pnpm --filter @hulumi/drift test -- tests/integration/
@@ -238,7 +246,7 @@ jobs:
           HULUMI_INTEGRATION: "1"
           HULUMI_TEARDOWN_ONLY: "1"
           HULUMI_TIER: ${{ matrix.tier }}
-          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: |

@@ -1,0 +1,203 @@
+name: drift-reconciler-cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_suffix:
+        description: "10 hex chars from sandbox-<suffix> or the full sandbox-<suffix> name"
+        required: true
+        type: string
+      mode:
+        description: "plan uses read-only role; execute requires protected environment"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - execute
+      min_age_minutes:
+        description: "Minimum resource age before execution is allowed"
+        required: false
+        default: "15"
+        type: string
+      region:
+        description: "AWS region; defaults to AWS_SANDBOX_REGION"
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: drift-reconciler-cleanup-${{ inputs.stack_suffix }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: reconciler plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      suffix: ${{ steps.env.outputs.suffix }}
+      resource_prefix_hash: ${{ steps.env.outputs.resource_prefix_hash }}
+      region: ${{ steps.env.outputs.region }}
+      min_age_minutes: ${{ steps.env.outputs.min_age_minutes }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Validate plan inputs and mask identifiers
+        id: env
+        env:
+          STACK_SUFFIX: ${{ inputs.stack_suffix }}
+          INPUT_REGION: ${{ inputs.region }}
+          DEFAULT_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          PLAN_ROLE_ARN: ${{ secrets.AWS_RECONCILER_PLAN_ROLE_ARN }}
+          MIN_AGE_MINUTES: ${{ inputs.min_age_minutes }}
+        run: |
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          : "${PLAN_ROLE_ARN:?AWS_RECONCILER_PLAN_ROLE_ARN secret not set}"
+          node <<'NODE'
+          const crypto = require("node:crypto");
+          const fs = require("node:fs");
+
+          const out = process.env.GITHUB_OUTPUT;
+          const stackSuffix = (process.env.STACK_SUFFIX || "").trim();
+          const accountId = (process.env.ACCOUNT_ID || "").trim();
+          const planRoleArn = (process.env.PLAN_ROLE_ARN || "").trim();
+          const region = (process.env.INPUT_REGION || process.env.DEFAULT_REGION || "").trim();
+          const minAge = (process.env.MIN_AGE_MINUTES || "15").trim();
+          const match = /^(?:sandbox-)?([a-f0-9]{10})$/.exec(stackSuffix);
+
+          function write(name, value) {
+            fs.appendFileSync(out, `${name}=${value}\n`);
+          }
+
+          function hash(value) {
+            return crypto.createHash("sha256").update(value).digest("hex").slice(0, 12);
+          }
+
+          for (const value of [accountId, planRoleArn]) {
+            if (value) console.log(`::add-mask::${value}`);
+          }
+
+          if (!match) {
+            console.error("stack_suffix must be 10 lowercase hex chars or sandbox-<10 lowercase hex chars>.");
+            process.exit(1);
+          }
+          if (!/^[a-z]{2}-[a-z]+-\d$/.test(region)) {
+            console.error("region must be an explicit AWS region.");
+            process.exit(1);
+          }
+          if (!/^\d+$/.test(minAge) || Number(minAge) < 1) {
+            console.error("min_age_minutes must be a positive integer.");
+            process.exit(1);
+          }
+
+          const suffix = match[1];
+          const resourcePrefix = `hulumi-drift-e2e-${suffix}`;
+          console.log(`::add-mask::${resourcePrefix}`);
+          write("suffix", suffix);
+          write("region", region);
+          write("min_age_minutes", minAge);
+          write("resource_prefix_hash", hash(resourcePrefix));
+          NODE
+
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS read-only plan role via OIDC
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_RECONCILER_PLAN_ROLE_ARN }}
+          aws-region: ${{ steps.env.outputs.region }}
+          role-session-name: hulumi-drift-reconciler-plan
+
+      - name: Build drift package
+        run: pnpm --filter @hulumi/drift build
+
+      - name: Write redacted plan artifact
+        env:
+          MODE: ${{ inputs.mode }}
+          REGION: ${{ steps.env.outputs.region }}
+          MIN_AGE_MINUTES: ${{ steps.env.outputs.min_age_minutes }}
+          RESOURCE_PREFIX_HASH: ${{ steps.env.outputs.resource_prefix_hash }}
+        run: |
+          mkdir -p .hulumi-artifacts
+          node <<'NODE'
+          const fs = require("node:fs");
+          const artifact = {
+            schemaVersion: "hulumi.drift.reconciler.workflow-plan.v1",
+            mode: process.env.MODE,
+            region: process.env.REGION,
+            minAgeMinutes: Number(process.env.MIN_AGE_MINUTES),
+            resourcePrefixHash: process.env.RESOURCE_PREFIX_HASH,
+            executeRequiresProtectedEnvironment: true,
+            sensitiveFieldsRedacted: true,
+          };
+          fs.writeFileSync(".hulumi-artifacts/reconciler-plan-redacted.json", JSON.stringify(artifact, null, 2));
+          NODE
+
+      - name: Upload redacted plan artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: drift-reconciler-plan-${{ steps.env.outputs.resource_prefix_hash }}
+          path: .hulumi-artifacts/reconciler-plan-redacted.json
+          if-no-files-found: error
+
+  execute:
+    name: protected reconciler execute
+    if: inputs.mode == 'execute'
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: aws-reconciler-execute
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Validate execute configuration and mask identifiers
+        env:
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          EXECUTE_ROLE_ARN: ${{ secrets.AWS_RECONCILER_EXECUTE_ROLE_ARN }}
+          REGION: ${{ needs.plan.outputs.region }}
+        run: |
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          : "${EXECUTE_ROLE_ARN:?AWS_RECONCILER_EXECUTE_ROLE_ARN secret not set}"
+          : "${REGION:?region output missing}"
+          echo "::add-mask::$ACCOUNT_ID"
+          echo "::add-mask::$EXECUTE_ROLE_ARN"
+
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS execute role via OIDC
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_RECONCILER_EXECUTE_ROLE_ARN }}
+          aws-region: ${{ needs.plan.outputs.region }}
+          role-session-name: hulumi-drift-reconciler-execute
+
+      - name: Run gated reconciler S3 proof
+        env:
+          HULUMI_INTEGRATION: "1"
+          HULUMI_RECONCILER_AWS_INTEGRATION: "1"
+          AWS_REGION: ${{ needs.plan.outputs.region }}
+          AWS_DEFAULT_REGION: ${{ needs.plan.outputs.region }}
+        run: pnpm --filter @hulumi/drift run test:integration -- tests/integration/reconciler-s3.integration.test.ts

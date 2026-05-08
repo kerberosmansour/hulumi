@@ -94,6 +94,37 @@ real-AWS cleanup scenarios are still roadmap work; the cleanup workflow
 builds the drift package only as a dependency check and keeps the actual
 destructive action scoped to Pulumi-owned e2e state.
 
+The first reconciler-backed S3 proof lives in
+`packages/drift/tests/integration/reconciler-s3.integration.test.ts`.
+It is double-gated by `HULUMI_INTEGRATION=1` and
+`HULUMI_RECONCILER_AWS_INTEGRATION=1`; without both flags it only emits
+a visible skip notice. When enabled in the sandbox account, it creates
+one scoped versioned S3 bucket, proves plan mode is non-mutating,
+executes the S3 sweeper, and verifies no in-scope bucket remains. The
+test intentionally uses the AWS SDK directly for this first proof; the
+workflow and Pulumi-stack fixture follow in #97 / later integration
+work.
+
+The maintainer workflow
+[`drift-reconciler-cleanup`](../.github/workflows/drift-reconciler-cleanup.yml)
+keeps plan and execute permissions separate. Plan mode assumes
+`AWS_RECONCILER_PLAN_ROLE_ARN`, writes only a redacted plan-intent
+artifact, and does not set the live execute flag. Execute mode assumes
+`AWS_RECONCILER_EXECUTE_ROLE_ARN`, requires the protected
+`aws-reconciler-execute` GitHub environment, and runs only the gated S3
+proof. Use separate IAM policies:
+[reconciler-plan-iam-policy.json](deployment/reconciler-plan-iam-policy.json)
+for read-only planning and
+[reconciler-s3-execute-iam-policy.json](deployment/reconciler-s3-execute-iam-policy.json)
+for the narrow S3 execute proof.
+
+The guarded state-transition model for future broad execute-mode work
+lives in [HulumiReconciler.tla](TLAdocs/hulumi/HulumiReconciler.tla) with
+the checked invariant summary in
+[HulumiReconciler-verified.md](TLAdocs/hulumi/HulumiReconciler-verified.md).
+Any broader execute-mode feature must update or link to that model before
+it is enabled.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

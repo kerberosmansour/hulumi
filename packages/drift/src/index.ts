@@ -28,6 +28,46 @@ export { runProbe, type ProbeFn, type ProbeResult } from "./probe";
 export { validateUrn, isSafeUrn, UnsafeUrnError } from "./urn-sanitize";
 export { DriftClassifier, type DriftClassifierArgs } from "./classifier";
 export {
+  OrphanReconciler,
+  OrphanSweeper,
+  RECONCILER_PLAN_SCHEMA_VERSION,
+  RECONCILER_RESOURCE_STATES,
+  type OrphanReconcilerArgs,
+  type OrphanSweeperArgs,
+  type ReconcileActionExecutor,
+  type ReconcileActionResult,
+  type ReconcileActionType,
+  type ReconcileBlockedAction,
+  type ReconcileDecision,
+  type ReconcileExecuteOptions,
+  type ReconcileMode,
+  type ReconcilePlan,
+  type ReconcilePlanAction,
+  type ReconcilePlanRequest,
+  type ReconcileResult,
+  type ReconcileRisk,
+  type ReconcileScope,
+  type ReconcileTarget,
+  type ReconcilerResourceState,
+  type ResourceIdentity,
+  type ResourceOwnershipEvidence,
+} from "./reconciler";
+export {
+  S3SweeperExecutor,
+  S3_DELETE_BATCH_SIZE,
+  type S3SweeperExecutorArgs,
+} from "./adapters/s3-sweeper";
+export {
+  discoverReconcileTargets,
+  type CloudInventoryResource,
+  type DiscoverReconcileTargetsRequest,
+  type DiscoverReconcileTargetsResult,
+  type DiscoveryDiagnostic,
+  type DiscoveryScope,
+  type PulumiStateExport,
+  type PulumiStateResource,
+} from "./discovery";
+export {
   AutomationApiAdapter,
   type AutomationApiAdapterArgs,
   type AutomationApiPreviewResult,

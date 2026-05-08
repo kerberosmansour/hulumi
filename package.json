@@ -19,8 +19,8 @@
     "test:baseline": "pnpm --filter @hulumi/baseline test",
     "test:policies": "pnpm --filter @hulumi/policies test",
     "test:drift": "pnpm --filter @hulumi/drift test",
-    "test:drift:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift test -- tests/integration/",
-    "test:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/baseline test -- tests/integration/ && HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift test -- tests/integration/",
+    "test:drift:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
+    "test:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/baseline test -- tests/integration/ && HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
     "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs attestation-dry-run on every PR'",
     "release:verify-attestations": "for pkg in baseline policies drift; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
     "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml — see docs/integration-testing.md.' && exit 0",
@@ -31,6 +31,11 @@
     "typecheck": "pnpm -r --stream typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-xml-builder": "1.1.7"
+    }
   },
   "devDependencies": {
     "@pulumi/pulumi": "3.232.0",

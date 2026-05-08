@@ -31,6 +31,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts tests/integration",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-cloudtrail": "3.1045.0",
+    "@aws-sdk/client-s3": "3.1045.0",
     "@aws-sdk/client-sts": "3.1045.0",
     "@aws-sdk/credential-providers": "3.1045.0",
     "p-timeout": "7.0.1",

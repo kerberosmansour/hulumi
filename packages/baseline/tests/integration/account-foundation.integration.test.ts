@@ -91,6 +91,7 @@ describe.skipIf(!SANDBOX_ENABLED)(
             tier: "sandbox",
             iacRoleArn: IAC_ROLE_ARN!,
             region: REGION,
+            logBucketForceDestroy: true,
           });
           return {
             cloudTrailArn: foundation.cloudTrailArn,

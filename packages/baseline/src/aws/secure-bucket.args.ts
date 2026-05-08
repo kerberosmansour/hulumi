@@ -22,6 +22,7 @@ export interface SecureBucketArgs {
   tier: Tier;
   kmsKeyArn?: pulumi.Input<string>;
   logBucketArn?: pulumi.Input<string>;
+  forceDestroy?: pulumi.Input<boolean>;
   awsServiceLogDelivery?: SecureBucketAwsServiceLogDeliveryConfig;
   objectLock?: SecureBucketObjectLockConfig;
   lifecycleRules?: pulumi.Input<

@@ -176,6 +176,26 @@ describe("SecureBucket — AWS service log delivery bucket policy", () => {
   });
 });
 
+describe("SecureBucket — forceDestroy is explicit", () => {
+  beforeEach(resetRegistrations);
+
+  it("does not enable forceDestroy unless the caller opts in", async () => {
+    const bucket = new SecureBucket("sb-retain-default", { tier: "sandbox" });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    const bucketReg = findRegistration("aws:s3/bucketV2:BucketV2");
+    expect(bucketReg?.inputs.forceDestroy).toBeUndefined();
+  });
+
+  it("propagates forceDestroy for ephemeral stacks when explicitly enabled", async () => {
+    const bucket = new SecureBucket("sb-ephemeral", { tier: "sandbox", forceDestroy: true });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    const bucketReg = findRegistration("aws:s3/bucketV2:BucketV2");
+    expect(bucketReg?.inputs.forceDestroy).toBe(true);
+  });
+});
+
 describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + data-events (happy path)", () => {
   beforeEach(resetRegistrations);
 

@@ -37,7 +37,9 @@
       ],
       "Resource": [
         "arn:aws:s3:::hulumi-*<SANDBOX_ACCOUNT_ID>",
-        "arn:aws:s3:::hulumi-*<SANDBOX_ACCOUNT_ID>/*"
+        "arn:aws:s3:::hulumi-*<SANDBOX_ACCOUNT_ID>/*",
+        "arn:aws:s3:::af-e2e-*",
+        "arn:aws:s3:::af-e2e-*/*"
       ]
     },
     {

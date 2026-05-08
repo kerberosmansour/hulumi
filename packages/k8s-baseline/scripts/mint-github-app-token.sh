@@ -8,7 +8,7 @@
 #   mint-github-app-token.sh <SECRET_ID> <REPO_OWNER> <REPO_NAME>
 #
 # Where:
-#   SECRET_ID    — AWS Secrets Manager secret ID containing {app_id, private_key}
+#   SECRET_ID    — AWS Secrets Manager secret ID containing {app_id, private_key, repos?, permissions?}
 #   REPO_OWNER   — GitHub org/user owning the target repo
 #   REPO_NAME    — repo name
 #
@@ -84,6 +84,18 @@ if [ -z "${APP_ID}" ] || [ "${APP_ID}" = "null" ]; then
   exit 1
 fi
 
+REPOS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -c '.repos // ["*"]')
+if ! printf '%s' "${REPOS_JSON}" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null; then
+  echo "security_event.mint_failed reason=invalid_repos" >&2
+  exit 1
+fi
+
+PERMISSIONS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -c '.permissions // {}')
+if ! printf '%s' "${PERMISSIONS_JSON}" | jq -e 'type == "object"' >/dev/null; then
+  echo "security_event.mint_failed reason=invalid_permissions" >&2
+  exit 1
+fi
+
 scratch="$(mktemp)"
 chmod 600 "${scratch}"
 printf '%s' "${SECRET_JSON}" | jq -r '.private_key' > "${scratch}"
@@ -121,9 +133,23 @@ if [ -z "${INSTALLATION_ID}" ] || [ "${INSTALLATION_ID}" = "null" ]; then
 fi
 
 # Mint the installation token (1-hour scoped).
+REQUEST_BODY=$(jq -cn --arg repo "${REPO_OWNER}/${REPO_NAME}" --argjson repos "${REPOS_JSON}" --argjson permissions "${PERMISSIONS_JSON}" '
+  if ($repos | length == 1 and $repos[0] == "*")
+  then {permissions: $permissions}
+  elif ($repos | index($repo)) != null
+  then {repositories: [$repo], permissions: $permissions}
+  else error("requested repository is not in allowed repos")
+  end
+') || {
+  echo "security_event.mint_failed reason=repo_not_allowed repo=${REPO_OWNER}/${REPO_NAME}" >&2
+  exit 1
+}
+
 TOKEN=$(curl -fsS -X POST \
   -H "Authorization: Bearer ${JWT}" \
   -H "Accept: application/vnd.github+json" \
+  -H "Content-Type: application/json" \
+  --data "${REQUEST_BODY}" \
   "https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens" 2>/dev/null \
   | jq -r '.token') || {
   echo "security_event.mint_failed reason=token_mint_failed installation_id=${INSTALLATION_ID}" >&2

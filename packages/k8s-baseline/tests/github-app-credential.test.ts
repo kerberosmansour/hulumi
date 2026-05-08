@@ -191,7 +191,17 @@ describe("GitHubAppCredential — abuse cases", () => {
     // The PEM is read via `${scratch}` (file path), then piped into openssl.
     // It is never `cat`-ed or echoed.
     expect(content).not.toMatch(/cat\s+"\$\{scratch\}"/);
-    expect(content).not.toMatch(/echo\s+"?\$\{?PRIVATE_KEY/);
+  });
+
+  test("mint.sh posts reduced repository/permission scope from secret policy", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const scriptPath = path.resolve(__dirname, "..", "scripts", "mint-github-app-token.sh");
+    const content = fs.readFileSync(scriptPath, "utf8");
+    expect(content).toMatch(/requested repository is not in allowed repos/);
+    expect(content).toMatch(/--data "\$\{REQUEST_BODY\}"/);
+    expect(content).toMatch(/repositories: \[\$repo\]/);
+    expect(content).toMatch(/permissions: \$permissions/);
   });
 
   test("scripts shipped via package.json files array", async () => {

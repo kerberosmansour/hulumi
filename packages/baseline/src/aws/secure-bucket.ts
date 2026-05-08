@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 import { assertValidTier, type Tier } from "./tier";
+import { buildControlsTags } from "./tags";
 import type { SecureBucketArgs } from "./secure-bucket.args";
 import type { SecureBucketOutputs } from "./secure-bucket.outputs";
 import { ccm } from "../mappings/ccm";
@@ -21,8 +22,9 @@ function buildTags(tier: Tier): Record<string, string> {
     "hulumi:component": "SecureBucket",
     "hulumi:tier": tier,
     // S3 tag values disallow `,` — use `+` per the AWS-allowed charset
-    // (letters, numbers, spaces, `+ - = . _ : / @`). Fixes #36.
-    "hulumi:controls": CONTROLS_CLAIMED_BY_SECURE_BUCKET.join("+"),
+    // (letters, numbers, spaces, `+ - = . _ : / @`). Long mappings are
+    // chunked so each tag value stays inside AWS's 256-character limit.
+    ...buildControlsTags(CONTROLS_CLAIMED_BY_SECURE_BUCKET),
   };
 }
 

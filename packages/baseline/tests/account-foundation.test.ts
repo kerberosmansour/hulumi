@@ -9,6 +9,7 @@ import { join, resolve } from "node:path";
 
 import { AccountFoundation } from "../src/aws/account-foundation";
 import { GUARDDUTY_HARDENED_FEATURES } from "../src/aws/guardduty";
+import { AWS_TAG_VALUE_MAX_LENGTH } from "../src/aws/tags";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setup";
 
 const IAC_ROLE_ARN = "arn:aws:iam::111122223333:role/hulumi-sandbox-iac-role";
@@ -33,6 +34,14 @@ const HARDENED_EXTRA_TYPES = [
 
 function typesOf(): string[] {
   return registrations.map((r) => r.type);
+}
+
+function controlsFromTags(tags: Record<string, string> | undefined): string[] {
+  if (tags === undefined) return [];
+  return Object.entries(tags)
+    .filter(([key]) => key === "hulumi:controls" || key.startsWith("hulumi:controls:"))
+    .sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true }))
+    .flatMap(([, value]) => value.split("+").filter((control) => control.length > 0));
 }
 
 describe("AccountFoundation — Sandbox tier emits 6 sub-resource groups (happy path)", () => {
@@ -223,8 +232,14 @@ describe("AccountFoundation — tags emitted on every taggable sub-resource", ()
       const tags = r.inputs.tags as Record<string, string> | undefined;
       expect(tags?.["hulumi:component"]).toBe("AccountFoundation");
       expect(tags?.["hulumi:tier"]).toBe("startup-hardened");
-      // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
-      const controls = tags?.["hulumi:controls"]?.split("+") ?? [];
+      for (const [key, value] of Object.entries(tags ?? {})) {
+        if (key === "hulumi:controls" || key.startsWith("hulumi:controls:")) {
+          // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
+          expect(value).not.toContain(",");
+          expect(value.length).toBeLessThanOrEqual(AWS_TAG_VALUE_MAX_LENGTH);
+        }
+      }
+      const controls = controlsFromTags(tags);
       expect(controls.length).toBeGreaterThanOrEqual(5);
     }
   });

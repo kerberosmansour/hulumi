@@ -19,6 +19,7 @@ import { createCloudTrail } from "./cloudtrail";
 import { createConfigService } from "./config";
 import { createGuardDuty } from "./guardduty";
 import { createSecurityHub } from "./securityhub";
+import { buildControlsTags } from "./tags";
 import { ccm } from "../mappings/ccm";
 import { cisAws } from "../mappings/cis-aws";
 import { nist80053r5 } from "../mappings/nist-800-53-r5";
@@ -50,8 +51,9 @@ function buildTags(tier: AccountFoundationArgs["tier"]): Record<string, string> 
     "hulumi:tier": tier,
     // S3 tag values (and several other AWS resource-tag charsets) disallow
     // `,` — use `+` per the AWS-allowed charset (letters, numbers, spaces,
-    // `+ - = . _ : / @`). Fixes #36.
-    "hulumi:controls": ACCOUNT_FOUNDATION_CONTROLS.join("+"),
+    // `+ - = . _ : / @`). Long mappings are chunked so each tag value stays
+    // inside AWS's 256-character value limit.
+    ...buildControlsTags(ACCOUNT_FOUNDATION_CONTROLS),
   };
 }
 

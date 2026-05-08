@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@pulumi/pulumi": "3.232.0",
-    "@types/node": "20.19.39",
+    "@types/node": "20.19.40",
     "memfs": "4.57.2",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

@@ -60,7 +60,7 @@
     "@pulumi/pulumi": "3.232.0",
     "@pulumi/aws": "7.27.0",
     "@pulumi/policy": "1.20.0",
-    "@types/node": "20.19.39",
+    "@types/node": "20.19.40",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

@@ -57,17 +57,28 @@ export class S3SweeperExecutor implements ReconcileActionExecutor {
       return { actionId: action.id, status: "blocked", message: "action is not a cloud delete" };
     }
 
-    await this.assertBucketMutable(bucket);
-    const deletedVersions = await this.drainVersions(bucket);
-    const abortedUploads = await this.abortMultipartUploads(bucket);
-    if (this.deleteBucket) {
-      await this.client.send(new DeleteBucketCommand({ Bucket: bucket }));
+    try {
+      await this.assertBucketMutable(bucket);
+      const deletedVersions = await this.drainVersions(bucket);
+      const abortedUploads = await this.abortMultipartUploads(bucket);
+      if (this.deleteBucket) {
+        await this.client.send(new DeleteBucketCommand({ Bucket: bucket }));
+      }
+      return {
+        actionId: action.id,
+        status: "succeeded",
+        counts: { deletedVersions, abortedUploads, deletedBuckets: this.deleteBucket ? 1 : 0 },
+      };
+    } catch (err) {
+      if (isAwsNotFound(err)) {
+        return {
+          actionId: action.id,
+          status: "succeeded",
+          counts: { deletedVersions: 0, abortedUploads: 0, deletedBuckets: 0, alreadyAbsent: 1 },
+        };
+      }
+      throw err;
     }
-    return {
-      actionId: action.id,
-      status: "succeeded",
-      counts: { deletedVersions, abortedUploads, deletedBuckets: this.deleteBucket ? 1 : 0 },
-    };
   }
 
   private async assertBucketMutable(bucket: string): Promise<void> {

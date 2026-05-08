@@ -79,4 +79,25 @@ describe("S3SweeperExecutor", () => {
 
     expect(result.status).toBe("blocked");
   });
+
+  it("treats already absent buckets as idempotent success", async () => {
+    const client = {
+      send: async () => {
+        const err = new Error("NoSuchBucket");
+        err.name = "NoSuchBucket";
+        throw err;
+      },
+    };
+
+    const result = await new S3SweeperExecutor({
+      client: client as never,
+      expectedPrefix: "af-e2e-abc123",
+    }).execute(action());
+
+    expect(result).toEqual({
+      actionId: "action-0000",
+      status: "succeeded",
+      counts: { deletedVersions: 0, abortedUploads: 0, deletedBuckets: 0, alreadyAbsent: 1 },
+    });
+  });
 });

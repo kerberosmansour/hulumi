@@ -170,6 +170,8 @@ const DEFAULT_MAX_BATCH_SIZE = 1000;
 const BROAD_PREFIXES = new Set(["", "*", ".", "/", "aws", "hulumi", "prod", "production"]);
 
 export class OrphanReconciler {
+  private static readonly activeExecutionLocks = new Set<string>();
+
   private readonly executors: Partial<Record<ReconcileActionType, ReconcileActionExecutor>>;
   private readonly rawActionsByToken = new Map<string, ReconcilePlanAction[]>();
 
@@ -241,34 +243,60 @@ export class OrphanReconciler {
     const allow = new Set(options.allow ?? []);
     const startedAt = new Date().toISOString();
     const results: ReconcileActionResult[] = [];
-    const actions = this.rawActionsByToken.get(plan.confirmToken) ?? plan.actions;
-    for (const action of actions) {
-      if (!action.executable) {
-        results.push({
-          actionId: action.id,
-          status: "blocked",
-          message: "action is not executable",
-        });
-        continue;
+    const lockKey = executionLockKey(plan);
+    if (OrphanReconciler.activeExecutionLocks.has(lockKey)) {
+      return {
+        schemaVersion: `${RECONCILER_PLAN_SCHEMA_VERSION}.result`,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        summary: plan.summary,
+        results: [
+          { actionId: "plan-lock", status: "blocked", message: "target execution is locked" },
+        ],
+      };
+    }
+
+    OrphanReconciler.activeExecutionLocks.add(lockKey);
+    try {
+      const actions = this.rawActionsByToken.get(plan.confirmToken) ?? plan.actions;
+      for (const action of actions) {
+        if (!action.executable) {
+          results.push({
+            actionId: action.id,
+            status: "blocked",
+            message: "action is not executable",
+          });
+          continue;
+        }
+        if (allow.size > 0 && !allow.has(action.recommendedAction)) {
+          results.push({
+            actionId: action.id,
+            status: "skipped",
+            message: "action not in allow list",
+          });
+          continue;
+        }
+        const executor = this.executors[action.type];
+        if (executor === undefined) {
+          results.push({
+            actionId: action.id,
+            status: "blocked",
+            message: `no executor for ${action.type}`,
+          });
+          continue;
+        }
+        try {
+          results.push(await executor.execute(action));
+        } catch (err) {
+          results.push({
+            actionId: action.id,
+            status: "failed",
+            message: safeErrorMessage(err),
+          });
+        }
       }
-      if (allow.size > 0 && !allow.has(action.recommendedAction)) {
-        results.push({
-          actionId: action.id,
-          status: "skipped",
-          message: "action not in allow list",
-        });
-        continue;
-      }
-      const executor = this.executors[action.type];
-      if (executor === undefined) {
-        results.push({
-          actionId: action.id,
-          status: "blocked",
-          message: `no executor for ${action.type}`,
-        });
-        continue;
-      }
-      results.push(await executor.execute(action));
+    } finally {
+      OrphanReconciler.activeExecutionLocks.delete(lockKey);
     }
 
     return {
@@ -516,4 +544,25 @@ function confirmationToken(
 
 function uniqueDecisions(values: ReconcileDecision[]): ReconcileDecision[] {
   return [...new Set(values)];
+}
+
+function executionLockKey(plan: ReconcilePlan): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        mode: plan.mode,
+        stackName: plan.scope.stackName ?? "",
+        projectName: plan.scope.projectName ?? "",
+        resourcePrefix: plan.scope.resourcePrefix ?? "",
+        regions: plan.scope.regions ?? [],
+        accountIds: plan.scope.accountIds ?? [],
+        actions: plan.actions.map((action) => action.id).sort(),
+      }),
+    )
+    .digest("hex");
+}
+
+function safeErrorMessage(err: unknown): string {
+  const name = err instanceof Error && err.name.length > 0 ? err.name : "Error";
+  return `${name}: executor failed; see local logs for redacted details`;
 }

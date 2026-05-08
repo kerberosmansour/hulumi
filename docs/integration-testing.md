@@ -94,6 +94,17 @@ real-AWS cleanup scenarios are still roadmap work; the cleanup workflow
 builds the drift package only as a dependency check and keeps the actual
 destructive action scoped to Pulumi-owned e2e state.
 
+The first reconciler-backed S3 proof lives in
+`packages/drift/tests/integration/reconciler-s3.integration.test.ts`.
+It is double-gated by `HULUMI_INTEGRATION=1` and
+`HULUMI_RECONCILER_AWS_INTEGRATION=1`; without both flags it only emits
+a visible skip notice. When enabled in the sandbox account, it creates
+one scoped versioned S3 bucket, proves plan mode is non-mutating,
+executes the S3 sweeper, and verifies no in-scope bucket remains. The
+test intentionally uses the AWS SDK directly for this first proof; the
+workflow and Pulumi-stack fixture follow in #97 / later integration
+work.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

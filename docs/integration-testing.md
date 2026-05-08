@@ -105,6 +105,19 @@ test intentionally uses the AWS SDK directly for this first proof; the
 workflow and Pulumi-stack fixture follow in #97 / later integration
 work.
 
+The maintainer workflow
+[`drift-reconciler-cleanup`](../.github/workflows/drift-reconciler-cleanup.yml)
+keeps plan and execute permissions separate. Plan mode assumes
+`AWS_RECONCILER_PLAN_ROLE_ARN`, writes only a redacted plan-intent
+artifact, and does not set the live execute flag. Execute mode assumes
+`AWS_RECONCILER_EXECUTE_ROLE_ARN`, requires the protected
+`aws-reconciler-execute` GitHub environment, and runs only the gated S3
+proof. Use separate IAM policies:
+[reconciler-plan-iam-policy.json](deployment/reconciler-plan-iam-policy.json)
+for read-only planning and
+[reconciler-s3-execute-iam-policy.json](deployment/reconciler-s3-execute-iam-policy.json)
+for the narrow S3 execute proof.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

@@ -62,6 +62,9 @@ Row 4's `medium` ceiling is TLA+-proven (`SafetyRealistic` invariant).
 - **E4** — CloudTrail principal filter requires the FULL
   `hulumi:iac-role=true` tag; bare `iac-role=true` is rejected. See
   `tests/namespace-rejection.test.ts`.
+- **E4 retry** — `CloudTrailAdapter` can retry transient lookup
+  failures with bounded attempts and accumulated delay. See
+  `tests/cloudtrail-retry-budget.test.ts`.
 - **E5** — `GitLogAdapter.available()` is `false` on shallow clones;
   classifier degrades to `Unknown / low` with remediation. See
   `tests/shallow-clone.test.ts`.

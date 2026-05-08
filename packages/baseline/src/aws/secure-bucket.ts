@@ -59,6 +59,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       `${name}-bucket`,
       {
         ...(args.tier === "startup-hardened" ? { objectLockEnabled: true } : {}),
+        ...(args.forceDestroy !== undefined ? { forceDestroy: args.forceDestroy } : {}),
         tags,
       },
       parent,

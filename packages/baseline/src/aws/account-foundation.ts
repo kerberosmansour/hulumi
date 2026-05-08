@@ -103,11 +103,17 @@ export class AccountFoundation
             tier: "startup-hardened" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
             logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
+            ...(args.logBucketForceDestroy !== undefined
+              ? { forceDestroy: args.logBucketForceDestroy }
+              : {}),
             awsServiceLogDelivery: { cloudTrail: true, config: true },
           }
         : {
             tier: "sandbox" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
+            ...(args.logBucketForceDestroy !== undefined
+              ? { forceDestroy: args.logBucketForceDestroy }
+              : {}),
             awsServiceLogDelivery: { cloudTrail: true, config: true },
           };
     const logBucketSelf = new SecureBucket(`${name}-logs`, logBucketArgs, { parent: this });

@@ -12,6 +12,8 @@ export interface AccountFoundationArgs {
   cisVersion?: CisVersion;
   /** AWS region for the AccountFoundation resources. Defaults to the Pulumi provider's region. */
   region?: pulumi.Input<string>;
+  /** Test-only cleanup escape hatch for ephemeral stacks; defaults to false. */
+  logBucketForceDestroy?: pulumi.Input<boolean>;
   /** Member account IDs for the Config aggregator + KMS deny-without-tag policy. Required for those features. */
   orgAccountIds?: readonly string[];
 }

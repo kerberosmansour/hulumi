@@ -293,6 +293,28 @@ describe("AccountFoundation — real provider input compatibility", () => {
       ]),
     );
   });
+
+  it("keeps log bucket retention conservative unless ephemeral force-destroy is explicit", async () => {
+    const retained = new AccountFoundation("af-retained-logs", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(retained.cloudTrailArn);
+    await settlePulumi();
+    const retainedBucket = registrations.find((r) => r.type === "aws:s3/bucketV2:BucketV2");
+    expect(retainedBucket?.inputs.forceDestroy).toBeUndefined();
+
+    resetRegistrations();
+    const ephemeral = new AccountFoundation("af-ephemeral-logs", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+      logBucketForceDestroy: true,
+    });
+    await valueOf(ephemeral.cloudTrailArn);
+    await settlePulumi();
+    const ephemeralBucket = registrations.find((r) => r.type === "aws:s3/bucketV2:BucketV2");
+    expect(ephemeralBucket?.inputs.forceDestroy).toBe(true);
+  });
 });
 
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {

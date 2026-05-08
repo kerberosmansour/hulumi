@@ -7,8 +7,10 @@
 // and need their own latency/cost evidence.
 
 import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
 
 import {
   LocalWorkspace,
@@ -35,6 +37,43 @@ const STACK_NAME = `sandbox-${TEST_ID}`;
 const PROJECT_NAME = "hulumi-account-foundation-e2e";
 const WORK_DIR = resolve(__dirname, ".tmp", `${PROJECT_NAME}-${TEST_ID}`);
 const PULUMI_HOME = resolve(WORK_DIR, ".pulumi-home");
+const execFileAsync = promisify(execFile);
+
+async function findExistingGuardDutyDetectorId(region: string): Promise<string | undefined> {
+  const { stdout } = await execFileAsync(
+    "aws",
+    ["guardduty", "list-detectors", "--region", region, "--output", "json"],
+    { timeout: 30_000, maxBuffer: 1024 * 1024 },
+  );
+  const parsed = JSON.parse(stdout) as { DetectorIds?: unknown };
+  if (!Array.isArray(parsed.DetectorIds)) {
+    return undefined;
+  }
+  return parsed.DetectorIds.find((id): id is string => typeof id === "string" && id.length > 0);
+}
+
+async function isSecurityHubEnabled(region: string): Promise<boolean> {
+  try {
+    await execFileAsync(
+      "aws",
+      ["securityhub", "describe-hub", "--region", region, "--output", "json"],
+      {
+        timeout: 30_000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    return true;
+  } catch (err) {
+    const text =
+      err instanceof Error
+        ? `${err.message}\n${"stderr" in err && typeof err.stderr === "string" ? err.stderr : ""}`
+        : String(err);
+    if (/InvalidAccessException|not subscribed|not enabled/i.test(text)) {
+      return false;
+    }
+    throw err;
+  }
+}
 
 function envWithDefined(values: Record<string, string | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -79,9 +118,13 @@ describe.skipIf(!SANDBOX_ENABLED)(
   "AccountFoundation — sandbox real AWS smoke (OIDC + S3 backend)",
   () => {
     let stack: Stack | undefined;
+    let existingGuardDutyDetectorId: string | undefined;
+    let useExistingSecurityHubAccount = false;
 
     beforeAll(async () => {
       mkdirSync(WORK_DIR, { recursive: true });
+      existingGuardDutyDetectorId = await findExistingGuardDutyDetectorId(REGION);
+      useExistingSecurityHubAccount = await isSecurityHubEnabled(REGION);
       const pulumiCommand = await PulumiCommand.install();
       const args: InlineProgramArgs = {
         stackName: STACK_NAME,
@@ -92,6 +135,8 @@ describe.skipIf(!SANDBOX_ENABLED)(
             iacRoleArn: IAC_ROLE_ARN!,
             region: REGION,
             logBucketForceDestroy: true,
+            ...(existingGuardDutyDetectorId !== undefined ? { existingGuardDutyDetectorId } : {}),
+            ...(useExistingSecurityHubAccount ? { useExistingSecurityHubAccount } : {}),
           });
           return {
             cloudTrailArn: foundation.cloudTrailArn,

@@ -14,6 +14,10 @@ export interface AccountFoundationArgs {
   region?: pulumi.Input<string>;
   /** Test-only cleanup escape hatch for ephemeral stacks; defaults to false. */
   logBucketForceDestroy?: pulumi.Input<boolean>;
+  /** Existing regional GuardDuty detector to reference instead of creating one. */
+  existingGuardDutyDetectorId?: pulumi.Input<string>;
+  /** Reference an already-enabled regional Security Hub account instead of enabling/disabling it. */
+  useExistingSecurityHubAccount?: boolean;
   /** Member account IDs for the Config aggregator + KMS deny-without-tag policy. Required for those features. */
   orgAccountIds?: readonly string[];
 }

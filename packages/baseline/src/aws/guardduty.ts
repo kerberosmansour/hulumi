@@ -23,6 +23,7 @@ export interface GuardDutyHelperArgs {
   parent: pulumi.Resource;
   namePrefix: string;
   tags: Record<string, string>;
+  existingDetectorId?: pulumi.Input<string>;
 }
 
 export interface GuardDutyHelperResult {
@@ -33,15 +34,27 @@ export interface GuardDutyHelperResult {
 export function createGuardDuty(args: GuardDutyHelperArgs): GuardDutyHelperResult {
   const parent = { parent: args.parent } as const;
 
-  const detector = new aws.guardduty.Detector(
-    `${args.namePrefix}-guardduty-detector`,
-    {
-      enable: true,
-      findingPublishingFrequency: "FIFTEEN_MINUTES",
-      tags: args.tags,
-    },
-    parent,
-  );
+  if (typeof args.existingDetectorId === "string" && args.existingDetectorId.length === 0) {
+    throw new Error("AccountFoundation: existingGuardDutyDetectorId must be non-empty when set");
+  }
+
+  const detector =
+    args.existingDetectorId !== undefined
+      ? aws.guardduty.Detector.get(
+          `${args.namePrefix}-guardduty-detector`,
+          args.existingDetectorId,
+          undefined,
+          parent,
+        )
+      : new aws.guardduty.Detector(
+          `${args.namePrefix}-guardduty-detector`,
+          {
+            enable: true,
+            findingPublishingFrequency: "FIFTEEN_MINUTES",
+            tags: args.tags,
+          },
+          parent,
+        );
 
   const features: aws.guardduty.DetectorFeature[] = [];
   if (args.tier === "startup-hardened") {

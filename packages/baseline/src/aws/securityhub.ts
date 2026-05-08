@@ -32,6 +32,7 @@ export interface SecurityHubHelperArgs {
   guardDutyFeatures: readonly aws.guardduty.DetectorFeature[];
   region: pulumi.Input<string>;
   cisVersion?: "v5.0.0" | "v7.0.0";
+  useExistingAccount?: boolean;
 }
 
 export interface SecurityHubHelperResult {
@@ -50,11 +51,19 @@ export function createSecurityHub(args: SecurityHubHelperArgs): SecurityHubHelpe
 
   const guardDutyReadyDeps: pulumi.Resource[] = [args.guardDutyDetector, ...args.guardDutyFeatures];
 
-  const hub = new aws.securityhub.Account(
-    `${args.namePrefix}-securityhub-account`,
-    { enableDefaultStandards: false },
-    { parent: args.parent, dependsOn: guardDutyReadyDeps },
-  );
+  const hub =
+    args.useExistingAccount === true
+      ? aws.securityhub.Account.get(
+          `${args.namePrefix}-securityhub-account`,
+          aws.getCallerIdentityOutput({}, { parent: args.parent }).accountId,
+          undefined,
+          { parent: args.parent, dependsOn: guardDutyReadyDeps },
+        )
+      : new aws.securityhub.Account(
+          `${args.namePrefix}-securityhub-account`,
+          { enableDefaultStandards: false },
+          { parent: args.parent, dependsOn: guardDutyReadyDeps },
+        );
 
   const cisSubscription = new aws.securityhub.StandardsSubscription(
     `${args.namePrefix}-securityhub-cis-v5`,

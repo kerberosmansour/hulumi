@@ -65,6 +65,73 @@ Row 4's `medium` ceiling is TLA+-proven (`SafetyRealistic` invariant).
   classifier degrades to `Unknown / low` with remediation. See
   `tests/shallow-clone.test.ts`.
 
+## Guarded reconciliation and sweeping
+
+`DriftClassifier` remains classify-only and non-destructive. Cleanup and
+state-reconciliation decisions live behind the separate
+`OrphanReconciler` / `OrphanSweeper` surface.
+
+The first supported sweep primitive is versioned S3 cleanup for
+strongly-owned failed-run buckets:
+
+```ts
+import { OrphanReconciler, S3SweeperExecutor } from "@hulumi/drift";
+
+const reconciler = new OrphanReconciler({
+  executors: {
+    drainS3BucketVersions: new S3SweeperExecutor({
+      expectedPrefix: "af-e2e-abc123",
+      deleteBucket: true,
+    }),
+  },
+});
+
+const plan = reconciler.plan({
+  mode: "sweep-only",
+  scope: {
+    stackName: "sandbox-abc123",
+    resourcePrefix: "af-e2e-abc123",
+    regions: ["us-east-1"],
+    minAgeMinutes: 15,
+    ownershipMinSignals: 2,
+  },
+  targets: [
+    {
+      inState: false,
+      existsInCloud: true,
+      identity: {
+        provider: "aws",
+        type: "aws:s3/bucketV2:BucketV2",
+        physicalId: "af-e2e-abc123-logs",
+        region: "us-east-1",
+      },
+      ownership: [
+        { signal: "name-prefix", subject: "af-e2e-abc123-logs", confidence: "high" },
+        { signal: "tag", subject: "hulumi:component=AccountFoundation", confidence: "high" },
+      ],
+    },
+  ],
+});
+
+await reconciler.execute(plan, {
+  confirmToken: plan.confirmToken,
+  allow: ["deleteCloudResource"],
+});
+```
+
+The guarded path is deliberately narrow:
+
+- `check-only` and `plan` modes cannot execute.
+- Execute requires the plan confirmation token.
+- Cloud-only resources require an explicit prefix and at least two
+  ownership signals by default.
+- Shared singleton resources are retained unless explicitly enabled.
+- Plan artifacts redact account IDs, bucket names, ARNs, backend URLs,
+  and evidence subjects before upload.
+- The S3 executor uses AWS SDK calls only, drains object versions/delete
+  markers in batches of 1000, aborts multipart uploads, and refuses bucket
+  names outside the configured prefix.
+
 ## Documentation
 
 - [docs/components/drift-classifier.md](../../docs/components/drift-classifier.md)

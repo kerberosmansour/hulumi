@@ -32,6 +32,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "pnpm": {
+    "overrides": {
+      "fast-xml-builder": "1.1.7"
+    }
+  },
   "devDependencies": {
     "@pulumi/pulumi": "3.232.0",
     "@types/node": "20.19.40",

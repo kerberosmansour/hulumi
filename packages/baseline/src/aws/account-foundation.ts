@@ -91,20 +91,22 @@ export class AccountFoundation
       tags,
     });
 
-    // Phase 2 — Log bucket via SecureBucket (always startup-hardened so
-    // logs are object-locked + access-logged regardless of foundation tier).
-    const logBucketSelf = new SecureBucket(
-      `${name}-logs`,
-      {
-        tier: "startup-hardened",
-        kmsKeyArn: kmsRing.keys.logs.arn,
-        // Self-logging would create a loop; we route logs to a sibling bucket
-        // by passing the same bucket name as targetBucket on real deployment.
-        // For now, pass a placeholder that the integration test will replace.
-        logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
-      },
-      { parent: this },
-    );
+    // Phase 2 — Log bucket via SecureBucket. The sandbox tier stays sandbox
+    // so the first real-AWS smoke path does not require a pre-existing server
+    // access logging target. Startup-Hardened keeps the historical stricter
+    // shape; its real-AWS lane is still tracked in the integration roadmap.
+    const logBucketArgs =
+      args.tier === "startup-hardened"
+        ? {
+            tier: "startup-hardened" as const,
+            kmsKeyArn: kmsRing.keys.logs.arn,
+            logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
+          }
+        : {
+            tier: "sandbox" as const,
+            kmsKeyArn: kmsRing.keys.logs.arn,
+          };
+    const logBucketSelf = new SecureBucket(`${name}-logs`, logBucketArgs, { parent: this });
 
     // Phase 3 — IAM baseline (password policy + Access Analyzer on hardened).
     const iamBaseline = createIamBaseline({

@@ -1,10 +1,12 @@
 # Integration testing roadmap
 
 **Status as of v1.2.0 (runbook `hulumi-pre-public-launch` M3)**: this
-doc is the contract for the as-yet-unimplemented real-AWS integration
-tests. The existing `*.integration.test.ts` files contain `it.todo()`
-slots that point here; implementing them is a separate runbook
-(`hulumi-integration-real-aws`, candidate for the v1.3 train).
+doc is the contract for the remaining real-AWS integration tests. The
+AccountFoundation sandbox lane now has a real Pulumi Automation API
+up/assert/destroy smoke test. The stronger AWS API polling assertions,
+Startup-Hardened lane, failure-injection cleanup scenario, and drift
+real-AWS scenarios remain separate runbook work (`hulumi-integration-real-aws`,
+candidate for the v1.3 train).
 
 > Why a roadmap and not implementation? The sandbox-AWS deploy rig is a
 > 200–400 LOC undertaking per scenario, requires a configured Pulumi
@@ -17,10 +19,10 @@ slots that point here; implementing them is a separate runbook
 
 ## What lives where
 
-| Test file                                                                    | Status       | Roadmap section                            |
-| ---------------------------------------------------------------------------- | ------------ | ------------------------------------------ |
-| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | `it.todo` ×3 | [#account-foundation](#account-foundation) |
-| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | `it.todo` ×4 | [#drift-classify](#drift-classify)         |
+| Test file                                                                    | Status                                  | Roadmap section                            |
+| ---------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------ |
+| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | sandbox smoke implemented; `it.todo` ×2 | [#account-foundation](#account-foundation) |
+| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | `it.todo` ×4                            | [#drift-classify](#drift-classify)         |
 
 Both files keep one always-on `it()` that asserts the
 `HULUMI_INTEGRATION=1` skip-gate is in place. That gate is a regression
@@ -63,7 +65,22 @@ Anything that lands real-AWS coverage will need:
 
 ## Account-foundation
 
-### Test 1 — Sandbox tier: all 6 sub-resources reach ACTIVE within 15 minutes; teardown succeeds
+### Test 1 — Sandbox tier: smoke implemented; AWS API polling still pending
+
+**Current implementation**:
+
+- `packages/baseline/tests/integration/account-foundation.integration.test.ts`
+  creates a short-lived inline Pulumi Automation API stack when
+  `HULUMI_INTEGRATION=1`, `HULUMI_TIER=sandbox`, one Pulumi backend is
+  configured, and `HULUMI_IAC_ROLE_ARN` is set.
+- The test runs `Stack.up()`, asserts real provider outputs for
+  CloudTrail, Config, GuardDuty, Security Hub, and the four KMS keys,
+  then always calls `Stack.destroy()` and `removeStack()` in `afterAll`.
+- The test suppresses Pulumi output so logs do not print state, account
+  identifiers, or backend details.
+
+**Remaining target**: all 6 sub-resources reach ACTIVE within 15 minutes;
+teardown succeeds.
 
 **Pre-conditions**:
 
@@ -76,7 +93,8 @@ constructs:
 ```ts
 new AccountFoundation("integration-test", {
   tier: "sandbox",
-  homeRegion: "us-east-1",
+  iacRoleArn: process.env.HULUMI_IAC_ROLE_ARN!,
+  region: "us-east-1",
 });
 ```
 
@@ -187,7 +205,10 @@ up via `pulumi destroy`.
 
 When `hulumi-integration-real-aws` ships:
 
-- [ ] All 7 `it.todo()` slots above replaced with real implementations.
+- [ ] The AccountFoundation sandbox smoke is extended with AWS API
+      polling for all 6 expected sub-resources.
+- [ ] The remaining 6 `it.todo()` slots above are replaced with real
+      implementations.
 - [ ] All 7 tests gated on `HULUMI_INTEGRATION=1` (skip-gate preserved).
 - [ ] All 7 tests run cleanly in the weekly workflow.
 - [ ] Total wall-clock for the weekly workflow stays under 60 minutes.

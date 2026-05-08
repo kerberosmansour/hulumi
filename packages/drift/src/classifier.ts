@@ -36,6 +36,43 @@ export interface DriftClassifierArgs {
   };
   /** CloudTrail delivery probe — wraps the lookup-with-sentinel logic. */
   probe: ProbeFn;
+  /** AWS region used to select the default CloudTrail probe timeout. */
+  awsRegion?: string;
+}
+
+export const DEFAULT_PROBE_TIMEOUT_MS = 60_000;
+
+export const REGION_PROBE_TIMEOUT_MS: Readonly<Record<string, number>> = {
+  "us-east-1": 60_000,
+  "us-east-2": 60_000,
+  "us-west-1": 60_000,
+  "us-west-2": 60_000,
+  "eu-west-1": 60_000,
+  "eu-west-2": 60_000,
+  "eu-central-1": 60_000,
+  "ap-southeast-1": 90_000,
+  "ap-southeast-2": 90_000,
+  "ap-southeast-3": 120_000,
+} as const;
+
+export interface ResolveProbeTimeoutArgs {
+  probeTimeoutMs?: number;
+  optionRegion?: string;
+  classifierRegion?: string;
+  env?: Record<string, string | undefined>;
+}
+
+export function resolveProbeTimeoutMs(args: ResolveProbeTimeoutArgs): number {
+  if (args.probeTimeoutMs !== undefined) return args.probeTimeoutMs;
+  const env = args.env ?? process.env;
+  const region = firstNonBlank(
+    args.optionRegion,
+    args.classifierRegion,
+    env.AWS_REGION,
+    env.AWS_DEFAULT_REGION,
+  );
+  if (region === undefined) return DEFAULT_PROBE_TIMEOUT_MS;
+  return REGION_PROBE_TIMEOUT_MS[region] ?? DEFAULT_PROBE_TIMEOUT_MS;
 }
 
 export class DriftClassifier {
@@ -54,7 +91,11 @@ export class DriftClassifier {
   ): Promise<DriftVerdict> {
     const cacheDir = options.cacheDir ?? ".hulumi/drift-cache";
     const ttl = options.cacheTtlSeconds ?? 21_600;
-    const probeTimeoutMs = options.probeTimeoutMs ?? 60_000;
+    const probeTimeoutMs = resolveProbeTimeoutMs({
+      ...(options.probeTimeoutMs !== undefined ? { probeTimeoutMs: options.probeTimeoutMs } : {}),
+      ...(options.awsRegion !== undefined ? { optionRegion: options.awsRegion } : {}),
+      ...(this.args.awsRegion !== undefined ? { classifierRegion: this.args.awsRegion } : {}),
+    });
     const cachePath = cachePathFor(cacheDir, stack, resource);
 
     const cached = await readCache(cachePath, ttl);
@@ -238,4 +279,12 @@ async function readCacheEnvelopeIgnoreTtl(path: string): Promise<CacheEnvelope |
   // already gated on TTL above; this is monotonicity-only.
   const r = await readCache(path, Number.MAX_SAFE_INTEGER);
   return r.envelope;
+}
+
+function firstNonBlank(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed !== undefined && trimmed.length > 0) return trimmed;
+  }
+  return undefined;
 }

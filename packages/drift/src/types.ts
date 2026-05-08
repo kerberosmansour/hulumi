@@ -76,7 +76,9 @@ export interface ClassifyOptions {
   window?: { before: string; after: string };
   minConfidence?: Confidence;
   requireAdapters?: string[];
-  /** Probe timeout in ms. Default 60_000. */
+  /** AWS region used to select the default CloudTrail probe timeout. */
+  awsRegion?: string;
+  /** Probe timeout in ms. Explicit value overrides region defaults. */
   probeTimeoutMs?: number;
   /** Cache TTL in seconds. Default 21600 (6h). */
   cacheTtlSeconds?: number;

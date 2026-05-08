@@ -4,7 +4,7 @@
 // MUST be reflected here AND HulumiDrift-verified.md's `verified_at`
 // timestamp re-stamped — otherwise tests/tla-alignment.test.ts fails.
 //
-// 5 rows, in TLA+ trace order. Field semantics mirror VerdictSnapshot
+// 6 rows, in TLA+ trace order. Field semantics mirror VerdictSnapshot
 // in src/types.ts.
 
 import type { Confidence, DriftSource, VerdictSnapshot } from "../../src/types";
@@ -52,5 +52,11 @@ export const TRACE_MATRIX: readonly TraceRow[] = [
     description: "mutated, no event, no providerDrift → Unknown / low",
     snapshot: { mutated: true, eventInTransit: false, eventDelivered: false, providerDrift: false },
     expected: { source: "Unknown", confidence: "low" },
+  },
+  {
+    id: 6,
+    description: "mutated, eventDelivered, providerDrift → Mixed / high",
+    snapshot: { mutated: true, eventInTransit: false, eventDelivered: true, providerDrift: true },
+    expected: { source: "Mixed", confidence: "high" },
   },
 ] as const;

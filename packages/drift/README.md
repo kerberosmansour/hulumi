@@ -37,13 +37,14 @@ console.log(verdict.source, verdict.confidence);
 
 ## Verdict matrix
 
-| #   | Snapshot                                | Source            | Confidence |
-| --- | --------------------------------------- | ----------------- | ---------- |
-| 1   | `!mutated`                              | None              | none       |
-| 2   | `mutated && eventDelivered`             | ConsoleBreakGlass | high       |
-| 3   | `mutated && eventInTransit`             | Unknown           | low        |
-| 4   | `mutated && providerDrift && !event*`   | ProviderApiChurn  | medium     |
-| 5   | `mutated && !provider drift && !event*` | Unknown           | low        |
+| #   | Snapshot                                     | Source            | Confidence |
+| --- | -------------------------------------------- | ----------------- | ---------- |
+| 1   | `!mutated`                                   | None              | none       |
+| 2   | `mutated && eventDelivered`                  | ConsoleBreakGlass | high       |
+| 3   | `mutated && eventInTransit`                  | Unknown           | low        |
+| 4   | `mutated && providerDrift && !event*`        | ProviderApiChurn  | medium     |
+| 5   | `mutated && !provider drift && !event*`      | Unknown           | low        |
+| 6   | `mutated && eventDelivered && providerDrift` | Mixed             | high       |
 
 Row 4's `medium` ceiling is TLA+-proven (`SafetyRealistic` invariant).
 

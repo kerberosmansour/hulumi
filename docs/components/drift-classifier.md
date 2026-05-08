@@ -45,7 +45,7 @@ const verdict = await classifier.classify(stackUrn, resourceUrn, {
 
 ## Verdict matrix
 
-The five rows are the TLA+ trace, walked verbatim by
+The six rows are the TLA+ trace, walked verbatim by
 [`packages/drift/tests/verdict-matrix.feature.test.ts`](../../packages/drift/tests/verdict-matrix.feature.test.ts):
 
 | #   | Snapshot                                       | Source            | Confidence |
@@ -55,6 +55,7 @@ The five rows are the TLA+ trace, walked verbatim by
 | 3   | `mutated && eventInTransit && !eventDelivered` | Unknown           | low        |
 | 4   | `mutated && providerDrift && !event*`          | ProviderApiChurn  | medium     |
 | 5   | `mutated && !providerDrift && !event*`         | Unknown           | low        |
+| 6   | `mutated && eventDelivered && providerDrift`   | Mixed             | high       |
 
 Row 4's `medium` ceiling is **TLA+-proven** (`SafetyRealistic`
 invariant — `verdict = ProviderApiChurn @ high` and `mutated` never

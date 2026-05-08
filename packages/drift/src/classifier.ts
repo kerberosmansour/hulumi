@@ -132,7 +132,7 @@ export class DriftClassifier {
     // probe is unavailable but events surfaced via the long-window
     // lookup. (Tracked separately from the in-flight probe sentinel.)
     if (snapshot.mutated && ct.detected && !snapshot.eventDelivered) {
-      source = "ConsoleBreakGlass";
+      source = snapshot.providerDrift ? "Mixed" : "ConsoleBreakGlass";
       confidence = "high";
     }
 

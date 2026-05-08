@@ -1,0 +1,181 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IdentityAndReadOnlyDiscovery",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRoleTags",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PulumiStateBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:GetBucketEncryption",
+        "s3:GetBucketLocation",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketVersioning",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:PutBucketEncryption",
+        "s3:PutBucketPolicy",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketVersioning",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::hulumi-*<SANDBOX_ACCOUNT_ID>",
+        "arn:aws:s3:::hulumi-*<SANDBOX_ACCOUNT_ID>/*"
+      ]
+    },
+    {
+      "Sid": "HulumiManagedBuckets",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:DeleteBucketPolicy",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:GetBucket*",
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:PutBucket*",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:PutPublicAccessBlock"
+      ],
+      "Resource": ["arn:aws:s3:::hulumi-*", "arn:aws:s3:::hulumi-*/*"]
+    },
+    {
+      "Sid": "AccountFoundationServices",
+      "Effect": "Allow",
+      "Action": [
+        "access-analyzer:CreateAnalyzer",
+        "access-analyzer:DeleteAnalyzer",
+        "access-analyzer:GetAnalyzer",
+        "access-analyzer:ListAnalyzers",
+        "access-analyzer:TagResource",
+        "access-analyzer:UntagResource",
+        "cloudtrail:AddTags",
+        "cloudtrail:CreateTrail",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetEventDataStore",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:GetTrail",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:ListEventDataStores",
+        "cloudtrail:ListTags",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:RemoveTags",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:UpdateTrail",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:PutMetricAlarm",
+        "config:DeleteConfigurationAggregator",
+        "config:DeleteConfigurationRecorder",
+        "config:DeleteDeliveryChannel",
+        "config:DescribeConfigurationAggregators",
+        "config:DescribeConfigurationRecorderStatus",
+        "config:DescribeConfigurationRecorders",
+        "config:DescribeDeliveryChannels",
+        "config:PutConfigurationAggregator",
+        "config:PutConfigurationRecorder",
+        "config:PutDeliveryChannel",
+        "config:StartConfigurationRecorder",
+        "config:StopConfigurationRecorder",
+        "guardduty:CreateDetector",
+        "guardduty:DeleteDetector",
+        "guardduty:GetDetector",
+        "guardduty:GetDetectorFeature",
+        "guardduty:ListDetectors",
+        "guardduty:ListTagsForResource",
+        "guardduty:TagResource",
+        "guardduty:UntagResource",
+        "guardduty:UpdateDetector",
+        "guardduty:UpdateDetectorFeature",
+        "securityhub:BatchDisableStandards",
+        "securityhub:BatchEnableStandards",
+        "securityhub:DescribeHub",
+        "securityhub:DisableSecurityHub",
+        "securityhub:EnableSecurityHub",
+        "securityhub:GetEnabledStandards",
+        "securityhub:ListTagsForResource",
+        "securityhub:TagResource",
+        "securityhub:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsForCloudTrail",
+      "Effect": "Allow",
+      "Action": [
+        "logs:AssociateKmsKey",
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:ListTagsForResource",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource"
+      ],
+      "Resource": "arn:aws:logs:*:<SANDBOX_ACCOUNT_ID>:log-group:/aws/hulumi/*"
+    },
+    {
+      "Sid": "KmsForHulumiManagedKeys",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CancelKeyDeletion",
+        "kms:CreateAlias",
+        "kms:CreateKey",
+        "kms:DeleteAlias",
+        "kms:DescribeKey",
+        "kms:DisableKey",
+        "kms:EnableKeyRotation",
+        "kms:GetKeyPolicy",
+        "kms:GetKeyRotationStatus",
+        "kms:ListAliases",
+        "kms:ListResourceTags",
+        "kms:PutKeyPolicy",
+        "kms:ScheduleKeyDeletion",
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:UpdateAlias"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamAccountBaseline",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole",
+        "iam:DeleteAccountPasswordPolicy",
+        "iam:GetAccountPasswordPolicy",
+        "iam:UpdateAccountPasswordPolicy",
+        "iam:PassRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

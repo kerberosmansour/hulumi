@@ -1,9 +1,10 @@
 # Integration testing — Hulumi M3 weekly workflow
 
 Hulumi's per-PR test suite runs entirely on Pulumi mocks. Real-AWS
-integration runs **weekly**, not per-PR, in a dedicated sandbox account
-via GitHub Actions OIDC. This document spells out the workflow, the
-auth path, the cost contract, and how to run it locally.
+integration is reserved for the dedicated weekly/manual workflow, not
+PRs, and runs in a sandbox AWS account via GitHub Actions OIDC. This
+document spells out the workflow, the auth path, the cost contract, and
+the open-source threat model.
 
 ## Workflow
 
@@ -11,31 +12,71 @@ auth path, the cost contract, and how to run it locally.
 
 - **Trigger**: cron `0 4 * * 0` (Sundays 04:00 UTC) + `workflow_dispatch`
   for ad-hoc runs.
-- **Matrix**: `tier ∈ {sandbox, startup-hardened}` — both run in parallel.
+- **Matrix**: `tier ∈ {sandbox, startup-hardened}` — serialized with
+  `max-parallel: 1` because AccountFoundation touches account-wide AWS
+  services.
 - **Job timeout**: 30 minutes total (15-min Pulumi up + 10 min destroy +
   5 min slop, per the M3 contract's eventual-consistency window).
 - **Auth**: OIDC `AssumeRoleWithWebIdentity` against
   `AWS_SANDBOX_OIDC_ROLE_ARN`. No long-lived AWS credentials.
-- **State backend**: Pulumi Cloud via `PULUMI_ACCESS_TOKEN` (GitHub
-  secret). When the token is unset the workflow runs in
-  **CONTRACT-ONLY mode** (mock unit + integration tests, no actual
-  `pulumi up`). This is the default until you opt in.
+- **State backend**: prefer a self-managed S3 backend via the
+  `PULUMI_BACKEND_URL` repository secret. Pulumi Cloud via
+  `PULUMI_ACCESS_TOKEN` remains supported for maintainers who opt in,
+  but the workflow refuses to run with both configured. When neither is
+  set, the workflow runs **CONTRACT-ONLY mode** (mock unit + integration
+  tests, no actual `pulumi up`).
 
 ## Required repo configuration
 
-| Type     | Name                        | Source                                              | Required?              |
-| -------- | --------------------------- | --------------------------------------------------- | ---------------------- |
-| Variable | `AWS_SANDBOX_ACCOUNT_ID`    | account ID of the sandbox AWS account               | yes                    |
-| Variable | `AWS_SANDBOX_OIDC_ROLE_ARN` | ARN of the IaC role with `hulumi:iac-role=true` tag | yes                    |
-| Variable | `AWS_SANDBOX_REGION`        | AWS region (default `us-east-1`)                    | yes                    |
-| Secret   | `PULUMI_ACCESS_TOKEN`       | Pulumi Cloud personal access token                  | only for real-AWS path |
+| Type     | Name                        | Source                                              | Required?               |
+| -------- | --------------------------- | --------------------------------------------------- | ----------------------- |
+| Secret   | `AWS_SANDBOX_ACCOUNT_ID`    | account ID of the sandbox AWS account               | yes                     |
+| Secret   | `AWS_SANDBOX_OIDC_ROLE_ARN` | ARN of the IaC role with `hulumi:iac-role=true` tag | yes                     |
+| Variable | `AWS_SANDBOX_REGION`        | AWS region (default `us-east-1`)                    | yes                     |
+| Secret   | `PULUMI_BACKEND_URL`        | private S3 backend URL                              | preferred real-AWS path |
+| Secret   | `PULUMI_ACCESS_TOKEN`       | Pulumi Cloud personal access token                  | optional alternative    |
 
 The first three are set during sandbox bootstrap (see
-[deployment/sandbox-account.md](deployment/sandbox-account.md)). The
-Pulumi access token is opt-in — without it, the weekly workflow still
-runs the mocks-only path on the schedule and proves the AWS OIDC path
-remains live; with it, the workflow drives a full
-`pulumi up` → `pulumi destroy` cycle.
+[deployment/sandbox-account.md](deployment/sandbox-account.md)).
+`PULUMI_BACKEND_URL` should point at a private, versioned,
+SSE-encrypted S3 bucket in the same sandbox account. The workflow
+creates or hardens that bucket idempotently, blocks public access, and
+refuses non-S3 backends in CI.
+
+The S3 backend bucket is deliberately out-of-band from the Pulumi stacks
+under test. Routine `pulumi destroy` calls delete resources recorded in
+the stack being destroyed; they do not delete the backend bucket or its
+versioned state objects unless a Pulumi program explicitly manages that
+bucket as a resource. The weekly workflow may create or harden the
+backend bucket, but it never deletes it.
+
+## Open-Source Threat Model
+
+The repository is public, so CI must assume hostile pull requests and
+curious readers:
+
+- Real AWS credentials are OIDC-only. No static AWS keys, Pulumi Cloud
+  tokens, passphrases, kubeconfigs, app private keys, sandbox account
+  IDs, role ARNs, or backend bucket URLs are committed or stored as
+  public Actions variables.
+- The OIDC trust policy is branch-scoped to
+  `repo:kerberosmansour/hulumi:ref:refs/heads/main`; forked PRs and
+  feature branches cannot assume the sandbox role.
+- The Pulumi state backend is not public. S3 state must use Block Public
+  Access, versioning, and server-side encryption. The workflow refuses
+  `file://` or ambient local state in CI.
+- The sandbox account is isolated from production and shared workloads.
+  Use the constrained role policy in
+  [weekly-integration-iam-policy.json](deployment/weekly-integration-iam-policy.json)
+  instead of attaching account-wide administrator access.
+- The integration path does not create internet-facing compute, load
+  balancers, public security groups, public repositories, or public S3
+  buckets. AccountFoundation exercises account-level controls only:
+  CloudTrail, Config, GuardDuty, Security Hub, IAM password policy, KMS,
+  and private log/state buckets.
+- Logs must not print secrets, sandbox account IDs, backend bucket URLs,
+  or full state exports. Failure artifacts are limited to Pulumi working
+  metadata and should be deleted once the failure is understood.
 
 ## Cost contract
 
@@ -65,15 +106,21 @@ the safety net (see deployment/sandbox-account.md).
 pnpm --filter @hulumi/baseline test
 
 # Real-AWS integration — opt-in. Requires:
-#   - HULUMI_INTEGRATION=1 to flip it.skip → it
-#   - PULUMI_ACCESS_TOKEN for state backend
+#   - HULUMI_INTEGRATION=1 to flip the integration gate
+#   - a self-managed S3 Pulumi backend OR Pulumi Cloud token
 #   - AWS credentials (SSO into the sandbox account or aws-vault)
 HULUMI_INTEGRATION=1 \
-PULUMI_BACKEND_URL=https://api.pulumi.com \
-PULUMI_ACCESS_TOKEN=pul-... \
+PULUMI_BACKEND_URL='s3://hulumi-pulumi-state-<sandbox-account-id>?region=us-east-1' \
 AWS_REGION=us-east-1 \
 pnpm --filter @hulumi/baseline test -- tests/integration/
 ```
+
+Current status: the weekly workflow is wired for a real backend, but the
+AccountFoundation and drift real-AWS test bodies are still explicit
+`it.todo()` slots tracked in
+[integration-testing-roadmap.md](integration-testing-roadmap.md). That
+is intentional: the project must not pretend that contract-only runs are
+full e2e coverage.
 
 ## Eventual-consistency contract
 

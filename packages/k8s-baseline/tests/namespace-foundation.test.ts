@@ -124,29 +124,11 @@ describe("NamespaceFoundation — network defaults", () => {
     expect(spec.egress[0].ports.some((p) => p.port === 53)).toBe(true);
   });
 
-  test("Scenario: IMDS deny NetworkPolicy emitted with `0.0.0.0/0` except 169.254.169.254/32", async () => {
+  test("Scenario: IMDS deny does not emit an extra policy when defaultDeny is enabled", async () => {
     new NamespaceFoundation("foundation", { name: "team-h" });
     await settlePulumi();
     const imds = findNetPolicyByName("team-h-deny-imds-egress");
-    expect(imds).toBeDefined();
-    const spec = imds!.inputs.spec as {
-      egress: Array<{ to: Array<{ ipBlock?: { cidr: string; except: string[] } }> }>;
-    };
-    expect(spec.egress[0].to[0].ipBlock).toEqual({
-      cidr: "0.0.0.0/0",
-      except: ["169.254.169.254/32"],
-    });
-  });
-
-  test("Scenario: CNI caveat documented as annotation on the IMDS-deny policy by default", async () => {
-    new NamespaceFoundation("foundation", { name: "team-i" });
-    await settlePulumi();
-    const imds = findNetPolicyByName("team-i-deny-imds-egress");
-    expect(imds).toBeDefined();
-    const meta = imds!.inputs.metadata as { annotations: Record<string, string> };
-    expect(meta.annotations["hulumi.dev/cni-caveat"]).toMatch(
-      /CNI plugin.*supports it.*hostNetwork/,
-    );
+    expect(imds).toBeUndefined();
   });
 
   test("Scenario: allowMeshEgress: true emits the mesh-egress policy", async () => {
@@ -189,6 +171,15 @@ describe("NamespaceFoundation — invalid input refusals", () => {
     ).toThrow(/allowMeshEgress.*requires meshIngressNamespace/);
   });
 
+  test("Scenario: denyImdsEgress without defaultDeny refused", () => {
+    expect(
+      () =>
+        new NamespaceFoundation("c", {
+          name: "x",
+          networkDefaults: { defaultDeny: false, denyImdsEgress: true },
+        }),
+    ).toThrow(/denyImdsEgress requires networkDefaults.defaultDeny=true/);
+  });
   test("Scenario: Label bound enforced (33 labels → reject)", () => {
     const tooMany: Record<string, string> = {};
     for (let i = 0; i < 33; i++) tooMany[`label-${i}`] = `v${i}`;
@@ -212,8 +203,6 @@ describe("NamespaceFoundation — outputs lock", () => {
     await settlePulumi();
     expect(registrations.some((r) => r.type === NAMESPACE_FOUNDATION_COMPONENT_TYPE)).toBe(true);
     const polNames = await valueOf(c.networkPolicyNames);
-    expect(polNames.sort()).toEqual(
-      ["team-z-default-deny", "team-z-allow-dns-egress", "team-z-deny-imds-egress"].sort(),
-    );
+    expect(polNames.sort()).toEqual(["team-z-default-deny", "team-z-allow-dns-egress"].sort());
   });
 });

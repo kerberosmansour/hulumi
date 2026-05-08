@@ -18,8 +18,6 @@ import type { NamespaceFoundationOutputs } from "./namespace-foundation.outputs"
 export const NAMESPACE_FOUNDATION_COMPONENT_TYPE = "hulumi:k8s:NamespaceFoundation";
 
 const PSA_LEVELS: ReadonlySet<PsaLevel> = new Set(["privileged", "baseline", "restricted"]);
-const IMDS_CIDR = "169.254.169.254/32";
-const CNI_CAVEAT_ANNOTATION = "hulumi.dev/cni-caveat";
 const KUBE_SYSTEM_NS = "kube-system";
 
 function validateName(name: string): void {
@@ -237,34 +235,10 @@ export class NamespaceFoundation
       policyNames.push(polName);
     }
 
-    if (denyImdsEgress) {
-      const polName = `${nsName}-deny-imds-egress`;
-      const annotations: Record<string, string> = {};
-      if (args.cniCaveatNote !== false) {
-        annotations[CNI_CAVEAT_ANNOTATION] =
-          "NetworkPolicy enforcement requires a CNI plugin that supports it (Calico, Cilium, kube-router, AWS VPC CNI with policy enabled). hostNetwork: true pods bypass enforcement.";
-      }
-      new k8s.networking.v1.NetworkPolicy(
-        `${name}-deny-imds-egress`,
-        {
-          metadata: {
-            name: polName,
-            namespace: nsName,
-            ...(Object.keys(annotations).length > 0 ? { annotations } : {}),
-          },
-          spec: {
-            podSelector: {},
-            policyTypes: ["Egress"],
-            egress: [
-              {
-                to: [{ ipBlock: { cidr: "0.0.0.0/0", except: [IMDS_CIDR] } }],
-              },
-            ],
-          },
-        },
-        parent,
+    if (denyImdsEgress && !defaultDeny) {
+      throw new Error(
+        "networkDefaults.denyImdsEgress requires networkDefaults.defaultDeny=true because Kubernetes NetworkPolicy cannot express standalone deny rules.",
       );
-      policyNames.push(polName);
     }
 
     if (allowMeshEgress && net.meshIngressNamespace !== undefined) {

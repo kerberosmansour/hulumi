@@ -74,21 +74,21 @@ const ALLOWED = [
   // tampered bytes will fail this guard at CI.
   {
     name: "@aws-sdk/client-cloudtrail",
-    version: "3.1041.0",
+    version: "3.1045.0",
     integrity:
-      "sha512-bamKe057uPN+CWlRRmHCI0OCxAoVx0v6So4DIwVRq7xgzewr6qu05vV7+Njq/P0QFyj05gi49ljviZde1YCgwQ==",
+      "sha512-FERHosVdC9SD/J9UTNtItGyhnXdMNHrvqkWxCuvHteWLSPWz9GrHNiuVnZ+dBD3yaM49isk6/TNIZlTSdZqJ1w==",
   },
   {
     name: "@aws-sdk/client-sts",
-    version: "3.1037.0",
+    version: "3.1045.0",
     integrity:
-      "sha512-Ye+BEvy1Fd/JtqfF1T9PiodIU52/Cd9sP4oBLnj8QQEyYRUcYG1OQ2xIFXF/gzAAMjfVN8HqGJo9LxdmScxZAQ==",
+      "sha512-oDJJ7rM1osvfBdfZuhQ5DM6lHD9iuypL9m2LsEiA/lB8xuE5uPYsftNDcS0J9VRXFSvYTqC14K7Y5vMMKMg0vw==",
   },
   {
     name: "@aws-sdk/credential-providers",
-    version: "3.1041.0",
+    version: "3.1045.0",
     integrity:
-      "sha512-Ps7dcWV1JbXKoFy8QpWhTpWkX0x2tiZFmDdgojK98/rqyybPdwEtGB8xY/N2uJjE0MZkrV9X7T3Xrnk/rGFoNw==",
+      "sha512-J+it58HUGyMIAquB6pWtvmO4m0E/gQ/Tz9Xcoogk3Rety13likU5U8HioeIgE+aN1DDOAB//MARoIdLZS1Mpfw==",
   },
   {
     name: "p-timeout",

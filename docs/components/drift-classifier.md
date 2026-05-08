@@ -73,6 +73,27 @@ drift here would fail the verdict-matrix BDD test.
 | `cacheTtlSeconds` | 21_600 (6h)           | TTL gating cache hits.                            |
 | `cacheDir`        | `.hulumi/drift-cache` | On-disk cache directory.                          |
 
+`CloudTrailAdapter` also accepts an optional retry budget for transient
+lookup failures:
+
+```ts
+new CloudTrailAdapter({
+  lookup,
+  retry: {
+    attempts: 3,
+    backoffMs: 250,
+    maxElapsedMs: 1_000,
+    wait: async (delayMs) => {
+      // Optional caller-owned delay hook. Omit for immediate bounded retries.
+    },
+  },
+});
+```
+
+The adapter never schedules unbounded retry loops: attempts are sanitized
+to at least one, exponential backoff stops before `maxElapsedMs` would be
+exceeded, and exhausted retries return `ok: false`.
+
 ## Outputs
 
 `DriftVerdict { resource, source, confidence, evidence[], recommendation? }`

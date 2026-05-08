@@ -31,8 +31,16 @@ export interface CloudTrailLookupFn {
   (args: CloudTrailLookupArgs): Promise<CloudTrailEvent[]>;
 }
 
+export interface CloudTrailRetryOptions {
+  attempts: number;
+  backoffMs: number;
+  maxElapsedMs?: number;
+  wait?: (delayMs: number) => Promise<void>;
+}
+
 export interface CloudTrailAdapterArgs {
   lookup: CloudTrailLookupFn;
+  retry?: CloudTrailRetryOptions;
 }
 
 /**
@@ -63,17 +71,27 @@ export class CloudTrailAdapter implements DriftAdapter {
   ): Promise<AdapterSignal> {
     const before = window?.before ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const after = window?.after ?? new Date().toISOString();
-    let events: CloudTrailEvent[];
+    let lookup: LookupWithRetryResult;
     try {
-      events = await this.args.lookup({ resourceArn: resource, before, after });
+      lookup = await lookupWithRetry(
+        this.args.lookup,
+        { resourceArn: resource, before, after },
+        this.args.retry,
+      );
     } catch (err) {
+      const failed = err instanceof LookupWithRetryError ? err : undefined;
       return {
         detected: false,
         ok: false,
-        data: { error: err instanceof Error ? err.message : String(err) },
+        data: {
+          error: safeErrorMessage(err),
+          retryAttempts: failed?.attempts ?? 1,
+          retryDelayMs: failed?.retryDelayMs ?? 0,
+          retryExhausted: true,
+        },
       };
     }
-    const consoleEvents = events.filter((e) => !shouldFilterPrincipal(e.principalTags));
+    const consoleEvents = lookup.events.filter((e) => !shouldFilterPrincipal(e.principalTags));
     return {
       detected: consoleEvents.length > 0,
       ok: true,
@@ -83,8 +101,81 @@ export class CloudTrailAdapter implements DriftAdapter {
           eventTime: e.EventTime.toISOString(),
           username: e.Username ?? "(unknown)",
         })),
-        filteredCount: events.length - consoleEvents.length,
+        filteredCount: lookup.events.length - consoleEvents.length,
+        retryAttempts: lookup.attempts,
+        retryDelayMs: lookup.retryDelayMs,
       },
     };
   }
+}
+
+interface LookupWithRetryResult {
+  events: CloudTrailEvent[];
+  attempts: number;
+  retryDelayMs: number;
+}
+
+class LookupWithRetryError extends Error {
+  constructor(
+    message: string,
+    readonly attempts: number,
+    readonly retryDelayMs: number,
+  ) {
+    super(message);
+    this.name = "LookupWithRetryError";
+  }
+}
+
+async function lookupWithRetry(
+  lookup: CloudTrailLookupFn,
+  args: CloudTrailLookupArgs,
+  retry: CloudTrailRetryOptions | undefined,
+): Promise<LookupWithRetryResult> {
+  const policy = normalizeRetry(retry);
+  let attempts = 0;
+  let retryDelayMs = 0;
+  let nextDelayMs = policy.backoffMs;
+  let lastError: unknown;
+
+  while (attempts < policy.attempts) {
+    attempts += 1;
+    try {
+      return {
+        events: await lookup(args),
+        attempts,
+        retryDelayMs,
+      };
+    } catch (err) {
+      lastError = err;
+      if (attempts >= policy.attempts) break;
+      if (policy.maxElapsedMs !== undefined && retryDelayMs + nextDelayMs > policy.maxElapsedMs)
+        break;
+      retryDelayMs += nextDelayMs;
+      if (policy.wait !== undefined) await policy.wait(nextDelayMs);
+      nextDelayMs = Math.min(Number.MAX_SAFE_INTEGER, nextDelayMs * 2);
+    }
+  }
+
+  throw new LookupWithRetryError(safeErrorMessage(lastError), attempts, retryDelayMs);
+}
+
+function normalizeRetry(
+  retry: CloudTrailRetryOptions | undefined,
+): Required<Pick<CloudTrailRetryOptions, "attempts" | "backoffMs">> &
+  Pick<CloudTrailRetryOptions, "maxElapsedMs" | "wait"> {
+  if (retry === undefined) return { attempts: 1, backoffMs: 0 };
+  const attempts = Number.isFinite(retry.attempts) ? Math.floor(retry.attempts) : 1;
+  const backoffMs = Number.isFinite(retry.backoffMs) ? Math.max(0, retry.backoffMs) : 0;
+  return {
+    attempts: Math.max(1, attempts),
+    backoffMs,
+    ...(retry.maxElapsedMs !== undefined && Number.isFinite(retry.maxElapsedMs)
+      ? { maxElapsedMs: Math.max(0, retry.maxElapsedMs) }
+      : {}),
+    ...(retry.wait !== undefined ? { wait: retry.wait } : {}),
+  };
+}
+
+function safeErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

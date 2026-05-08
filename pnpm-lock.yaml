@@ -169,6 +169,9 @@ importers:
         specifier: 3.36.0
         version: 3.36.0
     devDependencies:
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
       '@pulumi/pulumi':
         specifier: 3.232.0
         version: 3.232.0(typescript@5.9.3)

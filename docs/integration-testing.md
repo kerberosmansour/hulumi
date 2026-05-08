@@ -125,6 +125,18 @@ the checked invariant summary in
 Any broader execute-mode feature must update or link to that model before
 it is enabled.
 
+The first drift-classifier real-AWS proof lives in
+`packages/drift/tests/integration/drift-classify.integration.test.ts`.
+It keeps the repo-wide `HULUMI_INTEGRATION=1` gate and also requires a
+configured Pulumi backend (`PULUMI_BACKEND_URL` or `PULUMI_ACCESS_TOKEN`).
+When enabled in the sandbox account, it creates one short-lived
+Pulumi-managed S3 bucket, mutates its tags through the AWS SDK, waits for
+the CloudTrail `PutBucketTagging` event, asserts
+`DriftClassifier.classify()` returns `ConsoleBreakGlass / high`, then
+calls `classify()` again to prove the cache prevents a second adapter
+poll. `afterAll` always runs `pulumi destroy`, removes the stack, and
+deletes the local Pulumi work directory.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |
@@ -136,6 +148,7 @@ it is enabled.
 | Security Hub + 2 standards         | <$0.05                   | Per-check pricing; 2 standards = double cost.    |
 | KMS CMK ring (4 keys)              | $0 if torn down each run | $1/month per key if orphaned.                    |
 | S3 (log bucket)                    | <$0.01                   | Object count negligible.                         |
+| S3 (drift-classify fixture bucket) | <$0.01                   | One tagged bucket, destroyed after the test.     |
 | CloudWatch Logs (Startup-Hardened) | <$0.01                   | 365-day retention but tiny ingest.               |
 
 **Expected weekly cost with clean teardown**: under $1/run, typically
@@ -164,10 +177,11 @@ pnpm --filter @hulumi/baseline test -- tests/integration/
 
 Current status: the weekly workflow is wired for a real backend and the
 AccountFoundation sandbox lane has a real Pulumi Automation API
-up/assert/destroy smoke test. The Startup-Hardened AccountFoundation
-lane, AWS API polling assertions, failure-injection cleanup test, and
-drift real-AWS scenarios remain explicit `it.todo()` / skipped roadmap
-work tracked in
+up/assert/destroy smoke test. The drift-classifier lane now has one
+real-AWS S3 console-drift proof with cache-hit verification. The
+Startup-Hardened AccountFoundation lane, AWS API polling assertions,
+failure-injection cleanup tests, and the remaining drift real-AWS
+scenarios remain explicit `it.todo()` / skipped roadmap work tracked in
 [integration-testing-roadmap.md](integration-testing-roadmap.md). That is
 intentional: the project must not pretend that a smoke pass is full e2e
 coverage.
@@ -207,8 +221,13 @@ integration run means:
 - `pulumi destroy` and `removeStack` run in `afterAll`, and the local
   Pulumi work directory is removed.
 - A manual dispatch with `tier=sandbox` only runs the sandbox matrix lane.
+- If `HULUMI_DRIFT_INTEGRATION=1` is enabled for the workflow, the drift
+  classifier creates one S3 fixture bucket, observes an out-of-band tag
+  mutation through CloudTrail, returns `ConsoleBreakGlass / high`, proves
+  the second classification is served from cache, and destroys the
+  fixture stack.
 - The Startup-Hardened and drift-classify real-AWS lanes remain explicitly
-  gated until their account-wide assertions are implemented.
+  gated until their broader account-wide assertions are implemented.
 
 The stronger M3 target still remains on the roadmap: poll AWS APIs until
 each sub-resource is `ACTIVE` / `ENABLED`, verify tag propagation on

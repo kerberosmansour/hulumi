@@ -3,10 +3,11 @@
 **Status as of v1.2.0 (runbook `hulumi-pre-public-launch` M3)**: this
 doc is the contract for the remaining real-AWS integration tests. The
 AccountFoundation sandbox lane now has a real Pulumi Automation API
-up/assert/destroy smoke test. The stronger AWS API polling assertions,
-Startup-Hardened lane, failure-injection cleanup scenario, and drift
-real-AWS scenarios remain separate runbook work (`hulumi-integration-real-aws`,
-candidate for the v1.3 train).
+up/assert/destroy smoke test. The drift-classify lane now has one
+real-AWS S3 console-drift proof with cache-hit verification. The stronger
+AWS API polling assertions, Startup-Hardened lane, failure-injection
+cleanup scenario, and remaining drift real-AWS scenarios remain separate
+runbook work (`hulumi-integration-real-aws`, candidate for the v1.3 train).
 
 > Why a roadmap and not implementation? The sandbox-AWS deploy rig is a
 > 200–400 LOC undertaking per scenario, requires a configured Pulumi
@@ -19,10 +20,10 @@ candidate for the v1.3 train).
 
 ## What lives where
 
-| Test file                                                                    | Status                                  | Roadmap section                            |
-| ---------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------ |
-| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | sandbox smoke implemented; `it.todo` ×2 | [#account-foundation](#account-foundation) |
-| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | `it.todo` ×4                            | [#drift-classify](#drift-classify)         |
+| Test file                                                                    | Status                                           | Roadmap section                            |
+| ---------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | sandbox smoke implemented; `it.todo` ×2          | [#account-foundation](#account-foundation) |
+| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | S3 console-drift smoke implemented; `it.todo` ×2 | [#drift-classify](#drift-classify)         |
 
 Both files keep one always-on `it()` that asserts the
 `HULUMI_INTEGRATION=1` skip-gate is in place. That gate is a regression
@@ -144,6 +145,22 @@ make it ACTIVE before the failure.
 ## Drift-classify
 
 ### Test 1 — console drift detected: `ConsoleBreakGlass/high` after deliberate mutation by non-IaC principal
+
+**Current implementation**:
+
+- `packages/drift/tests/integration/drift-classify.integration.test.ts`
+  creates one short-lived Pulumi-managed S3 bucket when
+  `HULUMI_INTEGRATION=1` and one Pulumi backend is configured.
+- The test mutates bucket tags through the AWS SDK, waits for the
+  CloudTrail `PutBucketTagging` event, classifies the bucket with
+  `DriftClassifier`, and expects `ConsoleBreakGlass / high`.
+- The same test calls `classify()` a second time inside the cache TTL
+  and asserts the adapters/probe were not called again.
+- `afterAll` always runs `Stack.destroy()`, removes the Pulumi stack, and
+  deletes the local Pulumi work directory.
+
+**Remaining target**: broader fixture coverage for non-S3 resources and
+failure-injection teardown.
 
 **Pre-conditions**:
 

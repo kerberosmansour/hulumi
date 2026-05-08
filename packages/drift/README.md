@@ -131,6 +131,11 @@ The guarded path is deliberately narrow:
 - The S3 executor uses AWS SDK calls only, drains object versions/delete
   markers in batches of 1000, aborts multipart uploads, and refuses bucket
   names outside the configured prefix.
+- Broad execute-mode changes must link to the checked reconciler model in
+  [`HulumiReconciler.tla`](../../docs/TLAdocs/hulumi/HulumiReconciler.tla)
+  and keep the verified invariants in
+  [`HulumiReconciler-verified.md`](../../docs/TLAdocs/hulumi/HulumiReconciler-verified.md)
+  current.
 
 For read-only discovery, feed known Pulumi state and explicitly scoped
 cloud inventory into `discoverReconcileTargets()` before planning:

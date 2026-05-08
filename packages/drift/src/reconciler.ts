@@ -2,6 +2,19 @@ import { createHash } from "node:crypto";
 
 export const RECONCILER_PLAN_SCHEMA_VERSION = "hulumi.drift.reconcile.plan.v1";
 
+export const RECONCILER_RESOURCE_STATES = [
+  "Unknown",
+  "Candidate",
+  "Blocked",
+  "Planned",
+  "Executing",
+  "Deleted",
+  "Retained",
+  "Failed",
+] as const;
+
+export type ReconcilerResourceState = (typeof RECONCILER_RESOURCE_STATES)[number];
+
 export type ReconcileMode =
   | "check-only"
   | "plan"

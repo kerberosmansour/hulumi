@@ -14,9 +14,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { DRIFT_SOURCES } from "../src/types";
+import { RECONCILER_RESOURCE_STATES } from "../src/reconciler";
 
 describe("TLA+ alignment meta-test", () => {
   const verdictSrc = readFileSync(resolve(__dirname, "../src/verdict.ts"), "utf8");
+  const reconcilerTla = readFileSync(
+    resolve(__dirname, "../../../docs/TLAdocs/hulumi/HulumiReconciler.tla"),
+    "utf8",
+  );
 
   it("verdict.ts cites HulumiDrift.tla by name", () => {
     expect(verdictSrc).toMatch(/HulumiDrift\.tla/);
@@ -38,5 +43,15 @@ describe("TLA+ alignment meta-test", () => {
       "Mixed",
       "Unknown",
     ]);
+  });
+
+  it("ReconcilerResourceState values exactly match the TLA+ States set", () => {
+    const statesSet = reconcilerTla.match(/States == \{([^}]+)\}/);
+    expect(statesSet).not.toBeNull();
+
+    const modelStates = [...(statesSet?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(
+      ([, state]) => state,
+    );
+    expect(RECONCILER_RESOURCE_STATES).toEqual(modelStates);
   });
 });

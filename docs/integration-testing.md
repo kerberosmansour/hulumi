@@ -118,6 +118,13 @@ for read-only planning and
 [reconciler-s3-execute-iam-policy.json](deployment/reconciler-s3-execute-iam-policy.json)
 for the narrow S3 execute proof.
 
+The guarded state-transition model for future broad execute-mode work
+lives in [HulumiReconciler.tla](TLAdocs/hulumi/HulumiReconciler.tla) with
+the checked invariant summary in
+[HulumiReconciler-verified.md](TLAdocs/hulumi/HulumiReconciler-verified.md).
+Any broader execute-mode feature must update or link to that model before
+it is enabled.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

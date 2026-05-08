@@ -31,6 +31,7 @@ export {
   OrphanReconciler,
   OrphanSweeper,
   RECONCILER_PLAN_SCHEMA_VERSION,
+  RECONCILER_RESOURCE_STATES,
   type OrphanReconcilerArgs,
   type OrphanSweeperArgs,
   type ReconcileActionExecutor,
@@ -47,6 +48,7 @@ export {
   type ReconcileRisk,
   type ReconcileScope,
   type ReconcileTarget,
+  type ReconcilerResourceState,
   type ResourceIdentity,
   type ResourceOwnershipEvidence,
 } from "./reconciler";

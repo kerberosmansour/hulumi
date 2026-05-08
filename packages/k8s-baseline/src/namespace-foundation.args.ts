@@ -33,7 +33,7 @@ export interface NamespaceFoundationNetworkDefaults {
   defaultDeny?: boolean;
   /** Default `true`. Emits a NetworkPolicy that allows DNS egress to `kube-system`. */
   allowDnsEgress?: boolean;
-  /** Default `true`. Emits a NetworkPolicy denying egress to `169.254.169.254/32` (IMDS). */
+  /** Default `true`. Valid only with `defaultDeny: true`; Kubernetes NetworkPolicy has no standalone deny primitive for IMDS-only egress blocks. */
   denyImdsEgress?: boolean;
   /** Default `false`. When `true`, emit a NetworkPolicy allowing egress to the mesh ingress namespace. */
   allowMeshEgress?: boolean;

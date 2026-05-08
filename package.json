@@ -38,7 +38,7 @@
     }
   },
   "devDependencies": {
-    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/pulumi": "3.237.0",
     "@types/node": "20.19.40",
     "@typescript-eslint/eslint-plugin": "8.59.2",
     "@typescript-eslint/parser": "8.59.2",

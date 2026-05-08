@@ -145,6 +145,55 @@ describe("AccountFoundation — Security Hub depends on GuardDuty Detector (even
   });
 });
 
+describe("AccountFoundation — real provider input compatibility", () => {
+  beforeEach(resetRegistrations);
+
+  it("emits KMS key policies accepted by the AWS KMS policy grammar", async () => {
+    const af = new AccountFoundation("af-kms-policy", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.kmsKeyArns);
+    await settlePulumi();
+
+    const keys = registrations.filter((r) => r.type === "aws:kms/key:Key");
+    expect(keys.length).toBe(4);
+    for (const key of keys) {
+      const policy = JSON.parse(key.inputs.policy as string) as Record<string, unknown>;
+      expect(policy.Version).toBe("2012-10-17");
+      expect(policy.Id).toEqual(expect.stringMatching(/^hulumi-kms-/));
+      expect(policy.Statement).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            Sid: "EnableRootPermissions",
+            Effect: "Allow",
+            Action: "kms:*",
+            Resource: "*",
+          }),
+        ]),
+      );
+      expect(policy).not.toHaveProperty("PolicyTag");
+    }
+  });
+
+  it("uses current Security Hub StandardsArn namespaces for CIS v5", async () => {
+    const af = new AccountFoundation("af-securityhub-arn", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.securityHubHubArn);
+    await settlePulumi();
+
+    const subscriptions = registrations.filter(
+      (r) => r.type === "aws:securityhub/standardsSubscription:StandardsSubscription",
+    );
+    expect(subscriptions).toHaveLength(1);
+    expect(subscriptions[0].inputs.standardsArn).toBe(
+      "arn:aws:securityhub:us-east-1::standards/cis-aws-foundations-benchmark/v/5.0.0",
+    );
+  });
+});
+
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {
   it("packages/baseline/src/aws/ has zero setTimeout / sleep / await new Promise occurrences outside probes/", () => {
     const root = resolve(__dirname, "../src/aws");

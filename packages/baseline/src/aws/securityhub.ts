@@ -20,8 +20,8 @@ import * as aws from "@pulumi/aws";
 
 import type { Tier } from "./tier";
 
-export const CIS_V5_STANDARD_ARN_PARTIAL = "ruleset/cis-aws-foundations-benchmark/v/5.0.0";
-export const NIST_800_53_R5_STANDARD_ARN_PARTIAL = "ruleset/nist-800-53/v/5.0.0";
+export const CIS_V5_STANDARD_ARN_PARTIAL = "standards/cis-aws-foundations-benchmark/v/5.0.0";
+export const NIST_800_53_R5_STANDARD_ARN_PARTIAL = "standards/nist-800-53/v/5.0.0";
 
 export interface SecurityHubHelperArgs {
   tier: Tier;

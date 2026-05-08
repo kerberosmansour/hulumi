@@ -65,8 +65,8 @@ function buildKeyPolicy(
   }
   return pulumi.jsonStringify({
     Version: "2012-10-17",
+    Id: `hulumi-kms-${service}-${tier}`,
     Statement: baseStatements,
-    PolicyTag: `hulumi-kms-${service}-${tier}`,
   });
 }
 

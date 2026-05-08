@@ -16,7 +16,7 @@ export interface VerdictResult {
 }
 
 /**
- * The 5-row matrix from HulumiDrift.trace.md:
+ * The 6-row matrix from HulumiDrift.trace.md:
  *
  *   1. !mutated                                                 → None / none
  *   2. mutated && eventDelivered                                → ConsoleBreakGlass / high
@@ -25,10 +25,14 @@ export interface VerdictResult {
  *      && providerDrift                                          → ProviderApiChurn / medium (NEVER high)
  *   5. mutated && !eventDelivered && !eventInTransit
  *      && !providerDrift                                         → Unknown / low
+ *   6. mutated && eventDelivered && providerDrift                → Mixed / high
  */
 export function hardenedVerdict(snapshot: VerdictSnapshot): VerdictResult {
   if (!snapshot.mutated) {
     return { source: "None", confidence: "none" };
+  }
+  if (snapshot.eventDelivered && snapshot.providerDrift) {
+    return { source: "Mixed", confidence: "high" };
   }
   if (snapshot.eventDelivered) {
     return { source: "ConsoleBreakGlass", confidence: "high" };

@@ -1,4 +1,4 @@
-// Verdict-matrix feature — walks the 5-row table from
+// Verdict-matrix feature — walks the 6-row table from
 // HulumiDrift.trace.md (upstream planning corpus, vendored at
 // tests/_utils/trace-matrix.ts) cell by cell. Each row is one Vitest
 // test, plus a meta-row asserting the test count matches the trace
@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { hardenedVerdict } from "../src/verdict";
 import { TRACE_MATRIX } from "./_utils/trace-matrix";
 
-describe("verdict-matrix — TLA+ HardenedVerdict 5-row trace walk", () => {
+describe("verdict-matrix — TLA+ HardenedVerdict 6-row trace walk", () => {
   for (const row of TRACE_MATRIX) {
     it(`row ${row.id}: ${row.description}`, () => {
       const verdict = hardenedVerdict(row.snapshot);
@@ -17,10 +17,10 @@ describe("verdict-matrix — TLA+ HardenedVerdict 5-row trace walk", () => {
     });
   }
 
-  it("row_count_matches_trace_md — exactly 5 rows, no silent additions / removals", () => {
-    expect(TRACE_MATRIX).toHaveLength(5);
+  it("row_count_matches_trace_md — exactly 6 rows, no silent additions / removals", () => {
+    expect(TRACE_MATRIX).toHaveLength(6);
     const ids = TRACE_MATRIX.map((r) => r.id);
-    expect(ids).toEqual([1, 2, 3, 4, 5]);
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it("Row 4 — ProviderApiChurn never reaches high (TLA+ SafetyRealistic upper bound)", () => {

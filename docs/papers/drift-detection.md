@@ -201,17 +201,18 @@ Mapped to TLA+: a state record with four boolean fields, transition rules that f
 
 The TLA+ spec lives in the upstream Hulumi planning corpus as `docs/TLAdocs/hulumi/HulumiDrift.tla` (referenced in [verdict.ts:3-4](../../packages/drift/src/verdict.ts#L3-L4)). The verified-design summary lives in `docs/TLAdocs/hulumi/HulumiDrift-verified.md`. Both are kept in a separate planning repo by design — they're authored once during model-checking and don't need to ship in every consumer's `node_modules`.
 
-### 3.3 The 5 reachable verdict rows
+### 3.3 The 6 reachable verdict rows
 
-TLC's reachability analysis collapses the 16-cell truth table over four booleans into **five reachable rows** (the others are unreachable because of constraints between the booleans — e.g. `eventDelivered` implies `!eventInTransit`):
+TLC's reachability analysis collapses the 16-cell truth table over four booleans into **six reachable rows** (the others are unreachable because of constraints between the booleans — e.g. `eventDelivered` implies `!eventInTransit`):
 
-| Row | Snapshot                                       | Verdict                         | Operator action                         |
-| --- | ---------------------------------------------- | ------------------------------- | --------------------------------------- |
-| 1   | `!mutated`                                     | `None / none`                   | Nothing.                                |
-| 2   | `mutated && eventDelivered`                    | `ConsoleBreakGlass / high`      | Investigate the console mutation.       |
-| 3   | `mutated && eventInTransit && !eventDelivered` | `Unknown / low` (probe pending) | Re-run after probe window expires.      |
-| 4   | `mutated && providerDrift && !event*`          | `ProviderApiChurn / medium`     | Re-pin `@pulumi/aws` after cooling-off. |
-| 5   | `mutated && !providerDrift && !event*`         | `Unknown / low`                 | `git pull` + check teammate PRs.        |
+| Row | Snapshot                                       | Verdict                         | Operator action                                        |
+| --- | ---------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| 1   | `!mutated`                                     | `None / none`                   | Nothing.                                               |
+| 2   | `mutated && eventDelivered`                    | `ConsoleBreakGlass / high`      | Investigate the console mutation.                      |
+| 3   | `mutated && eventInTransit && !eventDelivered` | `Unknown / low` (probe pending) | Re-run after probe window expires.                     |
+| 4   | `mutated && providerDrift && !event*`          | `ProviderApiChurn / medium`     | Re-pin `@pulumi/aws` after cooling-off.                |
+| 5   | `mutated && !providerDrift && !event*`         | `Unknown / low`                 | `git pull` + check teammate PRs.                       |
+| 6   | `mutated && eventDelivered && providerDrift`   | `Mixed / high`                  | Resolve console evidence first, then provider context. |
 
 This is the matrix the TypeScript classifier mirrors, and the [verdict-matrix BDD](../../packages/drift/tests/verdict-matrix.feature.test.ts) walks cell-by-cell on every PR. The vendored copy of the trace (in [`tests/_utils/trace-matrix.ts`](../../packages/drift/tests/_utils/trace-matrix.ts)) is the test's data source; the upstream `HulumiDrift.trace.md` is the authority.
 
@@ -624,9 +625,9 @@ The `ProviderVersionAdapter`'s `latest()` call reaches `https://registry.npmjs.o
 
 The UID check refuses to honour foreign-owned cache files. Attempted poisoning: silent → operator sees a `cacheOwnershipMismatch` evidence entry and a cleanly-classified verdict. The poison file is left in place (we don't delete other users' files); the operator can `rm` it after investigation.
 
-### 8.7 The `Mixed` source — a known under-coverage
+### 8.7 The `Mixed` source
 
-The `DriftSource` enum includes `Mixed` (per the TLA+ spec), but `hardenedVerdict()` does not currently emit it. The TLA+ trace's 5-row matrix doesn't cover the case where multiple adapters report drift simultaneously (e.g., a console event AND a provider bump in the same window). This is tracked as [issue #18](https://github.com/kerberosmansour/hulumi/issues/18) for v1.1+; the trace would need a sixth row, the BDD extension, and a paired re-verification of the TLA+ properties.
+The `DriftSource` enum includes `Mixed` for the case where multiple adapters report drift simultaneously. The first implemented case is a console/audit event plus provider drift in the same window, which emits `Mixed / high`. Operator guidance deliberately preserves the high-severity console signal: investigate the console mutation first, then use the provider-drift evidence as context for whether the observed diff is also plausibly explained by provider API churn.
 
 ---
 
@@ -636,7 +637,6 @@ We try to be honest about what the classifier doesn't do.
 
 ### 9.1 What v1.0 doesn't ship
 
-- **`Mixed` source emission** ([#18](https://github.com/kerberosmansour/hulumi/issues/18)): see §8.7.
 - **Bounded retry on CloudTrail throttling** ([#19](https://github.com/kerberosmansour/hulumi/issues/19)): the current adapter doesn't retry. A bounded retry budget (e.g. 3 attempts with exponential backoff capped at `probeTimeoutMs / 4`) would handle transient `LookupEvents` throttling without changing the verdict semantics.
 - **Region-aware probe timeout default** ([#20](https://github.com/kerberosmansour/hulumi/issues/20)): the 60s default works for `us-east-1` most of the time but spikes past 60s in some regions during heavy load. A per-region default table would reduce false-positive `Unknown / low` verdicts.
 - **Real-AWS integration test body** ([#21](https://github.com/kerberosmansour/hulumi/issues/21)): the integration test placeholder asserts only the env-var gate. The full body lands when the sandbox account's `PULUMI_ACCESS_TOKEN` is configured.
@@ -650,7 +650,7 @@ We try to be honest about what the classifier doesn't do.
 
 ### 9.3 Where we'd like community input
 
-- **The `Mixed` row design** ([#18](https://github.com/kerberosmansour/hulumi/issues/18)). The TLA+ spec allows it; the operator-facing semantics ("which source dominates the verdict?") need careful thought.
+- **Additional `Mixed` row design**. The first `Mixed` row covers console/audit evidence plus provider drift. Future adapter combinations should add explicit rows rather than relying on precedence accidents.
 - **Adapter contributions**. Cloud-specific adapters (Azure, GCP) could land independently of the v1.x core. The interface (`DriftAdapter`) is intentionally narrow.
 - **The semantic license-boundary lint** ([#29](https://github.com/kerberosmansour/hulumi/issues/29)). Today's lint is fragment-based; an embedding-based check would catch a wider class of leaks. Open design discussion.
 
@@ -670,7 +670,7 @@ We try to be honest about what the classifier doesn't do.
 ### TLA+ artifacts (upstream planning corpus)
 
 - `HulumiDrift.tla` — the spec (referenced in [verdict.ts:3-4](../../packages/drift/src/verdict.ts#L3-L4); lives in the upstream corpus).
-- `HulumiDrift.trace.md` — the 5-row trace that the BDD walks (vendored at [tests/\_utils/trace-matrix.ts](../../packages/drift/tests/_utils/trace-matrix.ts)).
+- `HulumiDrift.trace.md` — the 6-row trace that the BDD walks (vendored at [tests/\_utils/trace-matrix.ts](../../packages/drift/tests/_utils/trace-matrix.ts)).
 - `HulumiDrift-verified.md` — the verified-design summary (referenced in [verdict.ts:3-4](../../packages/drift/src/verdict.ts) and [monotonicity.ts:1-4](../../packages/drift/src/monotonicity.ts#L1-L4)).
 
 ### Test suite (the "executable contract")

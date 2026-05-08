@@ -17,6 +17,9 @@ const IAC_ROLE_ARN = "arn:aws:iam::111122223333:role/hulumi-sandbox-iac-role";
 const SANDBOX_TYPES = [
   "aws:kms/key:Key",
   "aws:kms/alias:Alias",
+  "aws:iam/role:Role",
+  "aws:iam/rolePolicy:RolePolicy",
+  "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
   "aws:iam/accountPasswordPolicy:AccountPasswordPolicy",
   "aws:cloudtrail/trail:Trail",
   "aws:cfg/recorder:Recorder",
@@ -42,6 +45,11 @@ function controlsFromTags(tags: Record<string, string> | undefined): string[] {
     .filter(([key]) => key === "hulumi:controls" || key.startsWith("hulumi:controls:"))
     .sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true }))
     .flatMap(([, value]) => value.split("+").filter((control) => control.length > 0));
+}
+
+function parsePolicy(input: unknown): { Statement: Array<Record<string, unknown>> } {
+  expect(typeof input).toBe("string");
+  return JSON.parse(input as string) as { Statement: Array<Record<string, unknown>> };
 }
 
 describe("AccountFoundation — Sandbox tier emits 6 sub-resource groups (happy path)", () => {
@@ -174,6 +182,31 @@ describe("AccountFoundation — real provider input compatibility", () => {
       );
       expect(policy).not.toHaveProperty("PolicyTag");
     }
+
+    const logsKey = keys.find((key) => key.name.endsWith("-kms-logs"));
+    expect(logsKey).toBeDefined();
+    const logsKeyPolicy = JSON.parse(logsKey!.inputs.policy as string) as {
+      Statement: Array<Record<string, unknown>>;
+    };
+    expect(logsKeyPolicy.Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Sid: "AllowCloudTrailEncryptLogs",
+          Principal: { Service: "cloudtrail.amazonaws.com" },
+          Action: "kms:GenerateDataKey*",
+        }),
+        expect.objectContaining({
+          Sid: "AllowCloudTrailDescribeKey",
+          Principal: { Service: "cloudtrail.amazonaws.com" },
+          Action: "kms:DescribeKey",
+        }),
+        expect.objectContaining({
+          Sid: "AllowConfigLogDeliveryKms",
+          Principal: { Service: "config.amazonaws.com" },
+          Action: ["kms:Decrypt", "kms:GenerateDataKey"],
+        }),
+      ]),
+    );
   });
 
   it("uses current Security Hub StandardsArn namespaces for CIS v5", async () => {
@@ -190,6 +223,74 @@ describe("AccountFoundation — real provider input compatibility", () => {
     expect(subscriptions).toHaveLength(1);
     expect(subscriptions[0].inputs.standardsArn).toBe(
       "arn:aws:securityhub:us-east-1::standards/cis-aws-foundations-benchmark/v/5.0.0",
+    );
+  });
+
+  it("uses a dedicated AWS Config recorder role and log bucket delivery policy", async () => {
+    const af = new AccountFoundation("af-config-delivery", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.configRecorderArn);
+    await settlePulumi();
+
+    const role = registrations.find((r) => r.type === "aws:iam/role:Role");
+    expect(role).toBeDefined();
+    const trust = parsePolicy(role!.inputs.assumeRolePolicy);
+    expect(trust.Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Principal: { Service: "config.amazonaws.com" },
+          Action: "sts:AssumeRole",
+          Condition: {
+            StringEquals: { "AWS:SourceAccount": "111122223333" },
+            ArnLike: { "AWS:SourceArn": "arn:aws:config:us-east-1:111122223333:*" },
+          },
+        }),
+      ]),
+    );
+
+    const attachment = registrations.find(
+      (r) => r.type === "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+    );
+    expect(attachment?.inputs.policyArn).toBe(
+      "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole",
+    );
+
+    const deliveryPolicy = registrations.find((r) => r.type === "aws:iam/rolePolicy:RolePolicy");
+    expect(deliveryPolicy).toBeDefined();
+    const inline = parsePolicy(deliveryPolicy!.inputs.policy);
+    expect(inline.Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Sid: "ConfigBucketAclAndLocation",
+          Action: ["s3:GetBucketAcl", "s3:ListBucket"],
+          Resource: "arn:aws:s3:::af-config-delivery-logs-bucket-mock",
+        }),
+        expect.objectContaining({
+          Sid: "ConfigBucketDelivery",
+          Action: ["s3:PutObject", "s3:PutObjectAcl"],
+          Resource:
+            "arn:aws:s3:::af-config-delivery-logs-bucket-mock/AWSLogs/111122223333/Config/*",
+        }),
+        expect.objectContaining({
+          Sid: "ConfigLogBucketKms",
+          Action: ["kms:Decrypt", "kms:GenerateDataKey"],
+        }),
+      ]),
+    );
+
+    const recorder = registrations.find((r) => r.type === "aws:cfg/recorder:Recorder");
+    expect(recorder?.inputs.roleArn).not.toBe(IAC_ROLE_ARN);
+
+    const bucketPolicy = registrations.find((r) => r.type === "aws:s3/bucketPolicy:BucketPolicy");
+    expect(bucketPolicy).toBeDefined();
+    const bucketPolicyDoc = parsePolicy(bucketPolicy!.inputs.policy);
+    expect(bucketPolicyDoc.Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ Sid: "AWSCloudTrailWrite" }),
+        expect.objectContaining({ Sid: "AWSConfigBucketDelivery" }),
+      ]),
     );
   });
 });

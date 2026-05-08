@@ -1,5 +1,6 @@
 export { SecureBucket, SECURE_BUCKET_COMPONENT_TYPE } from "./secure-bucket";
 export type {
+  SecureBucketAwsServiceLogDeliveryConfig,
   SecureBucketArgs,
   SecureBucketObjectLockConfig,
   SecureBucketReplicationConfig,

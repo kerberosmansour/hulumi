@@ -17,6 +17,7 @@ export interface CloudTrailHelperArgs {
   logBucketId: pulumi.Input<string>;
   kmsKeyArn: pulumi.Input<string>;
   dataEventBucketArn?: pulumi.Input<string>;
+  dependsOn?: pulumi.Input<pulumi.Resource>[];
 }
 
 export interface CloudTrailHelperResult {
@@ -69,6 +70,11 @@ export function createCloudTrail(args: CloudTrailHelperArgs): CloudTrailHelperRe
     );
   }
 
+  const trailOpts: pulumi.CustomResourceOptions = {
+    parent: args.parent,
+    ...(args.dependsOn !== undefined ? { dependsOn: args.dependsOn } : {}),
+  };
+
   result.trail = new aws.cloudtrail.Trail(
     `${args.namePrefix}-trail`,
     {
@@ -81,7 +87,7 @@ export function createCloudTrail(args: CloudTrailHelperArgs): CloudTrailHelperRe
       eventSelectors,
       tags: args.tags,
     },
-    parent,
+    trailOpts,
   );
 
   return result;

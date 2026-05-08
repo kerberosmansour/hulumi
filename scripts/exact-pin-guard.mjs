@@ -22,15 +22,15 @@ const LOCKFILE = join(REPO_ROOT, "pnpm-lock.yaml");
 const ALLOWED = [
   {
     name: "@pulumi/pulumi",
-    version: "3.236.0",
+    version: "3.232.0",
     integrity:
-      "sha512-b71QNLnRrNvNJjD+ypC1hYDf6ds/BL64nhr6RxX5jAxHQDMlzNEiO2mQpPGNtnk5+fd5zNPoIfKLMG/nMEZrjQ==",
+      "sha512-5Pl48cCwOOZEvG7b6w6sErrD1D/QiEwiPqEtHCIzF/alU0yzFjo95uxNteKFlt0LsnzWsZ58DJHgBe9gurjIFg==",
   },
   {
     name: "@pulumi/aws",
-    version: "7.29.0",
+    version: "7.27.0",
     integrity:
-      "sha512-gft+uyW9KGhw9OM4Vy5xxgIlN+6Arw3sPDRMg7Ssgj2Aiiu6VagHi2/SWmawwP327Jv7o8QlrNFpP1aq8/f/VA==",
+      "sha512-I3zArWb8F8QVfcWhBBW8h4dB1Omb823G3H2Ej66t0PFyfUHC7t79MDlG0UvoaZqrmXkDG7nFVFB4xdQTZ62R6w==",
   },
   {
     name: "@pulumi/policy",

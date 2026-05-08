@@ -97,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           for pkg in baseline policies drift k8s-baseline; do
-            npx --yes @cyclonedx/cdxgen@11 \
+            npx --yes @cyclonedx/cdxgen@11.10.0 \
               --type js \
               --no-recurse \
               --spec-version 1.5 \

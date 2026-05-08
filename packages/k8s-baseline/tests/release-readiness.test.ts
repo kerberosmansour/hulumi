@@ -61,7 +61,7 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
       // pnpm-lock.yaml natively (sidesteps the Corepack interception
       // that broke the previous @cyclonedx/cyclonedx-npm approach).
       expect(yml).toMatch(/for pkg in baseline policies drift k8s-baseline/);
-      expect(yml).toMatch(/@cyclonedx\/cdxgen/);
+      expect(yml).toMatch(/@cyclonedx\/cdxgen@11\.10\.0/);
       // The output-file template uses the loop variable.
       expect(yml).toMatch(/sbom-\$\{pkg\}\.cdx\.json/);
     });

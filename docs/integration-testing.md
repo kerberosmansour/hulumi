@@ -115,12 +115,15 @@ AWS_REGION=us-east-1 \
 pnpm --filter @hulumi/baseline test -- tests/integration/
 ```
 
-Current status: the weekly workflow is wired for a real backend, but the
-AccountFoundation and drift real-AWS test bodies are still explicit
-`it.todo()` slots tracked in
-[integration-testing-roadmap.md](integration-testing-roadmap.md). That
-is intentional: the project must not pretend that contract-only runs are
-full e2e coverage.
+Current status: the weekly workflow is wired for a real backend and the
+AccountFoundation sandbox lane has a real Pulumi Automation API
+up/assert/destroy smoke test. The Startup-Hardened AccountFoundation
+lane, AWS API polling assertions, failure-injection cleanup test, and
+drift real-AWS scenarios remain explicit `it.todo()` / skipped roadmap
+work tracked in
+[integration-testing-roadmap.md](integration-testing-roadmap.md). That is
+intentional: the project must not pretend that a smoke pass is full e2e
+coverage.
 
 ## Eventual-consistency contract
 
@@ -147,19 +150,22 @@ The `no-sleep-in-source` AST test asserts every use of `setTimeout` /
 
 ## What an "integration green" looks like
 
-Per the M3 contract, a green weekly integration run means:
+For the currently implemented sandbox smoke lane, a green weekly
+integration run means:
 
-- `pulumi up` on `examples/account-foundation-smoke/` for the matrix
-  tier completes within 15 minutes.
-- Each of the 6 sub-resources (CloudTrail trail, Config recorder,
-  GuardDuty detector, Security Hub hub, IAM password policy, KMS keys)
-  is `ACTIVE` / `ENABLED` per the AWS API.
-- Tags `hulumi:component=AccountFoundation`, `hulumi:tier=<tier>`, and
-  `hulumi:controls=<csv>` appear on every taggable child.
-- `pulumi destroy` cleans up; post-run `aws s3 ls`, `aws kms
-list-keys`, `aws guardduty list-detectors` all return empty for the
-  test stack name prefix.
-- Total run cost (per Cost Explorer query 24h after run) ≤ $5.
+- `pulumi up` for `AccountFoundation(tier: "sandbox")` completes via
+  Pulumi Automation API using OIDC and the configured backend.
+- The stack returns real provider outputs for CloudTrail, Config,
+  GuardDuty, Security Hub, and the four KMS keys.
+- `pulumi destroy` and `removeStack` run in `afterAll`, and the local
+  Pulumi work directory is removed.
+- The Startup-Hardened matrix lane skips with a visible reason until its
+  account-wide assertions are implemented.
+
+The stronger M3 target still remains on the roadmap: poll AWS APIs until
+each sub-resource is `ACTIVE` / `ENABLED`, verify tag propagation on
+every taggable child, and run an orphan-resource sweep by stack-name
+prefix after teardown.
 
 ## Failure modes + diagnostics
 

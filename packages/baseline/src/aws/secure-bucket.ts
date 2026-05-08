@@ -26,6 +26,14 @@ function buildTags(tier: Tier): Record<string, string> {
   };
 }
 
+function bucketNameFromArnOrName(value: string | undefined): string {
+  if (value === undefined || value.length === 0) {
+    throw new Error("Startup-Hardened requires logBucketArn; see docs/tiers.md");
+  }
+  const prefix = "arn:aws:s3:::";
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+}
+
 export class SecureBucket extends pulumi.ComponentResource implements SecureBucketOutputs {
   public readonly bucket: aws.s3.BucketV2;
   public readonly arn: pulumi.Output<string>;
@@ -44,7 +52,14 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     const tags = buildTags(args.tier);
     const parent = { parent: this } as const;
 
-    this.bucket = new aws.s3.BucketV2(`${name}-bucket`, { tags }, parent);
+    this.bucket = new aws.s3.BucketV2(
+      `${name}-bucket`,
+      {
+        ...(args.tier === "startup-hardened" ? { objectLockEnabled: true } : {}),
+        tags,
+      },
+      parent,
+    );
 
     new aws.s3.BucketPublicAccessBlock(
       `${name}-pab`,
@@ -137,7 +152,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
         `${name}-logging`,
         {
           bucket: this.bucket.id,
-          targetBucket: args.logBucketArn as pulumi.Input<string>,
+          targetBucket: pulumi.output(args.logBucketArn).apply(bucketNameFromArnOrName),
           targetPrefix: `${name}/`,
         },
         parent,

@@ -10,6 +10,7 @@ import { SecureBucket } from "../src/aws/secure-bucket";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setup";
 
 const LOG_BUCKET_ARN = "arn:aws:s3:::logs-bucket";
+const LOG_BUCKET_NAME = "logs-bucket";
 
 // Sub-resource types the sandbox tier emits.
 const SANDBOX_SUB_TYPES = [
@@ -115,7 +116,7 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
 
     const logging = findRegistration("aws:s3/bucketLoggingV2:BucketLoggingV2");
     expect(logging).toBeDefined();
-    expect(logging!.inputs.targetBucket).toBe(LOG_BUCKET_ARN);
+    expect(logging!.inputs.targetBucket).toBe(LOG_BUCKET_NAME);
 
     const eds = findRegistration("aws:cloudtrail/eventDataStore:EventDataStore");
     expect(eds).toBeDefined();

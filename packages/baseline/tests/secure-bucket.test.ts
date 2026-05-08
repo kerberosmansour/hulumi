@@ -41,6 +41,11 @@ function findRegistration(type: string): Registration | undefined {
 
 type Registration = (typeof registrations)[number];
 
+function parsePolicy(input: unknown): { Statement: Array<Record<string, unknown>> } {
+  expect(typeof input).toBe("string");
+  return JSON.parse(input as string) as { Statement: Array<Record<string, unknown>> };
+}
+
 function controlsFromTags(tags: Record<string, string>): string[] {
   return Object.entries(tags)
     .filter(([key]) => key === "hulumi:controls" || key.startsWith("hulumi:controls:"))
@@ -94,6 +99,80 @@ describe("SecureBucket — Sandbox tier emits baseline sub-resources (happy path
     const policyRaw = policy!.inputs.policy;
     const policyStr = typeof policyRaw === "string" ? policyRaw : JSON.stringify(policyRaw);
     expect(policyStr).toContain("aws:SecureTransport");
+  });
+});
+
+describe("SecureBucket — AWS service log delivery bucket policy", () => {
+  beforeEach(resetRegistrations);
+
+  it("adds scoped CloudTrail and AWS Config write statements only when opted in", async () => {
+    const bucket = new SecureBucket("sb-log-delivery", {
+      tier: "sandbox",
+      awsServiceLogDelivery: { cloudTrail: true, config: true },
+    });
+    await valueOf(bucket.bucketPolicy.policy);
+    await settlePulumi();
+
+    const policy = findRegistration("aws:s3/bucketPolicy:BucketPolicy");
+    expect(policy).toBeDefined();
+    const doc = parsePolicy(policy!.inputs.policy);
+    const statements = doc.Statement;
+
+    expect(statements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Sid: "DenyInsecureTransport",
+          Principal: "*",
+          Action: "s3:*",
+        }),
+        expect.objectContaining({
+          Sid: "AWSCloudTrailAclCheck",
+          Principal: { Service: "cloudtrail.amazonaws.com" },
+          Action: "s3:GetBucketAcl",
+          Resource: "arn:aws:s3:::sb-log-delivery-bucket-mock",
+        }),
+        expect.objectContaining({
+          Sid: "AWSCloudTrailWrite",
+          Principal: { Service: "cloudtrail.amazonaws.com" },
+          Action: "s3:PutObject",
+          Resource: "arn:aws:s3:::sb-log-delivery-bucket-mock/AWSLogs/111122223333/*",
+        }),
+        expect.objectContaining({
+          Sid: "AWSConfigBucketPermissionsCheck",
+          Principal: { Service: "config.amazonaws.com" },
+          Action: "s3:GetBucketAcl",
+          Resource: "arn:aws:s3:::sb-log-delivery-bucket-mock",
+        }),
+        expect.objectContaining({
+          Sid: "AWSConfigBucketExistenceCheck",
+          Principal: { Service: "config.amazonaws.com" },
+          Action: "s3:ListBucket",
+          Resource: "arn:aws:s3:::sb-log-delivery-bucket-mock",
+        }),
+        expect.objectContaining({
+          Sid: "AWSConfigBucketDelivery",
+          Principal: { Service: "config.amazonaws.com" },
+          Action: "s3:PutObject",
+          Resource: "arn:aws:s3:::sb-log-delivery-bucket-mock/AWSLogs/111122223333/Config/*",
+        }),
+      ]),
+    );
+
+    const cloudTrailWrite = statements.find((s) => s.Sid === "AWSCloudTrailWrite");
+    expect(cloudTrailWrite?.Condition).toEqual({
+      StringEquals: {
+        "s3:x-amz-acl": "bucket-owner-full-control",
+        "aws:SourceAccount": "111122223333",
+      },
+    });
+
+    const configWrite = statements.find((s) => s.Sid === "AWSConfigBucketDelivery");
+    expect(configWrite?.Condition).toEqual({
+      StringEquals: {
+        "s3:x-amz-acl": "bucket-owner-full-control",
+        "AWS:SourceAccount": "111122223333",
+      },
+    });
   });
 });
 

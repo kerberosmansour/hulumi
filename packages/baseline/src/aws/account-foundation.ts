@@ -103,10 +103,12 @@ export class AccountFoundation
             tier: "startup-hardened" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
             logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
+            awsServiceLogDelivery: { cloudTrail: true, config: true },
           }
         : {
             tier: "sandbox" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
+            awsServiceLogDelivery: { cloudTrail: true, config: true },
           };
     const logBucketSelf = new SecureBucket(`${name}-logs`, logBucketArgs, { parent: this });
 
@@ -127,6 +129,7 @@ export class AccountFoundation
       logBucketId: logBucketSelf.bucket.id,
       kmsKeyArn: kmsRing.keys.logs.arn,
       ...(args.tier === "startup-hardened" ? { dataEventBucketArn: logBucketSelf.arn } : {}),
+      dependsOn: [logBucketSelf.bucketPolicy],
     });
 
     // Phase 5 — Config (depends on log bucket).
@@ -135,9 +138,11 @@ export class AccountFoundation
       parent: this,
       namePrefix: name,
       tags,
-      recorderRoleArn: args.iacRoleArn,
       logBucketName: logBucketSelf.bucket.id,
+      logBucketArn: logBucketSelf.arn,
+      logKmsKeyArn: kmsRing.keys.logs.arn,
       ...(args.orgAccountIds !== undefined ? { orgAccountIds: args.orgAccountIds } : {}),
+      dependsOn: [logBucketSelf.bucketPolicy],
     });
 
     // Phase 6 — GuardDuty (no upstream deps within AccountFoundation).

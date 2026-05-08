@@ -38,6 +38,7 @@ function bucketNameFromArnOrName(value: string | undefined): string {
 
 export class SecureBucket extends pulumi.ComponentResource implements SecureBucketOutputs {
   public readonly bucket: aws.s3.BucketV2;
+  public readonly bucketPolicy: aws.s3.BucketPolicy;
   public readonly arn: pulumi.Output<string>;
   public readonly bucketDomainName: pulumi.Output<string>;
   public readonly logBucketArn: pulumi.Output<string | undefined>;
@@ -110,14 +111,14 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       parent,
     );
 
-    new aws.s3.BucketPolicy(
+    this.bucketPolicy = new aws.s3.BucketPolicy(
       `${name}-tls-only-policy`,
       {
         bucket: this.bucket.id,
-        policy: this.bucket.arn.apply((arn: string) =>
-          JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
+        policy: pulumi
+          .all([this.bucket.arn, aws.getCallerIdentityOutput().accountId])
+          .apply(([arn, accountId]) => {
+            const statements: Record<string, unknown>[] = [
               {
                 Sid: "DenyInsecureTransport",
                 Effect: "Deny",
@@ -126,9 +127,85 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
                 Resource: [arn, `${arn}/*`],
                 Condition: { Bool: { "aws:SecureTransport": "false" } },
               },
-            ],
+            ];
+
+            if (args.awsServiceLogDelivery?.cloudTrail === true) {
+              statements.push(
+                {
+                  Sid: "AWSCloudTrailAclCheck",
+                  Effect: "Allow",
+                  Principal: { Service: "cloudtrail.amazonaws.com" },
+                  Action: "s3:GetBucketAcl",
+                  Resource: arn,
+                  Condition: {
+                    StringEquals: {
+                      "aws:SourceAccount": accountId,
+                    },
+                  },
+                },
+                {
+                  Sid: "AWSCloudTrailWrite",
+                  Effect: "Allow",
+                  Principal: { Service: "cloudtrail.amazonaws.com" },
+                  Action: "s3:PutObject",
+                  Resource: `${arn}/AWSLogs/${accountId}/*`,
+                  Condition: {
+                    StringEquals: {
+                      "s3:x-amz-acl": "bucket-owner-full-control",
+                      "aws:SourceAccount": accountId,
+                    },
+                  },
+                },
+              );
+            }
+
+            if (args.awsServiceLogDelivery?.config === true) {
+              statements.push(
+                {
+                  Sid: "AWSConfigBucketPermissionsCheck",
+                  Effect: "Allow",
+                  Principal: { Service: "config.amazonaws.com" },
+                  Action: "s3:GetBucketAcl",
+                  Resource: arn,
+                  Condition: {
+                    StringEquals: {
+                      "AWS:SourceAccount": accountId,
+                    },
+                  },
+                },
+                {
+                  Sid: "AWSConfigBucketExistenceCheck",
+                  Effect: "Allow",
+                  Principal: { Service: "config.amazonaws.com" },
+                  Action: "s3:ListBucket",
+                  Resource: arn,
+                  Condition: {
+                    StringEquals: {
+                      "AWS:SourceAccount": accountId,
+                    },
+                  },
+                },
+                {
+                  Sid: "AWSConfigBucketDelivery",
+                  Effect: "Allow",
+                  Principal: { Service: "config.amazonaws.com" },
+                  Action: "s3:PutObject",
+                  Resource: `${arn}/AWSLogs/${accountId}/Config/*`,
+                  Condition: {
+                    StringEquals: {
+                      "s3:x-amz-acl": "bucket-owner-full-control",
+                      "AWS:SourceAccount": accountId,
+                    },
+                  },
+                },
+              );
+            }
+
+            return JSON.stringify({
+              Version: "2012-10-17",
+              Statement: statements,
+            });
           }),
-        ),
       },
       parent,
     );
@@ -227,6 +304,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
 
     this.registerOutputs({
       bucket: this.bucket,
+      bucketPolicy: this.bucketPolicy,
       arn: this.arn,
       bucketDomainName: this.bucketDomainName,
       logBucketArn: this.logBucketArn,

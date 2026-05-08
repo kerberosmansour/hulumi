@@ -172,10 +172,56 @@
         "iam:CreateServiceLinkedRole",
         "iam:DeleteAccountPasswordPolicy",
         "iam:GetAccountPasswordPolicy",
-        "iam:UpdateAccountPasswordPolicy",
-        "iam:PassRole"
+        "iam:UpdateAccountPasswordPolicy"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "ConfigRecorderRoleLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<SANDBOX_ACCOUNT_ID>:role/af-e2e-*"
+    },
+    {
+      "Sid": "ConfigRecorderManagedPolicyRead",
+      "Effect": "Allow",
+      "Action": ["iam:GetPolicy", "iam:GetPolicyVersion"],
+      "Resource": "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole"
+    },
+    {
+      "Sid": "ConfigRecorderManagedPolicyAttachment",
+      "Effect": "Allow",
+      "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],
+      "Resource": "arn:aws:iam::<SANDBOX_ACCOUNT_ID>:role/af-e2e-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole"
+        }
+      }
+    },
+    {
+      "Sid": "ConfigRecorderPassRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<SANDBOX_ACCOUNT_ID>:role/af-e2e-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "config.amazonaws.com"
+        }
+      }
     }
   ]
 }

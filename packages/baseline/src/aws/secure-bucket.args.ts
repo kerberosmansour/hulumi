@@ -13,10 +13,16 @@ export interface SecureBucketReplicationConfig {
   destinationKmsKeyArn?: pulumi.Input<string>;
 }
 
+export interface SecureBucketAwsServiceLogDeliveryConfig {
+  cloudTrail?: boolean;
+  config?: boolean;
+}
+
 export interface SecureBucketArgs {
   tier: Tier;
   kmsKeyArn?: pulumi.Input<string>;
   logBucketArn?: pulumi.Input<string>;
+  awsServiceLogDelivery?: SecureBucketAwsServiceLogDeliveryConfig;
   objectLock?: SecureBucketObjectLockConfig;
   lifecycleRules?: pulumi.Input<
     pulumi.Input<aws.types.input.s3.BucketLifecycleConfigurationV2Rule>[]

@@ -35,17 +35,65 @@ function buildKeyPolicy(
   orgAccountIds: readonly string[] | undefined,
   service: KmsRingService,
 ): pulumi.Output<string> {
+  const accountId = aws.getCallerIdentityOutput().accountId;
+  const region = aws.getRegionOutput().name;
   const baseStatements: Record<string, unknown>[] = [
     {
       Sid: "EnableRootPermissions",
       Effect: "Allow",
       Principal: {
-        AWS: pulumi.interpolate`arn:aws:iam::${aws.getCallerIdentityOutput().accountId}:root`,
+        AWS: pulumi.interpolate`arn:aws:iam::${accountId}:root`,
       },
       Action: "kms:*",
       Resource: "*",
     },
   ];
+  if (service === "logs") {
+    baseStatements.push(
+      {
+        Sid: "AllowCloudTrailEncryptLogs",
+        Effect: "Allow",
+        Principal: { Service: "cloudtrail.amazonaws.com" },
+        Action: "kms:GenerateDataKey*",
+        Resource: "*",
+        Condition: {
+          StringEquals: {
+            "aws:SourceAccount": accountId,
+          },
+          StringLike: {
+            "kms:EncryptionContext:aws:cloudtrail:arn": pulumi.interpolate`arn:aws:cloudtrail:*:${accountId}:trail/*`,
+          },
+        },
+      },
+      {
+        Sid: "AllowCloudTrailDescribeKey",
+        Effect: "Allow",
+        Principal: { Service: "cloudtrail.amazonaws.com" },
+        Action: "kms:DescribeKey",
+        Resource: "*",
+        Condition: {
+          StringEquals: {
+            "aws:SourceAccount": accountId,
+          },
+        },
+      },
+      {
+        Sid: "AllowConfigLogDeliveryKms",
+        Effect: "Allow",
+        Principal: { Service: "config.amazonaws.com" },
+        Action: ["kms:Decrypt", "kms:GenerateDataKey"],
+        Resource: "*",
+        Condition: {
+          StringEquals: {
+            "AWS:SourceAccount": accountId,
+          },
+          ArnLike: {
+            "AWS:SourceArn": pulumi.interpolate`arn:aws:config:${region}:${accountId}:*`,
+          },
+        },
+      },
+    );
+  }
   if (tier === "startup-hardened" && orgAccountIds && orgAccountIds.length > 0) {
     baseStatements.push({
       Sid: "DenyKmsActionsWithoutHulumiIacRoleTag",

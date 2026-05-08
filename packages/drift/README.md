@@ -132,6 +132,33 @@ The guarded path is deliberately narrow:
   markers in batches of 1000, aborts multipart uploads, and refuses bucket
   names outside the configured prefix.
 
+For read-only discovery, feed known Pulumi state and explicitly scoped
+cloud inventory into `discoverReconcileTargets()` before planning:
+
+```ts
+import { discoverReconcileTargets, OrphanReconciler } from "@hulumi/drift";
+
+const discovered = discoverReconcileTargets({
+  scope: { resourcePrefix: "af-e2e-abc123", regions: ["us-east-1"] },
+  pulumiState: await stack.exportStack(),
+  cloudResources: [
+    {
+      provider: "aws",
+      type: "aws:s3/bucketV2:BucketV2",
+      physicalId: "af-e2e-abc123-logs",
+      region: "us-east-1",
+      tags: { "hulumi:component": "AccountFoundation" },
+    },
+  ],
+});
+
+const plan = new OrphanReconciler().plan({
+  mode: "plan",
+  scope: { resourcePrefix: "af-e2e-abc123", regions: ["us-east-1"] },
+  targets: discovered.targets,
+});
+```
+
 ## Documentation
 
 - [docs/components/drift-classifier.md](../../docs/components/drift-classifier.md)

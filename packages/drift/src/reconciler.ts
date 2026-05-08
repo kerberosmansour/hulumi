@@ -37,6 +37,13 @@ export type ReconcileRisk = "low" | "medium" | "high" | "blocked";
 
 export type OwnershipSignalKind = "pulumi-state" | "tag" | "name-prefix" | "cloudtrail" | "caller";
 
+export type ResourceRelationship =
+  | "state-owned"
+  | "state-missing"
+  | "cloud-only"
+  | "shared-singleton"
+  | "unknown";
+
 export interface ResourceIdentity {
   provider: "aws" | "github" | "kubernetes" | "pulumi" | "unknown";
   type: string;
@@ -61,6 +68,7 @@ export interface ReconcileTarget {
   inState: boolean;
   existsInCloud: boolean;
   ownership: ResourceOwnershipEvidence[];
+  relationship?: ResourceRelationship;
   supportedActions?: ReconcileActionType[];
 }
 
@@ -321,7 +329,7 @@ function classifyTarget(
   if (!inAccount) blocked.push({ action: "blocked", reason: "resource account is outside scope" });
   if (!olderThanMinAge)
     blocked.push({ action: "blocked", reason: "resource is newer than minAgeMinutes" });
-  if (strongSignals < (scope.ownershipMinSignals ?? 2)) {
+  if (!target.inState && target.existsInCloud && strongSignals < (scope.ownershipMinSignals ?? 2)) {
     blocked.push({ action: "blocked", reason: "insufficient ownership evidence" });
   }
   if (singleton && !scope.allowSingletonDelete) {

@@ -56,6 +56,16 @@ export {
   type S3SweeperExecutorArgs,
 } from "./adapters/s3-sweeper";
 export {
+  discoverReconcileTargets,
+  type CloudInventoryResource,
+  type DiscoverReconcileTargetsRequest,
+  type DiscoverReconcileTargetsResult,
+  type DiscoveryDiagnostic,
+  type DiscoveryScope,
+  type PulumiStateExport,
+  type PulumiStateResource,
+} from "./discovery";
+export {
   AutomationApiAdapter,
   type AutomationApiAdapterArgs,
   type AutomationApiPreviewResult,

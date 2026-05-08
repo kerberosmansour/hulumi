@@ -15,77 +15,79 @@ export interface Registration {
 
 export const registrations: Registration[] = [];
 
-pulumi.runtime.setMocks({
-  newResource: (args: pulumi.runtime.MockResourceArgs) => {
-    registrations.push({
-      type: args.type,
-      name: args.name,
-      inputs: { ...(args.inputs as Record<string, unknown>) },
-      ...(args.provider !== undefined ? { provider: args.provider } : {}),
-    });
-    const baseState: Record<string, unknown> = { ...(args.inputs as Record<string, unknown>) };
-    if (args.type.startsWith("aws:s3/bucketV2") || args.type.startsWith("aws:s3/bucket")) {
-      baseState.arn = baseState.arn ?? `arn:aws:s3:::${args.name}-mock`;
-      baseState.bucketDomainName =
-        baseState.bucketDomainName ?? `${args.name}-mock.s3.amazonaws.com`;
-    } else if (args.type.startsWith("aws:cloudtrail/eventDataStore")) {
-      baseState.arn = baseState.arn ?? `arn:aws:cloudtrail:mock:eds/${args.name}`;
-    } else if (args.type === "github:index/repository:Repository") {
-      // Mock state for SecureRepository's child resources. Populated so the
-      // component outputs (`repoFullName`, `repoNodeId`, `defaultBranch`)
-      // resolve under the vitest mock runtime.
-      const repoName = (args.inputs as { name?: string }).name ?? args.name;
-      baseState.fullName = baseState.fullName ?? `mock-org/${repoName}`;
-      baseState.nodeId = baseState.nodeId ?? `MDEwOlJlcG9zaXRvcnk${args.name}`;
-      baseState.defaultBranch = baseState.defaultBranch ?? "main";
-    } else if (args.type === "github:index/repositoryRuleset:RepositoryRuleset") {
-      // Ruleset has no extra populated state beyond the id below.
-    } else if (args.type === "github:index/organizationRuleset:OrganizationRuleset") {
-      // Org ruleset — id is the only output the SecureRepository tests read.
-    } else if (
-      args.type === "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions"
-    ) {
-      // Actions org perms — id only.
-    } else if (
-      args.type ===
-      "github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate"
-    ) {
-      // OIDC template — id only.
-    } else if (args.type === "github:index/organizationSettings:OrganizationSettings") {
-      // Org settings — id only.
-    } else if (args.type === "hulumi:baseline:github:CodeSecurityConfiguration") {
-      // Hulumi-internal dynamic resource for the CSC backend. Echo the id.
-      const orgInput = (args.inputs as { organization?: string }).organization;
-      const id = `csc-${orgInput ?? "mock"}-mock`;
-      baseState.configurationId = baseState.configurationId ?? id;
-      baseState.appliedFlags =
-        baseState.appliedFlags ?? (args.inputs as { flags?: unknown }).flags ?? {};
-    } else {
-      baseState.arn = baseState.arn ?? `arn:aws:mock:${args.type}:${args.name}`;
-    }
-    return {
-      id: `${args.name}_id`,
-      state: baseState,
-    };
-  },
-  call: (args: pulumi.runtime.MockCallArgs) => {
-    if (args.token === "aws:index/getCallerIdentity:getCallerIdentity") {
+if (process.env.HULUMI_INTEGRATION !== "1") {
+  pulumi.runtime.setMocks({
+    newResource: (args: pulumi.runtime.MockResourceArgs) => {
+      registrations.push({
+        type: args.type,
+        name: args.name,
+        inputs: { ...(args.inputs as Record<string, unknown>) },
+        ...(args.provider !== undefined ? { provider: args.provider } : {}),
+      });
+      const baseState: Record<string, unknown> = { ...(args.inputs as Record<string, unknown>) };
+      if (args.type.startsWith("aws:s3/bucketV2") || args.type.startsWith("aws:s3/bucket")) {
+        baseState.arn = baseState.arn ?? `arn:aws:s3:::${args.name}-mock`;
+        baseState.bucketDomainName =
+          baseState.bucketDomainName ?? `${args.name}-mock.s3.amazonaws.com`;
+      } else if (args.type.startsWith("aws:cloudtrail/eventDataStore")) {
+        baseState.arn = baseState.arn ?? `arn:aws:cloudtrail:mock:eds/${args.name}`;
+      } else if (args.type === "github:index/repository:Repository") {
+        // Mock state for SecureRepository's child resources. Populated so the
+        // component outputs (`repoFullName`, `repoNodeId`, `defaultBranch`)
+        // resolve under the vitest mock runtime.
+        const repoName = (args.inputs as { name?: string }).name ?? args.name;
+        baseState.fullName = baseState.fullName ?? `mock-org/${repoName}`;
+        baseState.nodeId = baseState.nodeId ?? `MDEwOlJlcG9zaXRvcnk${args.name}`;
+        baseState.defaultBranch = baseState.defaultBranch ?? "main";
+      } else if (args.type === "github:index/repositoryRuleset:RepositoryRuleset") {
+        // Ruleset has no extra populated state beyond the id below.
+      } else if (args.type === "github:index/organizationRuleset:OrganizationRuleset") {
+        // Org ruleset — id is the only output the SecureRepository tests read.
+      } else if (
+        args.type === "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions"
+      ) {
+        // Actions org perms — id only.
+      } else if (
+        args.type ===
+        "github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate"
+      ) {
+        // OIDC template — id only.
+      } else if (args.type === "github:index/organizationSettings:OrganizationSettings") {
+        // Org settings — id only.
+      } else if (args.type === "hulumi:baseline:github:CodeSecurityConfiguration") {
+        // Hulumi-internal dynamic resource for the CSC backend. Echo the id.
+        const orgInput = (args.inputs as { organization?: string }).organization;
+        const id = `csc-${orgInput ?? "mock"}-mock`;
+        baseState.configurationId = baseState.configurationId ?? id;
+        baseState.appliedFlags =
+          baseState.appliedFlags ?? (args.inputs as { flags?: unknown }).flags ?? {};
+      } else {
+        baseState.arn = baseState.arn ?? `arn:aws:mock:${args.type}:${args.name}`;
+      }
       return {
-        accountId: "111122223333",
-        arn: "arn:aws:iam::111122223333:user/mock",
-        userId: "MOCKID",
+        id: `${args.name}_id`,
+        state: baseState,
       };
-    }
-    if (args.token === "aws:index/getRegion:getRegion") {
-      return {
-        name: "us-east-1",
-        description: "US East (N. Virginia)",
-        endpoint: "ec2.us-east-1.amazonaws.com",
-      };
-    }
-    return args.inputs;
-  },
-});
+    },
+    call: (args: pulumi.runtime.MockCallArgs) => {
+      if (args.token === "aws:index/getCallerIdentity:getCallerIdentity") {
+        return {
+          accountId: "111122223333",
+          arn: "arn:aws:iam::111122223333:user/mock",
+          userId: "MOCKID",
+        };
+      }
+      if (args.token === "aws:index/getRegion:getRegion") {
+        return {
+          name: "us-east-1",
+          description: "US East (N. Virginia)",
+          endpoint: "ec2.us-east-1.amazonaws.com",
+        };
+      }
+      return args.inputs;
+    },
+  });
+}
 
 export function resetRegistrations(): void {
   registrations.length = 0;

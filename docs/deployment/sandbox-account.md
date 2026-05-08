@@ -105,12 +105,14 @@ The strict `sub` filter accepts only workflows running against the
 `main` branch of `kerberosmansour/hulumi`. PRs from feature branches
 and forks cannot assume this role.
 
-- **Permissions**: attach `AdministratorAccess`. Yes, that's wide —
-  but the account is dedicated and isolated, M5's SCP template will
-  constrain it later, and trying to scope down to exactly the
-  CloudTrail/Config/GuardDuty/SecurityHub/IAM/KMS/S3 actions M3 needs
-  takes ~150 lines of IAM JSON we'd then maintain. The
-  dedicated-account boundary is doing the security work here.
+- **Permissions**: attach a customer-managed policy based on
+  [`weekly-integration-iam-policy.json`](weekly-integration-iam-policy.json),
+  replacing `<SANDBOX_ACCOUNT_ID>` before upload. Do **not** attach
+  `AdministratorAccess` for the public-repo workflow. The sandbox
+  account remains the outer blast-radius boundary, but the role should
+  still be scoped to the AccountFoundation integration surface:
+  CloudTrail, Config, GuardDuty, Security Hub, IAM password policy /
+  Access Analyzer, KMS, CloudWatch Logs, and `hulumi-*` S3 buckets.
 - **Role name**: `hulumi-sandbox-iac-role`.
 - **Tags**:
 
@@ -156,11 +158,50 @@ times:
 Variables are not secrets — the role ARN is not sensitive on its own
 (only the OIDC token is, and that's ephemeral and scoped to your repo).
 
-### 8. (Optional) Pulumi Cloud token for real-AWS runs
+### 8. Create the private S3 Pulumi state backend
 
-The weekly workflow runs in **CONTRACT-ONLY mode** without
-`PULUMI_ACCESS_TOKEN`. To enable the full
-`pulumi up` → `pulumi destroy` cycle:
+Use self-managed S3 state by default. The workflow can create and
+harden the bucket idempotently after assuming the OIDC role, but you can
+also create it up front:
+
+```sh
+ACCOUNT_ID=<SANDBOX_ACCOUNT_ID>
+REGION=us-east-1
+BUCKET="hulumi-pulumi-state-${ACCOUNT_ID}"
+
+aws s3api create-bucket --bucket "$BUCKET" --region "$REGION"
+
+aws s3api put-public-access-block \
+  --bucket "$BUCKET" \
+  --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+aws s3api put-bucket-versioning \
+  --bucket "$BUCKET" \
+  --versioning-configuration Status=Enabled
+
+aws s3api put-bucket-encryption \
+  --bucket "$BUCKET" \
+  --server-side-encryption-configuration \
+    '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
+```
+
+Then set a repository **variable**:
+
+| Name                 | Value                                                    |
+| -------------------- | -------------------------------------------------------- |
+| `PULUMI_BACKEND_URL` | `s3://hulumi-pulumi-state-<account-id>?region=us-east-1` |
+
+The workflow refuses state bucket names that do not start with
+`hulumi-` and end with the sandbox account ID. That prevents accidentally
+pointing an open-source CI run at a production or shared state bucket.
+
+### 9. (Optional) Pulumi Cloud token for real-AWS runs
+
+Pulumi Cloud is still supported, but S3 state above is preferred for
+this project. If you intentionally choose Pulumi Cloud, leave
+`PULUMI_BACKEND_URL` unset and add `PULUMI_ACCESS_TOKEN` as a GitHub
+secret:
 
 - Sign in at <https://app.pulumi.com> (free for individuals).
 - Account settings → **Access Tokens** → **Create token** → name
@@ -172,8 +213,25 @@ The weekly workflow runs in **CONTRACT-ONLY mode** without
   | --------------------- | ------------------- |
   | `PULUMI_ACCESS_TOKEN` | the `pul-...` token |
 
-Until this secret is set, the weekly workflow runs the mock unit +
-integration test paths only and logs that it's in contract-only mode.
+If neither `PULUMI_BACKEND_URL` nor `PULUMI_ACCESS_TOKEN` is configured,
+the weekly workflow runs the mock unit + integration test paths only and
+logs that it's in contract-only mode. If both are configured, the
+workflow fails closed so state cannot split between two backends.
+
+## Public-Repo Safety Boundaries
+
+- The OIDC role trust policy must stay scoped to the `main` branch of
+  this repository. Do not broaden it to `pull_request`, wildcard refs,
+  or forks.
+- Keep the sandbox account separate from production and shared
+  workloads. The integration should never need a VPC, public ALB, public
+  security group, EC2 instance, EKS cluster, or public S3 bucket.
+- Use repository variables for non-secret identifiers and repository
+  secrets only for true secrets. The S3 backend URL is not a secret; AWS
+  credentials remain ephemeral OIDC credentials.
+- Review workflow logs before sharing failure artifacts. State exports
+  can include ARNs, bucket names, and account topology even when they do
+  not contain secret values.
 
 ## Verification
 
@@ -184,8 +242,10 @@ After bootstrap, manually trigger
 - The OIDC step assumes `hulumi-sandbox-iac-role` and prints the
   matching `Account: <id>` from `sts:GetCallerIdentity`.
 - Mock test step passes 20+ tests.
-- Real-AWS step is skipped if `PULUMI_ACCESS_TOKEN` is unset; runs
-  `pulumi up` + `pulumi destroy` if set.
+- Real-AWS steps are skipped only when both `PULUMI_BACKEND_URL` and
+  `PULUMI_ACCESS_TOKEN` are unset. With `PULUMI_BACKEND_URL` set, the
+  workflow hardens the private S3 backend and is allowed to run the
+  integration gate.
 
 ## Teardown — destroying the sandbox account
 

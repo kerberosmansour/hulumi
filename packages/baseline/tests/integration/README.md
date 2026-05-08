@@ -14,8 +14,7 @@ for the full workflow + cost contract.
 
 ```sh
 HULUMI_INTEGRATION=1 \
-PULUMI_BACKEND_URL=https://api.pulumi.com \
-PULUMI_ACCESS_TOKEN=pul-... \
+PULUMI_BACKEND_URL='s3://hulumi-pulumi-state-<sandbox-account-id>?region=us-east-1' \
 AWS_REGION=us-east-1 \
 pnpm --filter @hulumi/baseline test -- tests/integration/
 ```

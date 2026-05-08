@@ -96,15 +96,23 @@ These are cheap to run and catch a class of regressions automated review doesn't
 
 ### 3. Real-AWS integration (weekly, gated)
 
-`.github/workflows/weekly-integration.yml` runs Sundays at 04:00 UTC, matrix `tier ∈ {sandbox, startup-hardened}`, against a sandbox AWS account via OIDC. Without a `PULUMI_ACCESS_TOKEN`, the workflow runs in **contract-only mode** (mocks-only path) and proves the OIDC role is still alive. With the token, it does a full `pulumi up` → `pulumi destroy` cycle.
+`.github/workflows/weekly-integration.yml` runs Sundays at 04:00 UTC,
+matrix `tier ∈ {sandbox, startup-hardened}`, against a sandbox AWS
+account via OIDC. Without `PULUMI_BACKEND_URL` or `PULUMI_ACCESS_TOKEN`,
+the workflow runs in **contract-only mode** (mocks-only path) and proves
+the OIDC role is still alive. With exactly one backend configured, it is
+allowed to run real Pulumi operations. Prefer a private S3
+`PULUMI_BACKEND_URL` over a Pulumi Cloud token for this public repo.
 
 Local equivalent:
 
 ```bash
 # Mocks-only:
 pnpm test:integration
-# Real-AWS (requires PULUMI_ACCESS_TOKEN + AWS creds + a sandbox account):
-HULUMI_INTEGRATION=1 pnpm test:integration
+# Real-AWS gate (requires AWS creds + one Pulumi backend):
+HULUMI_INTEGRATION=1 \
+PULUMI_BACKEND_URL='s3://hulumi-pulumi-state-<sandbox-account-id>?region=us-east-1' \
+pnpm test:integration
 ```
 
 See [integration-testing.md](./integration-testing.md) for cost contract and teardown rules.

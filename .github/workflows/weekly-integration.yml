@@ -1,13 +1,14 @@
-# Weekly real-AWS integration for AccountFoundation. Cron Sunday 04:00
-# UTC + workflow_dispatch for ad-hoc verification. OIDC only — no
-# long-lived AWS credentials. 30-min job timeout (15-min Pulumi up + 10
-# min destroy + 5 min slop). Teardown runs on failure (cost safety per
-# global red lines).
+# Weekly integration for AccountFoundation. Cron Sunday 04:00 UTC +
+# workflow_dispatch for ad-hoc verification. OIDC only — no long-lived
+# AWS credentials. 30-min job timeout (15-min Pulumi up + 10 min destroy
+# + 5 min slop). Teardown runs on failure (cost safety per global red
+# lines).
 #
-# State backend: this workflow uses Pulumi Cloud via PULUMI_ACCESS_TOKEN
-# (set as a GitHub repo secret). The token is opt-in: until set, the job
-# falls through the env-guard step with a no-op and a clear log line.
-# Document at docs/integration-testing.md.
+# State backend: prefer a self-managed, private S3 backend via the
+# non-secret PULUMI_BACKEND_URL repository variable. Pulumi Cloud remains
+# supported via PULUMI_ACCESS_TOKEN for users who opt in. If neither is
+# present, the workflow runs CONTRACT-ONLY paths and logs that no pulumi
+# up will run. Documented at docs/integration-testing.md.
 
 name: weekly-integration
 on:
@@ -29,6 +30,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: weekly-integration-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   integration:
     name: account-foundation integration (real AWS)
@@ -36,6 +41,11 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # AccountFoundation touches account-wide services such as Config,
+      # GuardDuty, Security Hub, and IAM password policy. Keep tiers
+      # serialized so the sandbox account is never mutated by two jobs at
+      # once.
+      max-parallel: 1
       matrix:
         tier:
           - sandbox
@@ -46,20 +56,79 @@ jobs:
       - name: Confirm required repo secrets/variables are set
         id: env
         run: |
-          MISSING=""
           : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID variable not set}"
           : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN variable not set}"
           : "${REGION:?AWS_SANDBOX_REGION variable not set}"
-          if [ -z "$PULUMI_ACCESS_TOKEN" ]; then
-            echo "PULUMI_ACCESS_TOKEN secret not set — running in CONTRACT-ONLY mode (no pulumi up)."
-            echo "contract_only=true" >> $GITHUB_OUTPUT
-          else
-            echo "contract_only=false" >> $GITHUB_OUTPUT
-          fi
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const out = process.env.GITHUB_OUTPUT;
+          const backendUrl = (process.env.PULUMI_BACKEND_URL || "").trim();
+          const token = (process.env.PULUMI_ACCESS_TOKEN || "").trim();
+          const region = (process.env.REGION || "").trim();
+          const accountId = (process.env.ACCOUNT_ID || "").trim();
+
+          function write(name, value) {
+            fs.appendFileSync(out, `${name}=${value}\n`);
+          }
+
+          if (backendUrl && token) {
+            console.error(
+              "Set exactly one Pulumi backend: PULUMI_BACKEND_URL (preferred S3 backend) or PULUMI_ACCESS_TOKEN (Pulumi Cloud).",
+            );
+            process.exit(1);
+          }
+
+          if (!backendUrl && !token) {
+            console.log(
+              "No Pulumi state backend configured — running in CONTRACT-ONLY mode (no pulumi up).",
+            );
+            write("contract_only", "true");
+            write("backend_mode", "none");
+            process.exit(0);
+          }
+
+          if (backendUrl) {
+            let parsed;
+            try {
+              parsed = new URL(backendUrl);
+            } catch (err) {
+              console.error(`PULUMI_BACKEND_URL is not a valid URL: ${err.message}`);
+              process.exit(1);
+            }
+            if (parsed.protocol !== "s3:") {
+              console.error(
+                "PULUMI_BACKEND_URL must use s3:// for this public-repo workflow. Refusing file:// and other local/ambient backends.",
+              );
+              process.exit(1);
+            }
+            const bucket = parsed.hostname;
+            const backendRegion = parsed.searchParams.get("region") || region;
+            if (!bucket || !backendRegion) {
+              console.error("PULUMI_BACKEND_URL must include an S3 bucket and region.");
+              process.exit(1);
+            }
+            if (!bucket.startsWith("hulumi-") || !bucket.endsWith(accountId)) {
+              console.error(
+                "State bucket name must start with 'hulumi-' and end with the sandbox account ID to avoid shared/prod buckets.",
+              );
+              process.exit(1);
+            }
+            write("contract_only", "false");
+            write("backend_mode", "s3");
+            write("state_bucket", bucket);
+            write("state_region", backendRegion);
+            process.exit(0);
+          }
+
+          write("contract_only", "false");
+          write("backend_mode", "pulumi-cloud");
+          NODE
         env:
           ACCOUNT_ID: ${{ vars.AWS_SANDBOX_ACCOUNT_ID }}
           ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
           REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
@@ -78,6 +147,37 @@ jobs:
           aws-region: ${{ vars.AWS_SANDBOX_REGION }}
           role-session-name: hulumi-weekly-integration-${{ matrix.tier }}
 
+      - name: Ensure S3 Pulumi state backend is hardened
+        if: steps.env.outputs.backend_mode == 's3'
+        env:
+          STATE_BUCKET: ${{ steps.env.outputs.state_bucket }}
+          STATE_REGION: ${{ steps.env.outputs.state_region }}
+        run: |
+          if ! aws s3api head-bucket --bucket "$STATE_BUCKET" >/dev/null 2>&1; then
+            if [ "$STATE_REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$STATE_BUCKET" --region "$STATE_REGION"
+            else
+              aws s3api create-bucket \
+                --bucket "$STATE_BUCKET" \
+                --region "$STATE_REGION" \
+                --create-bucket-configuration "LocationConstraint=$STATE_REGION"
+            fi
+          fi
+
+          aws s3api put-public-access-block \
+            --bucket "$STATE_BUCKET" \
+            --public-access-block-configuration \
+              BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+          aws s3api put-bucket-versioning \
+            --bucket "$STATE_BUCKET" \
+            --versioning-configuration Status=Enabled
+
+          aws s3api put-bucket-encryption \
+            --bucket "$STATE_BUCKET" \
+            --server-side-encryption-configuration \
+              '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
+
       - name: Build packages
         run: pnpm -r build
 
@@ -86,12 +186,13 @@ jobs:
           HULUMI_INTEGRATION: "0"
         run: pnpm --filter @hulumi/baseline test
 
-      - name: Run real-AWS integration (only when PULUMI_ACCESS_TOKEN is set)
+      - name: Run real-AWS integration (only when a Pulumi backend is configured)
         if: steps.env.outputs.contract_only == 'false'
         env:
           HULUMI_INTEGRATION: "1"
           HULUMI_TIER: ${{ matrix.tier }}
           HULUMI_IAC_ROLE_ARN: ${{ vars.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: |
@@ -106,6 +207,8 @@ jobs:
         env:
           HULUMI_INTEGRATION: "1"
           HULUMI_TIER: ${{ matrix.tier }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: pnpm --filter @hulumi/drift test -- tests/integration/
 
@@ -135,6 +238,7 @@ jobs:
           HULUMI_INTEGRATION: "1"
           HULUMI_TEARDOWN_ONLY: "1"
           HULUMI_TIER: ${{ matrix.tier }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
         run: |

@@ -1,0 +1,129 @@
+name: e2e-cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_suffix:
+        description: "10 hex chars from sandbox-<suffix> or the full sandbox-<suffix> name"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: e2e-cleanup-${{ inputs.stack_suffix }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: cleanup AccountFoundation e2e stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Validate cleanup target and required configuration
+        id: env
+        env:
+          STACK_SUFFIX: ${{ inputs.stack_suffix }}
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          ROLE_ARN: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN secret not set}"
+          : "${REGION:?AWS_SANDBOX_REGION variable not set}"
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const out = process.env.GITHUB_OUTPUT;
+          const stackSuffix = (process.env.STACK_SUFFIX || "").trim();
+          const backendUrl = (process.env.PULUMI_BACKEND_URL || "").trim();
+          const token = (process.env.PULUMI_ACCESS_TOKEN || "").trim();
+          const region = (process.env.REGION || "").trim();
+          const accountId = (process.env.ACCOUNT_ID || "").trim();
+          const roleArn = (process.env.ROLE_ARN || "").trim();
+          const match = /^(?:sandbox-)?([a-f0-9]{10})$/.exec(stackSuffix);
+
+          function write(name, value) {
+            fs.appendFileSync(out, `${name}=${value}\n`);
+          }
+
+          for (const value of [accountId, roleArn, backendUrl, token]) {
+            if (value) {
+              console.log(`::add-mask::${value}`);
+            }
+          }
+
+          if (!match) {
+            console.error("stack_suffix must be 10 lowercase hex chars or sandbox-<10 lowercase hex chars>.");
+            process.exit(1);
+          }
+
+          if (backendUrl && token) {
+            console.error("Set exactly one Pulumi backend: PULUMI_BACKEND_URL or PULUMI_ACCESS_TOKEN.");
+            process.exit(1);
+          }
+
+          if (!backendUrl && !token) {
+            console.error("Cleanup requires a real Pulumi backend.");
+            process.exit(1);
+          }
+
+          if (backendUrl) {
+            let parsed;
+            try {
+              parsed = new URL(backendUrl);
+            } catch (err) {
+              console.error(`PULUMI_BACKEND_URL is not a valid URL: ${err.message}`);
+              process.exit(1);
+            }
+            if (parsed.protocol !== "s3:") {
+              console.error("PULUMI_BACKEND_URL must use s3:// for this public-repo workflow.");
+              process.exit(1);
+            }
+            const bucket = parsed.hostname;
+            if (!bucket.startsWith("hulumi-") || !bucket.endsWith(accountId)) {
+              console.error("State bucket name must start with 'hulumi-' and end with the sandbox account ID.");
+              process.exit(1);
+            }
+            console.log(`::add-mask::${bucket}`);
+          }
+
+          write("suffix", match[1]);
+          write("region", region);
+          NODE
+
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ steps.env.outputs.region }}
+          role-session-name: hulumi-e2e-cleanup
+
+      - name: Build cleanup dependencies
+        run: pnpm --filter @hulumi/drift build
+
+      - name: Cleanup selected e2e stack
+        env:
+          HULUMI_E2E_STACK_SUFFIX: ${{ steps.env.outputs.suffix }}
+          AWS_REGION: ${{ steps.env.outputs.region }}
+          AWS_DEFAULT_REGION: ${{ steps.env.outputs.region }}
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: node scripts/cleanup-e2e-stack.mjs

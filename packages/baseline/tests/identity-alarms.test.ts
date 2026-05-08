@@ -127,6 +127,29 @@ describe("IdentityAlarms — canonical 6 events", () => {
     expect(pattern).toContain("$.userIdentity.invokedBy NOT EXISTS");
   });
 
+  it("cloudtrail-tampering filter includes selector-changing APIs", async () => {
+    new IdentityAlarms("ia", {
+      tier: "sandbox",
+      trailLogGroupName: TRAIL_LOG_GROUP,
+      criticalTopicArn: CRITICAL_ARN,
+      highTopicArn: HIGH_ARN,
+    });
+    await settlePulumi();
+
+    const trailFilter = registrations.find(
+      (r) =>
+        r.type === "aws:cloudwatch/logMetricFilter:LogMetricFilter" &&
+        r.inputs.name === "ia-identity-cloudtrail-tampering",
+    );
+    expect(trailFilter).toBeDefined();
+    const pattern = trailFilter!.inputs.pattern as string;
+    expect(pattern).toContain('$.eventName = "StopLogging"');
+    expect(pattern).toContain('$.eventName = "DeleteTrail"');
+    expect(pattern).toContain('$.eventName = "UpdateTrail"');
+    expect(pattern).toContain('$.eventName = "PutEventSelectors"');
+    expect(pattern).toContain('$.eventName = "PutInsightSelectors"');
+  });
+
   it("alarm description includes runbookUrl when provided", async () => {
     new IdentityAlarms("ia", {
       tier: "sandbox",

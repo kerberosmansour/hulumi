@@ -24,6 +24,7 @@
     "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs attestation-dry-run on every PR'",
     "release:verify-attestations": "for pkg in baseline policies drift; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
     "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml — see docs/integration-testing.md.' && exit 0",
+    "cleanup:e2e-stack": "node scripts/cleanup-e2e-stack.mjs",
     "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",
     "lint:license-boundary": "node scripts/license-boundary-lint.mjs",
     "lint:exact-pin-guard": "node scripts/exact-pin-guard.mjs",

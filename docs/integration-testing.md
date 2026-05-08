@@ -78,6 +78,22 @@ curious readers:
   or full state exports. Failure artifacts are limited to Pulumi working
   metadata and should be deleted once the failure is understood.
 
+## Failed-run cleanup
+
+If a real-AWS run fails during teardown, use the maintainer-only
+[`e2e-cleanup`](../.github/workflows/e2e-cleanup.yml) workflow instead
+of ad hoc console deletion. Pass the 10-character suffix from the failed
+stack name (`sandbox-<suffix>`). The cleanup script selects that Pulumi
+stack from the private backend, drains only S3 buckets whose physical
+name starts with `af-e2e-<suffix>-`, then runs `pulumi destroy` and
+`removeStack`.
+
+The cleanup path is intentionally Pulumi-state driven. `@hulumi/drift`
+is useful for classifying drift, but it is not a deletion engine and its
+real-AWS cleanup scenarios are still roadmap work; the cleanup workflow
+builds the drift package only as a dependency check and keeps the actual
+destructive action scoped to Pulumi-owned e2e state.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

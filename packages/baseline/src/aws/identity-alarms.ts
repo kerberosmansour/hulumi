@@ -89,7 +89,7 @@ const CANONICAL_EVENTS: readonly CanonicalEvent[] = [
     description:
       "CloudTrail logging was stopped, deleted, or modified. This is what attackers do to hide their tracks. Investigate IMMEDIATELY.",
     pattern:
-      '{ ($.eventName = "StopLogging") || ($.eventName = "DeleteTrail") || ($.eventName = "UpdateTrail") }',
+      '{ ($.eventName = "StopLogging") || ($.eventName = "DeleteTrail") || ($.eventName = "UpdateTrail") || ($.eventName = "PutEventSelectors") || ($.eventName = "PutInsightSelectors") }',
     metricName: "CloudTrailTampering",
   },
   {

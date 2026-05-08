@@ -71,14 +71,16 @@ The full tier matrix lives in
 
 ## Args
 
-| Arg                     | Type                              | Required?                  | Default                                                                      |
-| ----------------------- | --------------------------------- | -------------------------- | ---------------------------------------------------------------------------- |
-| `tier`                  | `"sandbox" \| "startup-hardened"` | yes                        | —                                                                            |
-| `iacRoleArn`            | `Input<string>`                   | yes                        | — (must be non-empty; should carry `hulumi:iac-role=true`)                   |
-| `cisVersion`            | `"v5.0.0" \| "v7.0.0"`            | no                         | `v5.0.0` (v7.0.0 accepted with a warning — AWS Security Hub maxes at v5.0.0) |
-| `region`                | `Input<string>`                   | no                         | Pulumi provider's region                                                     |
-| `logBucketForceDestroy` | `Input<boolean>`                  | no                         | `false`; intended only for ephemeral test stacks                             |
-| `orgAccountIds`         | `readonly string[]`               | no (Startup-Hardened only) | —                                                                            |
+| Arg                             | Type                              | Required?                  | Default                                                                      |
+| ------------------------------- | --------------------------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| `tier`                          | `"sandbox" \| "startup-hardened"` | yes                        | —                                                                            |
+| `iacRoleArn`                    | `Input<string>`                   | yes                        | — (must be non-empty; should carry `hulumi:iac-role=true`)                   |
+| `cisVersion`                    | `"v5.0.0" \| "v7.0.0"`            | no                         | `v5.0.0` (v7.0.0 accepted with a warning — AWS Security Hub maxes at v5.0.0) |
+| `region`                        | `Input<string>`                   | no                         | Pulumi provider's region                                                     |
+| `logBucketForceDestroy`         | `Input<boolean>`                  | no                         | `false`; intended only for ephemeral test stacks                             |
+| `existingGuardDutyDetectorId`   | `Input<string>`                   | no                         | —; references an existing regional detector instead of creating one          |
+| `useExistingSecurityHubAccount` | `boolean`                         | no                         | `false`; references an already-enabled regional Security Hub account         |
+| `orgAccountIds`                 | `readonly string[]`               | no (Startup-Hardened only) | —                                                                            |
 
 ## Outputs
 

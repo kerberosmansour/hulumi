@@ -315,6 +315,36 @@ describe("AccountFoundation — real provider input compatibility", () => {
     const ephemeralBucket = registrations.find((r) => r.type === "aws:s3/bucketV2:BucketV2");
     expect(ephemeralBucket?.inputs.forceDestroy).toBe(true);
   });
+
+  it("references an existing GuardDuty detector without creating a new one", async () => {
+    const existingDetectorId = "existing-detector-123";
+    const af = new AccountFoundation("af-existing-guardduty", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+      existingGuardDutyDetectorId: existingDetectorId,
+    });
+    await expect(valueOf(af.guardDutyDetectorId)).resolves.toBe(existingDetectorId);
+    await settlePulumi();
+
+    const detector = registrations.find((r) => r.type === "aws:guardduty/detector:Detector");
+    expect(detector?.id).toBe(existingDetectorId);
+    expect(detector?.inputs.enable).toBeUndefined();
+    expect(detector?.inputs.tags).toBeUndefined();
+  });
+
+  it("references an existing Security Hub account without enabling or disabling it", async () => {
+    const af = new AccountFoundation("af-existing-securityhub", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+      useExistingSecurityHubAccount: true,
+    });
+    await valueOf(af.securityHubHubArn);
+    await settlePulumi();
+
+    const hub = registrations.find((r) => r.type === "aws:securityhub/account:Account");
+    expect(hub?.id).toBe("111122223333");
+    expect(hub?.inputs.enableDefaultStandards).toBeUndefined();
+  });
 });
 
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {
@@ -354,6 +384,17 @@ describe("AccountFoundation — invalid iacRoleArn throws", () => {
     expect(() => new AccountFoundation("af-bad", { tier: "sandbox", iacRoleArn: "" })).toThrowError(
       /iacRoleArn must be a non-empty string ARN/,
     );
+  });
+
+  it("constructor throws on empty existingGuardDutyDetectorId", () => {
+    expect(
+      () =>
+        new AccountFoundation("af-bad-guardduty", {
+          tier: "sandbox",
+          iacRoleArn: IAC_ROLE_ARN,
+          existingGuardDutyDetectorId: "",
+        }),
+    ).toThrowError(/existingGuardDutyDetectorId must be non-empty/);
   });
 });
 

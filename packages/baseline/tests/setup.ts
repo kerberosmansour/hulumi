@@ -10,6 +10,7 @@ export interface Registration {
   type: string;
   name: string;
   inputs: Record<string, unknown>;
+  id?: string;
   provider?: string;
 }
 
@@ -18,10 +19,12 @@ export const registrations: Registration[] = [];
 if (process.env.HULUMI_INTEGRATION !== "1") {
   pulumi.runtime.setMocks({
     newResource: (args: pulumi.runtime.MockResourceArgs) => {
+      const existingId = args.id !== undefined && args.id.length > 0 ? args.id : undefined;
       registrations.push({
         type: args.type,
         name: args.name,
         inputs: { ...(args.inputs as Record<string, unknown>) },
+        ...(existingId !== undefined ? { id: existingId } : {}),
         ...(args.provider !== undefined ? { provider: args.provider } : {}),
       });
       const baseState: Record<string, unknown> = { ...(args.inputs as Record<string, unknown>) };
@@ -65,7 +68,7 @@ if (process.env.HULUMI_INTEGRATION !== "1") {
         baseState.arn = baseState.arn ?? `arn:aws:mock:${args.type}:${args.name}`;
       }
       return {
-        id: `${args.name}_id`,
+        id: existingId ?? `${args.name}_id`,
         state: baseState,
       };
     },

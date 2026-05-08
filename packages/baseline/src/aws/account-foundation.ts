@@ -157,6 +157,9 @@ export class AccountFoundation
       parent: this,
       namePrefix: name,
       tags,
+      ...(args.existingGuardDutyDetectorId !== undefined
+        ? { existingDetectorId: args.existingGuardDutyDetectorId }
+        : {}),
     });
 
     // Phase 7 — Security Hub (depends on GuardDuty Detector + Features).
@@ -169,6 +172,7 @@ export class AccountFoundation
       guardDutyFeatures: guardDuty.features,
       region,
       ...(args.cisVersion !== undefined ? { cisVersion: args.cisVersion } : {}),
+      ...(args.useExistingSecurityHubAccount === true ? { useExistingAccount: true } : {}),
     });
 
     // Phase 8 — Outputs.

@@ -4,12 +4,14 @@
 # @hulumi/k8s-baseline.GitHubAppCredential provisioned.
 #
 # Usage:
-#   populate-github-app-secret.sh <SECRET_ID> <APP_ID> <PEM_PATH>
+#   populate-github-app-secret.sh <SECRET_ID> <APP_ID> <PEM_PATH> [REPOS_JSON] [PERMISSIONS_JSON]
 #
 # Where:
 #   SECRET_ID   — AWS Secrets Manager secret name or ARN (the component output)
 #   APP_ID      — GitHub App's numeric ID
 #   PEM_PATH    — path to the App's private key PEM file on disk
+#   REPOS_JSON   — optional JSON array of repository names (default: ["*"])
+#   PERMISSIONS_JSON — optional JSON object of reduced app permissions (default: {})
 #
 # Side-effects:
 #   - Calls AWS CLI's `secretsmanager put-secret-value`
@@ -31,8 +33,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-if [ "$#" -ne 3 ]; then
-  echo "usage: $0 <SECRET_ID> <APP_ID> <PEM_PATH>" >&2
+if [ "$#" -lt 3 ] || [ "$#" -gt 5 ]; then
+  echo "usage: $0 <SECRET_ID> <APP_ID> <PEM_PATH> [REPOS_JSON] [PERMISSIONS_JSON]" >&2
   exit 2
 fi
 
@@ -59,6 +61,17 @@ if [ ! -f "${PEM_PATH}" ]; then
   exit 2
 fi
 
+REPOS_JSON_INPUT="${4:-["*"]}"
+PERMISSIONS_JSON_INPUT="${5:-{}}"
+
+if ! printf '%s' "${REPOS_JSON_INPUT}" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null; then
+  echo "error: REPOS_JSON must be a non-empty JSON array of strings" >&2
+  exit 2
+fi
+if ! printf '%s' "${PERMISSIONS_JSON_INPUT}" | jq -e 'type == "object"' >/dev/null; then
+  echo "error: PERMISSIONS_JSON must be a JSON object" >&2
+  exit 2
+fi
 if ! command -v aws >/dev/null 2>&1; then
   echo "error: aws CLI not on PATH" >&2
   exit 2
@@ -79,7 +92,8 @@ jq -nRs --arg app_id "${APP_ID}" \
 
 PRIVATE_KEY_JSON=$(jq -Rs '.' < "${PEM_PATH}")
 PAYLOAD=$(jq -n --arg app_id "${APP_ID}" --argjson private_key "${PRIVATE_KEY_JSON}" \
-  '{app_id: $app_id, private_key: $private_key}')
+  --argjson repos "${REPOS_JSON_INPUT}" --argjson permissions "${PERMISSIONS_JSON_INPUT}" \
+  '{app_id: $app_id, private_key: $private_key, repos: $repos, permissions: $permissions}')
 
 printf '%s' "${PAYLOAD}" > "${scratch}"
 

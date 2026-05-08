@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { SecureBucket } from "../src/aws/secure-bucket";
+import { AWS_TAG_VALUE_MAX_LENGTH } from "../src/aws/tags";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setup";
 
 const LOG_BUCKET_ARN = "arn:aws:s3:::logs-bucket";
@@ -39,6 +40,13 @@ function findRegistration(type: string): Registration | undefined {
 }
 
 type Registration = (typeof registrations)[number];
+
+function controlsFromTags(tags: Record<string, string>): string[] {
+  return Object.entries(tags)
+    .filter(([key]) => key === "hulumi:controls" || key.startsWith("hulumi:controls:"))
+    .sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true }))
+    .flatMap(([, value]) => value.split("+").filter((control) => control.length > 0));
+}
 
 describe("SecureBucket — Sandbox tier emits baseline sub-resources (happy path)", () => {
   beforeEach(resetRegistrations);
@@ -187,8 +195,14 @@ describe("SecureBucket — tags emitted on all sub-resources (compatibility)", (
     expect(tags["hulumi:component"]).toBe("SecureBucket");
     expect(tags["hulumi:tier"]).toBe("startup-hardened");
     expect(tags["hulumi:controls"]).toBeDefined();
-    // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
-    const controlCount = tags["hulumi:controls"].split("+").filter((s) => s.length > 0).length;
+    for (const [key, value] of Object.entries(tags)) {
+      if (key === "hulumi:controls" || key.startsWith("hulumi:controls:")) {
+        // Separator is `+` (not `,`) — S3 tag values disallow `,`. See #36.
+        expect(value).not.toContain(",");
+        expect(value.length).toBeLessThanOrEqual(AWS_TAG_VALUE_MAX_LENGTH);
+      }
+    }
+    const controlCount = controlsFromTags(tags).length;
     expect(controlCount).toBeGreaterThanOrEqual(5);
   });
 });

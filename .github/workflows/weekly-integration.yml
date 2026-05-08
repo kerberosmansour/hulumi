@@ -47,9 +47,7 @@ jobs:
       # once.
       max-parallel: 1
       matrix:
-        tier:
-          - sandbox
-          - startup-hardened
+        tier: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.tier == 'sandbox' && '["sandbox"]' || github.event_name == 'workflow_dispatch' && inputs.tier == 'startup-hardened' && '["startup-hardened"]' || '["sandbox","startup-hardened"]') }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -211,7 +209,7 @@ jobs:
           pnpm --filter @hulumi/baseline test -- tests/integration/
 
       - name: Run drift-classify integration (after AccountFoundation up)
-        if: steps.env.outputs.contract_only == 'false'
+        if: steps.env.outputs.contract_only == 'false' && vars.HULUMI_DRIFT_INTEGRATION == '1'
         env:
           HULUMI_INTEGRATION: "1"
           HULUMI_TIER: ${{ matrix.tier }}

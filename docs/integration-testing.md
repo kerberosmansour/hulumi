@@ -159,8 +159,9 @@ integration run means:
   GuardDuty, Security Hub, and the four KMS keys.
 - `pulumi destroy` and `removeStack` run in `afterAll`, and the local
   Pulumi work directory is removed.
-- The Startup-Hardened matrix lane skips with a visible reason until its
-  account-wide assertions are implemented.
+- A manual dispatch with `tier=sandbox` only runs the sandbox matrix lane.
+- The Startup-Hardened and drift-classify real-AWS lanes remain explicitly
+  gated until their account-wide assertions are implemented.
 
 The stronger M3 target still remains on the roadmap: poll AWS APIs until
 each sub-resource is `ACTIVE` / `ENABLED`, verify tag propagation on

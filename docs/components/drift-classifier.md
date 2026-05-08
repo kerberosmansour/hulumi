@@ -39,7 +39,7 @@ const classifier = new DriftClassifier({
 
 const verdict = await classifier.classify(stackUrn, resourceUrn, {
   cacheTtlSeconds: 21600, // 6h default
-  probeTimeoutMs: 60_000, // 60s default
+  awsRegion: "us-east-1",
 });
 ```
 
@@ -70,9 +70,31 @@ drift here would fail the verdict-matrix BDD test.
 | `window.after`    | now                   | Lower bound.                                      |
 | `minConfidence`   | undefined             | Below threshold → cache write skipped.            |
 | `requireAdapters` | undefined             | Future: enforce specific adapters present (M4.x). |
-| `probeTimeoutMs`  | 60_000                | Probe abort deadline.                             |
+| `awsRegion`       | env / fallback        | Selects default CloudTrail probe timeout.         |
+| `probeTimeoutMs`  | region-aware          | Explicit probe abort deadline override.           |
 | `cacheTtlSeconds` | 21_600 (6h)           | TTL gating cache hits.                            |
 | `cacheDir`        | `.hulumi/drift-cache` | On-disk cache directory.                          |
+
+`probeTimeoutMs` resolution order:
+
+1. `classify(..., { probeTimeoutMs })`
+2. `classify(..., { awsRegion })`
+3. `new DriftClassifier({ awsRegion })`
+4. `AWS_REGION`
+5. `AWS_DEFAULT_REGION`
+6. fallback `60_000`
+
+Default CloudTrail probe timeout table:
+
+| Region family / region             | Default |
+| ---------------------------------- | ------- |
+| `us-east-1`, `us-east-2`           | 60s     |
+| `us-west-1`, `us-west-2`           | 60s     |
+| `eu-west-1`, `eu-west-2`           | 60s     |
+| `eu-central-1`                     | 60s     |
+| `ap-southeast-1`, `ap-southeast-2` | 90s     |
+| `ap-southeast-3`                   | 120s    |
+| blank / unknown                    | 60s     |
 
 `CloudTrailAdapter` also accepts an optional retry budget for transient
 lookup failures:
@@ -106,7 +128,8 @@ per affected resource. Persisted to
 CloudTrail's `LookupEvents` is asynchronous — events can be in
 transit but not yet delivered. The probe writes a sentinel event
 tagged `hulumi:probe-sentinel=true` and polls
-`LookupEvents` until the event surfaces or `probeTimeoutMs` fires.
+`LookupEvents` until the event surfaces or the resolved `probeTimeoutMs`
+fires.
 On timeout, the classifier degrades to `Unknown / low` with
 `probeFailedAt` populated (E1).
 

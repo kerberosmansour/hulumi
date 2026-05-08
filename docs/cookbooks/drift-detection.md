@@ -91,7 +91,7 @@ const verdict = await classifier.classify(
   "urn:pulumi:prod::your-stack::aws:s3/bucketV2:BucketV2::prod-uploads",
   {
     cacheTtlSeconds: 21_600, // 6h default
-    probeTimeoutMs: 60_000, // 60s default
+    awsRegion: process.env.AWS_REGION ?? "us-east-1",
     cacheDir: ".hulumi/drift-cache",
   },
 );
@@ -151,7 +151,7 @@ The verdict matrix promises that `ProviderApiChurn` never escalates above `mediu
 
 **`GitLogAdapter.available()` returns `false` and the verdict degrades.** You're in a shallow clone (`actions/checkout` defaults to `fetch-depth: 1`). Add `fetch-depth: 0`. The classifier degrades safely on shallow clone (E5 — `tests/shallow-clone.test.ts`); it does not silently lie.
 
-**Probe times out, verdict is `Unknown / low`.** The probe writes a sentinel CloudTrail event tagged `hulumi:probe-sentinel=true` and polls `LookupEvents` until it surfaces or `probeTimeoutMs` fires. CloudTrail can take longer than 60s to deliver in some regions; bump `probeTimeoutMs`. The probe is wrapped in `p-timeout` + `AbortSignal` with no inline `setTimeout` outside `src/probe.ts` — `tests/probe-timeout.test.ts` enforces this (E1).
+**Probe times out, verdict is `Unknown / low`.** The probe writes a sentinel CloudTrail event tagged `hulumi:probe-sentinel=true` and polls `LookupEvents` until it surfaces or `probeTimeoutMs` fires. The classifier now derives a default from `classify({ awsRegion })`, `new DriftClassifier({ awsRegion })`, `AWS_REGION`, then `AWS_DEFAULT_REGION`; unknown regions fall back to 60s. If your region routinely runs slower than the documented table in [drift-classifier.md](../components/drift-classifier.md#inputs), set `probeTimeoutMs` explicitly. The probe is wrapped in `p-timeout` + `AbortSignal` with no inline `setTimeout` outside `src/probe.ts` — `tests/probe-timeout.test.ts` enforces this (E1).
 
 **Bare `iac-role=true` tag in CloudTrail principal — verdict ignores it.** The classifier requires the full `hulumi:iac-role=true` namespace prefix to attribute an event to your IaC pipeline. Bare `iac-role` is rejected (E4 — `tests/namespace-rejection.test.ts`). Tag your IaC role with the namespaced form.
 

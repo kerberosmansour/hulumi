@@ -392,22 +392,43 @@ function classifyTarget(
     type = singleton ? "retainSharedSingleton" : "retainUnsupportedResource";
     why.push("guardrails prevent mutation");
   } else if (target.inState && target.existsInCloud) {
-    recommendedAction = "noOp";
-    type = "retainUnsupportedResource";
+    const stateDecision = preferredSupportedDecision(target, [
+      "refreshState",
+      "codifyProduction",
+      "revertProduction",
+      "ignoreWithJustification",
+    ]);
+    recommendedAction = stateDecision ?? "noOp";
+    type = stateDecision === "refreshState" ? "refreshState" : "retainUnsupportedResource";
     allowedActions = [
       "refreshState",
       "codifyProduction",
       "revertProduction",
       "ignoreWithJustification",
+      "noOp",
     ];
-    why.push("resource is present in Pulumi state and cloud");
-    risk = "low";
+    stateMutation = stateDecision === "refreshState";
+    why.push(
+      stateDecision === undefined
+        ? "resource is present in Pulumi state and cloud"
+        : `caller requested ${stateDecision} planning for state-owned resource`,
+    );
+    risk = stateDecision === undefined ? "low" : "medium";
   } else if (target.inState && !target.existsInCloud) {
     recommendedAction = "stateDelete";
     type = "stateDeleteAlreadyAbsentResource";
     allowedActions = ["stateDelete"];
     stateMutation = true;
     why.push("resource is present in state but absent from cloud");
+    risk = "medium";
+  } else if (!target.inState && target.existsInCloud && supportsAction(target, "importToState")) {
+    recommendedAction = "importToState";
+    type = "importToState";
+    allowedActions = ["importToState", "retainExternal", "deleteCloudResource"];
+    stateMutation = true;
+    why.push(
+      "cloud-only resource has strong ownership evidence and caller requested adoption planning",
+    );
     risk = "medium";
   } else if (!target.inState && target.existsInCloud && isS3Bucket) {
     recommendedAction = "deleteCloudResource";
@@ -447,6 +468,39 @@ function classifyTarget(
     dependsOn: [],
     executable,
   };
+}
+
+function supportsAction(target: ReconcileTarget, action: ReconcileActionType): boolean {
+  return target.supportedActions?.includes(action) ?? false;
+}
+
+function preferredSupportedDecision(
+  target: ReconcileTarget,
+  decisions: readonly ReconcileDecision[],
+): ReconcileDecision | undefined {
+  for (const decision of decisions) {
+    if (decisionToSupportedAction(decision) !== undefined) {
+      if (supportsAction(target, decisionToSupportedAction(decision)!)) return decision;
+      continue;
+    }
+    if (target.supportedActions?.includes(decision as ReconcileActionType) ?? false) {
+      return decision;
+    }
+  }
+  return undefined;
+}
+
+function decisionToSupportedAction(decision: ReconcileDecision): ReconcileActionType | undefined {
+  switch (decision) {
+    case "refreshState":
+      return "refreshState";
+    case "importToState":
+      return "importToState";
+    case "stateDelete":
+      return "stateDeleteAlreadyAbsentResource";
+    default:
+      return undefined;
+  }
 }
 
 function modeAllows(mode: ReconcileMode, decision: ReconcileDecision): boolean {

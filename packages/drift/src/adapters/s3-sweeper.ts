@@ -136,8 +136,16 @@ export class S3SweeperExecutor implements ReconcileActionExecutor {
         );
         count += group.length;
       }
-      keyMarker = page.NextKeyMarker;
-      versionMarker = page.NextVersionIdMarker;
+      if (page.IsTruncated === true) {
+        if (page.NextKeyMarker === undefined) {
+          throw new Error("S3 version listing truncated without a next key marker.");
+        }
+        keyMarker = page.NextKeyMarker;
+        versionMarker = page.NextVersionIdMarker;
+      } else {
+        keyMarker = undefined;
+        versionMarker = undefined;
+      }
     } while (keyMarker !== undefined);
     return count;
   }
@@ -165,8 +173,16 @@ export class S3SweeperExecutor implements ReconcileActionExecutor {
         );
         count += 1;
       }
-      keyMarker = page.NextKeyMarker;
-      uploadIdMarker = page.NextUploadIdMarker;
+      if (page.IsTruncated === true) {
+        if (page.NextKeyMarker === undefined) {
+          throw new Error("S3 multipart upload listing truncated without a next key marker.");
+        }
+        keyMarker = page.NextKeyMarker;
+        uploadIdMarker = page.NextUploadIdMarker;
+      } else {
+        keyMarker = undefined;
+        uploadIdMarker = undefined;
+      }
     } while (keyMarker !== undefined);
     return count;
   }

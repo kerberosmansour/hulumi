@@ -105,6 +105,18 @@ test intentionally uses the AWS SDK directly for this first proof; the
 workflow and Pulumi-stack fixture follow in #97 / later integration
 work.
 
+The first non-S3 reconciler proof lives in
+`packages/drift/tests/integration/reconciler-cloudwatch-log-group.integration.test.ts`
+and uses the same double gate. When enabled in the sandbox account, it
+creates one scoped CloudWatch Logs log group, proves `plan` mode does
+not mutate it, proves weak ownership evidence blocks execution, reports
+shared singleton resources as retained without mutation, injects a
+pre-delete executor failure to prove the result is resumable, retries
+with the real CloudWatch Logs executor, and verifies that no log group
+with the generated test prefix remains. `afterAll` also lists the
+generated prefix and deletes leftovers, so success and failure paths
+share the same cleanup contract.
+
 The maintainer workflow
 [`drift-reconciler-cleanup`](../.github/workflows/drift-reconciler-cleanup.yml)
 keeps plan and execute permissions separate. Plan mode assumes
@@ -117,6 +129,11 @@ proof. Use separate IAM policies:
 for read-only planning and
 [reconciler-s3-execute-iam-policy.json](deployment/reconciler-s3-execute-iam-policy.json)
 for the narrow S3 execute proof.
+
+The weekly integration workflow can run the S3 and CloudWatch Logs
+reconciler proofs after assuming the sandbox role through GitHub OIDC,
+but only when maintainers explicitly set the repository variable
+`HULUMI_RECONCILER_AWS_INTEGRATION=1`. PR CI never sets that flag.
 
 The guarded state-transition model for future broad execute-mode work
 lives in [HulumiReconciler.tla](TLAdocs/hulumi/HulumiReconciler.tla) with

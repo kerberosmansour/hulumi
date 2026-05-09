@@ -20,7 +20,11 @@ import {
 import { afterAll, describe, expect, it } from "vitest";
 
 import { CloudWatchLogGroupExecutor } from "../../src/adapters/cloudwatch-log-group";
-import { OrphanReconciler } from "../../src/reconciler";
+import {
+  OrphanReconciler,
+  type ReconcileActionExecutor,
+  type ReconcilePlanAction,
+} from "../../src/reconciler";
 
 const RUN_INTEGRATION = process.env.HULUMI_INTEGRATION === "1";
 const RUN_RECONCILER_AWS = process.env.HULUMI_RECONCILER_AWS_INTEGRATION === "1";
@@ -32,17 +36,26 @@ const enabled = RUN_INTEGRATION && RUN_RECONCILER_AWS;
 const logs = new CloudWatchLogsClient({ region: REGION });
 
 async function logGroupExists(): Promise<boolean> {
+  return (await listInScopeLogGroups()).includes(LOG_GROUP_NAME);
+}
+
+async function listInScopeLogGroups(): Promise<string[]> {
   const result = await logs.send(
-    new DescribeLogGroupsCommand({ logGroupNamePrefix: LOG_GROUP_NAME, limit: 1 }),
+    new DescribeLogGroupsCommand({ logGroupNamePrefix: RESOURCE_PREFIX, limit: 50 }),
   );
-  return result.logGroups?.some((group) => group.logGroupName === LOG_GROUP_NAME) ?? false;
+  return (result.logGroups ?? [])
+    .map((group) => group.logGroupName)
+    .filter((name): name is string => name !== undefined && name.startsWith(RESOURCE_PREFIX));
 }
 
 async function cleanupLogGroup(): Promise<void> {
-  try {
-    await logs.send(new DeleteLogGroupCommand({ logGroupName: LOG_GROUP_NAME }));
-  } catch (err) {
-    if (!isNotFound(err)) throw err;
+  const names = await listInScopeLogGroups();
+  for (const name of names) {
+    try {
+      await logs.send(new DeleteLogGroupCommand({ logGroupName: name }));
+    } catch (err) {
+      if (!isNotFound(err)) throw err;
+    }
   }
 }
 
@@ -87,12 +100,46 @@ function target(ownershipSignals = 2) {
   };
 }
 
+function singletonTarget(type: string, physicalId: string) {
+  return {
+    inState: false,
+    existsInCloud: true,
+    identity: {
+      provider: "aws" as const,
+      type,
+      physicalId,
+      region: REGION,
+      singleton: true,
+      createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    },
+    ownership: [
+      { signal: "name-prefix" as const, subject: physicalId, confidence: "high" as const },
+      {
+        signal: "caller" as const,
+        subject: "hulumi-reconciler-integration",
+        confidence: "high" as const,
+      },
+    ],
+  };
+}
+
+class FailingBeforeDeleteExecutor implements ReconcileActionExecutor {
+  async execute(action: ReconcilePlanAction) {
+    if (action.resource.physicalId !== undefined) {
+      const exists = await logGroupExists();
+      if (exists) throw new Error("injected pre-delete failure");
+    }
+    return { actionId: action.id, status: "blocked" as const };
+  }
+}
+
 describe.skipIf(!enabled)("OrphanReconciler CloudWatch Logs real-AWS zero-orphan proof", () => {
   afterAll(async () => {
     await cleanupLogGroup();
+    expect(await listInScopeLogGroups()).toEqual([]);
   }, 60_000);
 
-  it("plans, executes, and verifies zero in-scope log group remains", async () => {
+  it("blocks weak evidence, preserves dry-run, recovers from failure, and verifies zero in-scope resources", async () => {
     await cleanupLogGroup();
     await logs.send(new CreateLogGroupCommand({ logGroupName: LOG_GROUP_NAME }));
 
@@ -103,6 +150,7 @@ describe.skipIf(!enabled)("OrphanReconciler CloudWatch Logs real-AWS zero-orphan
     });
     expect(dryRun.executable).toBe(false);
     expect(await logGroupExists()).toBe(true);
+    expect(JSON.stringify(dryRun)).not.toContain(LOG_GROUP_NAME);
 
     const weakEvidence = new OrphanReconciler().plan({
       mode: "sweep-only",
@@ -113,6 +161,46 @@ describe.skipIf(!enabled)("OrphanReconciler CloudWatch Logs real-AWS zero-orphan
     expect(weakEvidence.actions[0]?.blockedActions.map((blocked) => blocked.reason)).toContain(
       "insufficient ownership evidence",
     );
+    expect(await logGroupExists()).toBe(true);
+
+    const singletonPlan = new OrphanReconciler().plan({
+      mode: "sweep-only",
+      scope: { resourcePrefix: RESOURCE_PREFIX, regions: [REGION], ownershipMinSignals: 2 },
+      targets: [
+        singletonTarget("aws:guardduty/detector:Detector", `${RESOURCE_PREFIX}-guardduty`),
+        singletonTarget("aws:securityhub/account:Account", `${RESOURCE_PREFIX}-securityhub`),
+      ],
+    });
+    expect(singletonPlan.actions).toHaveLength(2);
+    expect(singletonPlan.actions.every((action) => action.type === "retainSharedSingleton")).toBe(
+      true,
+    );
+    expect(
+      singletonPlan.actions.every(
+        (action) => action.recommendedAction === "retainExternal" && !action.cloudMutation,
+      ),
+    ).toBe(true);
+
+    const failingReconciler = new OrphanReconciler({
+      executors: {
+        deleteCloudWatchLogGroup: new FailingBeforeDeleteExecutor(),
+      },
+    });
+    const failingPlan = failingReconciler.plan({
+      mode: "sweep-only",
+      scope: { resourcePrefix: RESOURCE_PREFIX, regions: [REGION], minAgeMinutes: 15 },
+      targets: [target()],
+    });
+    const failed = await failingReconciler.execute(failingPlan, {
+      confirmToken: failingPlan.confirmToken,
+      allow: ["deleteCloudResource"],
+    });
+    expect(failed.results[0]?.status).toBe("failed");
+    expect(failed.results[0]?.message).toBe(
+      "Error: executor failed; see local logs for redacted details",
+    );
+    expect(JSON.stringify(failed)).not.toContain(LOG_GROUP_NAME);
+    expect(await logGroupExists()).toBe(true);
 
     const reconciler = new OrphanReconciler({
       executors: {
@@ -136,7 +224,7 @@ describe.skipIf(!enabled)("OrphanReconciler CloudWatch Logs real-AWS zero-orphan
     expect(result.results).toHaveLength(1);
     expect(result.results[0]?.status).toBe("succeeded");
     expect(JSON.stringify(result)).not.toContain(LOG_GROUP_NAME);
-    expect(await logGroupExists()).toBe(false);
+    expect(await listInScopeLogGroups()).toEqual([]);
   }, 90_000);
 });
 

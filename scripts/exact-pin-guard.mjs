@@ -79,6 +79,12 @@ const ALLOWED = [
       "sha512-FERHosVdC9SD/J9UTNtItGyhnXdMNHrvqkWxCuvHteWLSPWz9GrHNiuVnZ+dBD3yaM49isk6/TNIZlTSdZqJ1w==",
   },
   {
+    name: "@aws-sdk/client-cloudwatch-logs",
+    version: "3.1045.0",
+    integrity:
+      "sha512-8p8jQuiIteWVYF7NhNHTXv4I7w6ZsDUWa4S6F+j8XIu8x5t+f38RKusQCHN4z8YEAzHSmg/8eIXkagP6N4UNMw==",
+  },
+  {
     name: "@aws-sdk/client-sts",
     version: "3.1045.0",
     integrity:

@@ -58,6 +58,10 @@ export {
   type S3SweeperExecutorArgs,
 } from "./adapters/s3-sweeper";
 export {
+  CloudWatchLogGroupExecutor,
+  type CloudWatchLogGroupExecutorArgs,
+} from "./adapters/cloudwatch-log-group";
+export {
   discoverReconcileTargets,
   type CloudInventoryResource,
   type DiscoverReconcileTargetsRequest,

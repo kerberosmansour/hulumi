@@ -100,4 +100,33 @@ describe("S3SweeperExecutor", () => {
       counts: { deletedVersions: 0, abortedUploads: 0, deletedBuckets: 0, alreadyAbsent: 1 },
     });
   });
+
+  it("stops S3 pagination on IsTruncated=false even when empty next markers are present", async () => {
+    const client = {
+      commands: [] as unknown[],
+      async send(command: unknown) {
+        this.commands.push(command);
+        if (command instanceof ListObjectVersionsCommand) {
+          return { IsTruncated: false, NextKeyMarker: "", NextVersionIdMarker: "" };
+        }
+        if (command instanceof ListMultipartUploadsCommand) {
+          return { IsTruncated: false, NextKeyMarker: "", NextUploadIdMarker: "" };
+        }
+        return {};
+      },
+    };
+
+    const result = await new S3SweeperExecutor({
+      client: client as never,
+      expectedPrefix: "af-e2e-abc123",
+    }).execute(action());
+
+    expect(result.status).toBe("succeeded");
+    expect(
+      client.commands.filter((command) => command instanceof ListObjectVersionsCommand),
+    ).toHaveLength(1);
+    expect(
+      client.commands.filter((command) => command instanceof ListMultipartUploadsCommand),
+    ).toHaveLength(1);
+  });
 });

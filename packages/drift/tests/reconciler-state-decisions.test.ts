@@ -87,6 +87,12 @@ describe("OrphanReconciler state/adoption decisions", () => {
         baseTarget({
           inState: false,
           existsInCloud: true,
+          identity: {
+            ...baseTarget().identity,
+            type: "aws:lambda/function:Function",
+            urn: "urn:pulumi:sandbox::hulumi::aws:lambda/function:Function::audit",
+            physicalId: "af-e2e-abc123-function",
+          },
         }),
       ],
     });

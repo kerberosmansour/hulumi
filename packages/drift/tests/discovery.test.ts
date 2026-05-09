@@ -151,8 +151,8 @@ describe("discoverReconcileTargets", () => {
       cloudResources: [
         {
           provider: "aws",
-          type: "aws:iam/role:Role",
-          physicalId: "af-e2e-abc123-role",
+          type: "aws:lambda/function:Function",
+          physicalId: "af-e2e-abc123-function",
           tags: { "hulumi:component": "AccountFoundation" },
         },
       ],

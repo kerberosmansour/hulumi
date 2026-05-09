@@ -39,6 +39,17 @@ export type ReconcileActionType =
   | "drainS3BucketVersions"
   | "abortS3MultipartUploads"
   | "deleteS3Bucket"
+  | "deleteAccessAnalyzer"
+  | "deleteCloudTrailTrail"
+  | "deleteCloudWatchLogGroup"
+  | "deleteConfigDeliveryChannel"
+  | "deleteConfigRecorder"
+  | "deleteEventBridgeRule"
+  | "deleteGuardDutyDetector"
+  | "deleteIamRole"
+  | "deleteSecurityHubHub"
+  | "deleteSnsTopic"
+  | "scheduleKmsKeyDeletion"
   | "deleteCloudResource"
   | "retainUnsupportedResource"
   | "retainSharedSingleton"
@@ -196,9 +207,12 @@ export class OrphanReconciler {
     const mode = request.mode ?? "check-only";
     const now = request.now ?? new Date();
     const scope = normalizeScope(request.scope);
-    const actions = request.targets
-      .map((target, index) => classifyTarget(target, scope, mode, now, index))
-      .sort(compareActions);
+    const executorTypes = new Set(Object.keys(this.executors) as ReconcileActionType[]);
+    const actions = addConfigDependencies(
+      request.targets
+        .map((target, index) => classifyTarget(target, scope, mode, now, index, executorTypes))
+        .sort(compareActions),
+    );
 
     const maxActions = scope.maxActions ?? DEFAULT_MAX_ACTIONS;
     const capped =
@@ -346,12 +360,14 @@ function classifyTarget(
   mode: ReconcileMode,
   now: Date,
   index: number,
+  executorTypes: ReadonlySet<ReconcileActionType>,
 ): ReconcilePlanAction {
   const blocked: ReconcileBlockedAction[] = [];
   const why: string[] = [];
   const signals = new Set(target.ownership.map((evidence) => evidence.signal));
   const strongSignals = signals.size;
   const isS3Bucket = /aws:s3\/bucket/i.test(target.identity.type);
+  const nonS3ActionFamily = nonS3AwsDeleteActionFamily(target.identity.type);
   const inPrefix = matchesPrefix(target.identity, scope.resourcePrefix);
   const inRegion = matchesOne(target.identity.region, scope.regions);
   const inAccount = matchesOne(target.identity.accountId, scope.accountIds);
@@ -437,6 +453,13 @@ function classifyTarget(
     cloudMutation = true;
     why.push("S3 bucket is cloud-only with strong ownership evidence");
     risk = "high";
+  } else if (!target.inState && target.existsInCloud && nonS3ActionFamily !== undefined) {
+    recommendedAction = "deleteCloudResource";
+    type = nonS3ActionFamily;
+    allowedActions = ["deleteCloudResource", "importToState", "retainExternal"];
+    cloudMutation = true;
+    why.push("resource maps to a planning-only AWS cleanup action family");
+    risk = "high";
   } else if (!target.inState && target.existsInCloud) {
     recommendedAction = "retainExternal";
     type = "retainUnsupportedResource";
@@ -445,8 +468,19 @@ function classifyTarget(
     risk = "medium";
   }
 
+  const missingPlanningExecutor = requiresRegisteredExecutor(type) && !executorTypes.has(type);
+  const finalBlocked = missingPlanningExecutor
+    ? [
+        ...blocked,
+        {
+          action: recommendedAction,
+          reason: "no executor registered for planning-only action family",
+        },
+      ]
+    : blocked;
   const executable =
     blocked.length === 0 &&
+    !missingPlanningExecutor &&
     modeAllows(mode, recommendedAction) &&
     (stateMutation || cloudMutation) &&
     recommendedAction !== "noOp";
@@ -457,10 +491,10 @@ function classifyTarget(
     resource: target.identity,
     recommendedAction,
     allowedActions: uniqueDecisions([recommendedAction, ...allowedActions]),
-    blockedActions: blocked,
+    blockedActions: finalBlocked,
     why,
     evidence: target.ownership,
-    risk: executable ? risk : blocked.length > 0 ? "blocked" : risk,
+    risk: executable ? risk : finalBlocked.length > 0 ? "blocked" : risk,
     requiresApproval: stateMutation || cloudMutation,
     stateMutation,
     cloudMutation,
@@ -468,6 +502,65 @@ function classifyTarget(
     dependsOn: [],
     executable,
   };
+}
+
+function nonS3AwsDeleteActionFamily(type: string): ReconcileActionType | undefined {
+  if (/aws:accessanalyzer\/analyzer:Analyzer/i.test(type)) return "deleteAccessAnalyzer";
+  if (/aws:cloudtrail\/trail:Trail/i.test(type)) return "deleteCloudTrailTrail";
+  if (/aws:cloudwatch\/logGroup:LogGroup/i.test(type)) return "deleteCloudWatchLogGroup";
+  if (/aws:cfg\/deliveryChannel:DeliveryChannel/i.test(type)) return "deleteConfigDeliveryChannel";
+  if (/aws:cfg\/recorder:Recorder/i.test(type)) return "deleteConfigRecorder";
+  if (/aws:cloudwatch\/eventRule:EventRule/i.test(type)) return "deleteEventBridgeRule";
+  if (/aws:guardduty\/detector:Detector/i.test(type)) return "deleteGuardDutyDetector";
+  if (/aws:iam\/role:Role/i.test(type)) return "deleteIamRole";
+  if (/aws:kms\/key:Key/i.test(type)) return "scheduleKmsKeyDeletion";
+  if (/aws:securityhub\/account:Account/i.test(type)) return "deleteSecurityHubHub";
+  if (/aws:sns\/topic:Topic/i.test(type)) return "deleteSnsTopic";
+  return undefined;
+}
+
+function requiresRegisteredExecutor(type: ReconcileActionType): boolean {
+  return (
+    type === "deleteAccessAnalyzer" ||
+    type === "deleteCloudTrailTrail" ||
+    type === "deleteCloudWatchLogGroup" ||
+    type === "deleteConfigDeliveryChannel" ||
+    type === "deleteConfigRecorder" ||
+    type === "deleteEventBridgeRule" ||
+    type === "deleteGuardDutyDetector" ||
+    type === "deleteIamRole" ||
+    type === "deleteSecurityHubHub" ||
+    type === "deleteSnsTopic" ||
+    type === "scheduleKmsKeyDeletion"
+  );
+}
+
+function addConfigDependencies(actions: ReconcilePlanAction[]): ReconcilePlanAction[] {
+  const deliveryChannels = actions.filter(
+    (action) => action.type === "deleteConfigDeliveryChannel",
+  );
+  if (deliveryChannels.length === 0) return actions;
+
+  return actions.map((action) => {
+    if (action.type !== "deleteConfigRecorder") return action;
+    const dependency = deliveryChannels.find((candidate) =>
+      sameAwsPlacement(action.resource, candidate.resource),
+    );
+    if (dependency === undefined) return action;
+    return {
+      ...action,
+      dependsOn: uniqueStrings([...action.dependsOn, dependency.id]),
+    };
+  });
+}
+
+function sameAwsPlacement(left: ResourceIdentity, right: ResourceIdentity): boolean {
+  return (
+    (left.accountId === undefined ||
+      right.accountId === undefined ||
+      left.accountId === right.accountId) &&
+    (left.region === undefined || right.region === undefined || left.region === right.region)
+  );
 }
 
 function supportsAction(target: ReconcileTarget, action: ReconcileActionType): boolean {
@@ -610,6 +703,10 @@ function confirmationToken(
 }
 
 function uniqueDecisions(values: ReconcileDecision[]): ReconcileDecision[] {
+  return [...new Set(values)];
+}
+
+function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
 }
 

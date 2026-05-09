@@ -216,7 +216,7 @@ jobs:
           PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
-        run: pnpm --filter @hulumi/drift test -- tests/integration/
+        run: pnpm --filter @hulumi/drift exec vitest run --config vitest.integration.config.ts tests/integration/drift-classify.integration.test.ts
 
       - name: Run drift reconciler integration (explicit execute gate)
         if: steps.env.outputs.contract_only == 'false' && vars.HULUMI_RECONCILER_AWS_INTEGRATION == '1'
@@ -224,7 +224,7 @@ jobs:
           HULUMI_INTEGRATION: "1"
           HULUMI_RECONCILER_AWS_INTEGRATION: "1"
           AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
-        run: pnpm --filter @hulumi/drift run test:integration -- tests/integration/reconciler-cloudwatch-log-group.integration.test.ts tests/integration/reconciler-s3.integration.test.ts
+        run: pnpm --filter @hulumi/drift exec vitest run --config vitest.integration.config.ts tests/integration/reconciler-cloudwatch-log-group.integration.test.ts tests/integration/reconciler-s3.integration.test.ts
 
       - name: Run k8s-baseline integration lanes (contract-only by default)
         # The kind / EKS lanes skip cleanly when their flags are unset, so

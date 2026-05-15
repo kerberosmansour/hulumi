@@ -53,7 +53,7 @@ Hulumi v2.0 will include `aliases` for every renamed resource; the migration ste
 ### 1. Pin to the last v1.x release before bumping
 
 ```bash
-pnpm add @hulumi/baseline@^1.3.0   # whatever's latest in the v1.x line
+pnpm add @hulumi/baseline@^1.3.1   # whatever's latest in the v1.x line
 ```
 
 ### 2. Run `pulumi preview` and confirm zero warnings other than the V2 deprecations

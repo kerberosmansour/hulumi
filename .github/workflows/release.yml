@@ -63,9 +63,14 @@ jobs:
           version: 9.12.0
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      - name: Use npm CLI with trusted publishing OIDC support
+        run: |
+          npm install -g npm@11.5.1
+          node --version
+          npm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
 
@@ -113,12 +118,9 @@ jobs:
       - name: npm publish (atomic — any failure aborts before subsequent publishes)
         run: |
           set -euo pipefail
-          pnpm --filter @hulumi/baseline publish --no-git-checks --provenance --access public
-          pnpm --filter @hulumi/policies publish --no-git-checks --provenance --access public
-          pnpm --filter @hulumi/drift publish --no-git-checks --provenance --access public
-          pnpm --filter @hulumi/k8s-baseline publish --no-git-checks --provenance --access public
-          pnpm --filter @hulumi/cloudflare-baseline publish --no-git-checks --provenance --access public
-          pnpm --filter @hulumi/platform-patterns publish --no-git-checks --provenance --access public
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
+            (cd "packages/$pkg" && npm publish --provenance --access public)
+          done
 
       - name: Create GitHub release with SBOMs + tarballs
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3

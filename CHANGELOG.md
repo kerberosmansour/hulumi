@@ -5,21 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] — 2026-05-15
+## [1.3.1] — 2026-05-15
 
 The Hulumi Edge Platform release. Atomic six-package publish:
-`@hulumi/baseline@1.3.0`, `@hulumi/policies@1.3.0`,
-`@hulumi/drift@1.3.0`, `@hulumi/k8s-baseline@1.3.0`, and first public
-publishes for `@hulumi/cloudflare-baseline@1.3.0` and
-`@hulumi/platform-patterns@1.3.0`. All six packages use the same SLSA
+`@hulumi/baseline@1.3.1`, `@hulumi/policies@1.3.1`,
+`@hulumi/drift@1.3.1`, `@hulumi/k8s-baseline@1.3.1`, and first public
+publishes for `@hulumi/cloudflare-baseline@1.3.1` and
+`@hulumi/platform-patterns@1.3.1`. All six packages use the same SLSA
 Build L3 + npm provenance release path.
+
+This patch supersedes the failed `v1.3.0` tag attempt. That workflow completed
+preflight, tarball generation, SBOM generation, and provenance attestation, but
+stopped before any npm package was published because tokenless npm trusted
+publishing ran under Node 20 / npm 10. `v1.3.1` keeps the same product changes
+and uses the trusted-publishing-compatible release runtime.
 
 ### Added
 
-- **`@hulumi/cloudflare-baseline@1.3.0`** — first release of Cloudflare
+- **`@hulumi/cloudflare-baseline@1.3.1`** — first release of Cloudflare
   edge primitives: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`,
   `BotProtectionBaseline`, and `ProtectedAdminHostname`.
-- **`@hulumi/platform-patterns@1.3.0`** — first release of
+- **`@hulumi/platform-patterns@1.3.1`** — first release of
   cross-provider patterns: `CloudflareOriginIngress`,
   `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and
   `BuildProvenanceFoundation`.
@@ -28,7 +34,7 @@ Build L3 + npm provenance release path.
 - **Edge smoke and integration lanes**: `examples/edge-platform-smoke/`,
   Cloudflare/platform integration tests that skip without real credentials,
   and CI coverage for the new package pair.
-- **Release advisory preparation**: `docs/release/v1.3.0-security-advisories.md`
+- **Release advisory preparation**: `docs/release/v1.3.1-security-advisories.md`
   tracks the GHSA registrations to publish after the npm packages are live.
 
 ### Security
@@ -70,6 +76,9 @@ Build L3 + npm provenance release path.
 
 - Release and CI workflows expand from four to six packages for pack,
   SBOM, attestation, dry-run, and npm publish steps.
+- Release publishing now runs the npm publish phase on Node 22.14.0 with npm
+  11.5.1 so npm trusted publishing can exchange the GitHub OIDC token without a
+  long-lived `NPM_TOKEN`.
 - `release-readiness.test.ts` now enforces the six-package atomic version
   invariant, per-package README/LICENSE requirements, and the v1.3 changelog
   entry.

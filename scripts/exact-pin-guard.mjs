@@ -63,9 +63,9 @@ const ALLOWED = [
   // integrity hash is part of the supply-chain story for the K8s package.
   {
     name: "@aws-sdk/client-secrets-manager",
-    version: "3.1041.0",
+    version: "3.1047.0",
     integrity:
-      "sha512-dr4AbZ5hIDyecKHWyYy0LhK3h6q/jd6QWem46wyHulJ6IBRPENlpB7iXo7KKFWkgKSweCEqjHVB5W+3WB4JiYw==",
+      "sha512-jKwVKPssSxB8DbMfZ4lUW5Q6fyeJnjvz76GBsb1fUTWcRxGukzkXd5Di5oTUQnYv+BUen97+ZjTz/Azi6hUmzQ==",
   },
   // Added in runbook hulumi-pre-public-launch M4 (issue #27). Runtime deps of
   // @hulumi/drift — published to npm alongside @pulumi/* + @hulumi/k8s-baseline,
@@ -80,9 +80,9 @@ const ALLOWED = [
   },
   {
     name: "@aws-sdk/client-cloudwatch-logs",
-    version: "3.1045.0",
+    version: "3.1047.0",
     integrity:
-      "sha512-8p8jQuiIteWVYF7NhNHTXv4I7w6ZsDUWa4S6F+j8XIu8x5t+f38RKusQCHN4z8YEAzHSmg/8eIXkagP6N4UNMw==",
+      "sha512-e64h4CDfpwvm/vDX7v87Rvo805cO3MDx+icTiwX0R6riXcYAUuj5JKIYOf35O4qFUhYiE+hEuUEWbFFHfJ5OVw==",
   },
   {
     name: "@aws-sdk/client-sts",

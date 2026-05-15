@@ -30,10 +30,14 @@ const classifier = new DriftClassifier({
 
 const verdict = await classifier.classify(
   "urn:pulumi:dev::project::stack",
-  "urn:pulumi:dev::project::aws:s3/bucketV2:BucketV2::my-bucket",
+  "urn:pulumi:dev::project::aws:s3/bucket:Bucket::my-bucket",
 );
 console.log(verdict.source, verdict.confidence);
 ```
+
+S3 resource-token handling accepts both the current `aws:s3/bucket:Bucket`
+token and the legacy `aws:s3/bucketV2:BucketV2` token so old Pulumi state
+remains classifiable during SecureBucket migration.
 
 ## Verdict matrix
 
@@ -105,7 +109,7 @@ const plan = reconciler.plan({
       existsInCloud: true,
       identity: {
         provider: "aws",
-        type: "aws:s3/bucketV2:BucketV2",
+        type: "aws:s3/bucket:Bucket",
         physicalId: "af-e2e-abc123-logs",
         region: "us-east-1",
       },
@@ -153,7 +157,7 @@ const discovered = discoverReconcileTargets({
   cloudResources: [
     {
       provider: "aws",
-      type: "aws:s3/bucketV2:BucketV2",
+      type: "aws:s3/bucket:Bucket",
       physicalId: "af-e2e-abc123-logs",
       region: "us-east-1",
       tags: { "hulumi:component": "AccountFoundation" },

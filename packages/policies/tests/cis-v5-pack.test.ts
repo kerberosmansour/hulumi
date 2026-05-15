@@ -253,13 +253,37 @@ describe("CIS §2.1.1 — S3 SSE advisory on raw bucket", () => {
     expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:2\.1\.1/);
   });
 
-  it("is silent on a SecureBucket child", () => {
+  it("also fires on the non-V2 raw bucket token", () => {
     const violations: string[] = [];
     invokeResource(
       cis_2_1_1_ssePresent,
       makeResourceArgs({
-        type: "aws:s3/bucketV2:BucketV2",
-        urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucketV2:BucketV2::sb",
+        type: "aws:s3/bucket:Bucket",
+        urn: "urn:pulumi:s::p::aws:s3/bucket:Bucket::raw",
+        name: "raw",
+      }),
+      (m: string) => violations.push(m),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:2\.1\.1/);
+  });
+
+  it.each([
+    [
+      "aws:s3/bucketV2:BucketV2",
+      "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucketV2:BucketV2::sb",
+    ],
+    [
+      "aws:s3/bucket:Bucket",
+      "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucket:Bucket::sb",
+    ],
+  ])("is silent on a SecureBucket child (%s)", (type, urn) => {
+    const violations: string[] = [];
+    invokeResource(
+      cis_2_1_1_ssePresent,
+      makeResourceArgs({
+        type,
+        urn,
         name: "sb",
       }),
       (m: string) => violations.push(m),
@@ -269,13 +293,16 @@ describe("CIS §2.1.1 — S3 SSE advisory on raw bucket", () => {
 });
 
 describe("CIS §2.1.5 — TLS-only bucket policy advisory", () => {
-  it("fires on raw bucket without SecureBucket parent", () => {
+  it.each([
+    ["aws:s3/bucketV2:BucketV2", "urn:pulumi:s::p::aws:s3/bucketV2:BucketV2::raw"],
+    ["aws:s3/bucket:Bucket", "urn:pulumi:s::p::aws:s3/bucket:Bucket::raw"],
+  ])("fires on raw bucket without SecureBucket parent (%s)", (type, urn) => {
     const violations: string[] = [];
     invokeResource(
       cis_2_1_5_tlsOnly,
       makeResourceArgs({
-        type: "aws:s3/bucketV2:BucketV2",
-        urn: "urn:pulumi:s::p::aws:s3/bucketV2:BucketV2::raw",
+        type,
+        urn,
         name: "raw",
       }),
       (m: string) => violations.push(m),

@@ -27,13 +27,13 @@ class FakeS3Client {
   }
 }
 
-function action(bucket = "af-e2e-abc123-logs"): ReconcilePlanAction {
+function action(bucket = "af-e2e-abc123-logs", type = "aws:s3/bucket:Bucket"): ReconcilePlanAction {
   return {
     id: "action-0000",
     type: "drainS3BucketVersions",
     resource: {
       provider: "aws",
-      type: "aws:s3/bucketV2:BucketV2",
+      type,
       physicalId: bucket,
       region: "us-east-1",
     },
@@ -99,6 +99,16 @@ describe("S3SweeperExecutor", () => {
       status: "succeeded",
       counts: { deletedVersions: 0, abortedUploads: 0, deletedBuckets: 0, alreadyAbsent: 1 },
     });
+  });
+
+  it("continues to accept legacy BucketV2 action tokens during migration", async () => {
+    const client = new FakeS3Client();
+    const result = await new S3SweeperExecutor({
+      client: client as never,
+      expectedPrefix: "af-e2e-abc123",
+    }).execute(action("af-e2e-abc123-logs", "aws:s3/bucketV2:BucketV2"));
+
+    expect(result.status).toBe("succeeded");
   });
 
   it("stops S3 pagination on IsTruncated=false even when empty next markers are present", async () => {

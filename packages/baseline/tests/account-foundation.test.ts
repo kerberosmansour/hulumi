@@ -301,7 +301,7 @@ describe("AccountFoundation — real provider input compatibility", () => {
     });
     await valueOf(retained.cloudTrailArn);
     await settlePulumi();
-    const retainedBucket = registrations.find((r) => r.type === "aws:s3/bucketV2:BucketV2");
+    const retainedBucket = registrations.find((r) => r.type === "aws:s3/bucket:Bucket");
     expect(retainedBucket?.inputs.forceDestroy).toBeUndefined();
 
     resetRegistrations();
@@ -312,7 +312,7 @@ describe("AccountFoundation — real provider input compatibility", () => {
     });
     await valueOf(ephemeral.cloudTrailArn);
     await settlePulumi();
-    const ephemeralBucket = registrations.find((r) => r.type === "aws:s3/bucketV2:BucketV2");
+    const ephemeralBucket = registrations.find((r) => r.type === "aws:s3/bucket:Bucket");
     expect(ephemeralBucket?.inputs.forceDestroy).toBe(true);
   });
 

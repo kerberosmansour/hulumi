@@ -38,12 +38,12 @@ pulumi preview --policy-pack ./policies
 
 Read every violation as a migration ticket:
 
-| Violation                                                       | What to do                                                                                                        |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `HULUMI-H1-no-raw-bucket`                                       | Replace `aws.s3.BucketV2` with `SecureBucket`. See [components/secure-bucket.md](../components/secure-bucket.md). |
-| `HULUMI-H2-state-backend-encryption` (mandatory)                | Move state off `file://`; if S3, ensure SSE is enabled on the state bucket.                                       |
-| `HULUMI-H3-iac-role-tag` (advisory pre-v1.0, mandatory at v1.0) | Tag your IaC role `hulumi:iac-role=true`. Pair with the [SCP template](../deployment/) at v1.0.                   |
-| `HULUMI-H4-startup-hardened-logging`                            | A Startup-Hardened `SecureBucket` is missing its `logBucketArn` sibling. Wire one up.                             |
+| Violation                                                       | What to do                                                                                                                              |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `HULUMI-H1-no-raw-bucket`                                       | Replace raw `aws.s3.Bucket` / `aws.s3.BucketV2` with `SecureBucket`. See [components/secure-bucket.md](../components/secure-bucket.md). |
+| `HULUMI-H2-state-backend-encryption` (mandatory)                | Move state off `file://`; if S3, ensure SSE is enabled on the state bucket.                                                             |
+| `HULUMI-H3-iac-role-tag` (advisory pre-v1.0, mandatory at v1.0) | Tag your IaC role `hulumi:iac-role=true`. Pair with the [SCP template](../deployment/) at v1.0.                                         |
+| `HULUMI-H4-startup-hardened-logging`                            | A Startup-Hardened `SecureBucket` is missing its `logBucketArn` sibling. Wire one up.                                                   |
 
 ### 3. Decide what to fix vs. suppress
 
@@ -57,7 +57,7 @@ import type { Suppression } from "@hulumi/policies";
 const suppressions: Suppression[] = [
   {
     ruleId: "HULUMI-H1-no-raw-bucket",
-    urnScope: "urn:pulumi:prod::your-stack::aws:s3/bucketV2:BucketV2::legacy-bucket",
+    urnScope: "urn:pulumi:prod::your-stack::aws:s3/bucket:Bucket::legacy-bucket",
     reason: "Imported pre-Hulumi; migration tracked in #JIRA-1234.",
     expiresAt: "2026-09-30",
   },
@@ -83,7 +83,7 @@ When the advisory run is clean (or every remaining violation has a documented su
 ## Verify
 
 - A clean run reports `policy violations: 0 mandatory, 0 advisory`.
-- A deliberately broken stack (e.g. add an `aws.s3.BucketV2` to `index.ts`) fails with `HULUMI-H1` and a violation message naming the exact resource.
+- A deliberately broken stack (e.g. add an `aws.s3.Bucket` or `aws.s3.BucketV2` to `index.ts`) fails with `HULUMI-H1` and a violation message naming the exact resource.
 - Removing the `hulumi:iac-role=true` tag from your IaC role fires `HULUMI-H3` advisory pre-v1.0 / mandatory at v1.0.
 
 ## Troubleshooting

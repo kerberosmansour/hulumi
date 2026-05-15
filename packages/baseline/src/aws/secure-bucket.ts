@@ -10,6 +10,15 @@ import { cisAws } from "../mappings/cis-aws";
 import { nist80053r5 } from "../mappings/nist-800-53-r5";
 
 export const SECURE_BUCKET_COMPONENT_TYPE = "hulumi:baseline:aws:SecureBucket";
+const LEGACY_BUCKET_V2_TYPE = "aws:s3/bucketV2:BucketV2";
+const LEGACY_BUCKET_SSE_V2_TYPE =
+  "aws:s3/bucketServerSideEncryptionConfigurationV2:BucketServerSideEncryptionConfigurationV2";
+const LEGACY_BUCKET_VERSIONING_V2_TYPE = "aws:s3/bucketVersioningV2:BucketVersioningV2";
+const LEGACY_BUCKET_OBJECT_LOCK_V2_TYPE =
+  "aws:s3/bucketObjectLockConfigurationV2:BucketObjectLockConfigurationV2";
+const LEGACY_BUCKET_LOGGING_V2_TYPE = "aws:s3/bucketLoggingV2:BucketLoggingV2";
+const LEGACY_BUCKET_LIFECYCLE_V2_TYPE =
+  "aws:s3/bucketLifecycleConfigurationV2:BucketLifecycleConfigurationV2";
 
 const CONTROLS_CLAIMED_BY_SECURE_BUCKET: readonly string[] = [
   ...ccm.secureBucket,
@@ -37,7 +46,7 @@ function bucketNameFromArnOrName(value: string | undefined): string {
 }
 
 export class SecureBucket extends pulumi.ComponentResource implements SecureBucketOutputs {
-  public readonly bucket: aws.s3.BucketV2;
+  public readonly bucket: aws.s3.Bucket;
   public readonly bucketPolicy: aws.s3.BucketPolicy;
   public readonly arn: pulumi.Output<string>;
   public readonly bucketDomainName: pulumi.Output<string>;
@@ -53,16 +62,21 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     }
 
     const tags = buildTags(args.tier);
-    const parent = { parent: this } as const;
+    const childOptions = (...legacyTypes: string[]): pulumi.CustomResourceOptions => ({
+      parent: this,
+      ...(legacyTypes.length > 0
+        ? { aliases: legacyTypes.map((type): pulumi.Alias => ({ type })) }
+        : {}),
+    });
 
-    this.bucket = new aws.s3.BucketV2(
+    this.bucket = new aws.s3.Bucket(
       `${name}-bucket`,
       {
         ...(args.tier === "startup-hardened" ? { objectLockEnabled: true } : {}),
         ...(args.forceDestroy !== undefined ? { forceDestroy: args.forceDestroy } : {}),
         tags,
       },
-      parent,
+      childOptions(LEGACY_BUCKET_V2_TYPE),
     );
 
     new aws.s3.BucketPublicAccessBlock(
@@ -74,10 +88,10 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       },
-      parent,
+      childOptions(),
     );
 
-    new aws.s3.BucketServerSideEncryptionConfigurationV2(
+    new aws.s3.BucketServerSideEncryptionConfiguration(
       `${name}-sse`,
       {
         bucket: this.bucket.id,
@@ -91,7 +105,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
           },
         ],
       },
-      parent,
+      childOptions(LEGACY_BUCKET_SSE_V2_TYPE),
     );
 
     new aws.s3.BucketOwnershipControls(
@@ -100,16 +114,16 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
         bucket: this.bucket.id,
         rule: { objectOwnership: "BucketOwnerEnforced" },
       },
-      parent,
+      childOptions(),
     );
 
-    new aws.s3.BucketVersioningV2(
+    new aws.s3.BucketVersioning(
       `${name}-versioning`,
       {
         bucket: this.bucket.id,
         versioningConfiguration: { status: "Enabled" },
       },
-      parent,
+      childOptions(LEGACY_BUCKET_VERSIONING_V2_TYPE),
     );
 
     this.bucketPolicy = new aws.s3.BucketPolicy(
@@ -208,13 +222,13 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
             });
           }),
       },
-      parent,
+      childOptions(),
     );
 
     if (args.tier === "startup-hardened") {
       const lockMode = args.objectLock?.mode ?? "governance";
       const lockDays = args.objectLock?.days ?? 30;
-      new aws.s3.BucketObjectLockConfigurationV2(
+      new aws.s3.BucketObjectLockConfiguration(
         `${name}-object-lock`,
         {
           bucket: this.bucket.id,
@@ -225,17 +239,17 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
             },
           },
         },
-        parent,
+        childOptions(LEGACY_BUCKET_OBJECT_LOCK_V2_TYPE),
       );
 
-      new aws.s3.BucketLoggingV2(
+      new aws.s3.BucketLogging(
         `${name}-logging`,
         {
           bucket: this.bucket.id,
           targetBucket: pulumi.output(args.logBucketArn).apply(bucketNameFromArnOrName),
           targetPrefix: `${name}/`,
         },
-        parent,
+        childOptions(LEGACY_BUCKET_LOGGING_V2_TYPE),
       );
 
       new aws.cloudtrail.EventDataStore(
@@ -256,7 +270,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
             },
           ],
         },
-        parent,
+        childOptions(),
       );
     }
 
@@ -283,18 +297,18 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
             },
           ],
         },
-        parent,
+        childOptions(),
       );
     }
 
     if (args.lifecycleRules !== undefined) {
-      new aws.s3.BucketLifecycleConfigurationV2(
+      new aws.s3.BucketLifecycleConfiguration(
         `${name}-lifecycle`,
         {
           bucket: this.bucket.id,
           rules: args.lifecycleRules,
         },
-        parent,
+        childOptions(LEGACY_BUCKET_LIFECYCLE_V2_TYPE),
       );
     }
 

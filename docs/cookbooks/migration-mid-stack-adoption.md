@@ -7,7 +7,7 @@ description: Mid-stack adoption path — replace hand-rolled AWS resources with 
 
 ## When to use this recipe
 
-You already have a Pulumi project and want to replace existing hand-rolled `aws.s3.BucketV2` / `aws.cloudtrail.Trail` / `aws.guardduty.Detector` / etc. resources with Hulumi components — without forcing every resource through a destroy/recreate cycle.
+You already have a Pulumi project and want to replace existing hand-rolled `aws.s3.Bucket` / `aws.s3.BucketV2` / `aws.cloudtrail.Trail` / `aws.guardduty.Detector` / etc. resources with Hulumi components — without forcing every resource through a destroy/recreate cycle.
 
 This is the **mid-stack adoption** path. For a fresh project, see [account-bootstrap.md](./account-bootstrap.md). For a Terraform-to-Pulumi migration, see [migration-from-terraform.md](./migration-from-terraform.md).
 
@@ -19,10 +19,11 @@ This is the **mid-stack adoption** path. For a fresh project, see [account-boots
 
 ## Core technique: `aliases` to absorb URN changes
 
-When you replace a hand-rolled `aws.s3.BucketV2` with a Hulumi `SecureBucket`, the URN changes:
+When you replace a hand-rolled `aws.s3.Bucket` or `aws.s3.BucketV2` with a Hulumi `SecureBucket`, the URN changes:
 
-- Before: `urn:pulumi:dev::myproject::aws:s3/bucketV2:BucketV2::audit-logs`
-- After: `urn:pulumi:dev::myproject::hulumi:aws:SecureBucket$aws:s3/bucketV2:BucketV2::audit-logs`
+- Before (current token): `urn:pulumi:dev::myproject::aws:s3/bucket:Bucket::audit-logs`
+- Before (legacy V2 token): `urn:pulumi:dev::myproject::aws:s3/bucketV2:BucketV2::audit-logs`
+- After: `urn:pulumi:dev::myproject::hulumi:baseline:aws:SecureBucket$aws:s3/bucket:Bucket::audit-logs-bucket`
 
 Without an alias, Pulumi treats this as destroy-old + create-new. With `aliases`, the new resource adopts the old URN — the bucket's data, encryption, and policies are unchanged.
 
@@ -37,8 +38,9 @@ const audit = new SecureBucket(
   },
   {
     aliases: [
-      // The old hand-rolled BucketV2 URN — replace with whatever your stack
-      // had previously.
+      // The old hand-rolled bucket token — replace with whatever your stack
+      // had previously: aws:s3/bucket:Bucket or aws:s3/bucketV2:BucketV2.
+      { type: "aws:s3/bucket:Bucket", name: "audit-logs" },
       { type: "aws:s3/bucketV2:BucketV2", name: "audit-logs" },
     ],
   },
@@ -46,6 +48,8 @@ const audit = new SecureBucket(
 ```
 
 Run `pulumi preview` and confirm the diff is `~` (update), not `+` / `-`.
+
+SecureBucket's built-in child aliases cover its own V2-to-non-V2 migration. Mid-stack adoption is a separate parent/name migration, so keep the project-specific aliases until preview is clean.
 
 ## Steps
 
@@ -57,13 +61,13 @@ pulumi stack export | jq '.deployment.resources[] | select(.type | startswith("a
 
 For each resource type, decide which Hulumi component it maps to. Typical mappings:
 
-| Hand-rolled type                                                            | Hulumi target                                                       |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `aws:s3/bucketV2:BucketV2` + child resources (encryption, versioning, etc.) | `@hulumi/baseline.aws.SecureBucket`                                 |
-| `aws:cloudtrail/trail:Trail` + log group + bucket                           | `@hulumi/baseline.aws.AccountFoundation` (CloudTrail sub-component) |
-| `aws:guardduty/detector:Detector` + features                                | `@hulumi/baseline.aws.AccountFoundation` (GuardDuty sub-component)  |
-| `aws:iam/passwordPolicy:PasswordPolicy`                                     | `@hulumi/baseline.aws.AccountFoundation` (IAM baseline)             |
-| `aws:kms/key:Key`                                                           | `@hulumi/baseline.aws.AccountFoundation` (KMS ring)                 |
+| Hand-rolled type                                                      | Hulumi target                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `aws:s3/bucket:Bucket` / `aws:s3/bucketV2:BucketV2` + child resources | `@hulumi/baseline.aws.SecureBucket`                                 |
+| `aws:cloudtrail/trail:Trail` + log group + bucket                     | `@hulumi/baseline.aws.AccountFoundation` (CloudTrail sub-component) |
+| `aws:guardduty/detector:Detector` + features                          | `@hulumi/baseline.aws.AccountFoundation` (GuardDuty sub-component)  |
+| `aws:iam/passwordPolicy:PasswordPolicy`                               | `@hulumi/baseline.aws.AccountFoundation` (IAM baseline)             |
+| `aws:kms/key:Key`                                                     | `@hulumi/baseline.aws.AccountFoundation` (KMS ring)                 |
 
 The Hulumi components are intentionally additive — adopting `AccountFoundation` doesn't require ripping out unrelated resources.
 
@@ -73,7 +77,7 @@ For each replacement, capture the OLD URN before deleting the old resource. The 
 
 ```ts
 // Before — hand-rolled
-const oldBucket = new aws.s3.BucketV2("audit-logs", {
+const oldBucket = new aws.s3.Bucket("audit-logs", {
   bucket: "my-org-audit-logs",
 });
 // ... and 4-5 child resources for encryption / versioning / etc.
@@ -84,11 +88,12 @@ const audit = new SecureBucket(
   { tier: "startup-hardened", bucketName: "my-org-audit-logs" },
   {
     aliases: [
+      { type: "aws:s3/bucket:Bucket", name: "audit-logs" },
       { type: "aws:s3/bucketV2:BucketV2", name: "audit-logs" },
       // The child resources also need aliases if Hulumi's child shape
       // matches one-for-one. SecureBucket's children are URN-stable
-      // across the v1.x line; consult the component reference for the
-      // exact alias list.
+      // after the built-in V2-to-non-V2 migration, but adopting old
+      // hand-rolled children still needs project-specific preview review.
     ],
   },
 );
@@ -171,8 +176,8 @@ The window of free rollback closes when you delete the aliases. Be deliberate.
 
 ## Common pitfalls
 
-- **Alias type/name mismatch**. The `type` field uses Pulumi's resource-type string (e.g. `aws:s3/bucketV2:BucketV2`), not the JSON path. Get it wrong and the alias silently doesn't fire — the migration becomes a destroy/recreate.
-- **Forgetting child-resource aliases**. `SecureBucket` composes ~5 child resources; if you alias the parent but not the children, the children get destroyed/recreated. Component reference docs list the full alias surface.
+- **Alias type/name mismatch**. The `type` field uses Pulumi's resource-type string (e.g. `aws:s3/bucket:Bucket` or `aws:s3/bucketV2:BucketV2`), not the JSON path. Get it wrong and the alias silently doesn't fire — the migration becomes a destroy/recreate.
+- **Confusing package migration with mid-stack adoption**. SecureBucket includes aliases for its own V2-to-non-V2 child type rename. Replacing old hand-rolled resources still changes parent/name shape and may need additional project-specific aliases.
 - **Tag drift mid-migration**. If the IaC role's `hulumi:iac-role=true` tag isn't on every resource being adopted, the SCP (if applied) or H3 policy will fire. Add the tag pre-migration or fold it into the migration commit.
 
 ## What to do next

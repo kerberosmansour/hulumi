@@ -20,17 +20,17 @@ All sub-resources are children of the `hulumi:baseline:aws:SecureBucket` compone
 
 | Sub-resource                                             | Sandbox | Startup-Hardened | Notes                                                                                |
 | -------------------------------------------------------- | :-----: | :--------------: | ------------------------------------------------------------------------------------ |
-| `aws:s3/bucketV2:BucketV2` (main bucket)                 |    ✓    |        ✓         | Tagged `hulumi:component`, `hulumi:tier`, `hulumi:controls`.                         |
+| `aws:s3/bucket:Bucket` (main bucket)                     |    ✓    |        ✓         | Tagged `hulumi:component`, `hulumi:tier`, `hulumi:controls`.                         |
 | `aws:s3/bucketPublicAccessBlock:*` (T/T/T/T)             |    ✓    |        ✓         | All four levers true.                                                                |
-| `aws:s3/bucketServerSideEncryptionConfigurationV2:*`     |    ✓    |        ✓         | SSE-KMS default. Customer CMK via optional `kmsKeyArn`.                              |
+| `aws:s3/bucketServerSideEncryptionConfiguration:*`       |    ✓    |        ✓         | SSE-KMS default. Customer CMK via optional `kmsKeyArn`.                              |
 | `aws:s3/bucketOwnershipControls:*` (BucketOwnerEnforced) |    ✓    |        ✓         | ACLs disabled.                                                                       |
-| `aws:s3/bucketVersioningV2:*` (Enabled)                  |    ✓    |        ✓         | Non-negotiable in both tiers.                                                        |
+| `aws:s3/bucketVersioning:*` (Enabled)                    |    ✓    |        ✓         | Non-negotiable in both tiers.                                                        |
 | `aws:s3/bucketPolicy:*` (deny non-TLS)                   |    ✓    |        ✓         | `aws:SecureTransport=false` → `Deny`.                                                |
-| **`aws:s3/bucketObjectLockConfigurationV2:*`**           |         |        ✓         | Governance mode, 30-day default retention (configurable via `objectLock` arg).       |
-| **`aws:s3/bucketLoggingV2:*`**                           |         |        ✓         | Requires `logBucketArn`. The component constructor throws if missing — see H4 below. |
+| **`aws:s3/bucketObjectLockConfiguration:*`**             |         |        ✓         | Governance mode, 30-day default retention (configurable via `objectLock` arg).       |
+| **`aws:s3/bucketLogging:*`**                             |         |        ✓         | Requires `logBucketArn`. The component constructor throws if missing — see H4 below. |
 | **`aws:cloudtrail/eventDataStore:*`**                    |         |        ✓         | Per-bucket CloudTrail Lake data-events; consolidates to AccountFoundation in M3.     |
 
-Three **Startup-Hardened only** rows (bold): `bucketObjectLockConfigurationV2`, `bucketLoggingV2`, `cloudtrail/eventDataStore`. This is the load-bearing tier delta that the AST test asserts (`≥ 3 sub-resource kinds Sandbox does not emit`).
+Three **Startup-Hardened only** rows (bold): `bucketObjectLockConfiguration`, `bucketLogging`, `cloudtrail/eventDataStore`. This is the load-bearing tier delta that the AST test asserts (`≥ 3 sub-resource kinds Sandbox does not emit`).
 
 ### <a id="startup-hardened"></a>Startup-Hardened — required args
 

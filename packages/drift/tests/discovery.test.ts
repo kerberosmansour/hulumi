@@ -33,7 +33,7 @@ describe("discoverReconcileTargets", () => {
         },
         {
           provider: "aws",
-          type: "aws:s3/bucketV2:BucketV2",
+          type: "aws:s3/bucket:Bucket",
           physicalId: "af-e2e-abc123-cloud",
           region: "us-east-1",
           tags: { "hulumi:component": "AccountFoundation" },

@@ -112,6 +112,21 @@ describe("HulumiHardeningPack H1 — blocks raw aws.s3.BucketV2 (security S5)", 
     expect(violations).toHaveLength(0);
   });
 
+  it("does NOT report when the non-V2 bucket is the managed <component>-bucket child of SecureBucket", () => {
+    const args = makeResourceArgs({
+      type: "aws:s3/bucket:Bucket",
+      urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucket:Bucket::sb-bucket",
+      name: "sb-bucket",
+    });
+    (
+      h1BlocksRawBucket.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(0);
+  });
+
   it("reports HULUMI-H1 when a raw BucketV2 is parented by SecureBucket but not named <component>-bucket", () => {
     const args = makeResourceArgs({
       type: "aws:s3/bucketV2:BucketV2",
@@ -345,6 +360,35 @@ describe("HulumiHardeningPack H4 — Startup-Hardened SecureBucket without loggi
     const logging = makePolicyResource({
       type: "aws:s3/bucketLoggingV2:BucketLoggingV2",
       urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucketLoggingV2:BucketLoggingV2::sb-ok-logging",
+      name: "sb-ok-logging",
+      props: { bucket: "sb-ok-bucket", targetBucket: "logs-bucket" },
+    });
+    const args = makeStackArgs([hardenedBucket, logging]);
+    (
+      h4StartupHardenedRequiresLogging.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("does NOT report when a non-V2 BucketLogging sibling is present under the same SecureBucket parent", () => {
+    const hardenedBucket = makePolicyResource({
+      type: "aws:s3/bucket:Bucket",
+      urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucket:Bucket::sb-ok-bucket",
+      name: "sb-ok-bucket",
+      props: {
+        tags: {
+          "hulumi:component": "SecureBucket",
+          "hulumi:tier": "startup-hardened",
+          "hulumi:controls": "CCM:DSP-01",
+        },
+      },
+    });
+    const logging = makePolicyResource({
+      type: "aws:s3/bucketLogging:BucketLogging",
+      urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucketLogging:BucketLogging::sb-ok-logging",
       name: "sb-ok-logging",
       props: { bucket: "sb-ok-bucket", targetBucket: "logs-bucket" },
     });

@@ -69,8 +69,31 @@ export const cis_1_16_noFullAdminPolicy: ResourceValidationPolicy = {
     "CIS §1.16 — IAM policies must not grant `Action: '*'` paired with `Resource: '*'` (de-facto AdministratorAccess clones).",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
-    if (args.type !== "aws:iam/policy:Policy") return;
-    const policyDoc = (args.props as Record<string, unknown>).policy;
+    const POLICY_DOC_TYPES = new Set([
+      "aws:iam/policy:Policy",
+      "aws:iam/rolePolicy:RolePolicy",
+      "aws:iam/userPolicy:UserPolicy",
+      "aws:iam/groupPolicy:GroupPolicy",
+    ]);
+    const props = args.props as Record<string, unknown>;
+    const policyArn = props.policyArn;
+    if (
+      (args.type === "aws:iam/rolePolicyAttachment:RolePolicyAttachment" ||
+        args.type === "aws:iam/userPolicyAttachment:UserPolicyAttachment" ||
+        args.type === "aws:iam/groupPolicyAttachment:GroupPolicyAttachment") &&
+      policyArn === "arn:aws:iam::aws:policy/AdministratorAccess"
+    ) {
+      reportViolation(
+        violation(
+          "CIS-AWS-v5.0.0:1.16",
+          args.name,
+          "policy attachment uses AWS managed AdministratorAccess policy",
+        ),
+      );
+      return;
+    }
+    if (!POLICY_DOC_TYPES.has(args.type)) return;
+    const policyDoc = props.policy;
     let parsed: unknown;
     try {
       parsed = typeof policyDoc === "string" ? JSON.parse(policyDoc) : policyDoc;

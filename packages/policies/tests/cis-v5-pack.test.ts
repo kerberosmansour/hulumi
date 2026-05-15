@@ -179,6 +179,43 @@ describe("CIS §1.16 — no full-admin IAM policy", () => {
     );
     expect(violations).toHaveLength(0);
   });
+
+  it("fires on inline role policy with Action=* + Resource=*", () => {
+    invokeResource(
+      cis_1_16_noFullAdminPolicy,
+      makeResourceArgs({
+        type: "aws:iam/rolePolicy:RolePolicy",
+        urn: "x",
+        name: "role-inline-admin",
+        props: {
+          policy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [{ Effect: "Allow", Action: "*", Resource: "*" }],
+          }),
+        },
+      }),
+      report,
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
+  });
+
+  it("fires on AdministratorAccess policy attachment", () => {
+    invokeResource(
+      cis_1_16_noFullAdminPolicy,
+      makeResourceArgs({
+        type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+        urn: "x",
+        name: "admin-attachment",
+        props: {
+          policyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
+        },
+      }),
+      report,
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
+  });
 });
 
 describe("CIS §1.19 — Access Analyzer presence advisory", () => {

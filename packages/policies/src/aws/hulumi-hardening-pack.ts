@@ -52,8 +52,10 @@ function isSecureBucketManagedBucketUrn(urn: string): boolean {
   const parentUrn = urn.slice(0, trustedParentIdx);
   const childUrn = urn.slice(trustedParentIdx + trustedParent.length);
 
-  const childTypeMarker = "aws:s3/bucketV2:BucketV2::";
-  if (!childUrn.startsWith(childTypeMarker)) return false;
+  const childTypeMarker = RAW_S3_BUCKET_TYPES.map((type) => `${type}::`).find((marker) =>
+    childUrn.startsWith(marker),
+  );
+  if (childTypeMarker === undefined) return false;
 
   const childName = childUrn.slice(childTypeMarker.length);
   const parentName = parentUrn.split("::").at(-1) ?? "";
@@ -168,7 +170,7 @@ const BUCKET_LOGGING_TYPES = [
 export const h4StartupHardenedRequiresLogging: StackValidationPolicy = {
   name: "HULUMI-H4-startup-hardened-requires-logging",
   description:
-    "Startup-Hardened SecureBucket instances must emit a sibling BucketLoggingV2 resource. Defense in depth: SecureBucket's own constructor throws when logBucketArn is missing, but an engineer who bypasses the component (or a mis-versioned snapshot) would slip past the component check. H4 enforces at policy layer.",
+    "Startup-Hardened SecureBucket instances must emit a sibling BucketLogging resource. Defense in depth: SecureBucket's own constructor throws when logBucketArn is missing, but an engineer who bypasses the component (or a mis-versioned snapshot) would slip past the component check. H4 enforces at policy layer.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const suppressions = readSuppressions(

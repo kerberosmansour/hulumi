@@ -3,7 +3,7 @@
 Pulumi CrossGuard policy packs that catch the things the
 [`@hulumi/baseline`](https://github.com/kerberosmansour/hulumi/tree/main/packages/baseline)
 components can't — e.g. a PR that bypasses `SecureBucket` and reaches for
-a raw `aws.s3.BucketV2`, or a state backend pointed at `file://`.
+a raw `aws.s3.Bucket` / `aws.s3.BucketV2`, or a state backend pointed at `file://`.
 
 Part of the [Hulumi](https://github.com/kerberosmansour/hulumi) toolkit.
 Apache-2.0. SLSA Build L3 attestation on every published tarball.
@@ -64,7 +64,7 @@ import { Suppression } from "@hulumi/policies";
 const sup: Suppression = {
   pack: "hulumi-hardening",
   rule: "H3",
-  scope: { resourceUrn: "urn:pulumi:dev::project::aws:s3/bucketV2:BucketV2::legacy" },
+  scope: { resourceUrn: "urn:pulumi:dev::project::aws:s3/bucket:Bucket::legacy" },
   expires: "2026-12-31",
   reason: "legacy bucket migrating to SecureBucket in Q1; tracked in #ISSUE-42",
 };

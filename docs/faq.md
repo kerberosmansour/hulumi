@@ -33,7 +33,7 @@ The example tests under `examples/` import from `dist/` via the `exports` map. W
 
 ### `BucketV2` deprecation warnings during `pulumi preview`
 
-`@pulumi/aws@7.x` deprecates the `V2` family (`s3.BucketV2`, `s3.BucketServerSideEncryptionConfigurationV2`, etc.) in favor of the non-V2 names. Hulumi v1.x still uses the V2 forms for stable URN compatibility — switching mid-major would force a destroy/recreate on every existing bucket. The migration is planned for v2.0; see [v2-migration.md](./v2-migration.md) for the design contract.
+`@pulumi/aws@7.x` deprecates the `V2` family (`s3.BucketV2`, `s3.BucketServerSideEncryptionConfigurationV2`, etc.) in favor of the non-V2 names. Current `SecureBucket` releases construct the non-V2 resources and include aliases back to the previous V2 child type tokens. If you still see V2 warnings from Hulumi packages, first run a fresh build and confirm your lockfile is not pinned to an older `@hulumi/baseline`; then see [v2-migration.md](./v2-migration.md) for the migration checklist.
 
 ### `@pulumi/*` exact pins block a `pnpm update`
 

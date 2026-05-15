@@ -26,7 +26,7 @@ export interface SecureBucketArgs {
   awsServiceLogDelivery?: SecureBucketAwsServiceLogDeliveryConfig;
   objectLock?: SecureBucketObjectLockConfig;
   lifecycleRules?: pulumi.Input<
-    pulumi.Input<aws.types.input.s3.BucketLifecycleConfigurationV2Rule>[]
+    pulumi.Input<aws.types.input.s3.BucketLifecycleConfigurationRule>[]
   >;
   replication?: SecureBucketReplicationConfig;
 }

@@ -14,8 +14,8 @@ function s3Target(overrides: Partial<ReconcileTarget> = {}): ReconcileTarget {
     existsInCloud: true,
     identity: {
       provider: "aws",
-      type: "aws:s3/bucketV2:BucketV2",
-      urn: "urn:pulumi:sandbox::hulumi::aws:s3/bucketV2:BucketV2::logs",
+      type: "aws:s3/bucket:Bucket",
+      urn: "urn:pulumi:sandbox::hulumi::aws:s3/bucket:Bucket::logs",
       physicalId: "af-e2e-abc123-logs",
       region: "us-east-1",
       accountId: "123456789012",

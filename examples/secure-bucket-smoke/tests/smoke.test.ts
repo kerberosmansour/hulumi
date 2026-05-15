@@ -52,13 +52,13 @@ describe("examples/secure-bucket-smoke — preview emits expected tier diff", ()
     const sandboxTypes = typesByBucketName.get("smoke-sandbox") ?? new Set<string>();
     const hardenedTypes = typesByBucketName.get("smoke-hardened") ?? new Set<string>();
 
-    expect(sandboxTypes.has("aws:s3/bucketV2:BucketV2")).toBe(true);
-    expect(hardenedTypes.has("aws:s3/bucketV2:BucketV2")).toBe(true);
+    expect(sandboxTypes.has("aws:s3/bucket:Bucket")).toBe(true);
+    expect(hardenedTypes.has("aws:s3/bucket:Bucket")).toBe(true);
 
     // Startup-Hardened must emit the three deltas; Sandbox must not.
     const hardenedOnlyTypes = [
-      "aws:s3/bucketObjectLockConfigurationV2:BucketObjectLockConfigurationV2",
-      "aws:s3/bucketLoggingV2:BucketLoggingV2",
+      "aws:s3/bucketObjectLockConfiguration:BucketObjectLockConfiguration",
+      "aws:s3/bucketLogging:BucketLogging",
       "aws:cloudtrail/eventDataStore:EventDataStore",
     ];
     for (const t of hardenedOnlyTypes) {
@@ -68,10 +68,10 @@ describe("examples/secure-bucket-smoke — preview emits expected tier diff", ()
 
     // Tags present on both bucket instances.
     const sandboxBucket = registrations.find(
-      (r) => r.name === "smoke-sandbox-bucket" && r.type === "aws:s3/bucketV2:BucketV2",
+      (r) => r.name === "smoke-sandbox-bucket" && r.type === "aws:s3/bucket:Bucket",
     );
     const hardenedBucket = registrations.find(
-      (r) => r.name === "smoke-hardened-bucket" && r.type === "aws:s3/bucketV2:BucketV2",
+      (r) => r.name === "smoke-hardened-bucket" && r.type === "aws:s3/bucket:Bucket",
     );
     expect(sandboxBucket).toBeDefined();
     expect(hardenedBucket).toBeDefined();

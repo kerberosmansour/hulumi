@@ -1,119 +1,88 @@
 ---
-title: v2.0 migration plan — BucketV2 → non-V2 surface
-description: Design doc for the v2.0 migration from `@pulumi/aws` `*V2` resource names to their non-V2 successors. Not a v2 release commitment.
+title: SecureBucket S3 V2 to non-V2 migration
+description: Migration guide for Hulumi SecureBucket moving from deprecated Pulumi AWS S3 V2 resource classes to current non-V2 classes with aliases.
 ---
 
-# v2.0 migration plan — `BucketV2` → non-V2 surface
+# SecureBucket S3 V2 to non-V2 migration
 
-> **Status**: design doc. Hulumi v1.x continues to ship the V2-shaped surface; this doc is the contract for whenever v2.0 lands. It is **not** a release commit, and there is no v2 timeline yet.
+> **Status**: current SecureBucket migration guide. Issue [#139](https://github.com/kerberosmansour/hulumi/issues/139) moves the component to the non-V2 Pulumi AWS S3 classes while preserving V2-state compatibility through built-in aliases.
 
 ## Motivation
 
-`@pulumi/aws@7.x` deprecates the `V2` family of S3 resources in favor of the non-V2 names. Running `pulumi preview` against any v1.x Hulumi stack today emits warnings:
+`@pulumi/aws@7.x` deprecates the S3 `*V2` resource classes in favor of the non-V2 names. Current SecureBucket deployments should emit the non-V2 Pulumi resource types so preview output stays clean and future provider changes are easier to reason about.
 
-```
-warning: [runtime] BucketV2 is deprecated: s3.BucketV2 has been deprecated in favor of s3.Bucket
-warning: [runtime] BucketServerSideEncryptionConfigurationV2 is deprecated: …
-warning: [runtime] BucketVersioningV2 is deprecated: …
-warning: [runtime] BucketObjectLockConfigurationV2 is deprecated: …
-warning: [runtime] BucketLoggingV2 is deprecated: …
-```
+The hard part is Pulumi state compatibility: resource URNs include the type token. A bucket child moving from `aws:s3/bucketV2:BucketV2` to `aws:s3/bucket:Bucket` needs an alias or Pulumi may plan a delete/create instead of adopting the existing child.
 
-The warnings are visible in every `examples/account-foundation-smoke` test run and in any user's `pulumi preview` output. Switching mid-major would force a destroy/recreate on every existing bucket — every consumer's prod state. The migration belongs to v2.0.
+## Affected SecureBucket surface
 
-## Affected resource surface
-
-The following `aws.s3.*V2` types are used by `@hulumi/baseline.aws.SecureBucket` and `AccountFoundation`'s sub-components:
-
-| v1.x resource type                                 | v2.0 target type                                 |
+| Previous Pulumi AWS class                          | Current Pulumi AWS class                         |
 | -------------------------------------------------- | ------------------------------------------------ |
 | `aws.s3.BucketV2`                                  | `aws.s3.Bucket`                                  |
 | `aws.s3.BucketServerSideEncryptionConfigurationV2` | `aws.s3.BucketServerSideEncryptionConfiguration` |
 | `aws.s3.BucketVersioningV2`                        | `aws.s3.BucketVersioning`                        |
 | `aws.s3.BucketObjectLockConfigurationV2`           | `aws.s3.BucketObjectLockConfiguration`           |
 | `aws.s3.BucketLoggingV2`                           | `aws.s3.BucketLogging`                           |
+| `aws.s3.BucketLifecycleConfigurationV2`            | `aws.s3.BucketLifecycleConfiguration`            |
 
-There is no behavioral difference in the AWS API surface — the V2/non-V2 distinction is a Pulumi-side type-system change that happens to require URN regeneration.
+There is no intended AWS-behavior change in this migration. It is a Pulumi provider type-surface cleanup plus a state-aliasing exercise.
 
-## URN compatibility — why this is a v2
+## What Hulumi does for normal SecureBucket consumers
 
-Pulumi resources are identified by URN, and the URN encodes the resource type. When `BucketV2` becomes `Bucket`, the URN changes. Pulumi treats the rename as a destroy + recreate unless the user explicitly aliases the old URN.
-
-For Hulumi v1.x consumers:
-
-- Without an alias: `pulumi up` after the v2.0 bump would delete every existing bucket and create new ones. Catastrophic for any stack with state.
-- With an alias: the new resource adopts the old URN; the rename is a metadata-only operation.
-
-Hulumi v2.0 will include `aliases` for every renamed resource; the migration steps below describe the user-side wiring.
-
-## Migration steps (v2.0 consumer-side)
-
-> These steps will land in `docs/cookbooks/v2-migration.md` when v2.0 ships.
-
-### 1. Pin to the last v1.x release before bumping
-
-```bash
-pnpm add @hulumi/baseline@^1.3.2   # whatever's latest in the v1.x line
-```
-
-### 2. Run `pulumi preview` and confirm zero warnings other than the V2 deprecations
-
-The deprecation warnings are the only expected v1.x noise. If your preview emits anything else, address it before the v2.0 bump.
-
-### 3. Bump to v2.0 and add the `aliases` block
-
-Hulumi v2.0 will export the alias array per renamed resource:
+SecureBucket now constructs the non-V2 child resources and attaches aliases for the previous V2 child type tokens. For the ordinary case:
 
 ```ts
-import { SecureBucket, V1_BUCKET_ALIASES } from "@hulumi/baseline/aws";
-
-const logs = new SecureBucket(
-  "audit-logs",
-  { tier: "startup-hardened" },
-  { aliases: V1_BUCKET_ALIASES },
-);
+const logs = new SecureBucket("audit-logs", {
+  tier: "startup-hardened",
+  bucketName: "my-org-audit-logs",
+  logBucketArn: "arn:aws:s3:::org-audit-logs",
+});
 ```
 
-The exact name of the export will be confirmed when v2.0 lands; this doc commits Hulumi to providing it.
+You do not need to add a user-side alias block just because SecureBucket changed its internal S3 class names. The component carries the old child type aliases itself.
 
-### 4. Run `pulumi preview` after the bump
+## Existing-stack checklist
 
-Expected output: every existing resource shows as `~` (update) with no `+` (create) or `-` (destroy). The alias absorbs the URN change.
+1. Upgrade the Hulumi packages in a clean branch.
+2. Run `pnpm -r build` if local examples or tests import from `dist/`.
+3. Run `pulumi preview` for each stack that already has SecureBucket resources.
+4. Confirm the SecureBucket S3 children show as adopted/updated, not deleted and recreated.
+5. If preview shows a replacement for a bucket child, stop. Do not run `pulumi up`; inspect the URN, parent, resource name, and alias path first.
+6. Once preview is clean, run `pulumi up`.
 
-### 5. Run `pulumi up`
+Expected preview shape: metadata updates or no-op for existing children. Unexpected shape: `-` destroy or `+-` replacement for a stateful bucket child.
 
-Pulumi rewrites the URN entry in state without touching the AWS resource. Your data, encryption, and policies are unchanged.
+## TypeScript API change
 
-## What v1.x does NOT commit to
+`SecureBucketOutputs.bucket` and `SecureBucket.bucket` are now typed as `aws.s3.Bucket` instead of `aws.s3.BucketV2`.
 
-This doc is a contract for v2.0 design, not a release promise. Specifically:
+The practical outputs remain the same for normal callers:
 
-- No date. v2.0 ships when the migration story is fully validated, not on a calendar.
-- No commitment to a specific `@pulumi/aws` version compatibility window. v2.0 may also bump the `@pulumi/aws` peer dep range.
-- No commitment to keep V2 + non-V2 in the same major. v2.0 will be a clean cut; v1.x users who don't migrate by EOL of v1.x's support line will need to stay on v1.x.
+- `bucket.id`
+- `bucket.arn`
+- `bucket.bucketDomainName`
+- the component-level `arn` and `bucketDomainName` outputs
 
-## Compatibility window
+If application code explicitly imports `BucketV2` types or annotates `SecureBucket.bucket` as `aws.s3.BucketV2`, change those annotations to `aws.s3.Bucket`.
 
-`@hulumi/baseline@1.x` will be supported for **6 months** after v2.0 ships. During that window:
+## Policy and drift compatibility
 
-- Critical security fixes are backported to v1.x.
-- `@pulumi/*` cooling-off bumps are backported.
-- Net-new features land only on v2.x.
+During the migration window, Hulumi policies and drift helpers accept both token families:
 
-After the 6-month window, v1.x is EOL. The same 6-month window applies to every published `@hulumi/*` package because of the atomic-release invariant — you can't be on v1.x of one and v2.x of another.
+- Current bucket token: `aws:s3/bucket:Bucket`
+- Legacy bucket token: `aws:s3/bucketV2:BucketV2`
 
-## Open questions for v2.0 design
+This preserves H1/H4 policy behavior for stacks that still contain old V2 state while letting new SecureBucket deployments register the current non-V2 resources.
 
-These are the design decisions that v2.0 will need to land:
+## Mid-stack adoption is different
 
-1. **Alias export shape**. Single `V1_*_ALIASES` constants per component, or a builder function that takes the resource name and emits the URN list?
-2. **`@pulumi/aws` peer dep range**. v2.0 might bump the lower bound past v7 (e.g., to v8 if AWS provider has shipped one by then).
-3. **Migration tooling**. Should Hulumi ship a `pnpm dlx @hulumi/v2-migrator` codemod that auto-inserts the aliases? Or is a doc-only migration sufficient?
-4. **State backend test fixtures**. v2.0 acceptance includes a fixture stack that round-trips a v1.x → v2.x migration with state intact. Where does that fixture live? (Probably under `tests/v2-migration/`.)
-5. **CHANGELOG breaking-change discipline**. v2.0 is the first Hulumi major. Pin the changelog discipline (link to migration doc, name the affected APIs, name the alias surface) before the release commit.
+The built-in aliases cover SecureBucket's own V2-to-non-V2 child type migration. They do not automatically adopt an unrelated hand-rolled resource from outside the component. If you are replacing an existing raw bucket with `SecureBucket`, use the mid-stack adoption cookbook and add aliases for the old hand-rolled URNs:
 
-## Why this design doc exists in v1.x
+- [Adopt Hulumi inside an existing Pulumi project](./cookbooks/migration-mid-stack-adoption.md)
 
-Public users will start depending on `BucketV2`-shaped output names the moment Hulumi flips public. A v2.0 migration sketch lets them plan past v1.x; an undocumented one means everyone re-derives the migration story when v2.0 hits. Filing the contract in v1.x is cheap insurance — the doc costs nothing if v2.0 takes a year, and saves a week of docs work if v2.0 ships sooner.
+In short: package upgrades for existing SecureBucket stacks should be covered by the built-in child aliases. Refactoring a raw bucket into a SecureBucket component still needs project-specific aliases because the parent path changes.
 
-Tracking issue: [#22](https://github.com/kerberosmansour/hulumi/issues/22).
+## Rollback
+
+Before `pulumi up`, rollback is just reverting the package/source change and rerunning `pulumi preview`.
+
+After `pulumi up`, the state has been rewritten to the non-V2 child tokens. Rolling back to an older Hulumi release may require aliases in the opposite direction or Pulumi state surgery. Treat that as a change-management event, not a routine revert.

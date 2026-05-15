@@ -4,7 +4,7 @@ Hardened S3 bucket `ComponentResource` with Sandbox and Startup-Hardened tiers. 
 
 **Stability**: `stable` from v0.2 per [interfaces.md §1](../slo/design/hulumi/interfaces.md).
 **Ships**: M2.
-**Paired policies**: `HulumiHardeningPack` H1 (blocks raw `aws.s3.BucketV2`), H4 (Startup-Hardened requires logging sibling).
+**Paired policies**: `HulumiHardeningPack` H1 (blocks raw `aws.s3.Bucket` / `aws.s3.BucketV2`), H4 (Startup-Hardened requires logging sibling).
 
 ## Quick-start
 
@@ -18,7 +18,7 @@ const scratch = new SecureBucket("scratch", { tier: "sandbox" });
 export const bucketArn = scratch.arn;
 ```
 
-Emits: BucketV2, PublicAccessBlock (T/T/T/T), SSE-KMS, BucketOwnerEnforced, Versioning, TLS-only policy.
+Emits: Bucket, PublicAccessBlock (T/T/T/T), SSE-KMS, BucketOwnerEnforced, Versioning, TLS-only policy.
 
 ### Startup-Hardened tier
 
@@ -36,7 +36,7 @@ export const prodArn = production.arn;
 export const prodDomain = production.bucketDomainName;
 ```
 
-Emits everything in the Sandbox tier PLUS `BucketObjectLockConfigurationV2`, `BucketLoggingV2`, and a per-bucket `cloudtrail.EventDataStore`.
+Emits everything in the Sandbox tier PLUS `BucketObjectLockConfiguration`, `BucketLogging`, and a per-bucket `cloudtrail.EventDataStore`.
 
 The full tier matrix, including why Startup-Hardened emits exactly three extra sub-resources, lives in [../tiers.md § SecureBucket — tier matrix](../tiers.md#securebucket--tier-matrix).
 
@@ -48,18 +48,22 @@ The full tier matrix, including why Startup-Hardened emits exactly three extra s
 | `kmsKeyArn`      | `Input<string>`                                         | no                          | AWS-managed key (`aws/s3`)         |
 | `logBucketArn`   | `Input<string>`                                         | yes (Startup-Hardened only) | —                                  |
 | `objectLock`     | `{ mode: "governance" \| "compliance", days: number }`  | no                          | `{ mode: "governance", days: 30 }` |
-| `lifecycleRules` | `Input<…BucketLifecycleConfigurationV2Rule[]>`          | no                          | —                                  |
+| `lifecycleRules` | `Input<...BucketLifecycleConfigurationRule[]>`          | no                          | —                                  |
 | `replication`    | `{ role, destinationBucketArn, destinationKmsKeyArn? }` | no                          | —                                  |
 
 ## Outputs
 
-| Output             | Type                                 | Description                                                 |
-| ------------------ | ------------------------------------ | ----------------------------------------------------------- |
-| `bucket`           | `aws.s3.BucketV2`                    | Primary BucketV2 resource (sub-resource of this component). |
-| `arn`              | `pulumi.Output<string>`              | Equivalent to `bucket.arn`.                                 |
-| `bucketDomainName` | `pulumi.Output<string>`              | Equivalent to `bucket.bucketDomainName`.                    |
-| `logBucketArn`     | `pulumi.Output<string \| undefined>` | Echo of the input when present.                             |
-| `kmsKeyArn`        | `pulumi.Output<string \| undefined>` | Echo of the input when present.                             |
+| Output             | Type                                 | Description                                               |
+| ------------------ | ------------------------------------ | --------------------------------------------------------- |
+| `bucket`           | `aws.s3.Bucket`                      | Primary Bucket resource (sub-resource of this component). |
+| `arn`              | `pulumi.Output<string>`              | Equivalent to `bucket.arn`.                               |
+| `bucketDomainName` | `pulumi.Output<string>`              | Equivalent to `bucket.bucketDomainName`.                  |
+| `logBucketArn`     | `pulumi.Output<string \| undefined>` | Echo of the input when present.                           |
+| `kmsKeyArn`        | `pulumi.Output<string \| undefined>` | Echo of the input when present.                           |
+
+## Migration note
+
+Current SecureBucket releases construct the non-V2 Pulumi AWS S3 resource classes and carry aliases back to the previous V2 child type tokens. Existing stacks should run `pulumi preview` after upgrading and confirm the bucket children are adopted/updated, not deleted and recreated. The TypeScript `bucket` output type changed from `aws.s3.BucketV2` to `aws.s3.Bucket`; practical outputs such as `id`, `arn`, and `bucketDomainName` are unchanged.
 
 ## Tags emitted
 

@@ -4,6 +4,8 @@
 // tests/setup.ts (vitest setupFile) so that `new SecureBucket(…)` below does
 // not require a real Pulumi engine.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { SecureBucket } from "../src/aws/secure-bucket";
@@ -12,23 +14,33 @@ import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setu
 
 const LOG_BUCKET_ARN = "arn:aws:s3:::logs-bucket";
 const LOG_BUCKET_NAME = "logs-bucket";
+const repoRoot = resolve(__dirname, "..", "..", "..");
 
 // Sub-resource types the sandbox tier emits.
 const SANDBOX_SUB_TYPES = [
-  "aws:s3/bucketV2:BucketV2",
+  "aws:s3/bucket:Bucket",
   "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
-  "aws:s3/bucketServerSideEncryptionConfigurationV2:BucketServerSideEncryptionConfigurationV2",
+  "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
   "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
-  "aws:s3/bucketVersioningV2:BucketVersioningV2",
+  "aws:s3/bucketVersioning:BucketVersioning",
   "aws:s3/bucketPolicy:BucketPolicy",
 ] as const;
 
 // Three sub-resources that Startup-Hardened emits in addition to Sandbox —
 // this is the load-bearing tier delta.
 const STARTUP_HARDENED_EXTRA_TYPES = [
+  "aws:s3/bucketObjectLockConfiguration:BucketObjectLockConfiguration",
+  "aws:s3/bucketLogging:BucketLogging",
+  "aws:cloudtrail/eventDataStore:EventDataStore",
+] as const;
+
+const LEGACY_V2_ALIAS_TYPES = [
+  "aws:s3/bucketV2:BucketV2",
+  "aws:s3/bucketServerSideEncryptionConfigurationV2:BucketServerSideEncryptionConfigurationV2",
+  "aws:s3/bucketVersioningV2:BucketVersioningV2",
   "aws:s3/bucketObjectLockConfigurationV2:BucketObjectLockConfigurationV2",
   "aws:s3/bucketLoggingV2:BucketLoggingV2",
-  "aws:cloudtrail/eventDataStore:EventDataStore",
+  "aws:s3/bucketLifecycleConfigurationV2:BucketLifecycleConfigurationV2",
 ] as const;
 
 function typesOf(): string[] {
@@ -77,7 +89,7 @@ describe("SecureBucket — Sandbox tier emits baseline sub-resources (happy path
     expect(pab!.inputs.restrictPublicBuckets).toBe(true);
 
     const sse = findRegistration(
-      "aws:s3/bucketServerSideEncryptionConfigurationV2:BucketServerSideEncryptionConfigurationV2",
+      "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
     );
     expect(sse).toBeDefined();
     const sseRules = sse!.inputs.rules as Array<Record<string, unknown>>;
@@ -89,7 +101,7 @@ describe("SecureBucket — Sandbox tier emits baseline sub-resources (happy path
     const rule = ownership!.inputs.rule as Record<string, unknown>;
     expect(rule.objectOwnership).toBe("BucketOwnerEnforced");
 
-    const versioning = findRegistration("aws:s3/bucketVersioningV2:BucketVersioningV2");
+    const versioning = findRegistration("aws:s3/bucketVersioning:BucketVersioning");
     expect(versioning).toBeDefined();
     const vcfg = versioning!.inputs.versioningConfiguration as Record<string, unknown>;
     expect(vcfg.status).toBe("Enabled");
@@ -183,7 +195,7 @@ describe("SecureBucket — forceDestroy is explicit", () => {
     const bucket = new SecureBucket("sb-retain-default", { tier: "sandbox" });
     await valueOf(bucket.arn);
     await settlePulumi();
-    const bucketReg = findRegistration("aws:s3/bucketV2:BucketV2");
+    const bucketReg = findRegistration("aws:s3/bucket:Bucket");
     expect(bucketReg?.inputs.forceDestroy).toBeUndefined();
   });
 
@@ -191,7 +203,7 @@ describe("SecureBucket — forceDestroy is explicit", () => {
     const bucket = new SecureBucket("sb-ephemeral", { tier: "sandbox", forceDestroy: true });
     await valueOf(bucket.arn);
     await settlePulumi();
-    const bucketReg = findRegistration("aws:s3/bucketV2:BucketV2");
+    const bucketReg = findRegistration("aws:s3/bucket:Bucket");
     expect(bucketReg?.inputs.forceDestroy).toBe(true);
   });
 });
@@ -213,7 +225,7 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
     }
 
     const lock = findRegistration(
-      "aws:s3/bucketObjectLockConfigurationV2:BucketObjectLockConfigurationV2",
+      "aws:s3/bucketObjectLockConfiguration:BucketObjectLockConfiguration",
     );
     expect(lock).toBeDefined();
     const rule = lock!.inputs.rule as Record<string, unknown>;
@@ -221,7 +233,7 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
     expect(defaultRet.mode).toBe("GOVERNANCE");
     expect(defaultRet.days).toBe(30);
 
-    const logging = findRegistration("aws:s3/bucketLoggingV2:BucketLoggingV2");
+    const logging = findRegistration("aws:s3/bucketLogging:BucketLogging");
     expect(logging).toBeDefined();
     expect(logging!.inputs.targetBucket).toBe(LOG_BUCKET_NAME);
 
@@ -287,8 +299,8 @@ describe("SecureBucket — tags emitted on all sub-resources (compatibility)", (
 
     // The bucket itself carries tags; sibling sub-resources reference the
     // bucket by id and do not double-carry tags by AWS convention, so the
-    // tag-emission check is performed on the primary BucketV2 registration.
-    const bucketReg = findRegistration("aws:s3/bucketV2:BucketV2");
+    // tag-emission check is performed on the primary Bucket registration.
+    const bucketReg = findRegistration("aws:s3/bucket:Bucket");
     expect(bucketReg).toBeDefined();
     const tags = bucketReg!.inputs.tags as Record<string, string>;
     expect(tags["hulumi:component"]).toBe("SecureBucket");
@@ -303,6 +315,18 @@ describe("SecureBucket — tags emitted on all sub-resources (compatibility)", (
     }
     const controlCount = controlsFromTags(tags).length;
     expect(controlCount).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("SecureBucket — S3 non-V2 migration aliases", () => {
+  it("keeps aliases for every migrated legacy V2 child resource type", () => {
+    const source = readFileSync(
+      resolve(repoRoot, "packages", "baseline", "src", "aws", "secure-bucket.ts"),
+      "utf8",
+    );
+    for (const legacyType of LEGACY_V2_ALIAS_TYPES) {
+      expect(source, `missing Pulumi alias for ${legacyType}`).toContain(legacyType);
+    }
   });
 });
 

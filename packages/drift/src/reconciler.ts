@@ -252,6 +252,11 @@ export class OrphanReconciler {
     if (options.confirmToken !== plan.confirmToken) {
       throw new Error("Refusing to execute: confirmation token does not match the plan.");
     }
+    if (!this.rawActionsByToken.has(plan.confirmToken)) {
+      throw new Error(
+        "Refusing to execute: plan confirmation token is unknown or expired; generate a new plan.",
+      );
+    }
 
     const allow = new Set(options.allow ?? []);
     const startedAt = new Date().toISOString();
@@ -271,7 +276,7 @@ export class OrphanReconciler {
 
     OrphanReconciler.activeExecutionLocks.add(lockKey);
     try {
-      const actions = this.rawActionsByToken.get(plan.confirmToken) ?? plan.actions;
+      const actions = this.rawActionsByToken.get(plan.confirmToken) ?? [];
       for (const action of actions) {
         if (!action.executable) {
           results.push({

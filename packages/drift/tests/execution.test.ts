@@ -126,4 +126,41 @@ describe("OrphanReconciler execution", () => {
     expect(result.results.map((entry) => entry.status).sort()).toEqual(["failed", "succeeded"]);
     expect(JSON.stringify(result)).not.toContain("af-e2e-abc123-bad");
   });
+
+  it("refuses externally supplied plans without an in-memory token match", async () => {
+    const reconciler = new OrphanReconciler({
+      executors: {
+        drainS3BucketVersions: {
+          execute: async (action) => ({ actionId: action.id, status: "succeeded" }),
+        },
+      },
+    });
+    const planned = reconciler.plan({
+      now: NOW,
+      mode: "sweep-only",
+      scope: { resourcePrefix: "af-e2e-abc123" },
+      targets: [s3Target("logs")],
+    });
+    const forgedPlan = {
+      ...planned,
+      actions: planned.actions.map((action) => ({
+        ...action,
+        id: "forged-action",
+        executable: true,
+      })),
+    };
+
+    await expect(
+      new OrphanReconciler({
+        executors: {
+          drainS3BucketVersions: {
+            execute: async (action) => ({ actionId: action.id, status: "succeeded" }),
+          },
+        },
+      }).execute(forgedPlan, {
+        confirmToken: forgedPlan.confirmToken,
+        allow: ["deleteCloudResource"],
+      }),
+    ).rejects.toThrow(/unknown or expired/);
+  });
 });

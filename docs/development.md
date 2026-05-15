@@ -145,7 +145,12 @@ Hulumi takes supply-chain seriously enough that it's a design constraint, not ju
 
 ### Rule 3: SLSA Build L3 on every release
 
-`.github/workflows/release.yml` uses `slsa-framework/slsa-github-generator` pinned to an exact SHA. Every published tarball ships with `"provenance": true`. Consumers can verify with `gh attestation verify` — see [verify-provenance.md](./cookbooks/verify-provenance.md).
+`.github/workflows/release.yml` builds tarballs and SBOMs without OIDC signing
+permission, then calls the reusable `.github/workflows/sign-and-publish.yml`
+workflow to run `actions/attest-build-provenance` and npm trusted publishing.
+Every published tarball ships with `"provenance": true`. Consumers can verify
+with `gh attestation verify` — see
+[verify-provenance.md](./cookbooks/verify-provenance.md).
 
 If you're adding a new runtime dependency to any publishable package, **start a GitHub Discussion first**. CONTRIBUTING.md describes the criteria. The drift package's runtime deps (`@aws-sdk/*`, `simple-git`, `p-timeout`) went through this gate.
 

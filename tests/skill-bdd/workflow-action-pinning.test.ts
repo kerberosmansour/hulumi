@@ -1,8 +1,10 @@
 // Workflow action SHA-pinning BDD (Runbook hulumi-pre-public-launch M2).
 //
-// Enforces that every `uses:` reference across the .github/workflows/*.yml
-// files names a 40-char commit SHA, with the original tag preserved as a
-// trailing `# vN` comment for human readability + Dependabot integration.
+// Enforces that every external `uses:` reference across the
+// .github/workflows/*.yml files names a 40-char commit SHA, with the
+// original tag preserved as a trailing `# vN` comment for human readability
+// + Dependabot integration. Local reusable workflows are allowed because they
+// resolve inside the same release commit.
 //
 // A pinned-tag like `actions/checkout@v6` is a moving reference; a SHA
 // pin like `actions/checkout@<40-char-sha> # v6` is immutable. For a
@@ -25,12 +27,17 @@ interface UsesRef {
   action?: string;
   sha?: string;
   tagComment?: string;
+  local?: boolean;
 }
 
 function listWorkflowFiles(): string[] {
   return readdirSync(workflowsDir)
     .filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"))
     .map((f) => resolve(workflowsDir, f));
+}
+
+function isLocalUsesRef(ref: string): boolean {
+  return ref.startsWith("./") || ref.startsWith("../");
 }
 
 function collectUsesRefs(): UsesRef[] {
@@ -43,6 +50,12 @@ function collectUsesRefs(): UsesRef[] {
       if (!usesMatch) return;
       const fileBase = file.replace(`${repoRoot}/`, "");
       const ref: UsesRef = { file: fileBase, lineNumber: idx + 1, raw: trimmed };
+      if (isLocalUsesRef(usesMatch[1])) {
+        ref.action = usesMatch[1];
+        ref.local = true;
+        refs.push(ref);
+        return;
+      }
       const shaMatch = trimmed.match(SHA_PIN_LINE);
       if (shaMatch) {
         ref.action = shaMatch[1];
@@ -56,12 +69,12 @@ function collectUsesRefs(): UsesRef[] {
 }
 
 describe("Feature: Workflow action SHA-pinning (Runbook hulumi-pre-public-launch M2)", () => {
-  describe("Scenario: every `uses:` in .github/workflows/*.yml is SHA-pinned", () => {
-    it("walks all workflow files and asserts each uses: line matches the SHA-pin regex", () => {
+  describe("Scenario: every external `uses:` in .github/workflows/*.yml is SHA-pinned", () => {
+    it("walks all workflow files and asserts each external uses: line matches the SHA-pin regex", () => {
       const refs = collectUsesRefs();
       expect(refs.length, "no `uses:` lines found in .github/workflows/").toBeGreaterThan(0);
 
-      const violations = refs.filter((r) => !r.sha);
+      const violations = refs.filter((r) => !r.local && !r.sha);
       const message = violations
         .map((v) => `  ${v.file}:${v.lineNumber} → ${v.raw.trim()}`)
         .join("\n");
@@ -76,7 +89,7 @@ describe("Feature: Workflow action SHA-pinning (Runbook hulumi-pre-public-launch
 
   describe("Scenario: every SHA-pinned use carries a tag-as-comment", () => {
     it("a `# vN` (or similar) comment is preserved alongside each SHA pin", () => {
-      const refs = collectUsesRefs().filter((r) => r.sha);
+      const refs = collectUsesRefs().filter((r) => !r.local && r.sha);
       const missingComment = refs.filter((r) => !r.tagComment);
       const message = missingComment
         .map((v) => `  ${v.file}:${v.lineNumber} → ${v.raw.trim()}`)
@@ -87,6 +100,16 @@ describe("Feature: Workflow action SHA-pinning (Runbook hulumi-pre-public-launch
         `Found ${missingComment.length} SHA-pinned use(s) without tag-as-comment:\n${message}\n` +
           `Format must be: uses: <action>@<sha> # <tag>`,
       ).toEqual([]);
+    });
+  });
+
+  describe("Scenario: local reusable workflow calls are explicitly local", () => {
+    it("allows release.yml to call the in-repo signing workflow without an external ref", () => {
+      const localRefs = collectUsesRefs().filter((r) => r.local);
+      expect(
+        localRefs.some((r) => r.action === "./.github/workflows/sign-and-publish.yml"),
+        "release.yml must delegate signing/publish to the local reusable workflow",
+      ).toBe(true);
     });
   });
 

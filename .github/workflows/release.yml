@@ -1,9 +1,13 @@
-# Release — atomic six-package npm publish with SLSA Build L3
-# attestation + SBOM generation + signed GitHub release.
+# Release — atomic six-package npm publish with isolated SLSA Build L3
+# provenance + SBOM generation + signed GitHub release.
 #
 # Trigger: tag v*.*.* on main. The release is atomic — any step
 # failure aborts before any `npm publish`. There is NO long-lived
 # NPM_TOKEN; npm trusted publishing via OIDC is the only auth path.
+#
+# Build, pack, and SBOM generation happen without `id-token: write`.
+# `.github/workflows/sign-and-publish.yml` is the reusable signing lane
+# that receives OIDC + attestation permissions.
 #
 # The six-package set is asserted by
 # packages/k8s-baseline/tests/release-readiness.test.ts:
@@ -48,14 +52,12 @@ jobs:
       - run: pnpm run lint:license-boundary
       - run: pnpm run format:check
 
-  attest-and-publish:
-    name: SLSA attest + npm publish (atomic)
+  build-release-artifacts:
+    name: build release artifacts (no OIDC signing)
     needs: preflight
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
@@ -66,7 +68,7 @@ jobs:
           node-version: 22.14.0
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      - name: Use npm CLI with trusted publishing OIDC support
+      - name: Use npm CLI pinned for release tooling
         run: |
           npm install -g npm@11.5.1
           node --version
@@ -82,6 +84,12 @@ jobs:
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/
+
+      - name: Generate tarball digest manifest
+        run: |
+          set -euo pipefail
+          sha256sum .release-artifacts/*.tgz > .release-artifacts/tarballs-sha256.txt
+          cat .release-artifacts/tarballs-sha256.txt
 
       - name: Generate SBOMs (CycloneDX, via cdxgen)
         # cdxgen is the multi-package-manager CycloneDX generator. It reads
@@ -110,25 +118,23 @@ jobs:
               "packages/$pkg"
           done
 
-      - name: Attest provenance for tarballs
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+      - name: Upload release artifacts for isolated signing
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          subject-path: ".release-artifacts/*.tgz"
+          name: hulumi-release-artifacts
+          path: .release-artifacts/
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: npm publish (atomic — any failure aborts before subsequent publishes)
-        run: |
-          set -euo pipefail
-          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
-            tarball="$(find .release-artifacts -maxdepth 1 -type f -name "hulumi-${pkg}-*.tgz" -print -quit)"
-            test -n "$tarball"
-            npm publish "$tarball" --provenance --access public
-          done
-
-      - name: Create GitHub release with SBOMs + tarballs
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
-        with:
-          files: |
-            .release-artifacts/*.tgz
-            .release-artifacts/sbom-*.cdx.json
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+  sign-and-publish:
+    name: SLSA attest + npm publish (reusable)
+    needs: build-release-artifacts
+    uses: ./.github/workflows/sign-and-publish.yml
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      attestations: write
+    with:
+      artifact-name: hulumi-release-artifacts
+      package-list: baseline policies drift k8s-baseline cloudflare-baseline platform-patterns

@@ -78,8 +78,9 @@ import {
 
 ## Verifying SLSA Attestations
 
-Every published tarball ships with `actions/attest-build-provenance` v2
-provenance. Verify before installing:
+Every published tarball ships with GitHub Artifact Attestations provenance
+from the reusable `sign-and-publish.yml` release lane. Verify before
+installing:
 
 ```bash
 pnpm pack @hulumi/platform-patterns@1.3.2 --pack-destination .

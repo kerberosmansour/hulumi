@@ -52,20 +52,21 @@ function readPackageJson(pkg: string): PublishablePackageJson {
 
 describe("Feature: K8s package release readiness (Runbook M1)", () => {
   describe("Scenario: Release packs six packages", () => {
-    it("release workflow pack loop names every publishable package", () => {
-      const yml = readRepoFile(".github/workflows/release.yml");
+    it("release and signing workflows name every publishable package", () => {
+      const releaseYml = readRepoFile(".github/workflows/release.yml");
+      const signingYml = readRepoFile(".github/workflows/sign-and-publish.yml");
 
-      expect(yml).toContain(
+      expect(releaseYml).toContain(
         "baseline policies drift k8s-baseline cloudflare-baseline platform-patterns",
       );
-      expect(yml).toContain(
+      expect(signingYml).toContain(
         'find .release-artifacts -maxdepth 1 -type f -name "hulumi-${pkg}-*.tgz"',
       );
-      expect(yml).toContain('npm publish "$tarball" --provenance --access public');
+      expect(signingYml).toContain('npm publish "$tarball" --provenance --access public');
     });
 
-    it("release workflow uses npm trusted-publishing-compatible Node/npm versions", () => {
-      const yml = readRepoFile(".github/workflows/release.yml");
+    it("signing workflow uses npm trusted-publishing-compatible Node/npm versions", () => {
+      const yml = readRepoFile(".github/workflows/sign-and-publish.yml");
 
       expect(yml).toContain("node-version: 22.14.0");
       expect(yml).toContain("npm install -g npm@11.5.1");

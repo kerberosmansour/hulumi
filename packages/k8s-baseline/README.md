@@ -70,8 +70,9 @@ the same supply-chain discipline as `@pulumi/*` exact pins.
 
 ## Verifying SLSA attestations
 
-Every published tarball ships with `actions/attest-build-provenance` v2
-provenance. Verify before installing:
+Every published tarball ships with GitHub Artifact Attestations provenance
+from the reusable `sign-and-publish.yml` release lane. Verify before
+installing:
 
 ```bash
 pnpm pack @hulumi/k8s-baseline@1.3.2 --pack-destination .

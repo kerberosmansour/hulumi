@@ -22,11 +22,10 @@ blog guest post on the design choices, especially:
    ceiling — a property we'd never have proven with tests
    alone.
 
-3. **SLSA Build L3 day-zero.** We use
-   `slsa-framework/slsa-github-generator` reusable workflow +
-   npm trusted publishing (no `NPM_TOKEN`). Three packages
-   publish atomically; any attestation failure aborts before
-   any `npm publish`.
+3. **SLSA Build L3 day-zero.** We use a reusable
+   `.github/workflows/sign-and-publish.yml` Artifact Attestations lane +
+   npm trusted publishing (no `NPM_TOKEN`). Three packages publish
+   atomically; any attestation failure aborts before any `npm publish`.
 
 4. **Pulumi Automation API as an integration test harness.**
    Our weekly real-AWS integration test runs `pulumi up` →

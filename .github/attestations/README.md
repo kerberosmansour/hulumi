@@ -1,8 +1,9 @@
 # Verifying Hulumi attestations
 
-Every Hulumi tarball published from v1.0.0 carries an
-`actions/attest-build-provenance` v2 attestation. This document
-covers verification via `gh attestation verify` and `cosign`.
+Every Hulumi tarball published from v1.0.0 carries an attestation. Current
+releases generate that attestation through the reusable
+`.github/workflows/sign-and-publish.yml` signing workflow. This document covers
+verification via `gh attestation verify` and `cosign`.
 
 ## Method 1: `gh attestation verify` (recommended)
 
@@ -25,7 +26,7 @@ Loaded 1 attestation from GitHub API
 The following policy criteria were satisfied:
 - Subject digest matches
 - Repo: kerberosmansour/hulumi
-- Workflow: .github/workflows/release.yml
+- Workflow: .github/workflows/sign-and-publish.yml
 - Commit: <sha>
 ```
 
@@ -61,12 +62,13 @@ cosign verify-blob \
 ## What attestation guarantees
 
 - The tarball was built by GitHub Actions running
-  `.github/workflows/release.yml` from the
-  `kerberosmansour/hulumi` repo.
+  `.github/workflows/release.yml` from the `kerberosmansour/hulumi` repo and
+  attested by `.github/workflows/sign-and-publish.yml`.
 - The exact commit SHA at build time matches the release tag.
-- The build was hermetic (no maintainer-side `npm publish`).
-- The publish used npm trusted publishing (OIDC); no
-  long-lived `NPM_TOKEN` was involved.
+- The build job did not hold the OIDC signing permission; attestation and
+  publish run in the reusable signing workflow.
+- The publish used npm trusted publishing (OIDC); no long-lived `NPM_TOKEN`
+  was involved.
 
 ## What it does NOT guarantee
 
@@ -78,8 +80,8 @@ cosign verify-blob \
 
 ## Troubleshooting
 
-| Symptom                                                   | Likely cause                                | Fix                                                                                                                       |
-| --------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `gh attestation verify` fails with "no attestation found" | tarball downloaded from a typosquat         | Verify package name / scope; re-download from `@hulumi/*`                                                                 |
-| cosign reports "rekor entry not found"                    | offline transparency-log fallback expired   | Use `gh attestation verify` (online path); or fetch the bundle within 90 days of release                                  |
-| The verified workflow path does NOT match release.yml     | possible compromised release infrastructure | DO NOT install. Report via [GitHub Security Advisory](https://github.com/kerberosmansour/hulumi/security/advisories/new). |
+| Symptom                                                        | Likely cause                                | Fix                                                                                                                       |
+| -------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `gh attestation verify` fails with "no attestation found"      | tarball downloaded from a typosquat         | Verify package name / scope; re-download from `@hulumi/*`                                                                 |
+| cosign reports "rekor entry not found"                         | offline transparency-log fallback expired   | Use `gh attestation verify` (online path); or fetch the bundle within 90 days of release                                  |
+| The verified workflow path does NOT match sign-and-publish.yml | possible compromised release infrastructure | DO NOT install. Report via [GitHub Security Advisory](https://github.com/kerberosmansour/hulumi/security/advisories/new). |

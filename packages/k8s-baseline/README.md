@@ -72,8 +72,8 @@ Every published tarball ships with `actions/attest-build-provenance` v2
 provenance. Verify before installing:
 
 ```bash
-pnpm pack @hulumi/k8s-baseline@1.3.1 --pack-destination .
-gh attestation verify ./hulumi-k8s-baseline-1.3.1.tgz \
+pnpm pack @hulumi/k8s-baseline@1.3.2 --pack-destination .
+gh attestation verify ./hulumi-k8s-baseline-1.3.2.tgz \
   --repo kerberosmansour/hulumi
 ```
 

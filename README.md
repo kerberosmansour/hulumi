@@ -1,6 +1,6 @@
 # Hulumi
 
-> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for Pulumi. Apache-2.0. v1.3.1.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for Pulumi. Apache-2.0. v1.3.2.
 
 ## What is Hulumi?
 
@@ -42,7 +42,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                          |
 | Hit a recurring gotcha and want a quick answer                     | [FAQ](./docs/faq.md)                                                |
 
-## What's in the box (v1.3.1)
+## What's in the box (v1.3.2)
 
 | Package                                  | What it gives you                                                                                                                                                                                                                                                                                                             |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

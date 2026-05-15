@@ -8,17 +8,17 @@ covers verification via `gh attestation verify` and `cosign`.
 
 ```sh
 # Download the tarball
-pnpm pack @hulumi/baseline@1.3.1 --pack-destination .
+pnpm pack @hulumi/baseline@1.3.2 --pack-destination .
 
 # Verify the attestation
-gh attestation verify ./hulumi-baseline-1.3.1.tgz \
+gh attestation verify ./hulumi-baseline-1.3.2.tgz \
   --repo kerberosmansour/hulumi
 ```
 
 Expected output:
 
 ```
-Loaded digest sha256:<sha> for file://./hulumi-baseline-1.3.1.tgz
+Loaded digest sha256:<sha> for file://./hulumi-baseline-1.3.2.tgz
 Loaded 1 attestation from GitHub API
 ✓ Verification succeeded!
 
@@ -44,18 +44,18 @@ If you can't reach the GitHub API:
 
 ```sh
 # Download the tarball + the attestation
-pnpm pack @hulumi/baseline@1.3.1 --pack-destination .
-gh release download v1.3.1 \
+pnpm pack @hulumi/baseline@1.3.2 --pack-destination .
+gh release download v1.3.2 \
   --repo kerberosmansour/hulumi \
-  --pattern "hulumi-baseline-1.3.1.tgz.intoto.jsonl" \
+  --pattern "hulumi-baseline-1.3.2.tgz.intoto.jsonl" \
   --dir .
 
 # Verify with cosign (assumes a recent cosign + Sigstore root)
 cosign verify-blob \
-  --bundle ./hulumi-baseline-1.3.1.tgz.intoto.jsonl \
+  --bundle ./hulumi-baseline-1.3.2.tgz.intoto.jsonl \
   --certificate-identity-regexp '^https://github.com/kerberosmansour/hulumi/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ./hulumi-baseline-1.3.1.tgz
+  ./hulumi-baseline-1.3.2.tgz
 ```
 
 ## What attestation guarantees

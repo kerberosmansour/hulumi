@@ -112,17 +112,17 @@ Every Hulumi tarball published from v1.0.0 carries an
 
 ```sh
 # Download the tarball
-pnpm pack @hulumi/baseline@1.3.1 --pack-destination .
+pnpm pack @hulumi/baseline@1.3.2 --pack-destination .
 
 # Verify the attestation chain
-gh attestation verify ./hulumi-baseline-1.3.1.tgz \
+gh attestation verify ./hulumi-baseline-1.3.2.tgz \
   --repo kerberosmansour/hulumi
 ```
 
 Expected output: `✓ Verification succeeded` plus the build's commit SHA +
-workflow run URL. Repeat for `@hulumi/policies@1.3.1`, `@hulumi/drift@1.3.1`,
-`@hulumi/k8s-baseline@1.3.1`, `@hulumi/cloudflare-baseline@1.3.1`, and
-`@hulumi/platform-patterns@1.3.1`. The
+workflow run URL. Repeat for `@hulumi/policies@1.3.2`, `@hulumi/drift@1.3.2`,
+`@hulumi/k8s-baseline@1.3.2`, `@hulumi/cloudflare-baseline@1.3.2`, and
+`@hulumi/platform-patterns@1.3.2`. The
 [`.github/attestations/README.md`](./.github/attestations/README.md) covers
 both `gh attestation verify` and `cosign` verification paths.
 
@@ -133,7 +133,7 @@ Advisory link above.
 ## Pulumi cooling-off policy
 
 Hulumi's own releases carry SLSA Build L3 provenance. `@pulumi/*` transitive
-dependencies do not carry SLSA attestations as of v1.3.1. Our compensating
+dependencies do not carry SLSA attestations as of v1.3.2. Our compensating
 controls:
 
 1. **Exact-version-pinning with integrity hashes**: every `@pulumi/*` dep is
@@ -144,7 +144,7 @@ controls:
    `@aws-sdk/credential-providers`, `p-timeout`, `simple-git`) and
    `@hulumi/k8s-baseline`'s `@aws-sdk/client-secrets-manager`, plus
    `@pulumi/github` and `@pulumi/cloudflare` for the GitHub and edge
-   surfaces — 13 pinned packages total at v1.3.1.
+   surfaces — 13 pinned packages total at v1.3.2.
 2. **72h cooling-off for minor/major bumps + 24h for patches**:
    [`.github/workflows/pulumi-cooling-off.yml`](./.github/workflows/pulumi-cooling-off.yml)
    runs on every PR bumping a `@pulumi/*` pin. The job calls

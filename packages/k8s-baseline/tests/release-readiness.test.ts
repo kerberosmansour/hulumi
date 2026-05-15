@@ -58,7 +58,10 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
       expect(yml).toContain(
         "baseline policies drift k8s-baseline cloudflare-baseline platform-patterns",
       );
-      expect(yml).toContain('cd "packages/$pkg" && npm publish --provenance --access public');
+      expect(yml).toContain(
+        'find .release-artifacts -maxdepth 1 -type f -name "hulumi-${pkg}-*.tgz"',
+      );
+      expect(yml).toContain('npm publish "$tarball" --provenance --access public');
     });
 
     it("release workflow uses npm trusted-publishing-compatible Node/npm versions", () => {
@@ -176,20 +179,20 @@ describe("Feature: Atomic six-package publish-readiness", () => {
           /^1\.3\.\d+/,
         );
       }
-      // And the changelog has a [1.3.1] entry corresponding to that train.
-      expect(changelog).toMatch(/\[1\.3\.1\]/);
+      // And the changelog has a [1.3.2] entry corresponding to that train.
+      expect(changelog).toMatch(/\[1\.3\.2\]/);
     });
   });
 
   describe("Scenario: v1.3 security advisory registration is prepared", () => {
     it("release docs enumerate GHSA candidates before package publication", () => {
-      const advisory = readRepoFile("docs/release/v1.3.1-security-advisories.md");
+      const advisory = readRepoFile("docs/release/v1.3.2-security-advisories.md");
 
       expect(advisory).toContain("GitHub's repository security advisory API");
       expect(advisory).toContain("@hulumi/baseline");
       expect(advisory).toContain("@hulumi/policies");
       expect(advisory).toContain("@hulumi/drift");
-      expect(advisory).toContain("< 1.3.1");
+      expect(advisory).toContain("< 1.3.2");
       expect(advisory).toContain("Patched version");
     });
   });

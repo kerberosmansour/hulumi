@@ -347,6 +347,36 @@ describe("AccountFoundation — real provider input compatibility", () => {
   });
 });
 
+describe("AccountFoundation — CloudTrail log group output for downstream alarms", () => {
+  beforeEach(resetRegistrations);
+
+  it("exposes the startup-hardened CloudTrail log group name for IdentityAlarms wiring", async () => {
+    const af = new AccountFoundation("af-log-output", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111"],
+    });
+
+    await expect(valueOf(af.cloudTrailLogGroupName)).resolves.toBe("af-log-output-cloudtrail-logs");
+    await settlePulumi();
+
+    const logGroup = registrations.find((r) => r.type === "aws:cloudwatch/logGroup:LogGroup");
+    expect(logGroup?.name).toBe("af-log-output-cloudtrail-logs");
+  });
+
+  it("resolves the sandbox CloudTrail log group output to undefined", async () => {
+    const af = new AccountFoundation("af-sandbox-no-log-output", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+
+    await expect(valueOf(af.cloudTrailLogGroupName)).resolves.toBeUndefined();
+    await settlePulumi();
+
+    expect(registrations.some((r) => r.type === "aws:cloudwatch/logGroup:LogGroup")).toBe(false);
+  });
+});
+
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {
   it("packages/baseline/src/aws/ has zero setTimeout / sleep / await new Promise occurrences outside probes/", () => {
     const root = resolve(__dirname, "../src/aws");

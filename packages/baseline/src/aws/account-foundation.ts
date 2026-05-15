@@ -62,6 +62,7 @@ export class AccountFoundation
   implements AccountFoundationOutputs
 {
   public readonly cloudTrailArn: pulumi.Output<string>;
+  public readonly cloudTrailLogGroupName: pulumi.Output<string | undefined>;
   public readonly configRecorderArn: pulumi.Output<string>;
   public readonly guardDutyDetectorId: pulumi.Output<string>;
   public readonly securityHubHubArn: pulumi.Output<string>;
@@ -177,6 +178,8 @@ export class AccountFoundation
 
     // Phase 8 — Outputs.
     this.cloudTrailArn = cloudTrail.trail.arn;
+    this.cloudTrailLogGroupName =
+      cloudTrail.logGroup !== undefined ? cloudTrail.logGroup.name : pulumi.output(undefined);
     this.configRecorderArn = pulumi.interpolate`arn:aws:config:${region}::recorder/${config.recorder.name}`;
     this.guardDutyDetectorId = guardDuty.detector.id;
     this.securityHubHubArn = securityHub.hub.arn;
@@ -200,6 +203,7 @@ export class AccountFoundation
 
     this.registerOutputs({
       cloudTrailArn: this.cloudTrailArn,
+      cloudTrailLogGroupName: this.cloudTrailLogGroupName,
       configRecorderArn: this.configRecorderArn,
       guardDutyDetectorId: this.guardDutyDetectorId,
       securityHubHubArn: this.securityHubHubArn,

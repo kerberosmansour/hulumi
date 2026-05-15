@@ -34,6 +34,8 @@ if (process.env.HULUMI_INTEGRATION !== "1") {
           baseState.bucketDomainName ?? `${args.name}-mock.s3.amazonaws.com`;
       } else if (args.type.startsWith("aws:cloudtrail/eventDataStore")) {
         baseState.arn = baseState.arn ?? `arn:aws:cloudtrail:mock:eds/${args.name}`;
+      } else if (args.type === "aws:cloudwatch/logGroup:LogGroup") {
+        baseState.name = baseState.name ?? args.name;
       } else if (args.type === "github:index/repository:Repository") {
         // Mock state for SecureRepository's child resources. Populated so the
         // component outputs (`repoFullName`, `repoNodeId`, `defaultBranch`)

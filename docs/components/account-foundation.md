@@ -49,6 +49,7 @@ const baseline = new AccountFoundation("baseline", {
 
 export const detectorId = baseline.guardDutyDetectorId;
 export const trailArn = baseline.cloudTrailArn;
+export const trailLogGroupName = baseline.cloudTrailLogGroupName;
 ```
 
 Emits everything in the Sandbox tier PLUS:
@@ -84,14 +85,35 @@ The full tier matrix lives in
 
 ## Outputs
 
-| Output                  | Type                             | Description                                                          |
-| ----------------------- | -------------------------------- | -------------------------------------------------------------------- |
-| `cloudTrailArn`         | `Output<string>`                 | Multi-region (Startup-Hardened) or single-region trail ARN.          |
-| `configRecorderArn`     | `Output<string>`                 | Config recorder ARN.                                                 |
-| `guardDutyDetectorId`   | `Output<string>`                 | GuardDuty detector ID.                                               |
-| `securityHubHubArn`     | `Output<string>`                 | Security Hub hub ARN.                                                |
-| `kmsKeyArns`            | `Output<Record<string, string>>` | KMS CMK ARNs keyed by service: `logs`, `data`, `secrets`, `config`.  |
-| `iamBaselinePolicyArns` | `Output<string[]>`               | Account password policy ID + (Startup-Hardened) Access Analyzer ARN. |
+| Output                   | Type                             | Description                                                          |
+| ------------------------ | -------------------------------- | -------------------------------------------------------------------- |
+| `cloudTrailArn`          | `Output<string>`                 | Multi-region (Startup-Hardened) or single-region trail ARN.          |
+| `cloudTrailLogGroupName` | `Output<string \| undefined>`    | CloudTrail CloudWatch Logs group name when emitted by the tier.      |
+| `configRecorderArn`      | `Output<string>`                 | Config recorder ARN.                                                 |
+| `guardDutyDetectorId`    | `Output<string>`                 | GuardDuty detector ID.                                               |
+| `securityHubHubArn`      | `Output<string>`                 | Security Hub hub ARN.                                                |
+| `kmsKeyArns`             | `Output<Record<string, string>>` | KMS CMK ARNs keyed by service: `logs`, `data`, `secrets`, `config`.  |
+| `iamBaselinePolicyArns`  | `Output<string[]>`               | Account password policy ID + (Startup-Hardened) Access Analyzer ARN. |
+
+Use `cloudTrailLogGroupName` as the canonical input for
+`IdentityAlarms.trailLogGroupName` when wiring CloudTrail metric filters
+from a Startup-Hardened AccountFoundation stack:
+
+```ts
+const trailLogGroupName = baseline.cloudTrailLogGroupName.apply((name) => {
+  if (name === undefined) {
+    throw new Error("AccountFoundation did not emit a CloudTrail log group for this tier");
+  }
+  return name;
+});
+
+new IdentityAlarms("identity-alarms", {
+  tier: "startup-hardened",
+  trailLogGroupName,
+  criticalTopicArn: monitoring.critical.arn,
+  highTopicArn: monitoring.high.arn,
+});
+```
 
 ## Tags emitted
 

@@ -54,6 +54,14 @@ export { matchSuppression } from "./aws/suppressions";
 //   - @hulumi/policies/github/packs/cis-v1
 export * as github from "./github";
 
+// Edge/platform policy packs — added in hulumi-edge-platform M4.
+// PolicyPack instances live at:
+//   - @hulumi/policies/cloudflare/packs/hulumi-hardening
+//   - @hulumi/policies/platform/packs/origin-bypass
+//   - @hulumi/policies/platform/packs/deployment-governance
+export * as cloudflare from "./cloudflare";
+export * as platform from "./platform";
+
 // K8s-side rule + pack module — added in runbook hulumi-operations-k8s-security M3.
 // PolicyPack instances live at:
 //   - @hulumi/policies/k8s/packs/hulumi-k8s-hardening

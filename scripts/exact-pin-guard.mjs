@@ -48,6 +48,14 @@ const ALLOWED = [
     integrity:
       "sha512-dvQtwXvhIqx7HHTe0+PzLooyboiNapDHOnxEbGd0jY6boFFuFJpT5LKapK25cjsc6s4qKduvLo2HZdo9UtH05g==",
   },
+  // Added in Hulumi edge-platform M1. Mandatory baseline for
+  // @hulumi/cloudflare-baseline ZoneFoundation and PublicHostname resources.
+  {
+    name: "@pulumi/cloudflare",
+    version: "6.15.0",
+    integrity:
+      "sha512-I2C1UA//YbkuGUV5O9skIMUu94StNSE4hiAU57GFtyL7WEqAMJLvV8Vpcu1192rI1/ZwFIJeR4MbAZfiYlPFqA==",
+  },
   // Added in Hulumi v1.2.0 M1 (Hulumi-for-K8s runbook). Mandatory baseline for
   // HardenedHelmRelease (M1) + IstioFoundation (M2) + every K8s-side component.
   // Bumps subject to the same cooling-off gate as the rest.

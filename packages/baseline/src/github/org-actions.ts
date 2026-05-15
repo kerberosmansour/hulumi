@@ -53,10 +53,16 @@ export function createActionsOrganizationPermissions(
   //   sandbox          → allowedActions: "local_only", shaPinningRequired: false
   const allowedActions =
     args.allowlist?.allowedActions ?? (isStartupHardened ? "selected" : "local_only");
-  const shaPinningRequired = args.allowlist?.shaPinningRequired ?? isStartupHardened;
+  const shaPinningRequired =
+    args.allowlist?.requireFullLengthShaPinning ??
+    args.allowlist?.shaPinningRequired ??
+    isStartupHardened;
 
   // Validate every pattern character-by-character before issuing the API call.
-  const patterns = args.allowlist?.selectedActionsPatterns ?? [];
+  const patterns = [
+    ...(args.allowlist?.selectedActionsPatterns ?? []),
+    ...(args.allowlist?.reusableWorkflowPatterns ?? []),
+  ];
   for (const p of patterns) {
     assertActionsPatternSafe(p);
   }

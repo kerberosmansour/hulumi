@@ -235,6 +235,34 @@ describe("OrgFoundation — abuse case: SHA-pin default on at startup-hardened",
     expect(perms).toBeDefined();
     expect(perms!.inputs.shaPinningRequired).toBe(true);
   });
+
+  it("adds reusable workflow allowlist patterns and explicit full-length SHA pinning", async () => {
+    const f = new OrgFoundation("org-reusable-workflows", {
+      tier: "startup-hardened",
+      organization: SANDBOX_ORG,
+      billingEmail: TEST_BILLING,
+      actionsAllowlist: {
+        allowedActions: "selected",
+        selectedActionsPatterns: ["actions/checkout@*"],
+        reusableWorkflowPatterns: ["kerberosmansour/hulumi/.github/workflows/deploy.yml@*"],
+        requireFullLengthShaPinning: true,
+      },
+    });
+    await valueOf(f.actionsPermissionsId);
+    await settlePulumi();
+
+    const perms = find(
+      "github:index/actionsOrganizationPermissions:ActionsOrganizationPermissions",
+    );
+    expect(perms).toBeDefined();
+    expect(perms!.inputs.shaPinningRequired).toBe(true);
+    expect(perms!.inputs.allowedActionsConfig).toMatchObject({
+      patternsAlloweds: [
+        "actions/checkout@*",
+        "kerberosmansour/hulumi/.github/workflows/deploy.yml@*",
+      ],
+    });
+  });
 });
 
 describe("OrgFoundation — abuse case: backend swap preserves all securityDefaults flags", () => {

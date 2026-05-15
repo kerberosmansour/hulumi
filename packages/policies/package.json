@@ -39,6 +39,18 @@
     "./github/packs/cis-v1": {
       "types": "./dist/github/packs/cis-v1.d.ts",
       "default": "./dist/github/packs/cis-v1.js"
+    },
+    "./cloudflare/packs/hulumi-hardening": {
+      "types": "./dist/cloudflare/packs/hulumi-hardening.d.ts",
+      "default": "./dist/cloudflare/packs/hulumi-hardening.js"
+    },
+    "./platform/packs/origin-bypass": {
+      "types": "./dist/platform/packs/origin-bypass.d.ts",
+      "default": "./dist/platform/packs/origin-bypass.js"
+    },
+    "./platform/packs/deployment-governance": {
+      "types": "./dist/platform/packs/deployment-governance.d.ts",
+      "default": "./dist/platform/packs/deployment-governance.js"
     }
   },
   "files": [

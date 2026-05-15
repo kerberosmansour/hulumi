@@ -251,6 +251,98 @@ each sub-resource is `ACTIVE` / `ENABLED`, verify tag propagation on
 every taggable child, and run an orphan-resource sweep by stack-name
 prefix after teardown.
 
+## Edge platform integration lanes
+
+Hulumi edge-platform integration is opt-in and split by provider surface.
+Without the listed env vars, each package `test:integration` command emits a
+skipped test whose title names the missing variables. The lanes are designed
+for a separate battle-test project first; this repo's release gate may remain
+`Battle-test pending` when mock/unit/policy evidence is green and the limitation
+is documented.
+
+### Cloudflare edge lane
+
+Command:
+
+```sh
+pnpm --filter @hulumi/cloudflare-baseline test:integration
+```
+
+Required env vars:
+
+| Env var                           | Purpose                                                              |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `HULUMI_CLOUDFLARE_INTEGRATION=1` | Explicit opt-in.                                                     |
+| `CLOUDFLARE_API_TOKEN`            | Sandbox token for Cloudflare provider operations.                    |
+| `HULUMI_CLOUDFLARE_ACCOUNT_ID`    | Account for tunnel and account-level edge fixtures.                  |
+| `HULUMI_CLOUDFLARE_ZONE_ID`       | Existing sandbox zone for DNSSEC, DNS record, WAF, and bot fixtures. |
+
+Required assertions for the real lane:
+
+- `ZoneFoundation` DNSSEC output shape includes status/material outputs.
+- `PublicHostname` defaults proxy-eligible public-app records to proxied mode.
+- `EdgeWafBaseline` deploys managed rulesets only where the plan permits and
+  records unsupported controls otherwise.
+- Cleanup records the zone id, test hostname, ruleset ids, tunnel id, and
+  exact manual deletion steps if teardown fails.
+
+### GitHub deployment lane
+
+Command:
+
+```sh
+pnpm --filter @hulumi/platform-patterns test:integration
+```
+
+Required env vars:
+
+| Env var                            | Purpose                               |
+| ---------------------------------- | ------------------------------------- |
+| `HULUMI_GITHUB_EDGE_INTEGRATION=1` | Explicit GitHub opt-in.               |
+| `HULUMI_GITHUB_SANDBOX_OWNER`      | Sandbox owner/org.                    |
+| `HULUMI_GITHUB_SANDBOX_REPOSITORY` | Disposable or dedicated sandbox repo. |
+
+Required assertions for the real lane:
+
+- `DeploymentRepositoryFoundation` creates protected environments with reviewer
+  and branch-policy evidence visible through provider/API state.
+- Reusable workflow allowlist and full-length SHA pinning are exercised by the
+  workflow-governance linter fixture.
+
+### AWS origin lane
+
+Command:
+
+```sh
+pnpm --filter @hulumi/platform-patterns test:integration
+```
+
+Required env vars:
+
+| Env var                         | Purpose                                                      |
+| ------------------------------- | ------------------------------------------------------------ |
+| `HULUMI_AWS_EDGE_INTEGRATION=1` | Explicit AWS opt-in.                                         |
+| `HULUMI_AWS_OIDC_PROVIDER_ARN`  | GitHub Actions OIDC provider ARN in the sandbox account.     |
+| `HULUMI_AWS_DEPLOY_POLICY_ARN`  | Least-privilege deploy policy ARN attached to the test role. |
+| `HULUMI_AWS_TEST_REGION`        | Region for ALB/NLB security-group fixtures.                  |
+
+Required assertions for the real lane:
+
+- `GitHubAwsOidcDeploymentRole` renders a narrow trust policy and usage block.
+- `CloudflareOriginIngress` tunnel mode serializes hostname binding.
+- Allowlist+AOP mode restricts load-balancer ingress to Cloudflare source CIDRs
+  and target ingress to the load-balancer security group.
+
+Scenario cookbooks:
+
+- [EKS service exposed through Cloudflare Tunnel](cookbooks/cloudflare-tunnel-eks-service.md)
+- [ALB origin restricted to Cloudflare plus AOP](cookbooks/cloudflare-aop-alb-origin.md)
+- [GitHub OIDC deployment pipeline](cookbooks/github-oidc-deployment-pipeline.md)
+- [Origin IP rotation after Cloudflare onboarding](cookbooks/origin-ip-rotation-cloudflare-onboarding.md)
+- [Build provenance helper usage](cookbooks/build-provenance-edge-platform.md)
+- [External battle-test checklist](cookbooks/hulumi-edge-platform-battle-test.md)
+  (`docs/cookbooks/hulumi-edge-platform-battle-test.md`)
+
 ## Failure modes + diagnostics
 
 | Symptom                                 | Likely cause                                              | Fix                                                                                                |

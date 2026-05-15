@@ -36,6 +36,10 @@ export interface ActionsAllowlistConfig {
   selectedActionsPatterns?: string[];
   /** Default true at startup-hardened (post-2025-08-15 GitHub roll-out). */
   shaPinningRequired?: boolean;
+  /** Alias for edge-platform deployment governance; wins over shaPinningRequired when supplied. */
+  requireFullLengthShaPinning?: boolean;
+  /** Reusable workflow refs allowed for deployment orchestration. */
+  reusableWorkflowPatterns?: string[];
 }
 
 export interface OidcSubTemplateConfig {

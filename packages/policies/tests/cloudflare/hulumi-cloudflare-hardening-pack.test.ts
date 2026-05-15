@@ -173,16 +173,34 @@ describe("HulumiCloudflareHardeningPack CF_DNSSEC_1 — public zone DNSSEC requi
     expect(violations[0]).toContain(zone.urn);
   });
 
-  it("does NOT report when the zone has DNSSEC evidence or a ZoneFoundation parent", () => {
+  it("does NOT report when the zone is managed by ZoneFoundation", () => {
     const zone = makePolicyResource({
       type: ZONE_TYPE,
       urn: `urn:pulumi:s::p::${ZONE_FOUNDATION_TYPE}$${ZONE_TYPE}::managed-zone`,
       name: "managed-zone",
       props: { zone: "example.com", type: "full" },
     });
+
+    (
+      cfDnssec1RequirePublicZoneDnssec.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([zone]), report);
+
+    expect(violations).toEqual([]);
+  });
+
+  it("does NOT report when the public zone has matching ZoneDnssec evidence", () => {
+    const zone = makePolicyResource({
+      type: ZONE_TYPE,
+      urn: `urn:pulumi:s::p::${ZONE_TYPE}::managed-zone`,
+      name: "managed-zone",
+      props: { id: "zone-123", zone: "example.com", type: "full" },
+    });
     const dnssec = makePolicyResource({
       type: ZONE_DNSSEC_TYPE,
-      urn: `urn:pulumi:s::p::${ZONE_FOUNDATION_TYPE}$${ZONE_DNSSEC_TYPE}::managed-zone-dnssec`,
+      urn: `urn:pulumi:s::p::${ZONE_DNSSEC_TYPE}::managed-zone-dnssec`,
       name: "managed-zone-dnssec",
       props: { zoneId: "zone-123" },
     });
@@ -195,6 +213,31 @@ describe("HulumiCloudflareHardeningPack CF_DNSSEC_1 — public zone DNSSEC requi
     )(makeStackArgs([zone, dnssec]), report);
 
     expect(violations).toEqual([]);
+  });
+
+  it("reports when only an unrelated ZoneDnssec resource exists for another zone", () => {
+    const zone = makePolicyResource({
+      type: ZONE_TYPE,
+      urn: `urn:pulumi:s::p::${ZONE_TYPE}::victim-zone`,
+      name: "victim-zone",
+      props: { id: "zone-victim", zone: "victim.example.com", type: "full" },
+    });
+    const unrelatedDnssec = makePolicyResource({
+      type: ZONE_DNSSEC_TYPE,
+      urn: `urn:pulumi:s::p::${ZONE_DNSSEC_TYPE}::victim-zone`,
+      name: "victim-zone",
+      props: { zoneId: "zone-decoy" },
+    });
+
+    (
+      cfDnssec1RequirePublicZoneDnssec.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([zone, unrelatedDnssec]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(zone.urn);
   });
 
   it("honors a migration suppression", () => {
@@ -244,7 +287,7 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
       name: "app",
       props: {
         type: "CNAME",
-        name: "app",
+        name: "app.example.com",
         content: "public-origin.example.com",
         proxied: true,
         tags: ["hulumi:purpose=public-app"],
@@ -263,14 +306,14 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
     expect(violations[0]).toContain(appRecord.urn);
   });
 
-  it("does NOT report when CloudflareOriginIngress evidence is present", () => {
+  it("does NOT report when matching CloudflareOriginIngress evidence is present", () => {
     const appRecord = makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${PUBLIC_HOSTNAME_TYPE}$${DNS_RECORD_TYPE}::app`,
       name: "app",
       props: {
         type: "CNAME",
-        name: "app",
+        name: "app.example.com",
         content: "public-origin.example.com",
         proxied: true,
         tags: ["hulumi:purpose=public-app"],
@@ -291,5 +334,36 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
     )(makeStackArgs([appRecord, ingress]), report);
 
     expect(violations).toEqual([]);
+  });
+
+  it("reports when only unrelated CloudflareOriginIngress evidence exists for another hostname", () => {
+    const appRecord = makePolicyResource({
+      type: DNS_RECORD_TYPE,
+      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::api`,
+      name: "api",
+      props: {
+        type: "CNAME",
+        name: "api.example.com",
+        content: "public-origin.example.com",
+        proxied: true,
+        tags: ["hulumi:purpose=public-app"],
+      },
+    });
+    const unrelatedIngress = makePolicyResource({
+      type: ORIGIN_INGRESS_TYPE,
+      urn: `urn:pulumi:s::p::${ORIGIN_INGRESS_TYPE}::app-ingress`,
+      name: "api.example.com",
+      props: { mode: "tunnel", hostname: "app.example.com" },
+    });
+
+    (
+      cfOrigin1RequireSecureOriginMode.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([appRecord, unrelatedIngress]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(appRecord.urn);
   });
 });

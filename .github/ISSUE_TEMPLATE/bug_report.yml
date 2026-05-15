@@ -24,6 +24,8 @@ body:
         - "@hulumi/policies"
         - "@hulumi/drift"
         - "@hulumi/k8s-baseline"
+        - "@hulumi/cloudflare-baseline"
+        - "@hulumi/platform-patterns"
         - "/hulumi-threat-model skill"
         - "release / CI workflow"
         - "docs"
@@ -59,8 +61,8 @@ body:
     id: version
     attributes:
       label: Package version(s)
-      description: Output of `pnpm list @hulumi/baseline @hulumi/policies @hulumi/drift @hulumi/k8s-baseline @pulumi/aws @pulumi/pulumi @pulumi/kubernetes`.
-      placeholder: e.g. `@hulumi/baseline 1.2.0`, `@pulumi/aws 7.27.0`, `@pulumi/pulumi 3.232.0`
+      description: Output of `pnpm list @hulumi/baseline @hulumi/policies @hulumi/drift @hulumi/k8s-baseline @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/aws @pulumi/pulumi @pulumi/kubernetes @pulumi/cloudflare`.
+      placeholder: e.g. `@hulumi/baseline 1.3.0`, `@pulumi/aws 7.27.0`, `@pulumi/pulumi 3.232.0`
     validations:
       required: true
   - type: input

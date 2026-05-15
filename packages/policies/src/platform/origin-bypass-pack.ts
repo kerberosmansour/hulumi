@@ -40,8 +40,36 @@ function pointsAtPublicAwsLoadBalancer(resource: PolicyResource): boolean {
   return /\.elb\.amazonaws\.com$/i.test(target);
 }
 
-function hasOriginIngress(resources: readonly PolicyResource[]): boolean {
-  return resources.some((resource) => resource.type === ORIGIN_INGRESS_TYPE);
+function normalizedHostname(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase().replace(/\.$/u, "");
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function recordHostname(resource: PolicyResource): string | undefined {
+  const props = resource.props as Record<string, unknown>;
+  return (
+    normalizedHostname(props.hostname) ??
+    normalizedHostname(props.name) ??
+    normalizedHostname(resource.name)
+  );
+}
+
+function ingressHostname(resource: PolicyResource): string | undefined {
+  const props = resource.props as Record<string, unknown>;
+  return normalizedHostname(props.hostname);
+}
+
+function hasOriginIngressForRecord(
+  resources: readonly PolicyResource[],
+  record: PolicyResource,
+): boolean {
+  const hostname = recordHostname(record);
+  if (hostname === undefined) return false;
+  return resources.some((resource) => {
+    if (resource.type !== ORIGIN_INGRESS_TYPE) return false;
+    return ingressHostname(resource) === hostname;
+  });
 }
 
 export const xOrigin1NoPublicAwsOriginBypass: StackValidationPolicy = {
@@ -50,10 +78,10 @@ export const xOrigin1NoPublicAwsOriginBypass: StackValidationPolicy = {
     "Detects Cloudflare-fronted public AWS origins that lack tunnel or allowlist+AOP evidence.",
   enforcementLevel: "advisory",
   validateStack: (args, reportViolation) => {
-    if (hasOriginIngress(args.resources)) return;
     for (const resource of args.resources) {
       if (!isCloudflarePublicAppRecord(resource)) continue;
       if (!pointsAtPublicAwsLoadBalancer(resource)) continue;
+      if (hasOriginIngressForRecord(args.resources, resource)) continue;
       reportViolation(
         `${X_ORIGIN_1_RULE_ID} advisory: Cloudflare DNS record ${resource.urn} points at a public AWS load balancer without CloudflareOriginIngress tunnel or allowlist+AOP evidence. Docs: ${DOCS_URL}`,
         undefined,

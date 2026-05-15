@@ -64,14 +64,14 @@ describe("HulumiOriginBypassPack X_ORIGIN_1 — public AWS origin bypass", () =>
     expect(violations[0]).toContain(record.urn);
   });
 
-  it("does NOT report when CloudflareOriginIngress evidence is present", () => {
+  it("does NOT report when matching CloudflareOriginIngress evidence is present", () => {
     const record = makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::app`,
       name: "app",
       props: {
         type: "CNAME",
-        name: "app",
+        name: "app.example.com",
         content: "app-123.us-east-1.elb.amazonaws.com",
         proxied: true,
         tags: ["hulumi:purpose=public-app"],
@@ -92,6 +92,37 @@ describe("HulumiOriginBypassPack X_ORIGIN_1 — public AWS origin bypass", () =>
     )(makeStackArgs([record, ingress]), report);
 
     expect(violations).toEqual([]);
+  });
+
+  it("reports when only unrelated CloudflareOriginIngress evidence exists for another hostname", () => {
+    const record = makePolicyResource({
+      type: DNS_RECORD_TYPE,
+      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::api`,
+      name: "api",
+      props: {
+        type: "CNAME",
+        name: "api.example.com",
+        content: "api-123.us-east-1.elb.amazonaws.com",
+        proxied: true,
+        tags: ["hulumi:purpose=public-app"],
+      },
+    });
+    const unrelatedIngress = makePolicyResource({
+      type: ORIGIN_INGRESS_TYPE,
+      urn: `urn:pulumi:s::p::${ORIGIN_INGRESS_TYPE}::app-ingress`,
+      name: "api.example.com",
+      props: { mode: "allowlistAop", hostname: "app.example.com" },
+    });
+
+    (
+      xOrigin1NoPublicAwsOriginBypass.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([record, unrelatedIngress]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(record.urn);
   });
 
   it("ignores non-AWS origins", () => {

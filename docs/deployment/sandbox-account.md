@@ -113,6 +113,10 @@ and forks cannot assume this role.
   still be scoped to the AccountFoundation integration surface:
   CloudTrail, Config, GuardDuty, Security Hub, IAM password policy /
   Access Analyzer, KMS, CloudWatch Logs, and `hulumi-*` S3 buckets.
+  The Config recorder role permissions intentionally allow only creation,
+  tagging, managed `AWS_ConfigRole` attachment/detachment, and
+  `iam:PassRole` to `config.amazonaws.com`; they do not grant inline role
+  policy writes or trust-policy mutation.
 - **Role name**: `hulumi-sandbox-iac-role`.
 - **Tags**:
 

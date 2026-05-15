@@ -24,6 +24,7 @@ const AZURE_FEDERATED_CRED_TYPE =
 const GCP_WIF_PROVIDER_TYPE = "gcp:iam/workloadIdentityPoolProvider:WorkloadIdentityPoolProvider";
 
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
+const GITHUB_OIDC_SUB_CLAIM = `${GITHUB_OIDC_ISSUER}:sub`;
 
 function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
@@ -46,11 +47,17 @@ export function subClaimIsUnsafe(claim: string): boolean {
   return false;
 }
 
+function conditionOperatorBase(operator: string): string {
+  const base = operator.split(":").pop() ?? operator;
+  return base.endsWith("IfExists") ? base.slice(0, -"IfExists".length) : base;
+}
+
 /**
  * Walk an AWS IAM trust-policy JSON-string-or-object and check every
- * `Condition.StringEquals` / `StringLike` block for the GitHub OIDC
- * `sub` axis. Reports a violation if `StringLike` is used at all (UNC6426
- * pattern) or if any value contains a wildcard.
+ * `Condition.*StringEquals*` / `*StringLike*` block for the GitHub OIDC
+ * `sub` axis, including AWS set-qualified operators such as
+ * `ForAnyValue:StringLike`. Reports a violation if `StringLike` is used at
+ * all (UNC6426 pattern) or if any equality value contains a wildcard.
  */
 function inspectAwsIamTrustPolicy(
   args: { type: string; urn: string; props: Record<string, unknown> },
@@ -80,25 +87,27 @@ function inspectAwsIamTrustPolicy(
     if (!fed.includes(GITHUB_OIDC_ISSUER)) continue;
     const conds = s.Condition as Record<string, unknown> | undefined;
     if (!conds || typeof conds !== "object") continue;
-    // Reject any use of StringLike on the GitHub sub axis — this is the
-    // UNC6426 shape regardless of the value (the AWS docs explicitly say
-    // use StringEquals not StringLike).
-    const stringLike = conds.StringLike as Record<string, unknown> | undefined;
-    if (stringLike && stringLike[`${GITHUB_OIDC_ISSUER}:sub`] !== undefined) {
-      reportViolation(
-        `G_OIDC_1: AWS IAM role ${args.urn} uses StringLike on \`${GITHUB_OIDC_ISSUER}:sub\` — UNC6426 (March 2026) weaponized this shape; use StringEquals with the three-axis sub claim. Docs: ${DOCS_URL}`,
-      );
-      return;
-    }
-    const stringEquals = conds.StringEquals as Record<string, unknown> | undefined;
-    if (stringEquals && stringEquals[`${GITHUB_OIDC_ISSUER}:sub`] !== undefined) {
-      const v = stringEquals[`${GITHUB_OIDC_ISSUER}:sub`];
+    for (const [operator, rawCondition] of Object.entries(conds)) {
+      if (rawCondition === null || typeof rawCondition !== "object") continue;
+      const condition = rawCondition as Record<string, unknown>;
+      if (condition[GITHUB_OIDC_SUB_CLAIM] === undefined) continue;
+
+      const baseOperator = conditionOperatorBase(operator);
+      if (baseOperator === "StringLike") {
+        reportViolation(
+          `G_OIDC_1: AWS IAM role ${args.urn} uses ${operator} on \`${GITHUB_OIDC_SUB_CLAIM}\` — UNC6426 (March 2026) weaponized this shape; use StringEquals with the three-axis sub claim. Docs: ${DOCS_URL}`,
+        );
+        return;
+      }
+      if (baseOperator !== "StringEquals") continue;
+
+      const v = condition[GITHUB_OIDC_SUB_CLAIM];
       const claims = Array.isArray(v) ? v : [v];
       for (const c of claims) {
         if (typeof c !== "string") continue;
         if (subClaimIsUnsafe(c)) {
           reportViolation(
-            `G_OIDC_1: AWS IAM role ${args.urn} StringEquals \`${GITHUB_OIDC_ISSUER}:sub\` value "${c}" contains a wildcard; UNC6426 (March 2026) shape; use the three-axis sub claim. Docs: ${DOCS_URL}`,
+            `G_OIDC_1: AWS IAM role ${args.urn} ${operator} \`${GITHUB_OIDC_SUB_CLAIM}\` value "${c}" contains a wildcard; UNC6426 (March 2026) shape; use the three-axis sub claim. Docs: ${DOCS_URL}`,
           );
           return;
         }

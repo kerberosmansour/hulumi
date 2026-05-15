@@ -1,14 +1,14 @@
 # Hulumi
 
-> Hardened-by-default AWS + GitHub infrastructure-as-code for Pulumi. Apache-2.0. v1.2.0.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for Pulumi. Apache-2.0. v1.3.0.
 
 ## What is Hulumi?
 
-Hulumi is an open-source toolkit that ships secure-by-default AWS infrastructure components for [Pulumi](https://www.pulumi.com/), so platform engineers (and the AI agents helping them) can stand up a defensible cloud account on day one instead of re-deriving the same hardening checklist on every project.
+Hulumi is an open-source toolkit that ships secure-by-default cloud and platform infrastructure components for [Pulumi](https://www.pulumi.com/), so platform engineers (and the AI agents helping them) can stand up defensible AWS, GitHub, Kubernetes, and Cloudflare edge foundations instead of re-deriving the same hardening checklist on every project.
 
 It bundles four things under a single Apache-2.0 license:
 
-- **Hardened components** — drop-in replacements for raw AWS resources (`SecureBucket`, `AccountFoundation`) with public-access blocks, SSE-KMS, TLS-only policies, CloudTrail, GuardDuty, Security Hub, etc. all wired up correctly out of the box.
+- **Hardened components** — drop-in replacements and platform foundations for raw AWS, GitHub, Kubernetes, and Cloudflare resources (`SecureBucket`, `AccountFoundation`, `ProtectedAdminHostname`, `CloudflareOriginIngress`) with public-access blocks, SSE-KMS, TLS-only policies, CloudTrail, GuardDuty, Security Hub, Cloudflare proxy defaults, OIDC trust shaping, etc. wired up correctly out of the box.
 - **A policy pack** — Pulumi CrossGuard rules that catch the things the components can't (e.g. a PR that bypasses `SecureBucket` and reaches for raw `aws.s3.BucketV2`, or a state backend pointed at `file://`).
 - **A local-first drift classifier** — distinguishes "a teammate clicked in the AWS console" from "the `@pulumi/aws` provider released a renamed field" from "real out-of-band drift," with a TLA+-verified verdict matrix.
 - **A Claude Code skill** — `/hulumi-threat-model` writes a structured, framework-cited AWS threat model into your project before you write any IaC.
@@ -42,15 +42,17 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                          |
 | Hit a recurring gotcha and want a quick answer                     | [FAQ](./docs/faq.md)                                                |
 
-## What's in the box (v1.2.0)
+## What's in the box (v1.3.0)
 
-| Package                                  | What it gives you                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub** (new in v1.1): `SecureRepository` (with `acknowledgePublic` opt-in) + `OrgFoundation` (with switchable Code Security Configurations backend). Sandbox / Startup-Hardened tiers throughout.                                                                                   |
-| `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H4) + `CisV5Pack` sections 1–3. **GitHub** (new in v1.1): `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack` (placeholder pending CIS WorkBench access). `Suppression` API.                                                                                                         |
-| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors TLA+ spec exactly. v1.1 adds `tierDegraded` + `featureNotLicensed` non-suppressible verdict fields. Cache schema v2 with explicit migration.                                                                                   |
-| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`. Ships with the same SLSA Build L3 attestation path as the other three packages. First stable release shipped with the v1.2 train. |
-| `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios + 4 prebuilt GitHub scenarios (v1.1: OIDC trust, Actions supply-chain, App tokens, self-hosted runners). Citation-only threat-model markdown.                                                                                                                                                                 |
+| Package                                  | What it gives you                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub** (new in v1.1): `SecureRepository` (with `acknowledgePublic` opt-in) + `OrgFoundation` (with switchable Code Security Configurations backend). Sandbox / Startup-Hardened tiers throughout.                                                                          |
+| `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1-H4) + `CisV5Pack` sections 1-3. **GitHub**: `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack` (placeholder pending CIS WorkBench access). **K8s / Edge**: Kubernetes, Cloudflare, origin-bypass, deployment-governance, and workflow-governance packs. `Suppression` API. |
+| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors TLA+ spec exactly. v1.1 adds `tierDegraded` + `featureNotLicensed` non-suppressible verdict fields. Cache schema v2 with explicit migration.                                                                          |
+| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`, runtime detection, backup, and add-on foundations.                                                                       |
+| `@hulumi/cloudflare-baseline`            | **Cloudflare edge**: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`, `BotProtectionBaseline`, and `ProtectedAdminHostname`. First public package in the v1.3 train.                                                                                                                                                    |
+| `@hulumi/platform-patterns`              | **Cross-provider edge patterns**: `CloudflareOriginIngress`, `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and `BuildProvenanceFoundation`. First public package in the v1.3 train.                                                                                                                        |
+| `/hulumi-threat-model` Claude Code skill | 5 prebuilt AWS scenarios + 4 prebuilt GitHub scenarios (v1.1: OIDC trust, Actions supply-chain, App tokens, self-hosted runners). Citation-only threat-model markdown.                                                                                                                                                        |
 
 For the GitHub variant: see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md), [`docs/cookbooks/github-webhook-drift.md`](./docs/cookbooks/github-webhook-drift.md), and [`examples/secure-repository-smoke/`](./examples/secure-repository-smoke/) for the wedge surface. The Hulumi-for-GitHub project lives under a hard infra-only scope contract — see Global Execution Rule 0 in the runbook for the boundary.
 
@@ -81,6 +83,8 @@ pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
 pnpm add @hulumi/drift   # if you want the drift classifier
 # Kubernetes / EKS surface:
 pnpm add @hulumi/k8s-baseline @pulumi/kubernetes@4.30.0
+# Cloudflare edge + cross-provider deployment patterns:
+pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare@6.15.0 @pulumi/github@6.13.1
 ```
 
 The exact `@pulumi/*` versions match Hulumi's `peerDependencies` pins. Bumps go through a 72h/24h cooling-off CI gate — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
@@ -128,12 +132,12 @@ The longer version of "why these principles, not others" is in [docs/why-hulumi.
 
 ## Project layout
 
-- `packages/` — publishable npm packages (`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`).
+- `packages/` — publishable npm packages (`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`, `@hulumi/platform-patterns`).
 - `skills/` — `/hulumi-threat-model` Claude Code skill pack.
 - `examples/` — runnable smoke examples per component (consumed by CI).
 - `tests/skill-bdd/` — repo-wide BDD + license-boundary lint enforcement.
 - `docs/` — code-level documentation (`ARCHITECTURE.md`, `getting-started.md`, `cookbooks/`, `components/`, `mappings/`, `tiers.md`, etc.).
-- `docs/slo/` — runbooks, milestone artifacts (lessons / completion / critique / design / research / verify / templates) produced by the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack. See [docs/slo/README.md](./docs/slo/README.md) for the layout convention.
+- `docs/slo/` — development-only runbooks and milestone artifacts produced by the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack. The directory is intentionally gitignored for new work so SLO planning files do not become published user artifacts.
 - `scripts/` — `license-boundary-lint.mjs`, `exact-pin-guard.mjs`, `cooling-off-diff.mjs`.
 - `.github/workflows/` — CI, release, weekly-integration, and Pulumi cooling-off pipelines.
 

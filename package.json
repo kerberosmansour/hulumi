@@ -2,7 +2,7 @@
   "name": "hulumi",
   "version": "0.1.0",
   "private": true,
-  "description": "Hardened Pulumi for the AI-agent era — baseline components, CrossGuard pack, drift classifier, Claude Code skill pack.",
+  "description": "Hardened Pulumi for the AI-agent era — baseline components, edge patterns, CrossGuard packs, drift classifier, Claude Code skill pack.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.12.0",
   "engines": {
@@ -22,7 +22,7 @@
     "test:drift:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
     "test:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/baseline test -- tests/integration/ && HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
     "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs attestation-dry-run on every PR'",
-    "release:verify-attestations": "for pkg in baseline policies drift; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
+    "release:verify-attestations": "for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
     "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml — see docs/integration-testing.md.' && exit 0",
     "cleanup:e2e-stack": "node scripts/cleanup-e2e-stack.mjs",
     "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",

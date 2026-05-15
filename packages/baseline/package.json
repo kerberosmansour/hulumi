@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/baseline",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Hardened Pulumi baseline components for AWS and GitHub — SecureBucket, AccountFoundation, SecureRepository, OrgFoundation. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -41,7 +41,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."

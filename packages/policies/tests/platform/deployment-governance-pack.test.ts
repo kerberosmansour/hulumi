@@ -135,6 +135,127 @@ describe("HulumiDeploymentGovernancePack DEPLOY_GOV_1 — protected env required
 
     expect(violations).toEqual([]);
   });
+
+  it("does NOT report when a deployment-capable repo has matching DeploymentRepositoryFoundation evidence", () => {
+    const repo = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::deploy-repo`,
+      name: "deploy-repo",
+      props: { name: "deploy-repo", topics: ["deployment"] },
+    });
+    const foundation = makePolicyResource({
+      type: DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE,
+      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::deploy-repo-foundation`,
+      name: "deploy-repo-foundation",
+      props: { name: "deploy-repo" },
+    });
+
+    (
+      deployGov1RequireProtectedEnvironment.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([repo, foundation]), report);
+
+    expect(violations).toEqual([]);
+  });
+
+  it("reports when only unrelated DeploymentRepositoryFoundation evidence exists", () => {
+    const repo = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::victim-repo`,
+      name: "victim-repo",
+      props: { name: "victim-repo", topics: ["deployment"] },
+    });
+    const unrelatedFoundation = makePolicyResource({
+      type: DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE,
+      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::victim-repo`,
+      name: "victim-repo",
+      props: { name: "safe-repo" },
+    });
+
+    (
+      deployGov1RequireProtectedEnvironment.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([repo, unrelatedFoundation]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(repo.urn);
+  });
+
+  it("does not treat unscoped OIDC role evidence as matching a deployment repository", () => {
+    const repo = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::deploy-repo`,
+      name: "deploy-repo",
+      props: { name: "deploy-repo", topics: ["deployment"] },
+    });
+    const env = makePolicyResource({
+      type: GITHUB_ENVIRONMENT_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::deploy-repo-prod`,
+      name: "deploy-repo-prod",
+      props: {
+        repository: "deploy-repo",
+        environment: "prod",
+        reviewers: [{ teams: [1234] }],
+        deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
+      },
+    });
+    const unscopedOidcRole = makePolicyResource({
+      type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::generic-role`,
+      name: "generic-role",
+      props: { environment: "prod" },
+    });
+
+    (
+      deployGov1RequireProtectedEnvironment.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([repo, env, unscopedOidcRole]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(repo.urn);
+  });
+
+  it("does not treat a protected environment for another repository as matching by logical name", () => {
+    const repo = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::victim-repo`,
+      name: "victim-repo",
+      props: { name: "victim-repo", topics: ["deployment"] },
+    });
+    const env = makePolicyResource({
+      type: GITHUB_ENVIRONMENT_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::victim-repo-prod`,
+      name: "victim-repo-prod",
+      props: {
+        repository: "safe-repo",
+        environment: "prod",
+        reviewers: [{ teams: [1234] }],
+        deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
+      },
+    });
+    const oidcRole = makePolicyResource({
+      type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::victim-role`,
+      name: "victim-role",
+      props: { repository: "victim-repo", environment: "prod" },
+    });
+
+    (
+      deployGov1RequireProtectedEnvironment.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([repo, env, oidcRole]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(repo.urn);
+  });
 });
 
 describe("HulumiDeploymentGovernancePack DEPLOY_GOV_2 — long-lived AWS secret rejected", () => {

@@ -18,8 +18,9 @@ public issue for vulnerabilities.**
 Useful reports include:
 
 - Affected package (`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`,
-  or `@hulumi/k8s-baseline`), version, and the `@pulumi/*` peer-dep versions
-  in your stack.
+  `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`, or
+  `@hulumi/platform-patterns`), version, and the `@pulumi/*` peer-dep
+  versions in your stack.
 - Minimal reproduction or proof of concept — a Pulumi program plus
   `pulumi preview` output is usually enough.
 - Expected impact and attacker preconditions (privileged AWS principal?
@@ -55,8 +56,9 @@ guide and a deprecation window for v1.x — see [`docs/v2-migration.md`](./docs/
 
 In scope:
 
-- Vulnerabilities in any of the four published packages: `@hulumi/baseline`,
-  `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`.
+- Vulnerabilities in any of the six published packages: `@hulumi/baseline`,
+  `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`,
+  `@hulumi/cloudflare-baseline`, `@hulumi/platform-patterns`.
 - Unsafe defaults in components, examples, cookbooks, or the
   `/hulumi-threat-model` skill that could reasonably be copied into
   production.
@@ -89,8 +91,9 @@ named project is unofficial.
 
 - **GitHub**: `kerberosmansour/hulumi` — the only authoritative GitHub path.
 - **npm packages**: `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`,
-  `@hulumi/k8s-baseline` — all from the `@hulumi/` scope, published with
-  SLSA Build L3 provenance starting v1.0.0.
+  `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`,
+  `@hulumi/platform-patterns` — all from the `@hulumi/` scope, published
+  with SLSA Build L3 provenance starting v1.0.0.
 - **Claude Code skill pack**: install via
   `git clone https://github.com/kerberosmansour/hulumi.git ~/.claude/skills/hulumi-threat-model`
   (subdirectory clone).
@@ -109,16 +112,17 @@ Every Hulumi tarball published from v1.0.0 carries an
 
 ```sh
 # Download the tarball
-pnpm pack @hulumi/baseline@1.2.0 --pack-destination .
+pnpm pack @hulumi/baseline@1.3.0 --pack-destination .
 
 # Verify the attestation chain
-gh attestation verify ./hulumi-baseline-1.2.0.tgz \
+gh attestation verify ./hulumi-baseline-1.3.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 
 Expected output: `✓ Verification succeeded` plus the build's commit SHA +
-workflow run URL. Repeat for `@hulumi/policies@1.2.0`, `@hulumi/drift@1.2.0`,
-and `@hulumi/k8s-baseline@1.2.0`. The
+workflow run URL. Repeat for `@hulumi/policies@1.3.0`, `@hulumi/drift@1.3.0`,
+`@hulumi/k8s-baseline@1.3.0`, `@hulumi/cloudflare-baseline@1.3.0`, and
+`@hulumi/platform-patterns@1.3.0`. The
 [`.github/attestations/README.md`](./.github/attestations/README.md) covers
 both `gh attestation verify` and `cosign` verification paths.
 
@@ -129,7 +133,7 @@ Advisory link above.
 ## Pulumi cooling-off policy
 
 Hulumi's own releases carry SLSA Build L3 provenance. `@pulumi/*` transitive
-dependencies do not carry SLSA attestations as of v1.2.0. Our compensating
+dependencies do not carry SLSA attestations as of v1.3.0. Our compensating
 controls:
 
 1. **Exact-version-pinning with integrity hashes**: every `@pulumi/*` dep is
@@ -138,8 +142,9 @@ controls:
    The guard also covers `@hulumi/drift`'s runtime deps
    (`@aws-sdk/client-cloudtrail`, `@aws-sdk/client-sts`,
    `@aws-sdk/credential-providers`, `p-timeout`, `simple-git`) and
-   `@hulumi/k8s-baseline`'s `@aws-sdk/client-secrets-manager` —
-   11 pinned packages total at v1.2.0.
+   `@hulumi/k8s-baseline`'s `@aws-sdk/client-secrets-manager`, plus
+   `@pulumi/github` and `@pulumi/cloudflare` for the GitHub and edge
+   surfaces — 13 pinned packages total at v1.3.0.
 2. **72h cooling-off for minor/major bumps + 24h for patches**:
    [`.github/workflows/pulumi-cooling-off.yml`](./.github/workflows/pulumi-cooling-off.yml)
    runs on every PR bumping a `@pulumi/*` pin. The job calls
@@ -163,6 +168,7 @@ Dependabot's standard major-version-ignore-list (see
 | `@pulumi/policy`             | npm — no SLSA    | exact-pin (no upstream changes likely)     |
 | `@pulumi/github`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
 | `@pulumi/kubernetes`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
+| `@pulumi/cloudflare`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
 | `@aws-sdk/*`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
 | `simple-git`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
 | `p-timeout`                  | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
@@ -202,7 +208,7 @@ are refused on read.
   `lint:license-boundary`, `pulumi-cooling-off`, DCO sign-off.
 - Every release runs `actions/attest-build-provenance` for SLSA Build L3
   attestation, plus npm `--provenance` for the second Sigstore signature.
-- All four published packages ship the same version on the same day —
+- All six published packages ship the same version on the same day —
   enforced by `release-readiness.test.ts`.
 - License-boundary lint blocks verbatim CCM / AICM / CAIQ / CIS Benchmark /
   NIST control text from `packages/*/src/` and `skills/`. Cite frameworks

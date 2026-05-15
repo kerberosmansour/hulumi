@@ -14,7 +14,10 @@ This doc is for people working **on** Hulumi, not with it. If you want to use Hu
 ├── packages/
 │   ├── baseline/          @hulumi/baseline    — SecureBucket, AccountFoundation, mappings
 │   ├── policies/          @hulumi/policies    — HulumiHardeningPack, CisV5Pack, suppressions
-│   └── drift/             @hulumi/drift       — DriftClassifier, 4 adapters, probe
+│   ├── drift/             @hulumi/drift       — DriftClassifier, 5 adapters, probe
+│   ├── k8s-baseline/      @hulumi/k8s-baseline
+│   ├── cloudflare-baseline/ @hulumi/cloudflare-baseline
+│   └── platform-patterns/ @hulumi/platform-patterns
 ├── skills/
 │   └── hulumi-threat-model/                   — Claude Code skill (.mjs scripts, scenarios JSON, template)
 ├── examples/
@@ -40,7 +43,7 @@ This doc is for people working **on** Hulumi, not with it. If you want to use Hu
 └── pnpm-workspace.yaml
 ```
 
-The three publishable packages all live under `packages/`. The skill is intentionally separate (skill packs ship via clone, not npm). The runbooks and milestone retrospectives live in `docs/` and aren't published.
+The six publishable packages all live under `packages/`. The skill is intentionally separate (skill packs ship via clone, not npm). New SLO runbooks and milestone retrospectives are development-only agent work products and are ignored under `docs/slo/`.
 
 ## Local dev loop
 
@@ -124,7 +127,7 @@ Each package has its own `tsconfig.build.json` that excludes tests and emits `di
 
 Notable build-shape decisions:
 
-- **`type: "commonjs"`** for all three publishable packages. Pulumi's runtime is CJS-friendly; some Pulumi consumers still ship CJS bundlers. ESM-only deps (`p-timeout` v7) work via `esModuleInterop` + the runtime's CJS-wrapped reexports.
+- **`type: "commonjs"`** for all six publishable packages. Pulumi's runtime is CJS-friendly; some Pulumi consumers still ship CJS bundlers. ESM-only deps (`p-timeout` v7) work via `esModuleInterop` + the runtime's CJS-wrapped reexports.
 - **`moduleResolution: "bundler"` for `examples/*/`.** The packages' `exports` subpaths require `node16` / `nodenext` / `bundler`. Examples use `bundler` to match the root tsconfig; the published packages use `node` for stable consumer behaviour.
 - **`rootDir` in `tsconfig.build.json` only.** The base `tsconfig.json` doesn't set `rootDir` so typecheck (`noEmit`) can include `tests/`; the build config sets it and excludes tests.
 
@@ -144,7 +147,7 @@ Hulumi takes supply-chain seriously enough that it's a design constraint, not ju
 
 `.github/workflows/release.yml` uses `slsa-framework/slsa-github-generator` pinned to an exact SHA. Every published tarball ships with `"provenance": true`. Consumers can verify with `gh attestation verify` — see [verify-provenance.md](./cookbooks/verify-provenance.md).
 
-If you're adding a new runtime dependency to any of the three publishable packages, **start a GitHub Discussion first**. CONTRIBUTING.md describes the criteria. The drift package's runtime deps (`@aws-sdk/*`, `simple-git`, `p-timeout`) went through this gate.
+If you're adding a new runtime dependency to any publishable package, **start a GitHub Discussion first**. CONTRIBUTING.md describes the criteria. The drift package's runtime deps (`@aws-sdk/*`, `simple-git`, `p-timeout`) went through this gate.
 
 ## License-boundary discipline (the thing newcomers stub their toes on)
 
@@ -175,12 +178,13 @@ The lessons docs ([docs/slo/lessons/hulumi-m\*.md](./slo/lessons/)) capture the 
 
 ## Releasing
 
-Releases are atomic across the three packages — `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift` ship the same version on the same day. The release workflow:
+Releases are atomic across the six packages — `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`, and `@hulumi/platform-patterns` ship the same version on the same day. The release workflow:
 
 1. Tag `v<x.y.z>` on `main`.
 2. `.github/workflows/release.yml` builds, attests, and publishes via npm trusted publishing (OIDC, no `NPM_TOKEN`).
 3. Post-publish, `release:verify-attestations` (in the root `package.json`) verifies the freshly-published tarballs against the canonical repo.
-4. CHANGELOG.md updated under the new version heading.
+4. Publish any prepared GitHub Security Advisories for fixes included in the release. For v1.3.0, use [`docs/release/v1.3.0-security-advisories.md`](./release/v1.3.0-security-advisories.md).
+5. CHANGELOG.md updated under the new version heading.
 
 If a publish goes wrong, **don't `npm unpublish`.** Cut a `<x.y.z+1>` patch instead — unpublishing breaks downstream lockfiles for everyone who installed in the failure window. See [SECURITY.md](../SECURITY.md) for the responsible-disclosure path if the publish was compromised.
 

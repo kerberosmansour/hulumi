@@ -92,8 +92,81 @@ function publicZones(resources: readonly PolicyResource[]): PolicyResource[] {
   });
 }
 
-function stackHasIngressEvidence(resources: readonly PolicyResource[]): boolean {
-  return resources.some((resource) => resource.type === ORIGIN_INGRESS_TYPE);
+function normalizedString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase().replace(/\.$/u, "");
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function addNormalized(candidates: Set<string>, value: unknown): void {
+  const normalized = normalizedString(value);
+  if (normalized !== undefined) candidates.add(normalized);
+}
+
+function stringPropCandidates(resource: PolicyResource, propNames: readonly string[]): Set<string> {
+  const candidates = new Set<string>();
+  const props = resource.props as Record<string, unknown>;
+  for (const propName of propNames) addNormalized(candidates, props[propName]);
+  return candidates;
+}
+
+function hasSharedCandidate(left: Set<string>, right: Set<string>): boolean {
+  for (const value of left) {
+    if (right.has(value)) return true;
+  }
+  return false;
+}
+
+function hasDependencyOn(resource: PolicyResource, target: PolicyResource): boolean {
+  if (resource.dependencies.some((dependency) => dependency.urn === target.urn)) return true;
+  for (const dependencies of Object.values(resource.propertyDependencies)) {
+    if (
+      Array.isArray(dependencies) &&
+      dependencies.some((dependency) => dependency.urn === target.urn)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasDnssecEvidenceForZone(
+  resources: readonly PolicyResource[],
+  zone: PolicyResource,
+): boolean {
+  const zoneCandidates = stringPropCandidates(zone, ["id", "zoneId", "zone", "name"]);
+  return resources.some((resource) => {
+    if (resource.type !== ZONE_DNSSEC_TYPE) return false;
+    if (hasDependencyOn(resource, zone)) return true;
+    const dnssecCandidates = stringPropCandidates(resource, ["zoneId", "zone", "name"]);
+    return hasSharedCandidate(zoneCandidates, dnssecCandidates);
+  });
+}
+
+function recordHostname(resource: PolicyResource): string | undefined {
+  const props = resource.props as Record<string, unknown>;
+  return (
+    normalizedString(props.hostname) ??
+    normalizedString(props.name) ??
+    normalizedString(resource.name)
+  );
+}
+
+function ingressHostname(resource: PolicyResource): string | undefined {
+  const props = resource.props as Record<string, unknown>;
+  return normalizedString(props.hostname);
+}
+
+function hasIngressEvidenceForRecord(
+  resources: readonly PolicyResource[],
+  record: PolicyResource,
+): boolean {
+  const hostname = recordHostname(record);
+  if (hostname === undefined) return false;
+  return resources.some((resource) => {
+    if (resource.type !== ORIGIN_INGRESS_TYPE) return false;
+    return ingressHostname(resource) === hostname;
+  });
 }
 
 export const cfDns1NoDnsOnlyPublicAppRecord: ResourceValidationPolicy = {
@@ -121,10 +194,9 @@ export const cfDnssec1RequirePublicZoneDnssec: StackValidationPolicy = {
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
     );
-    const hasDnssec = args.resources.some((resource) => resource.type === ZONE_DNSSEC_TYPE);
     for (const zone of publicZones(args.resources)) {
       if (isChildOf(zone.urn, ZONE_FOUNDATION_TYPE)) continue;
-      if (hasDnssec) continue;
+      if (hasDnssecEvidenceForZone(args.resources, zone)) continue;
       if (matchSuppression(CF_DNSSEC_1_RULE_ID, zone.urn, suppressions).suppressed) continue;
       reportViolation(
         `${CF_DNSSEC_1_RULE_ID}: public Cloudflare zone ${zone.urn} has no ZoneFoundation or ZoneDnssec evidence. Use ZoneFoundation/DNSSEC or a migration suppression with justification. Docs: ${DOCS_URL}`,
@@ -138,12 +210,12 @@ export const cfOrigin1RequireSecureOriginMode: StackValidationPolicy = {
   description: "Requires application hostnames to carry secure origin-mode evidence.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
-    if (stackHasIngressEvidence(args.resources)) return;
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
     );
     for (const resource of args.resources) {
       if (!isProxyEligiblePublicAppRecord(resource)) continue;
+      if (hasIngressEvidenceForRecord(args.resources, resource)) continue;
       if (matchSuppression(CF_ORIGIN_1_RULE_ID, resource.urn, suppressions).suppressed) continue;
       reportViolation(
         `${CF_ORIGIN_1_RULE_ID}: application hostname ${resource.urn} has no CloudflareOriginIngress tunnel or allowlist+AOP evidence. Docs: ${DOCS_URL}`,

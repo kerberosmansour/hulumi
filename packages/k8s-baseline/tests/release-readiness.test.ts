@@ -25,7 +25,14 @@ function readRepoFile(relPath: string): string {
   return readFileSync(resolve(repoRoot, relPath), "utf8");
 }
 
-const PUBLISHABLE_PACKAGES = ["baseline", "policies", "drift", "k8s-baseline"] as const;
+const PUBLISHABLE_PACKAGES = [
+  "baseline",
+  "policies",
+  "drift",
+  "k8s-baseline",
+  "cloudflare-baseline",
+  "platform-patterns",
+] as const;
 const CANONICAL_REPO_URL = "https://github.com/kerberosmansour/hulumi";
 
 interface PublishablePackageJson {
@@ -44,23 +51,29 @@ function readPackageJson(pkg: string): PublishablePackageJson {
 }
 
 describe("Feature: K8s package release readiness (Runbook M1)", () => {
-  describe("Scenario: Release packs four packages", () => {
-    it("release workflow pack loop names baseline, policies, drift, k8s-baseline", () => {
+  describe("Scenario: Release packs six packages", () => {
+    it("release workflow pack loop names every publishable package", () => {
       const yml = readRepoFile(".github/workflows/release.yml");
 
-      expect(yml).toMatch(/baseline policies drift k8s-baseline/);
-      expect(yml).toMatch(/@hulumi\/k8s-baseline publish/);
+      expect(yml).toContain(
+        "baseline policies drift k8s-baseline cloudflare-baseline platform-patterns",
+      );
+      for (const pkg of PUBLISHABLE_PACKAGES) {
+        expect(yml).toContain(`@hulumi/${pkg} publish`);
+      }
     });
 
-    it("release workflow generates a CycloneDX SBOM for k8s-baseline", () => {
+    it("release workflow generates a CycloneDX SBOM for every publishable package", () => {
       const yml = readRepoFile(".github/workflows/release.yml");
       // SBOM output filename per package: post-cdxgen-swap, release.yml
       // writes `.release-artifacts/sbom-${pkg}.cdx.json` inside a loop
-      // that iterates the four-package set. cdxgen is the
+      // that iterates the publishable package set. cdxgen is the
       // multi-package-manager CycloneDX generator that reads
       // pnpm-lock.yaml natively (sidesteps the Corepack interception
       // that broke the previous @cyclonedx/cyclonedx-npm approach).
-      expect(yml).toMatch(/for pkg in baseline policies drift k8s-baseline/);
+      expect(yml).toContain(
+        "for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns",
+      );
       expect(yml).toMatch(/@cyclonedx\/cdxgen@11\.10\.0/);
       // The output-file template uses the loop variable.
       expect(yml).toMatch(/sbom-\$\{pkg\}\.cdx\.json/);
@@ -101,8 +114,8 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
   });
 });
 
-describe("Feature: Atomic four-package publish-readiness (Runbook hulumi-pre-public-launch M1)", () => {
-  describe("Scenario: All four packages declare publish-ready manifest shape", () => {
+describe("Feature: Atomic six-package publish-readiness", () => {
+  describe("Scenario: All six packages declare publish-ready manifest shape", () => {
     it.each(PUBLISHABLE_PACKAGES)(
       "@hulumi/%s package.json has private unset/false and publishConfig.access=public + provenance=true",
       (pkg) => {
@@ -138,8 +151,8 @@ describe("Feature: Atomic four-package publish-readiness (Runbook hulumi-pre-pub
     );
   });
 
-  describe("Scenario: All four packages ship the same atomic version", () => {
-    it("baseline, policies, drift, k8s-baseline all declare the same version (atomic-release invariant)", () => {
+  describe("Scenario: All six packages ship the same atomic version", () => {
+    it("all publishable packages declare the same version (atomic-release invariant)", () => {
       const versions = PUBLISHABLE_PACKAGES.map((pkg) => ({
         pkg,
         version: readPackageJson(pkg).version,
@@ -149,17 +162,30 @@ describe("Feature: Atomic four-package publish-readiness (Runbook hulumi-pre-pub
       expect(distinct.size, `version skew across packages: ${JSON.stringify(versions)}`).toBe(1);
     });
 
-    it("the atomic version matches the latest CHANGELOG entry (1.2.x)", () => {
+    it("the atomic version matches the latest CHANGELOG entry (1.3.x)", () => {
       const changelog = readRepoFile("CHANGELOG.md");
       const versions = PUBLISHABLE_PACKAGES.map((pkg) => readPackageJson(pkg).version);
-      // Latest changelog entry is the v1.2 train; assert all packages are 1.2.x.
+      // Latest changelog entry is the v1.3 train; assert all packages are 1.3.x.
       for (const version of versions) {
-        expect(version, `package version "${version}" is not on the 1.2.x train`).toMatch(
-          /^1\.2\.\d+/,
+        expect(version, `package version "${version}" is not on the 1.3.x train`).toMatch(
+          /^1\.3\.\d+/,
         );
       }
-      // And the changelog has a [1.2.0] entry corresponding to that train.
-      expect(changelog).toMatch(/\[1\.2\.0\]/);
+      // And the changelog has a [1.3.0] entry corresponding to that train.
+      expect(changelog).toMatch(/\[1\.3\.0\]/);
+    });
+  });
+
+  describe("Scenario: v1.3 security advisory registration is prepared", () => {
+    it("release docs enumerate GHSA candidates before package publication", () => {
+      const advisory = readRepoFile("docs/release/v1.3.0-security-advisories.md");
+
+      expect(advisory).toContain("GitHub's repository security advisory API");
+      expect(advisory).toContain("@hulumi/baseline");
+      expect(advisory).toContain("@hulumi/policies");
+      expect(advisory).toContain("@hulumi/drift");
+      expect(advisory).toContain("< 1.3.0");
+      expect(advisory).toContain("Patched version");
     });
   });
 

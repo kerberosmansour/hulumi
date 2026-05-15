@@ -19,3 +19,8 @@ The rule starts as advisory because public DNS and origin topology can be
 assembled across stacks. Promotion to mandatory should wait for M5 sandbox
 fixtures that prove the rule can identify origin evidence without creating
 unmanageable false positives.
+
+`CloudflareOriginIngress` evidence is matched by hostname. A tunnel or
+allowlist/AOP component for `app.example.com` does not suppress an advisory for
+`api.example.com`, even when both resources are present in the same Pulumi
+stack.

@@ -3,7 +3,7 @@
 # .github/workflows/pulumi-cooling-off.yml on every PR — Dependabot
 # proposes the bump, the cooling-off CI gate decides whether the PR
 # can merge. @pulumi/* deps are grouped so a coherent bump stays
-# atomic across the three Hulumi packages.
+# atomic across the six Hulumi packages.
 #
 # Major-version bumps on the toolchain below are conscious migrations with
 # code-level fallout (e.g. TypeScript 6's moduleResolution=node10
@@ -22,7 +22,7 @@ updates:
     labels:
       - "dependencies"
     # Group @pulumi/* together so cooling-off stays atomic across the
-    # three Hulumi packages; group remaining dev deps for noise control.
+    # six Hulumi packages; group remaining dev deps for noise control.
     groups:
       pulumi-runtime:
         patterns:

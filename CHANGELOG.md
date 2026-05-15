@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-05-15
+
+The Hulumi Edge Platform release. Atomic six-package publish:
+`@hulumi/baseline@1.3.0`, `@hulumi/policies@1.3.0`,
+`@hulumi/drift@1.3.0`, `@hulumi/k8s-baseline@1.3.0`, and first public
+publishes for `@hulumi/cloudflare-baseline@1.3.0` and
+`@hulumi/platform-patterns@1.3.0`. All six packages use the same SLSA
+Build L3 + npm provenance release path.
+
+### Added
+
+- **`@hulumi/cloudflare-baseline@1.3.0`** — first release of Cloudflare
+  edge primitives: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`,
+  `BotProtectionBaseline`, and `ProtectedAdminHostname`.
+- **`@hulumi/platform-patterns@1.3.0`** — first release of
+  cross-provider patterns: `CloudflareOriginIngress`,
+  `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and
+  `BuildProvenanceFoundation`.
+- **Edge policy coverage** in `@hulumi/policies`: Cloudflare hardening,
+  origin-bypass, deployment-governance, and workflow-governance checks.
+- **Edge smoke and integration lanes**: `examples/edge-platform-smoke/`,
+  Cloudflare/platform integration tests that skip without real credentials,
+  and CI coverage for the new package pair.
+- **Release advisory preparation**: `docs/release/v1.3.0-security-advisories.md`
+  tracks the GHSA registrations to publish after the npm packages are live.
+
+### Security
+
+- **PR #80** — `@hulumi/baseline`: CloudTrail selector-tampering detection
+  now catches selector-changing APIs such as `PutEventSelectors` and
+  `PutInsightSelectors`.
+- **PR #119** — `/hulumi-threat-model`: helper scripts are anchored to the
+  installed skill root so an attacker-controlled workspace cannot shadow the
+  generator helpers.
+- **PR #120** — `@hulumi/policies`: HULUMI-H1 no longer trusts substring
+  parent matches for `SecureBucket`-managed resources, closing a parent-spoof
+  bypass for raw `BucketV2`.
+- **PR #121** — `@hulumi/policies`: CIS 1.16 admin-policy detection now
+  covers inline role/user/group policies and `AdministratorAccess`
+  attachments, not only standalone IAM policies.
+- **PR #122** — deployment SCP guidance: the `hulumi:iac-role` tag guard now
+  denies tag-on-create paths for `iam:CreateRole` and `iam:CreateUser`.
+- **PR #123** — `@hulumi/drift`: `OrphanReconciler.execute()` now requires
+  the in-memory token/action set and refuses externally supplied stale plans.
+- **PR #124** — weekly integration IAM guidance: removed unnecessary role
+  mutation permissions from the documented policy and added regression coverage
+  to keep inline role-policy writes and trust-policy mutation out.
+- **PR #126** — `@hulumi/cloudflare-baseline`: `ProtectedAdminHostname`
+  hostname validation uses bounded parser-style checks before first public
+  publish.
+- **`@hulumi/policies`** — `G_OIDC_1` now inspects AWS set-qualified and
+  `IfExists` condition operators on the GitHub OIDC `sub` claim, closing a
+  bypass where wildcard trusts under `ForAnyValue:StringLike`,
+  `ForAllValues:StringLike`, or set-qualified `StringEquals` variants were
+  missed.
+- **`@hulumi/policies`** — Cloudflare, origin-bypass, and deployment-governance
+  stack validators now require per-resource evidence matching. Unrelated
+  `ZoneDnssec`, `CloudflareOriginIngress`, `DeploymentRepositoryFoundation`,
+  or unscoped OIDC-role resources no longer suppress findings for other zones,
+  hostnames, or deployment repositories.
+
+### Changed
+
+- Release and CI workflows expand from four to six packages for pack,
+  SBOM, attestation, dry-run, and npm publish steps.
+- `release-readiness.test.ts` now enforces the six-package atomic version
+  invariant, per-package README/LICENSE requirements, and the v1.3 changelog
+  entry.
+- `docs/slo/` is ignored as development-only SLO runbook material, not a
+  user-facing publish artifact.
+- Dependency and workflow governance docs now describe the v1.3 package set
+  and the 13 exact-pinned supply-chain dependencies.
+
+### Migration
+
+For consumers on v1.2.x: existing AWS, GitHub, drift, and K8s surfaces are
+additive. The two new packages are opt-in. Edge-platform real-provider proof
+remains credential-gated; use the smoke example and integration docs before
+promoting Cloudflare/AWS/GitHub edge patterns into production.
+
 ## [1.2.0] — 2026-05-01
 
 The Hulumi-K8s-Security + Hulumi-Operations + pre-public-launch release.

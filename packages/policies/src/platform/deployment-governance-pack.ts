@@ -25,6 +25,12 @@ function stringArrayIncludes(value: unknown, needle: string): boolean {
   return Array.isArray(value) && value.some((item) => item === needle);
 }
 
+function normalizedRepositoryName(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function repositoryName(resource: PolicyResource): string {
   const props = resource.props as Record<string, unknown>;
   return typeof props.name === "string" ? props.name : resource.name;
@@ -44,11 +50,8 @@ function isDeploymentCapableRepository(resource: PolicyResource): boolean {
 
 function environmentBelongsToRepo(environment: PolicyResource, repoName: string): boolean {
   const props = environment.props as Record<string, unknown>;
-  return (
-    props.repository === repoName ||
-    props.repository === environment.name ||
-    environment.name.startsWith(repoName)
-  );
+  const normalizedRepoName = normalizedRepositoryName(repoName);
+  return normalizedRepositoryName(props.repository) === normalizedRepoName;
 }
 
 function environmentIsProtected(environment: PolicyResource): boolean {
@@ -72,16 +75,39 @@ function hasProtectedEnvironment(resources: readonly PolicyResource[], repoName:
 }
 
 function hasOidcRoleEvidence(resources: readonly PolicyResource[], repoName: string): boolean {
+  const normalizedRepoName = normalizedRepositoryName(repoName);
+  if (normalizedRepoName === undefined) return false;
   return resources.some((resource) => {
     if (resource.type !== GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE) return false;
     const props = resource.props as Record<string, unknown>;
-    if (typeof props.repository !== "string") return true;
-    return props.repository === repoName;
+    return normalizedRepositoryName(props.repository) === normalizedRepoName;
   });
 }
 
-function hasDeploymentRepositoryFoundation(resources: readonly PolicyResource[]): boolean {
-  return resources.some((resource) => resource.type === DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE);
+function isChildOf(resource: PolicyResource, componentType: string): boolean {
+  return resource.urn.includes(`${componentType}$`);
+}
+
+function deploymentRepositoryFoundationName(resource: PolicyResource): string | undefined {
+  const props = resource.props as Record<string, unknown>;
+  return (
+    normalizedRepositoryName(props.name) ??
+    normalizedRepositoryName(props.repositoryName) ??
+    normalizedRepositoryName(props.repository)
+  );
+}
+
+function hasDeploymentRepositoryFoundationForRepo(
+  resources: readonly PolicyResource[],
+  repoName: string,
+): boolean {
+  const normalizedRepoName = normalizedRepositoryName(repoName);
+  if (normalizedRepoName === undefined) return false;
+  return resources.some(
+    (resource) =>
+      resource.type === DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE &&
+      deploymentRepositoryFoundationName(resource) === normalizedRepoName,
+  );
 }
 
 function isGitHubSecretType(type: string): boolean {
@@ -102,9 +128,10 @@ export const deployGov1RequireProtectedEnvironment: StackValidationPolicy = {
   description: "Requires deployment-capable repositories to use protected environments.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
-    if (hasDeploymentRepositoryFoundation(args.resources)) return;
     for (const repo of args.resources.filter(isDeploymentCapableRepository)) {
       const repoName = repositoryName(repo);
+      if (isChildOf(repo, DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE)) continue;
+      if (hasDeploymentRepositoryFoundationForRepo(args.resources, repoName)) continue;
       const protectedEnv = hasProtectedEnvironment(args.resources, repoName);
       const oidcRole = hasOidcRoleEvidence(args.resources, repoName);
       if (protectedEnv && oidcRole) continue;

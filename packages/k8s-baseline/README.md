@@ -22,6 +22,7 @@ The exact `@pulumi/*` versions match `peerDependencies`.
 | Component                               | Purpose                                                                                        |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `HardenedHelmRelease`                   | Helm release with PSA-baseline labels, SHA-pinned chart digest, default release-name stability |
+| `MetricsServer`                         | Kubernetes Metrics API install for HPA telemetry with secure-by-default APIService TLS         |
 | `EksSubnetTagger`                       | Auto-tag EKS-bound subnets with `kubernetes.io/role/{,internal-}elb`                           |
 | `IstioFoundation`                       | Bundled hardened Istio install (`istiod` + `istio-cni` + `ingressgateway`, PSA-baseline-clean) |
 | `AlbMeshedHttpEntrypoint`               | ALB Ingress + Istio `Gateway` + `VirtualService` + `AuthorizationPolicy` for one workload      |

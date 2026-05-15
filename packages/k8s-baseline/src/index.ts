@@ -70,6 +70,19 @@ export type { EksAddonFoundationArgs, EksAddonSpec } from "./eks-addon-foundatio
 export { MAX_EKS_ADDONS } from "./eks-addon-foundation.args";
 export type { EksAddonFoundationOutputs } from "./eks-addon-foundation.outputs";
 
+export { EksAdminAccessPath, EKS_ADMIN_ACCESS_PATH_COMPONENT_TYPE } from "./eks-admin-access-path";
+export type {
+  EksAdminAccessPathArgs,
+  EksAdminOperatorAccess,
+  EksEndpointAccessMode,
+  TemporaryBroadPublicAccess,
+} from "./eks-admin-access-path.args";
+export type {
+  EksAdminAccessPathOutputs,
+  EksAdminAccessSummary,
+  EksEndpointAccessConfig,
+} from "./eks-admin-access-path.outputs";
+
 export { planUpgrade, reportToMarkdown, MAX_UPGRADE_PLANNER_ADDONS } from "./eks-upgrade-planner";
 export type {
   EksSupportStatus,

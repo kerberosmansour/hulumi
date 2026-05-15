@@ -189,11 +189,8 @@
         "iam:ListAttachedRolePolicies",
         "iam:ListRolePolicies",
         "iam:ListRoleTags",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
         "iam:TagRole",
-        "iam:UntagRole",
-        "iam:UpdateAssumeRolePolicy"
+        "iam:UntagRole"
       ],
       "Resource": "arn:aws:iam::<SANDBOX_ACCOUNT_ID>:role/af-e2e-*"
     },

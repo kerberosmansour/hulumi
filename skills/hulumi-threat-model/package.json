@@ -11,7 +11,7 @@
     "test": "echo 'skill has no internal tests; tests live in tests/skill-bdd/' && exit 0"
   },
   "devDependencies": {
-    "@types/node": "20.19.40",
+    "@types/node": "20.19.41",
     "typescript": "5.9.3"
   }
 }

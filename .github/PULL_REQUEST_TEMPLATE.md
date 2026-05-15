@@ -27,7 +27,7 @@
 - [ ] No secrets, credentials, or `.env` files included
 - [ ] No verbatim control text from CSA / CIS / NIST / MITRE frameworks (IDs-only — see [SECURITY.md](../SECURITY.md) and [docs/mappings/licensing.md](../docs/mappings/licensing.md))
 - [ ] Docs updated if behavior or surface changed (README, ARCHITECTURE.md, component docs, CHANGELOG)
-- [ ] If a new dependency was added to `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, or `@hulumi/k8s-baseline`, the supply-chain rationale is in the PR body (see CONTRIBUTING.md)
+- [ ] If a new dependency was added to a publishable `@hulumi/*` package, the supply-chain rationale is in the PR body (see CONTRIBUTING.md)
 
 ## Notes for the reviewer
 

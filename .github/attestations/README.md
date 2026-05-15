@@ -8,17 +8,17 @@ covers verification via `gh attestation verify` and `cosign`.
 
 ```sh
 # Download the tarball
-pnpm pack @hulumi/baseline@1.0.0 --pack-destination .
+pnpm pack @hulumi/baseline@1.3.0 --pack-destination .
 
 # Verify the attestation
-gh attestation verify ./hulumi-baseline-1.0.0.tgz \
+gh attestation verify ./hulumi-baseline-1.3.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 
 Expected output:
 
 ```
-Loaded digest sha256:<sha> for file://./hulumi-baseline-1.0.0.tgz
+Loaded digest sha256:<sha> for file://./hulumi-baseline-1.3.0.tgz
 Loaded 1 attestation from GitHub API
 ✓ Verification succeeded!
 
@@ -29,7 +29,9 @@ The following policy criteria were satisfied:
 - Commit: <sha>
 ```
 
-Repeat for `@hulumi/policies@1.0.0` and `@hulumi/drift@1.0.0`.
+Repeat for the other published packages in the same version train:
+`@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`,
+`@hulumi/cloudflare-baseline`, and `@hulumi/platform-patterns`.
 
 A non-zero exit code from `gh attestation verify` means the
 attestation chain doesn't tie back to this repo's release
@@ -42,18 +44,18 @@ If you can't reach the GitHub API:
 
 ```sh
 # Download the tarball + the attestation
-pnpm pack @hulumi/baseline@1.0.0 --pack-destination .
-gh release download v1.0.0 \
+pnpm pack @hulumi/baseline@1.3.0 --pack-destination .
+gh release download v1.3.0 \
   --repo kerberosmansour/hulumi \
-  --pattern "hulumi-baseline-1.0.0.tgz.intoto.jsonl" \
+  --pattern "hulumi-baseline-1.3.0.tgz.intoto.jsonl" \
   --dir .
 
 # Verify with cosign (assumes a recent cosign + Sigstore root)
 cosign verify-blob \
-  --bundle ./hulumi-baseline-1.0.0.tgz.intoto.jsonl \
+  --bundle ./hulumi-baseline-1.3.0.tgz.intoto.jsonl \
   --certificate-identity-regexp '^https://github.com/kerberosmansour/hulumi/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ./hulumi-baseline-1.0.0.tgz
+  ./hulumi-baseline-1.3.0.tgz
 ```
 
 ## What attestation guarantees
@@ -61,7 +63,7 @@ cosign verify-blob \
 - The tarball was built by GitHub Actions running
   `.github/workflows/release.yml` from the
   `kerberosmansour/hulumi` repo.
-- The exact commit SHA at build time matches the `v1.0.0` tag.
+- The exact commit SHA at build time matches the release tag.
 - The build was hermetic (no maintainer-side `npm publish`).
 - The publish used npm trusted publishing (OIDC); no
   long-lived `NPM_TOKEN` was involved.

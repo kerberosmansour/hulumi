@@ -83,6 +83,11 @@ jobs:
       - run: pnpm --filter @hulumi/drift build
       - run: pnpm --filter @hulumi-examples/drift-classify-smoke typecheck
       - run: pnpm --filter @hulumi-examples/drift-classify-smoke test
+      - run: pnpm --filter @hulumi/cloudflare-baseline build
+      - run: pnpm --filter @hulumi/platform-patterns build
+      - run: pnpm --filter @hulumi/policies build
+      - run: pnpm --filter @hulumi/example-edge-platform-smoke typecheck
+      - run: pnpm --filter @hulumi/example-edge-platform-smoke test
 
   k8s-baseline-test:
     name: "@hulumi/k8s-baseline unit + release-readiness BDD"
@@ -192,7 +197,7 @@ jobs:
         run: |
           mkdir -p .release-artifacts
           ABS_DEST="$(pwd)/.release-artifacts"
-          for pkg in baseline policies drift k8s-baseline; do
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/

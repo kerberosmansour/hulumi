@@ -77,9 +77,9 @@ It shouldn't, post-runbook-`hulumi-pre-public-launch` M1. The `.gitignore` block
 
 Every test that writes to disk must clean up on success and failure. Use `tempdir()` / `tempfile::TempDir` / vitest's `afterEach` hooks. The `.gitignore` already covers `packages/baseline/tests/integration/.tmp/`; if you write to a different path, add it to `.gitignore` AND clean up in the test.
 
-### The atomic four-package release contract
+### The atomic six-package release contract
 
-`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline` ship the SAME version on the SAME day. The release pipeline (`release.yml`) packs all four, generates SBOMs, attests provenance, and publishes in lockstep — any preflight failure aborts before any `npm publish`. `release-readiness.test.ts` enforces the version-equality invariant.
+`@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`, and `@hulumi/platform-patterns` ship the SAME version on the SAME day. The release pipeline (`release.yml`) packs all six, generates SBOMs, attests provenance, and publishes in lockstep — any preflight failure aborts before any `npm publish`. `release-readiness.test.ts` enforces the version-equality invariant.
 
 ### `.claude/` showed up in my working tree
 
@@ -95,7 +95,7 @@ This project intentionally does not publish a `security@` email address. Reports
 
 ### Why is `@hulumi/k8s-baseline` at 1.2.0 instead of 1.0.0?
 
-Atomic four-package release. The K8s package was originally planned to ship as 1.0.0 in the v1.2 train; runbook `hulumi-pre-public-launch` M1 reconciled it to 1.2.0 to match the other three packages' atomic-release invariant. CHANGELOG entry under [1.2.0] documents the version skip.
+Atomic release discipline. The K8s package was originally planned to ship as 1.0.0 in the v1.2 train; runbook `hulumi-pre-public-launch` M1 reconciled it to 1.2.0 to match the other packages' atomic-release invariant. CHANGELOG entry under [1.2.0] documents the version skip. The v1.3 train extends the same invariant to `@hulumi/cloudflare-baseline` and `@hulumi/platform-patterns`.
 
 ### Are the integration tests actually running?
 

@@ -32,3 +32,17 @@ The pack uses the existing Hulumi suppression shape:
 
 Empty reasons are ignored. Suppressions are intended for migrations, not for
 normal operation.
+
+## Evidence Matching
+
+Stack validators require evidence to match the specific resource under review:
+
+- `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC` accepts `ZoneDnssec` evidence only
+  when it targets the same zone id/zone name, or when Pulumi dependency
+  metadata ties the DNSSEC resource to that zone.
+- `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE` accepts
+  `CloudflareOriginIngress` evidence only when its `hostname` matches the
+  public application DNS record hostname.
+
+Unrelated DNSSEC or ingress resources in the same stack do not suppress
+violations for other zones or hostnames.

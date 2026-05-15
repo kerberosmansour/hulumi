@@ -26,7 +26,7 @@ All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason 
 
 ## Kubernetes / EKS components (`@hulumi/k8s-baseline`)
 
-Pre-release at `1.0.0-pre.1`. First stable lands with the v1.2 release train (atomic four-package release). Compatibility with tested Helm chart versions is documented in [`packages/k8s-baseline/COMPATIBILITY.md`](../../packages/k8s-baseline/COMPATIBILITY.md) and asserted in the `release-readiness.test.ts` BDD suite.
+Stable in the v1.2+ release trains. Compatibility with tested Helm chart versions is documented in [`packages/k8s-baseline/COMPATIBILITY.md`](../../packages/k8s-baseline/COMPATIBILITY.md) and asserted in the `release-readiness.test.ts` BDD suite.
 
 | Component                                          | Doc                                                                          |
 | -------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -44,3 +44,32 @@ Pre-release at `1.0.0-pre.1`. First stable lands with the v1.2 release train (at
 | `hulumi.k8s.planUpgrade` (library)                 | [eks-upgrade-planner.md](./eks-upgrade-planner.md)                           |
 
 The tier matrix for every baseline component lives in [../tiers.md](../tiers.md).
+
+## Cloudflare edge components (`@hulumi/cloudflare-baseline`)
+
+| Component                                  | Doc                                                          |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `hulumi.cloudflare.ZoneFoundation`         | [zone-foundation.md](./zone-foundation.md)                   |
+| `hulumi.cloudflare.PublicHostname`         | [public-hostname.md](./public-hostname.md)                   |
+| `hulumi.cloudflare.EdgeWafBaseline`        | [edge-waf-baseline.md](./edge-waf-baseline.md)               |
+| `hulumi.cloudflare.BotProtectionBaseline`  | [bot-protection-baseline.md](./bot-protection-baseline.md)   |
+| `hulumi.cloudflare.ProtectedAdminHostname` | [protected-admin-hostname.md](./protected-admin-hostname.md) |
+
+## Platform patterns (`@hulumi/platform-patterns`)
+
+| Component                                        | Doc                                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `hulumi.platform.CloudflareOriginIngress`        | [cloudflare-origin-ingress.md](./cloudflare-origin-ingress.md)               |
+| `hulumi.platform.GitHubAwsOidcDeploymentRole`    | [github-aws-oidc-deployment-role.md](./github-aws-oidc-deployment-role.md)   |
+| `hulumi.platform.DeploymentRepositoryFoundation` | [deployment-repository-foundation.md](./deployment-repository-foundation.md) |
+| `hulumi.platform.BuildProvenanceFoundation`      | [build-provenance-foundation.md](./build-provenance-foundation.md)           |
+
+## Edge policy packs (`@hulumi/policies`)
+
+| Pack                       | Doc                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| GitHub OIDC trust guard    | [g-oidc-1.md](./g-oidc-1.md)                                                   |
+| Cloudflare hardening       | [cloudflare-policy-packs.md](./cloudflare-policy-packs.md)                     |
+| Origin bypass              | [origin-bypass-policy-pack.md](./origin-bypass-policy-pack.md)                 |
+| Deployment governance      | [deployment-governance-policy-pack.md](./deployment-governance-policy-pack.md) |
+| Workflow governance linter | [workflow-governance-linter.md](./workflow-governance-linter.md)               |

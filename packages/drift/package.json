@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/drift",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -29,7 +29,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts tests/integration",
     "typecheck": "tsc --noEmit",

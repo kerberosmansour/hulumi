@@ -75,3 +75,14 @@ import {
 - GitHub protected environments require plan support in the target account/org.
 - Private repository provenance may have visibility caveats for downstream attestation discovery.
 - Real provider testing is opt-in: `pnpm --filter @hulumi/platform-patterns test:integration` skips unless the documented GitHub and AWS edge integration env vars are set.
+
+## Verifying SLSA Attestations
+
+Every published tarball ships with `actions/attest-build-provenance` v2
+provenance. Verify before installing:
+
+```bash
+pnpm pack @hulumi/platform-patterns@1.3.0 --pack-destination .
+gh attestation verify ./hulumi-platform-patterns-1.3.0.tgz \
+  --repo kerberosmansour/hulumi
+```

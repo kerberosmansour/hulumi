@@ -87,3 +87,14 @@ import {
 - Granular bot scoring is Enterprise-only; lower plans report unsupported or degraded controls rather than silently claiming coverage.
 - DNSSEC may require registrar DS-record handoff outside Pulumi.
 - Real provider testing is opt-in: `pnpm --filter @hulumi/cloudflare-baseline test:integration` skips unless `HULUMI_CLOUDFLARE_INTEGRATION=1`, `CLOUDFLARE_API_TOKEN`, `HULUMI_CLOUDFLARE_ACCOUNT_ID`, and `HULUMI_CLOUDFLARE_ZONE_ID` are set.
+
+## Verifying SLSA Attestations
+
+Every published tarball ships with `actions/attest-build-provenance` v2
+provenance. Verify before installing:
+
+```bash
+pnpm pack @hulumi/cloudflare-baseline@1.3.0 --pack-destination .
+gh attestation verify ./hulumi-cloudflare-baseline-1.3.0.tgz \
+  --repo kerberosmansour/hulumi
+```

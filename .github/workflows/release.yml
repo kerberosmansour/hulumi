@@ -1,16 +1,18 @@
-# Release — atomic four-package npm publish with SLSA Build L3
+# Release — atomic six-package npm publish with SLSA Build L3
 # attestation + SBOM generation + signed GitHub release.
 #
 # Trigger: tag v*.*.* on main. The release is atomic — any step
 # failure aborts before any `npm publish`. There is NO long-lived
 # NPM_TOKEN; npm trusted publishing via OIDC is the only auth path.
 #
-# The four-package set is asserted by
+# The six-package set is asserted by
 # packages/k8s-baseline/tests/release-readiness.test.ts:
 #   - @hulumi/baseline
 #   - @hulumi/policies
 #   - @hulumi/drift
 #   - @hulumi/k8s-baseline   (added in runbook hulumi-operations-k8s-security M1)
+#   - @hulumi/cloudflare-baseline
+#   - @hulumi/platform-patterns
 
 name: release
 on:
@@ -19,9 +21,7 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   preflight:
@@ -73,7 +73,7 @@ jobs:
         run: |
           mkdir -p .release-artifacts
           ABS_DEST="$(pwd)/.release-artifacts"
-          for pkg in baseline policies drift k8s-baseline; do
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/
@@ -96,7 +96,7 @@ jobs:
           FETCH_LICENSE: "true"
         run: |
           set -euo pipefail
-          for pkg in baseline policies drift k8s-baseline; do
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
             npx --yes @cyclonedx/cdxgen@11.10.0 \
               --type js \
               --no-recurse \
@@ -117,6 +117,8 @@ jobs:
           pnpm --filter @hulumi/policies publish --no-git-checks --provenance --access public
           pnpm --filter @hulumi/drift publish --no-git-checks --provenance --access public
           pnpm --filter @hulumi/k8s-baseline publish --no-git-checks --provenance --access public
+          pnpm --filter @hulumi/cloudflare-baseline publish --no-git-checks --provenance --access public
+          pnpm --filter @hulumi/platform-patterns publish --no-git-checks --provenance --access public
 
       - name: Create GitHub release with SBOMs + tarballs
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3

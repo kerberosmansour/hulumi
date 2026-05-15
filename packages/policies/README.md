@@ -85,8 +85,8 @@ Every published tarball ships with `actions/attest-build-provenance` v2
 provenance. Verify before installing:
 
 ```bash
-pnpm pack @hulumi/policies@1.2.0 --pack-destination .
-gh attestation verify ./hulumi-policies-1.2.0.tgz \
+pnpm pack @hulumi/policies@1.3.0 --pack-destination .
+gh attestation verify ./hulumi-policies-1.3.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 

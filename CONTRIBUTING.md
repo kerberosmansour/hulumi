@@ -40,14 +40,14 @@ Before opening a PR, confirm `pnpm -r test && pnpm -r typecheck && pnpm -r lint`
 
 ## No runtime dependency additions without discussion
 
-Adding a runtime dependency to any of `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift` is a significant supply-chain decision. Open a GitHub Discussion first describing:
+Adding a runtime dependency to any publishable `@hulumi/*` package is a significant supply-chain decision. Open a GitHub Discussion first describing:
 
 - why the dependency is needed,
 - what the exact version + integrity hash will be,
 - whether the dependency itself carries SLSA provenance,
 - how the 72h/24h cooling-off policy applies to future bumps.
 
-The policy is codified in `SECURITY.md` once M5 lands.
+The policy is codified in `SECURITY.md`.
 
 ## Pre-submit checks
 
@@ -82,7 +82,7 @@ The runbook templates live at [docs/slo/templates/](./docs/slo/templates/). Runb
 ## What is out of scope
 
 - Switching the licence from Apache-2.0 to anything else. The Apache-2.0 + IDs-only-citations stance is load-bearing — see [SECURITY.md](./SECURITY.md) and [docs/mappings/licensing.md](./docs/mappings/licensing.md).
-- Adding new runtime dependencies to `@hulumi/baseline` / `@hulumi/policies` / `@hulumi/drift` / `@hulumi/k8s-baseline` without supply-chain rationale (see "No runtime dependency additions without discussion" above).
+- Adding new runtime dependencies to a publishable `@hulumi/*` package without supply-chain rationale (see "No runtime dependency additions without discussion" above).
 - Extending `/hulumi-threat-model` to non-Apache-2.0-compatible framework prose. Citations only.
 
 ## Code of Conduct

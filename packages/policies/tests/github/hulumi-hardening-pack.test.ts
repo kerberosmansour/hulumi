@@ -217,6 +217,43 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     expect(violations[0]).toMatch(/StringLike/);
   });
 
+  it.each(["ForAnyValue:StringLike", "ForAllValues:StringLike", "StringLikeIfExists"])(
+    "rejects AWS IAM trust policy with set/suffix-qualified %s on the GitHub sub axis",
+    (operator) => {
+      const args = makeResourceArgs({
+        type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
+        urn: `urn:pulumi:s::p::aws:iam/role:Role::${operator.replace(/[^A-Za-z]/g, "-")}-role`,
+        name: "set-qualified-like-role",
+        props: {
+          assumeRolePolicy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: {
+                  Federated:
+                    "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+                },
+                Action: "sts:AssumeRoleWithWebIdentity",
+                Condition: {
+                  [operator]: {
+                    "token.actions.githubusercontent.com:sub": "repo:org/repo:*",
+                  },
+                },
+              },
+            ],
+          }),
+        },
+      });
+      (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+        args,
+        report,
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatch(new RegExp(operator.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    },
+  );
+
   it("rejects AWS IAM trust policy with StringEquals + wildcard sub value", () => {
     const args = makeResourceArgs({
       type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
@@ -249,6 +286,40 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/wildcard|UNC6426/);
+  });
+
+  it("rejects AWS IAM trust policy with set-qualified StringEquals + wildcard sub value", () => {
+    const args = makeResourceArgs({
+      type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::set-qualified-equals-role",
+      name: "set-qualified-equals-role",
+      props: {
+        assumeRolePolicy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: {
+                Federated:
+                  "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+              },
+              Action: "sts:AssumeRoleWithWebIdentity",
+              Condition: {
+                "ForAnyValue:StringEquals": {
+                  "token.actions.githubusercontent.com:sub": "repo:org/*",
+                },
+              },
+            },
+          ],
+        }),
+      },
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/ForAnyValue:StringEquals/);
   });
 
   it("does NOT report on AWS IAM trust policy with StringEquals + safe three-axis sub", () => {

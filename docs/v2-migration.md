@@ -53,7 +53,7 @@ Hulumi v2.0 will include `aliases` for every renamed resource; the migration ste
 ### 1. Pin to the last v1.x release before bumping
 
 ```bash
-pnpm add @hulumi/baseline@^1.2.0   # whatever's latest in the v1.x line
+pnpm add @hulumi/baseline@^1.3.0   # whatever's latest in the v1.x line
 ```
 
 ### 2. Run `pulumi preview` and confirm zero warnings other than the V2 deprecations
@@ -100,7 +100,7 @@ This doc is a contract for v2.0 design, not a release promise. Specifically:
 - `@pulumi/*` cooling-off bumps are backported.
 - Net-new features land only on v2.x.
 
-After the 6-month window, v1.x is EOL. The same 6-month window applies to `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline` because of the atomic-release invariant — you can't be on v1.x of one and v2.x of another.
+After the 6-month window, v1.x is EOL. The same 6-month window applies to every published `@hulumi/*` package because of the atomic-release invariant — you can't be on v1.x of one and v2.x of another.
 
 ## Open questions for v2.0 design
 

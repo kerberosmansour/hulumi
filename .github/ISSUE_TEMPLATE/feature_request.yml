@@ -23,6 +23,8 @@ body:
         - New component in @hulumi/baseline (AWS)
         - New component in @hulumi/baseline (GitHub)
         - New component in @hulumi/k8s-baseline
+        - New component in @hulumi/cloudflare-baseline
+        - New component in @hulumi/platform-patterns
         - New rule in @hulumi/policies
         - New adapter in @hulumi/drift
         - New /hulumi-threat-model scenario

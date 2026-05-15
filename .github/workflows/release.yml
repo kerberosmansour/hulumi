@@ -119,7 +119,9 @@ jobs:
         run: |
           set -euo pipefail
           for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
-            (cd "packages/$pkg" && npm publish --provenance --access public)
+            tarball="$(find .release-artifacts -maxdepth 1 -type f -name "hulumi-${pkg}-*.tgz" -print -quit)"
+            test -n "$tarball"
+            npm publish "$tarball" --provenance --access public
           done
 
       - name: Create GitHub release with SBOMs + tarballs

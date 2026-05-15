@@ -50,7 +50,7 @@
     "@pulumi/aws": "7.27.0",
     "@pulumi/kubernetes": "4.30.0",
     "@pulumi/pulumi": "3.232.0",
-    "@types/node": "20.19.40",
+    "@types/node": "20.19.41",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

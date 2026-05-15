@@ -12,8 +12,8 @@ importers:
   .:
     devDependencies:
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -42,11 +42,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
     devDependencies:
       '@pulumi/policy':
         specifier: 1.20.0
@@ -67,8 +67,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/drift
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.41
@@ -92,8 +92,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/policies
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/cloudflare':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
@@ -101,8 +101,8 @@ importers:
         specifier: 6.13.1
         version: 6.13.1(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.41
@@ -120,11 +120,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
     devDependencies:
       '@pulumi/policy':
         specifier: 1.20.0
@@ -148,8 +148,8 @@ importers:
         specifier: 6.13.1
         version: 6.13.1(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.41
@@ -164,14 +164,14 @@ importers:
   packages/baseline:
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/github':
         specifier: 6.13.1
         version: 6.13.1(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -188,8 +188,8 @@ importers:
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -225,11 +225,11 @@ importers:
         version: 3.36.0
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -250,14 +250,14 @@ importers:
         version: 3.1047.0
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@5.9.3)
+        specifier: 4.31.0
+        version: 4.31.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -275,8 +275,8 @@ importers:
         version: link:../baseline
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/cloudflare':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
@@ -284,8 +284,8 @@ importers:
         specifier: 6.13.1
         version: 6.13.1(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -299,14 +299,14 @@ importers:
   packages/policies:
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.27.0
-        version: 7.27.0(typescript@5.9.3)
+        specifier: 7.30.0
+        version: 7.30.0(typescript@5.9.3)
       '@pulumi/policy':
         specifier: 1.20.0
         version: 1.20.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.232.0
-        version: 3.232.0(typescript@5.9.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -799,8 +799,8 @@ packages:
     resolution: {integrity: sha512-Iq8QQQ/7X3Sac15oB6p0FmUg/klxQvXLeileoqrTRGJYLV+/9tubbr9ipz0GKHjmXVsgFPo/+W+2cA8eNcR+XA==}
     engines: {node: '>=12.10.0'}
 
-  '@grpc/proto-loader@0.8.0':
-    resolution: {integrity: sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==}
+  '@grpc/proto-loader@0.8.1':
+    resolution: {integrity: sha512-wtF6h+DY6M3YaDBPAmvuuA6jV8Sif9MjtOI5euKFWRgCDl5PeDpPsHR9u2l6St5ceY8AZgoNDww5+HvEsXFsGg==}
     engines: {node: '>=6'}
     hasBin: true
 
@@ -1174,8 +1174,8 @@ packages:
   '@protobufjs/utf8@1.1.1':
     resolution: {integrity: sha512-oOAWABowe8EAbMyWKM0tYDKi8Yaox52D+HWZhAIJqQXbqe0xI/GV7FhLWqlEKreMkfDjshR5FKgi3mnle0h6Eg==}
 
-  '@pulumi/aws@7.27.0':
-    resolution: {integrity: sha512-I3zArWb8F8QVfcWhBBW8h4dB1Omb823G3H2Ej66t0PFyfUHC7t79MDlG0UvoaZqrmXkDG7nFVFB4xdQTZ62R6w==}
+  '@pulumi/aws@7.30.0':
+    resolution: {integrity: sha512-R1CnPcGD/ECRj/JZw2N+MLKwhKkm0C8aF+S5arBXf1j85qb+67lg+E2skgR2GtAIj6PJ1Qy8usEx+4ZlVeit7Q==}
 
   '@pulumi/cloudflare@6.15.0':
     resolution: {integrity: sha512-I2C1UA//YbkuGUV5O9skIMUu94StNSE4hiAU57GFtyL7WEqAMJLvV8Vpcu1192rI1/ZwFIJeR4MbAZfiYlPFqA==}
@@ -1183,14 +1183,14 @@ packages:
   '@pulumi/github@6.13.1':
     resolution: {integrity: sha512-dvQtwXvhIqx7HHTe0+PzLooyboiNapDHOnxEbGd0jY6boFFuFJpT5LKapK25cjsc6s4qKduvLo2HZdo9UtH05g==}
 
-  '@pulumi/kubernetes@4.30.0':
-    resolution: {integrity: sha512-ZCS4HwBvcxfdPDw44L1/SCqoIttCVugx/FZzqRFRq+leKRIfigAYt4sILXlqulNtX6XjlWVzZO8zva3Ygk7hGA==}
+  '@pulumi/kubernetes@4.31.0':
+    resolution: {integrity: sha512-Lc0W0IQ/03o5KgV3j8KjWVSkZqo/qzyYy8/AInft54yFoTcu++xhoBVDU3l1NBf+Q0BsONYPKsn4Z00a7Y9alQ==}
 
   '@pulumi/policy@1.20.0':
     resolution: {integrity: sha512-XglLDdJg1CfxuZ0Lvxzm9mo5YInwwwkVWE6z6tjWCCj1c96eNzaQRoVF4+P9ToQ3fSTk+G00iZdgXY9hpg9Qgw==}
 
-  '@pulumi/pulumi@3.232.0':
-    resolution: {integrity: sha512-5Pl48cCwOOZEvG7b6w6sErrD1D/QiEwiPqEtHCIzF/alU0yzFjo95uxNteKFlt0LsnzWsZ58DJHgBe9gurjIFg==}
+  '@pulumi/pulumi@3.239.0':
+    resolution: {integrity: sha512-3OqN4x1OYgan3LvkiYCQYapm9phYnZzcu3usvovAXcQA3x5N5izHi9lmx0N/NLRsQQswE021ZvTTC2HZrYcqTg==}
     engines: {node: '>=20'}
     peerDependencies:
       ts-node: '>= 7.0.1 < 12'
@@ -1827,8 +1827,8 @@ packages:
   brace-expansion@1.1.14:
     resolution: {integrity: sha512-MWPGfDxnyzKU7rNOW9SP/c50vi3xrmrua/+6hfPbCS2ABNWfx24vPidzvC7krjU/RTo235sV776ymlsMtGKj8g==}
 
-  brace-expansion@5.0.5:
-    resolution: {integrity: sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ==}
+  brace-expansion@5.0.6:
+    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
     engines: {node: 18 || 20 || >=22}
 
   buffer-from@1.1.2:
@@ -2561,8 +2561,8 @@ packages:
   promise-call-limit@3.0.2:
     resolution: {integrity: sha512-mRPQO2T1QQVw11E7+UdCJu7S61eJVWknzml9sC1heAdj1jxl0fWMBypIt9ZOcLFf8FkG995ZD7RnVk7HH72fZw==}
 
-  protobufjs@7.5.6:
-    resolution: {integrity: sha512-M71sTMB146U3u0di3yup8iM+zv8yPRNQVr1KK4tyBitl3qFvEGucq/rGDRShD2rsJhtN02RJaJ7j5X5hmy8SJg==}
+  protobufjs@7.5.8:
+    resolution: {integrity: sha512-dvpCIeLPbXZS/Ete7yLaO7RenOdken2NHKykBXbsaGxZT0UTltcarBciw+A78SRQs9iMAAVpsYA+l8b1hTePIA==}
     engines: {node: '>=12.0.0'}
 
   punycode@2.3.1:
@@ -2650,8 +2650,8 @@ packages:
     resolution: {integrity: sha512-HehCEsotFqbPW9sJ8WVYB6UbmIMv7kUUORIF2Nncq4VQvBfNBLibW9YZR5dlYCSUhwcD628pRllm7n+E+YTzJw==}
     engines: {node: '>= 14'}
 
-  socks@2.8.8:
-    resolution: {integrity: sha512-NlGELfPrgX2f1TAAcz0WawlLn+0r3FyhhCRpFFK2CemXenPYvzMWWZINv3eDNo9ucdwme7oCHRY0Jnbs4aIkog==}
+  socks@2.8.9:
+    resolution: {integrity: sha512-LJhUYUvItdQ0LkJTmPeaEObWXAqFyfmP85x0tch/ez9cahmhlBBLbIqDFnvBnUJGagb0JbIQrkBs1wJ+yRYpEw==}
     engines: {node: '>= 10.0.0', npm: '>= 3.0.0'}
 
   source-map-js@1.2.1:
@@ -3902,14 +3902,14 @@ snapshots:
 
   '@grpc/grpc-js@1.14.3':
     dependencies:
-      '@grpc/proto-loader': 0.8.0
+      '@grpc/proto-loader': 0.8.1
       '@js-sdsl/ordered-map': 4.4.2
 
-  '@grpc/proto-loader@0.8.0':
+  '@grpc/proto-loader@0.8.1':
     dependencies:
       lodash.camelcase: 4.3.0
       long: 5.3.2
-      protobufjs: 7.5.6
+      protobufjs: 7.5.8
       yargs: 17.7.2
 
   '@humanfs/core@0.19.2':
@@ -4278,7 +4278,7 @@ snapshots:
       '@opentelemetry/sdk-logs': 0.57.2(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-metrics': 1.30.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.9.1)
-      protobufjs: 7.5.6
+      protobufjs: 7.5.8
 
   '@opentelemetry/propagator-b3@1.30.1(@opentelemetry/api@1.9.1)':
     dependencies:
@@ -4351,9 +4351,9 @@ snapshots:
 
   '@protobufjs/utf8@1.1.1': {}
 
-  '@pulumi/aws@7.27.0(typescript@5.9.3)':
+  '@pulumi/aws@7.30.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.239.0(typescript@5.9.3)
       mime: 2.6.0
     transitivePeerDependencies:
       - supports-color
@@ -4362,7 +4362,7 @@ snapshots:
 
   '@pulumi/cloudflare@6.15.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.239.0(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - ts-node
@@ -4370,15 +4370,15 @@ snapshots:
 
   '@pulumi/github@6.13.1(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.239.0(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/kubernetes@4.30.0(typescript@5.9.3)':
+  '@pulumi/kubernetes@4.31.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.239.0(typescript@5.9.3)
       glob: 12.0.0
       shell-quote: 1.8.3
     transitivePeerDependencies:
@@ -4389,14 +4389,14 @@ snapshots:
   '@pulumi/policy@1.20.0(typescript@5.9.3)':
     dependencies:
       '@grpc/grpc-js': 1.14.3
-      '@pulumi/pulumi': 3.232.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.239.0(typescript@5.9.3)
       google-protobuf: 3.21.4
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/pulumi@3.232.0(typescript@5.9.3)':
+  '@pulumi/pulumi@3.239.0(typescript@5.9.3)':
     dependencies:
       '@grpc/grpc-js': 1.14.3
       '@logdna/tail-file': 2.2.0
@@ -5187,7 +5187,7 @@ snapshots:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@5.0.5:
+  brace-expansion@5.0.6:
     dependencies:
       balanced-match: 4.0.4
 
@@ -5704,7 +5704,7 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.5
+      brace-expansion: 5.0.6
 
   minimatch@3.1.5:
     dependencies:
@@ -5963,7 +5963,7 @@ snapshots:
 
   promise-call-limit@3.0.2: {}
 
-  protobufjs@7.5.6:
+  protobufjs@7.5.8:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
       '@protobufjs/base64': 1.1.2
@@ -6084,11 +6084,11 @@ snapshots:
     dependencies:
       agent-base: 7.1.4
       debug: 4.4.3
-      socks: 2.8.8
+      socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
 
-  socks@2.8.8:
+  socks@2.8.9:
     dependencies:
       ip-address: 10.2.0
       smart-buffer: 4.2.0

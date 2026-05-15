@@ -23,6 +23,7 @@ The exact `@pulumi/*` versions match `peerDependencies`.
 | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `HardenedHelmRelease`                   | Helm release with PSA-baseline labels, SHA-pinned chart digest, default release-name stability |
 | `EksSubnetTagger`                       | Auto-tag EKS-bound subnets with `kubernetes.io/role/{,internal-}elb`                           |
+| `EksAdminAccessPath`                    | Auditable EKS operator access path for private or restricted-public control-plane hardening    |
 | `IstioFoundation`                       | Bundled hardened Istio install (`istiod` + `istio-cni` + `ingressgateway`, PSA-baseline-clean) |
 | `AlbMeshedHttpEntrypoint`               | ALB Ingress + Istio `Gateway` + `VirtualService` + `AuthorizationPolicy` for one workload      |
 | `KubernetesSecretFromAwsSecretsManager` | K8s `Secret` from an AWS Secrets Manager value, fail-closed on JSON-shape violations           |

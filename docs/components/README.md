@@ -32,6 +32,7 @@ Stable in the v1.2+ release trains. Compatibility with tested Helm chart version
 | -------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `hulumi.k8s.HardenedHelmRelease`                   | [hardened-helm-release.md](./hardened-helm-release.md)                       |
 | `hulumi.k8s.EksSubnetTagger`                       | [eks-subnet-tagger.md](./eks-subnet-tagger.md)                               |
+| `hulumi.k8s.EksAdminAccessPath`                    | [eks-admin-access-path.md](./eks-admin-access-path.md)                       |
 | `hulumi.k8s.IstioFoundation`                       | [istio-foundation.md](./istio-foundation.md)                                 |
 | `hulumi.k8s.AlbMeshedHttpEntrypoint`               | [alb-meshed-http-entrypoint.md](./alb-meshed-http-entrypoint.md)             |
 | `hulumi.k8s.KubernetesSecretFromAwsSecretsManager` | [kubernetes-secret-from-asm.md](./kubernetes-secret-from-asm.md)             |

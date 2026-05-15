@@ -3,6 +3,8 @@ import type * as pulumi from "@pulumi/pulumi";
 import type { Tier } from "./tier";
 
 export type CisVersion = "v5.0.0" | "v7.0.0";
+export const KMS_DENY_WITHOUT_TAG_MODES = ["auto", "force", "off"] as const;
+export type KmsDenyWithoutTagMode = (typeof KMS_DENY_WITHOUT_TAG_MODES)[number];
 
 export interface AccountFoundationArgs {
   tier: Tier;
@@ -20,4 +22,11 @@ export interface AccountFoundationArgs {
   useExistingSecurityHubAccount?: boolean;
   /** Member account IDs for the Config aggregator + KMS deny-without-tag policy. Required for those features. */
   orgAccountIds?: readonly string[];
+  /**
+   * Controls the Startup-Hardened KMS deny-without-tag statement.
+   * - auto: preserve the orgAccountIds-gated default
+   * - force: opt into the deny statement for single-account stacks
+   * - off: suppress the deny statement
+   */
+  kmsDenyWithoutTag?: KmsDenyWithoutTagMode;
 }

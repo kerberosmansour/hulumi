@@ -20,11 +20,12 @@ import { createConfigService } from "./config";
 import { createGuardDuty } from "./guardduty";
 import { createSecurityHub } from "./securityhub";
 import { buildControlsTags } from "./tags";
+import { KMS_DENY_WITHOUT_TAG_MODES } from "./account-foundation.args";
 import { ccm } from "../mappings/ccm";
 import { cisAws } from "../mappings/cis-aws";
 import { nist80053r5 } from "../mappings/nist-800-53-r5";
 
-import type { AccountFoundationArgs } from "./account-foundation.args";
+import type { AccountFoundationArgs, KmsDenyWithoutTagMode } from "./account-foundation.args";
 import type { AccountFoundationOutputs } from "./account-foundation.outputs";
 
 export const ACCOUNT_FOUNDATION_COMPONENT_TYPE = "hulumi:baseline:aws:AccountFoundation";
@@ -57,6 +58,16 @@ function buildTags(tier: AccountFoundationArgs["tier"]): Record<string, string> 
   };
 }
 
+function assertValidKmsDenyWithoutTagMode(mode: unknown): asserts mode is KmsDenyWithoutTagMode {
+  if (!KMS_DENY_WITHOUT_TAG_MODES.includes(mode as KmsDenyWithoutTagMode)) {
+    throw new Error(
+      `AccountFoundation: kmsDenyWithoutTag must be one of: ${KMS_DENY_WITHOUT_TAG_MODES.join(
+        ", ",
+      )}; received: ${String(mode)}`,
+    );
+  }
+}
+
 export class AccountFoundation
   extends pulumi.ComponentResource
   implements AccountFoundationOutputs
@@ -72,6 +83,8 @@ export class AccountFoundation
   constructor(name: string, args: AccountFoundationArgs, opts?: pulumi.ComponentResourceOptions) {
     super(ACCOUNT_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
+    const kmsDenyWithoutTag = args.kmsDenyWithoutTag ?? "auto";
+    assertValidKmsDenyWithoutTagMode(kmsDenyWithoutTag);
 
     if (typeof args.iacRoleArn !== "string" || args.iacRoleArn.length === 0) {
       // pulumi.Input<string> can be Output; validate eagerly only on string literals.
@@ -89,6 +102,7 @@ export class AccountFoundation
     const kmsRing = createKmsRing({
       tier: args.tier,
       ...(args.orgAccountIds !== undefined ? { orgAccountIds: args.orgAccountIds } : {}),
+      kmsDenyWithoutTag,
       parent: this,
       namePrefix: name,
       tags,

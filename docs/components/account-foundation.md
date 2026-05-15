@@ -63,8 +63,8 @@ Emits everything in the Sandbox tier PLUS:
 - IAM Access Analyzer at account scope.
 - KMS deny-without-tag policy on every CMK (requires
   `aws:PrincipalTag/hulumi:iac-role=true` to perform encrypt/decrypt
-  actions, but only when `orgAccountIds` is supplied — bootstrap
-  paradox in single-account stacks).
+  actions; default `auto` mode applies only when `orgAccountIds` is
+  supplied).
 - CloudWatch Logs group for CloudTrail integration (CIS §3.4).
 
 The full tier matrix lives in
@@ -82,6 +82,34 @@ The full tier matrix lives in
 | `existingGuardDutyDetectorId`   | `Input<string>`                   | no                         | —; references an existing regional detector instead of creating one          |
 | `useExistingSecurityHubAccount` | `boolean`                         | no                         | `false`; references an already-enabled regional Security Hub account         |
 | `orgAccountIds`                 | `readonly string[]`               | no (Startup-Hardened only) | —                                                                            |
+| `kmsDenyWithoutTag`             | `"auto" \| "force" \| "off"`      | no (Startup-Hardened only) | `auto`; preserve the org-account gated deny policy                           |
+
+## KMS deny-without-tag modes
+
+`kmsDenyWithoutTag` controls the Startup-Hardened KMS key-policy
+statement that denies encrypt/decrypt/data-key/re-encrypt operations
+unless the calling principal carries `hulumi:iac-role=true`.
+
+| Mode    | Behavior                                                                                      |
+| ------- | --------------------------------------------------------------------------------------------- |
+| `auto`  | Default. Applies the deny statement only when `orgAccountIds` is supplied.                    |
+| `force` | Applies the deny statement in Startup-Hardened single-account stacks, scoped to this account. |
+| `off`   | Suppresses the deny statement even when `orgAccountIds` is supplied.                          |
+
+For single-account stacks, use a two-phase opt-in:
+
+1. Apply `AccountFoundation` with the default `auto` mode and no
+   `orgAccountIds`, or explicitly set `kmsDenyWithoutTag: "off"`.
+2. Confirm the Pulumi execution role is tagged
+   `hulumi:iac-role=true`.
+3. Change to `kmsDenyWithoutTag: "force"` and apply again.
+
+If the rollout locks out the expected principal, use a break-glass
+administrator or root-account path to remove the
+`DenyKmsActionsWithoutHulumiIacRoleTag` statement from the four CMK
+policies, restore `kmsDenyWithoutTag: "off"`, and re-apply. Do not
+retry `force` until the IaC role tag is visible on the principal used by
+Pulumi.
 
 ## Outputs
 
@@ -178,6 +206,8 @@ rationale.
 "..."; expected one of: sandbox, startup-hardened`.
 - `iacRoleArn` empty string → constructor throws `iacRoleArn must be a
 non-empty string ARN`.
+- `kmsDenyWithoutTag` outside `auto | force | off` → constructor throws
+  with the accepted mode list.
 - `cisVersion: "v7.0.0"` accepted but logs a warning that AWS Security
   Hub currently maxes at v5.0.0; falls through to v5.0.0 behaviour.
 

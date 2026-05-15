@@ -52,6 +52,26 @@ function parsePolicy(input: unknown): { Statement: Array<Record<string, unknown>
   return JSON.parse(input as string) as { Statement: Array<Record<string, unknown>> };
 }
 
+function kmsKeyPolicies(): Array<{
+  name: string;
+  policy: { Statement: Array<Record<string, unknown>> };
+}> {
+  const keys = registrations.filter((r) => r.type === "aws:kms/key:Key");
+  expect(keys.length).toBe(4);
+  return keys.map((key) => ({
+    name: key.name,
+    policy: parsePolicy(key.inputs.policy),
+  }));
+}
+
+function denyWithoutTagStatement(policy: {
+  Statement: Array<Record<string, unknown>>;
+}): Record<string, unknown> | undefined {
+  return policy.Statement.find((statement) => {
+    return statement.Sid === "DenyKmsActionsWithoutHulumiIacRoleTag";
+  });
+}
+
 describe("AccountFoundation — Sandbox tier emits 6 sub-resource groups (happy path)", () => {
   beforeEach(resetRegistrations);
 
@@ -344,6 +364,95 @@ describe("AccountFoundation — real provider input compatibility", () => {
     const hub = registrations.find((r) => r.type === "aws:securityhub/account:Account");
     expect(hub?.id).toBe("111122223333");
     expect(hub?.inputs.enableDefaultStandards).toBeUndefined();
+  });
+});
+
+describe("AccountFoundation — kmsDenyWithoutTag modes", () => {
+  beforeEach(resetRegistrations);
+
+  it("auto mode preserves org-account deny-without-tag behavior", async () => {
+    const af = new AccountFoundation("af-kms-auto-org", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111", "222222222222"],
+    });
+    await valueOf(af.kmsKeyArns);
+    await settlePulumi();
+
+    for (const { policy } of kmsKeyPolicies()) {
+      const deny = denyWithoutTagStatement(policy);
+      expect(deny).toBeDefined();
+      expect(deny?.Condition).toEqual({
+        StringNotEquals: {
+          "aws:PrincipalTag/hulumi:iac-role": "true",
+        },
+        StringEquals: {
+          "aws:PrincipalAccount": ["111111111111", "222222222222"],
+        },
+      });
+    }
+  });
+
+  it("auto mode omits deny-without-tag for single-account startup-hardened stacks", async () => {
+    const af = new AccountFoundation("af-kms-auto-single", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.kmsKeyArns);
+    await settlePulumi();
+
+    for (const { policy } of kmsKeyPolicies()) {
+      expect(denyWithoutTagStatement(policy)).toBeUndefined();
+    }
+  });
+
+  it("force mode applies deny-without-tag in a single-account startup-hardened stack", async () => {
+    const af = new AccountFoundation("af-kms-force-single", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      kmsDenyWithoutTag: "force",
+    });
+    await valueOf(af.kmsKeyArns);
+    await settlePulumi();
+
+    for (const { policy } of kmsKeyPolicies()) {
+      const deny = denyWithoutTagStatement(policy);
+      expect(deny).toBeDefined();
+      expect(deny?.Condition).toEqual({
+        StringNotEquals: {
+          "aws:PrincipalTag/hulumi:iac-role": "true",
+        },
+        StringEquals: {
+          "aws:PrincipalAccount": ["111122223333"],
+        },
+      });
+    }
+  });
+
+  it("off mode suppresses deny-without-tag even when orgAccountIds are supplied", async () => {
+    const af = new AccountFoundation("af-kms-off-org", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111"],
+      kmsDenyWithoutTag: "off",
+    });
+    await valueOf(af.kmsKeyArns);
+    await settlePulumi();
+
+    for (const { policy } of kmsKeyPolicies()) {
+      expect(denyWithoutTagStatement(policy)).toBeUndefined();
+    }
+  });
+
+  it("invalid kmsDenyWithoutTag mode fails closed", () => {
+    expect(
+      () =>
+        new AccountFoundation("af-kms-bad-mode", {
+          tier: "startup-hardened",
+          iacRoleArn: IAC_ROLE_ARN,
+          kmsDenyWithoutTag: "later" as never,
+        }),
+    ).toThrowError(/kmsDenyWithoutTag/);
   });
 });
 

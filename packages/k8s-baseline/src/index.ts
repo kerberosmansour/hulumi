@@ -2,6 +2,17 @@ export { HardenedHelmRelease, HARDENED_HELM_RELEASE_COMPONENT_TYPE } from "./har
 export type { HardenedHelmReleaseArgs, ChartClass } from "./hardened-helm-release.args";
 export type { HardenedHelmReleaseOutputs } from "./hardened-helm-release.outputs";
 
+export {
+  DEFAULT_METRICS_SERVER_CHART_VERSION,
+  METRICS_SERVER_API_SERVICE_NAME,
+  METRICS_SERVER_CHART,
+  METRICS_SERVER_COMPONENT_TYPE,
+  METRICS_SERVER_REPOSITORY,
+  MetricsServer,
+} from "./metrics-server";
+export type { InsecureMetricsServerOptIn, MetricsServerArgs } from "./metrics-server.args";
+export type { MetricsServerOutputs } from "./metrics-server.outputs";
+
 export { EksSubnetTagger, EKS_SUBNET_TAGGER_COMPONENT_TYPE } from "./eks-subnet-tagger";
 export type { EksSubnetTaggerArgs, SubnetOwnership } from "./eks-subnet-tagger.args";
 export type { EksSubnetTaggerOutputs, AppliedTag } from "./eks-subnet-tagger.outputs";

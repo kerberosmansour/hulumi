@@ -15,6 +15,8 @@ export const TESTED_VERSIONS = {
   istiod: ["1.24.2"],
   cni: ["1.24.2"],
   gateway: ["1.24.2"],
+  // Issue #137 — MetricsServer. Chart 3.13.0 ships metrics-server app v0.8.0.
+  "metrics-server": ["3.13.0"],
 } as const;
 
 export type TestedChartName = keyof typeof TESTED_VERSIONS;

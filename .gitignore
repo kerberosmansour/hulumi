@@ -19,6 +19,10 @@ coverage/
 .vitest/
 *.log
 
+# SLO planning / execution documents are development-only agent work products,
+# not user-facing published documentation.
+docs/slo/
+
 # TLA+ / TLC generated artifacts (keep specs and .cfg, ignore caches and traces)
 **/*_TTrace_*.tla
 **/*_TTrace_*.bin

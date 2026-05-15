@@ -1,0 +1,3 @@
+name: edge-platform-smoke
+runtime: nodejs
+description: Hulumi edge platform smoke example.

@@ -44,6 +44,18 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 | `github/packs/hulumi-hardening` | `HulumiGithubHardeningPack` — H1 (no admin-bypass), H2 (signed commits required), `G_OIDC_1` (OIDC trust) |
 | `github/packs/cis-v1`           | `CisGithubV1Pack` — placeholder pending CIS WorkBench access (IDs-only structure ready to fill)           |
 
+### Cloudflare And Platform
+
+| Pack                                   | Coverage                                                                                                                     |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `cloudflare/packs/hulumi-hardening`    | `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD`, `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC`, `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE` |
+| `platform/packs/origin-bypass`         | `X_ORIGIN_1_NO_PUBLIC_AWS_ORIGIN_BYPASS` advisory for public AWS origins without tunnel or allowlist+AOP evidence            |
+| `platform/packs/deployment-governance` | `DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT`, `DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS`                                       |
+
+The workflow-governance linter lives at `scripts/workflow-governance-lint.mjs`
+in the source repo. Its stable rule IDs are documented in
+`docs/components/workflow-governance-linter.md`.
+
 ## Suppressions
 
 ```ts

@@ -28,6 +28,7 @@
     "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",
     "lint:license-boundary": "node scripts/license-boundary-lint.mjs",
     "lint:exact-pin-guard": "node scripts/exact-pin-guard.mjs",
+    "lint:workflow-governance": "node scripts/workflow-governance-lint.mjs",
     "typecheck": "pnpm -r --stream typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

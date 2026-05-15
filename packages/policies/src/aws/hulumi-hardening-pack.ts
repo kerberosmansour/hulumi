@@ -44,8 +44,21 @@ function readSuppressions(config: Record<string, unknown> | undefined): Suppress
   });
 }
 
-function isChildOfSecureBucket(urn: string): boolean {
-  return urn.includes(`${HULUMI_SECURE_BUCKET_TYPE}$`);
+function isSecureBucketManagedBucketUrn(urn: string): boolean {
+  const trustedParent = `${HULUMI_SECURE_BUCKET_TYPE}$`;
+  const trustedParentIdx = urn.indexOf(trustedParent);
+  if (trustedParentIdx === -1) return false;
+
+  const parentUrn = urn.slice(0, trustedParentIdx);
+  const childUrn = urn.slice(trustedParentIdx + trustedParent.length);
+
+  const childTypeMarker = "aws:s3/bucketV2:BucketV2::";
+  if (!childUrn.startsWith(childTypeMarker)) return false;
+
+  const childName = childUrn.slice(childTypeMarker.length);
+  const parentName = parentUrn.split("::").at(-1) ?? "";
+  if (parentName === "" || parentName === "p") return childName.endsWith("-bucket");
+  return childName === `${parentName}-bucket`;
 }
 
 export const h1BlocksRawBucket: ResourceValidationPolicy = {
@@ -55,7 +68,7 @@ export const h1BlocksRawBucket: ResourceValidationPolicy = {
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     if (!(RAW_S3_BUCKET_TYPES as readonly string[]).includes(args.type)) return;
-    if (isChildOfSecureBucket(args.urn)) return;
+    if (isSecureBucketManagedBucketUrn(args.urn)) return;
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
     );
@@ -163,7 +176,7 @@ export const h4StartupHardenedRequiresLogging: StackValidationPolicy = {
     );
     const hardenedBuckets = args.resources.filter((r: PolicyResource) => {
       if (!(RAW_S3_BUCKET_TYPES as readonly string[]).includes(r.type)) return false;
-      if (!isChildOfSecureBucket(r.urn)) return false;
+      if (!isSecureBucketManagedBucketUrn(r.urn)) return false;
       const tags = (r.props as Record<string, unknown>).tags as Record<string, string> | undefined;
       return tags?.["hulumi:tier"] === "startup-hardened";
     });

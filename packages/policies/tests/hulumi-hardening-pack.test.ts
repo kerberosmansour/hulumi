@@ -97,7 +97,7 @@ describe("HulumiHardeningPack H1 — blocks raw aws.s3.BucketV2 (security S5)", 
     expect(violations[0]).toMatch(/HULUMI-H1/);
   });
 
-  it("does NOT report when the bucket is a child of a SecureBucket component (parent URN contains SecureBucket$)", () => {
+  it("does NOT report when the bucket is the managed <component>-bucket child of SecureBucket", () => {
     const args = makeResourceArgs({
       type: "aws:s3/bucketV2:BucketV2",
       urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket$aws:s3/bucketV2:BucketV2::sb-bucket",
@@ -110,6 +110,22 @@ describe("HulumiHardeningPack H1 — blocks raw aws.s3.BucketV2 (security S5)", 
       ) => void
     )(args, report);
     expect(violations).toHaveLength(0);
+  });
+
+  it("reports HULUMI-H1 when a raw BucketV2 is parented by SecureBucket but not named <component>-bucket", () => {
+    const args = makeResourceArgs({
+      type: "aws:s3/bucketV2:BucketV2",
+      urn: "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket::sb$aws:s3/bucketV2:BucketV2::attacker-raw-bucket",
+      name: "attacker-raw-bucket",
+    });
+    (
+      h1BlocksRawBucket.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H1/);
   });
 
   it("does NOT report on non-bucket resources", () => {

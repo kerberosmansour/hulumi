@@ -19,6 +19,23 @@
       }
     },
     {
+      "Sid": "DenyCreateRoleUserWithHulumiIacRoleTagExceptIacPrincipals",
+      "Effect": "Deny",
+      "Action": ["iam:CreateRole", "iam:CreateUser"],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "aws:TagKeys": ["hulumi:iac-role"]
+        },
+        "StringNotEqualsIfExists": {
+          "aws:PrincipalArn": [
+            "__REPLACE_ME__:role/hulumi-prod-iac-role",
+            "__REPLACE_ME__:role/hulumi-sandbox-iac-role"
+          ]
+        }
+      }
+    },
+    {
       "Sid": "DenyUntagRoleHulumiIacRoleExceptIacPrincipals",
       "Effect": "Deny",
       "Action": ["iam:UntagRole", "iam:UntagUser"],

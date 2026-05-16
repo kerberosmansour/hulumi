@@ -36,6 +36,7 @@ function buildKeyPolicy(
   orgAccountIds: readonly string[] | undefined,
   kmsDenyWithoutTag: KmsDenyWithoutTagMode,
   service: KmsRingService,
+  namePrefix: string,
 ): pulumi.Output<string> {
   const accountId = aws.getCallerIdentityOutput().accountId;
   const region = aws.getRegionOutput().name;
@@ -94,6 +95,31 @@ function buildKeyPolicy(
           },
         },
       },
+      // Startup-Hardened delivers CloudTrail to a KMS-encrypted CloudWatch
+      // Logs group (cloudtrail.ts). CloudWatch Logs calls KMS under its own
+      // regional service principal, so without this grant CreateLogGroup
+      // fails with AccessDeniedException ("KMS key ... not allowed to be
+      // used"). Scoped by the aws:logs:arn encryption context to this
+      // stack's CloudTrail log group only — least privilege, matching the
+      // CloudTrail/Config statements above.
+      {
+        Sid: "AllowCloudWatchLogsEncryptLogGroup",
+        Effect: "Allow",
+        Principal: { Service: pulumi.interpolate`logs.${region}.amazonaws.com` },
+        Action: [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey",
+        ],
+        Resource: "*",
+        Condition: {
+          ArnLike: {
+            "kms:EncryptionContext:aws:logs:arn": pulumi.interpolate`arn:aws:logs:${region}:${accountId}:log-group:${namePrefix}-cloudtrail-logs*`,
+          },
+        },
+      },
     );
   }
   const denyPrincipalAccounts =
@@ -141,7 +167,13 @@ export function createKmsRing(args: KmsRingArgs): KmsRingResult {
         description: `Hulumi AccountFoundation KMS key — service=${service}, tier=${args.tier}`,
         enableKeyRotation: true,
         deletionWindowInDays: 30,
-        policy: buildKeyPolicy(args.tier, args.orgAccountIds, args.kmsDenyWithoutTag, service),
+        policy: buildKeyPolicy(
+          args.tier,
+          args.orgAccountIds,
+          args.kmsDenyWithoutTag,
+          service,
+          args.namePrefix,
+        ),
         tags: { ...args.tags, "hulumi:kms-service": service },
       },
       parent,

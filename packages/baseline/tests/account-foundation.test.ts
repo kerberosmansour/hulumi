@@ -225,6 +225,30 @@ describe("AccountFoundation — real provider input compatibility", () => {
           Principal: { Service: "config.amazonaws.com" },
           Action: ["kms:Decrypt", "kms:GenerateDataKey"],
         }),
+        // Regression: Startup-Hardened CloudTrail delivers to a
+        // KMS-encrypted CloudWatch Logs group; without this grant
+        // CreateLogGroup fails with AccessDeniedException. Scoped by the
+        // aws:logs:arn encryption context to this stack's CloudTrail
+        // log group only.
+        expect.objectContaining({
+          Sid: "AllowCloudWatchLogsEncryptLogGroup",
+          Effect: "Allow",
+          Principal: { Service: "logs.us-east-1.amazonaws.com" },
+          Action: [
+            "kms:Encrypt*",
+            "kms:Decrypt*",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey",
+          ],
+          Resource: "*",
+          Condition: {
+            ArnLike: {
+              "kms:EncryptionContext:aws:logs:arn":
+                "arn:aws:logs:us-east-1:111122223333:log-group:af-kms-policy-cloudtrail-logs*",
+            },
+          },
+        }),
       ]),
     );
   });

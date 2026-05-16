@@ -84,15 +84,19 @@ export function createConfigService(args: ConfigHelperArgs): ConfigHelperResult 
             Resource: args.logBucketArn,
           },
           {
+            // The delivery bucket is BucketOwnerEnforced (ACLs disabled,
+            // SecureBucket). AWS Config tries this recorder role BEFORE
+            // the service principal, and on an ACL-disabled bucket it
+            // sends no x-amz-acl — so requiring
+            // s3:x-amz-acl=bucket-owner-full-control here makes the role's
+            // PutObject Allow never match and PutDeliveryChannel fails
+            // with InsufficientDeliveryPolicyException. s3:PutObjectAcl is
+            // likewise meaningless when ACLs are disabled. Mirrors the
+            // bucket-policy fix; ownership is enforced at the bucket level.
             Sid: "ConfigBucketDelivery",
             Effect: "Allow",
-            Action: ["s3:PutObject", "s3:PutObjectAcl"],
+            Action: "s3:PutObject",
             Resource: pulumi.interpolate`${args.logBucketArn}/AWSLogs/${accountId}/Config/*`,
-            Condition: {
-              StringEquals: {
-                "s3:x-amz-acl": "bucket-owner-full-control",
-              },
-            },
           },
           {
             Sid: "ConfigLogBucketKms",

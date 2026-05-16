@@ -178,13 +178,18 @@ describe("SecureBucket — AWS service log delivery bucket policy", () => {
       },
     });
 
+    // Regression: BucketOwnerEnforced disables ACLs and AWS Config does
+    // not send x-amz-acl when delivering to an ACL-disabled bucket, so
+    // conditioning on s3:x-amz-acl made PutDeliveryChannel fail with
+    // InsufficientDeliveryPolicyException. The condition must be absent
+    // here (it is redundant under BucketOwnerEnforced).
     const configWrite = statements.find((s) => s.Sid === "AWSConfigBucketDelivery");
     expect(configWrite?.Condition).toEqual({
       StringEquals: {
-        "s3:x-amz-acl": "bucket-owner-full-control",
         "AWS:SourceAccount": "111122223333",
       },
     });
+    expect(JSON.stringify(configWrite?.Condition)).not.toContain("x-amz-acl");
   });
 });
 

@@ -206,9 +206,19 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
                   Principal: { Service: "config.amazonaws.com" },
                   Action: "s3:PutObject",
                   Resource: `${arn}/AWSLogs/${accountId}/Config/*`,
+                  // SecureBucket always sets Object Ownership =
+                  // BucketOwnerEnforced (ACLs disabled). AWS Config does
+                  // not send an x-amz-acl header when delivering to an
+                  // ACL-disabled bucket, so requiring
+                  // s3:x-amz-acl=bucket-owner-full-control here makes the
+                  // Allow never match — PutDeliveryChannel then fails with
+                  // InsufficientDeliveryPolicyException. The ACL condition
+                  // is also redundant under BucketOwnerEnforced (the
+                  // bucket owner owns every object regardless), so dropping
+                  // it is security-neutral. (CloudTrail still sends the
+                  // ACL, so AWSCloudTrailWrite keeps its condition.)
                   Condition: {
                     StringEquals: {
-                      "s3:x-amz-acl": "bucket-owner-full-control",
                       "AWS:SourceAccount": accountId,
                     },
                   },

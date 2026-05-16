@@ -106,7 +106,12 @@ function errorText(err: unknown): string {
 }
 
 function isMissingAwsResource(err: unknown): boolean {
-  return /NoSuchBucket|NoSuchEntity|NotFound|NotFoundException|ResourceNotFoundException/i.test(
+  // `aws s3api head-bucket` on an absent bucket returns a bare HTTP
+  // "An error occurred (404) ... : Not Found" (spaced) rather than a
+  // named code like NoSuchBucket, so the NotFound token must tolerate
+  // the spaced form. Scoped to 404/absent only — 403 Forbidden stays a
+  // hard error so we never try to recreate a bucket we cannot access.
+  return /NoSuchBucket|NoSuchEntity|Not\s?Found|NotFoundException|ResourceNotFoundException/i.test(
     errorText(err),
   );
 }

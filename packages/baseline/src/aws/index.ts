@@ -7,7 +7,12 @@ export type {
 } from "./secure-bucket.args";
 export type { SecureBucketOutputs } from "./secure-bucket.outputs";
 export { AccountFoundation, ACCOUNT_FOUNDATION_COMPONENT_TYPE } from "./account-foundation";
-export type { AccountFoundationArgs, CisVersion } from "./account-foundation.args";
+export { KMS_DENY_WITHOUT_TAG_MODES } from "./account-foundation.args";
+export type {
+  AccountFoundationArgs,
+  CisVersion,
+  KmsDenyWithoutTagMode,
+} from "./account-foundation.args";
 export type { AccountFoundationOutputs } from "./account-foundation.outputs";
 export { TIERS, isTier, assertValidTier } from "./tier";
 export type { Tier } from "./tier";

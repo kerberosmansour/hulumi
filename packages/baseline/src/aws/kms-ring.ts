@@ -3,15 +3,15 @@
 // Sandbox tier: 4 customer-managed keys (logs, data, secrets, config) with
 // automatic rotation enabled (CIS §3.8). Each gets an alias.
 //
-// Startup-Hardened tier: same 4 keys PLUS a deny-without-tag policy that
-// requires `hulumi:iac-role=true` on the calling principal — but only when
-// `orgAccountIds` is supplied (the bootstrap paradox: in a single-account
-// stack, the role creating these keys may not yet carry the tag, and we'd
-// lock ourselves out).
+// Startup-Hardened tier: same 4 keys PLUS an optional deny-without-tag policy
+// that requires `hulumi:iac-role=true` on the calling principal. The default
+// keeps the historical orgAccountIds-gated behavior; force mode lets
+// single-account stacks opt in after their IaC role is tagged.
 
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
+import type { KmsDenyWithoutTagMode } from "./account-foundation.args";
 import type { Tier } from "./tier";
 
 export const KMS_RING_SERVICES = ["logs", "data", "secrets", "config"] as const;
@@ -20,6 +20,7 @@ export type KmsRingService = (typeof KMS_RING_SERVICES)[number];
 export interface KmsRingArgs {
   tier: Tier;
   orgAccountIds?: readonly string[];
+  kmsDenyWithoutTag: KmsDenyWithoutTagMode;
   parent: pulumi.Resource;
   namePrefix: string;
   tags: Record<string, string>;
@@ -33,6 +34,7 @@ export interface KmsRingResult {
 function buildKeyPolicy(
   tier: Tier,
   orgAccountIds: readonly string[] | undefined,
+  kmsDenyWithoutTag: KmsDenyWithoutTagMode,
   service: KmsRingService,
 ): pulumi.Output<string> {
   const accountId = aws.getCallerIdentityOutput().accountId;
@@ -94,7 +96,16 @@ function buildKeyPolicy(
       },
     );
   }
-  if (tier === "startup-hardened" && orgAccountIds && orgAccountIds.length > 0) {
+  const denyPrincipalAccounts =
+    tier === "startup-hardened" && kmsDenyWithoutTag !== "off"
+      ? orgAccountIds && orgAccountIds.length > 0
+        ? orgAccountIds
+        : kmsDenyWithoutTag === "force"
+          ? [accountId]
+          : undefined
+      : undefined;
+
+  if (denyPrincipalAccounts !== undefined) {
     baseStatements.push({
       Sid: "DenyKmsActionsWithoutHulumiIacRoleTag",
       Effect: "Deny",
@@ -106,7 +117,7 @@ function buildKeyPolicy(
           "aws:PrincipalTag/hulumi:iac-role": "true",
         },
         StringEquals: {
-          "aws:PrincipalAccount": orgAccountIds,
+          "aws:PrincipalAccount": denyPrincipalAccounts,
         },
       },
     });
@@ -130,7 +141,7 @@ export function createKmsRing(args: KmsRingArgs): KmsRingResult {
         description: `Hulumi AccountFoundation KMS key — service=${service}, tier=${args.tier}`,
         enableKeyRotation: true,
         deletionWindowInDays: 30,
-        policy: buildKeyPolicy(args.tier, args.orgAccountIds, service),
+        policy: buildKeyPolicy(args.tier, args.orgAccountIds, args.kmsDenyWithoutTag, service),
         tags: { ...args.tags, "hulumi:kms-service": service },
       },
       parent,

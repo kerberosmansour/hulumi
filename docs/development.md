@@ -119,6 +119,57 @@ PULUMI_BACKEND_URL='s3://hulumi-pulumi-state-<sandbox-account-id>?region=us-east
 pnpm test:integration
 ```
 
+### Integration test stub pattern
+
+Real-service integration tests must be skipped on ordinary PR runs unless
+the maintainer explicitly opts into the real service path. Put these tests
+under `tests/integration/`, keep the gate at module scope, and make the skip
+reason visible in test output.
+
+Use this shape for new real-AWS or other real-service tests:
+
+```ts
+import { describe, expect, it } from "vitest";
+
+const RUN_INTEGRATION = process.env.HULUMI_INTEGRATION === "1";
+const HAS_BACKEND = Boolean(process.env.PULUMI_BACKEND_URL ?? process.env.PULUMI_ACCESS_TOKEN);
+const ENABLED = RUN_INTEGRATION && HAS_BACKEND;
+
+const skipReason = !RUN_INTEGRATION
+  ? "HULUMI_INTEGRATION!=1 - set to 1 to opt into real integration"
+  : "no Pulumi backend configured - set PULUMI_BACKEND_URL or PULUMI_ACCESS_TOKEN";
+
+describe("MyComponent - real AWS integration (weekly)", () => {
+  it("integration tests are skipped by default on PRs", () => {
+    if (RUN_INTEGRATION) {
+      expect(true).toBe(true);
+      return;
+    }
+    expect(RUN_INTEGRATION).toBe(false);
+  });
+});
+
+describe.skipIf(!ENABLED)("MyComponent - real AWS smoke", () => {
+  it("creates and tears down the real fixture", async () => {
+    // Real-service assertions go here. afterAll cleanup must tolerate partial failure.
+  });
+});
+
+if (!ENABLED) {
+  describe("MyComponent - real AWS skip notice", () => {
+    it.skip(`integration suite skipped (${skipReason})`, () => {
+      // intentionally empty
+    });
+  });
+}
+```
+
+If the test needs extra credentials, a specific tier, or a destructive
+execute-mode flag, include those in `ENABLED` and in `skipReason`. Keep the
+default path green and non-mutating: PR CI should exercise the gate invariant
+and skip notice, while the weekly/manual workflow owns real deploy, assert,
+and teardown evidence.
+
 See [integration-testing.md](./integration-testing.md) for cost contract and teardown rules.
 
 ## Build pipeline

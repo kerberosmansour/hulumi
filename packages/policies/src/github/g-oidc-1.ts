@@ -14,6 +14,7 @@
 
 import type { ResourceValidationPolicy } from "@pulumi/policy";
 
+import { federatedIsGithubOidc } from "./github-oidc-issuer";
 import { matchSuppression, type Suppression } from "./suppressions";
 
 const DOCS_URL = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/g-oidc-1.md";
@@ -84,7 +85,7 @@ function inspectAwsIamTrustPolicy(
     const principal = s.Principal as Record<string, unknown> | undefined;
     if (!principal || principal.Federated === undefined) continue;
     const fed = String(principal.Federated);
-    if (!fed.includes(GITHUB_OIDC_ISSUER)) continue;
+    if (!federatedIsGithubOidc(fed)) continue;
     const conds = s.Condition as Record<string, unknown> | undefined;
     if (!conds || typeof conds !== "object") continue;
     for (const [operator, rawCondition] of Object.entries(conds)) {

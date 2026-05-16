@@ -157,6 +157,43 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
     expect(run(makeStackArgs([ec2Role, assoc]))).toHaveLength(0);
   });
 
+  it("does NOT treat a crafted look-alike OIDC-provider host as GitHub (anchored match)", () => {
+    for (const federated of [
+      "arn:aws:iam::1:oidc-provider/token.actions.githubusercontent.com.evil.com",
+      "arn:aws:iam::1:oidc-provider/evil.com/token.actions.githubusercontent.com",
+    ]) {
+      const lookalike = res({
+        type: "aws:iam/role:Role",
+        urn: "urn:pulumi:s::p::aws:iam/role:Role::lookalike",
+        name: "lookalike",
+        props: {
+          assumeRolePolicy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: { Federated: federated },
+                Action: "sts:AssumeRoleWithWebIdentity",
+              },
+            ],
+          }),
+          arn: "arn:aws:iam::1:role/lookalike",
+        },
+      });
+      const assoc = res({
+        type: "aws:eks/accessPolicyAssociation:AccessPolicyAssociation",
+        urn: "urn:pulumi:s::p::aws:eks/accessPolicyAssociation:AccessPolicyAssociation::admin",
+        name: "admin",
+        props: {
+          policyArn: "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy",
+          accessScope: { type: "cluster" },
+        },
+        propertyDependencies: { principalArn: [lookalike] },
+      });
+      expect(run(makeStackArgs([lookalike, assoc]))).toHaveLength(0);
+    }
+  });
+
   it("does NOT flag when the cluster-admin association targets no role in the stack", () => {
     const assoc = res({
       type: "aws:eks/accessPolicyAssociation:AccessPolicyAssociation",

@@ -26,9 +26,28 @@ const EKS_ACCESS_POLICY_ASSOCIATION_TYPE =
   "aws:eks/accessPolicyAssociation:AccessPolicyAssociation";
 const IAM_ROLE_POLICY_ATTACHMENT_TYPE = "aws:iam/rolePolicyAttachment:RolePolicyAttachment";
 
-const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
+const GITHUB_OIDC_ISSUER_HOST = "token.actions.githubusercontent.com";
 const EKS_CLUSTER_ADMIN_POLICY_SUFFIX = "AmazonEKSClusterAdminPolicy";
 const ADMINISTRATOR_ACCESS_ARN = "arn:aws:iam::aws:policy/AdministratorAccess";
+
+// Extract the OIDC-provider host from a trust-policy `Principal.Federated`
+// value (an IAM OIDC-provider ARN
+// `arn:aws:iam::<acct>:oidc-provider/<host>[/...]`, or a raw issuer URL)
+// and compare it EXACTLY to the GitHub Actions issuer host. An unanchored
+// `String(...).includes("token.actions.githubusercontent.com")` substring
+// test (js/incomplete-url-substring-sanitization) would also match a
+// crafted `.../oidc-provider/token.actions.githubusercontent.com.evil.com`
+// or `.../oidc-provider/evil.com/token.actions.githubusercontent.com`.
+function federatedIsGithubOidc(federated: string): boolean {
+  let host = federated;
+  const marker = "oidc-provider/";
+  const idx = host.indexOf(marker);
+  if (idx !== -1) host = host.slice(idx + marker.length);
+  host = host.replace(/^https?:\/\//, "");
+  const slash = host.indexOf("/");
+  if (slash !== -1) host = host.slice(0, slash);
+  return host === GITHUB_OIDC_ISSUER_HOST;
+}
 
 function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
@@ -63,7 +82,7 @@ export function trustPolicyTrustsGithubOidc(assumeRolePolicy: unknown): boolean 
       | Record<string, unknown>
       | undefined;
     if (!principal || principal.Federated === undefined) continue;
-    if (String(principal.Federated).includes(GITHUB_OIDC_ISSUER)) return true;
+    if (federatedIsGithubOidc(String(principal.Federated))) return true;
   }
   return false;
 }

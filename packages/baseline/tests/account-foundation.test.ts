@@ -495,6 +495,43 @@ describe("AccountFoundation — CloudTrail log group output for downstream alarm
 
     const logGroup = registrations.find((r) => r.type === "aws:cloudwatch/logGroup:LogGroup");
     expect(logGroup?.name).toBe("af-log-output-cloudtrail-logs");
+
+    // Regression (Codex finding 205dfa88): the log group is worthless as
+    // an IdentityAlarms signal unless CloudTrail actually delivers to it.
+    // The trail must carry the CWL group + role, backed by an assumable
+    // role with logs:CreateLogStream/PutLogEvents.
+    const trail = registrations.find((r) => r.type === "aws:cloudtrail/trail:Trail");
+    expect(trail?.inputs.cloudWatchLogsGroupArn).toBeDefined();
+    expect(trail?.inputs.cloudWatchLogsRoleArn).toBeDefined();
+
+    const cwlRole = registrations.find(
+      (r) => r.type === "aws:iam/role:Role" && r.name === "af-log-output-cloudtrail-cwlogs-role",
+    );
+    expect(cwlRole).toBeDefined();
+    expect(parsePolicy(cwlRole!.inputs.assumeRolePolicy).Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Effect: "Allow",
+          Principal: { Service: "cloudtrail.amazonaws.com" },
+          Action: "sts:AssumeRole",
+        }),
+      ]),
+    );
+
+    const cwlPolicy = registrations.find(
+      (r) =>
+        r.type === "aws:iam/rolePolicy:RolePolicy" &&
+        r.name === "af-log-output-cloudtrail-cwlogs-policy",
+    );
+    expect(cwlPolicy).toBeDefined();
+    expect(parsePolicy(cwlPolicy!.inputs.policy).Statement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Effect: "Allow",
+          Action: ["logs:CreateLogStream", "logs:PutLogEvents"],
+        }),
+      ]),
+    );
   });
 
   it("resolves the sandbox CloudTrail log group output to undefined", async () => {

@@ -270,6 +270,44 @@ async function cleanupStartupLoggingTargetBucket(): Promise<void> {
   }
 }
 
+// IAM Access Analyzer is a Startup-Hardened-only sub-resource and AWS
+// caps analyzers per account/region (default 1). A prior e2e run that
+// failed AFTER the analyzer was created can orphan it (a failed
+// `pulumi up` is not always reclaimed by destroy), exhausting the quota
+// and blocking every later run with ServiceQuotaExceededException. Sweep
+// only THIS suite's own analyzers — names are `hulumi-af-e2e-*-access-
+// analyzer` — so a real account/organization analyzer is never touched.
+async function sweepStaleE2eAnalyzers(): Promise<void> {
+  if (SELECTED_TIER !== "startup-hardened") return;
+  let listed: { analyzers?: { name?: string }[] };
+  try {
+    listed = await awsJson<{ analyzers?: { name?: string }[] }>([
+      "accessanalyzer",
+      "list-analyzers",
+      "--region",
+      REGION,
+    ]);
+  } catch (err) {
+    if (isMissingAwsResource(err)) return;
+    throw err;
+  }
+  const stale = (listed.analyzers ?? [])
+    .map((a) => a.name)
+    .filter(
+      (name): name is string =>
+        typeof name === "string" &&
+        name.startsWith("hulumi-af-e2e-") &&
+        name.endsWith("-access-analyzer"),
+    );
+  for (const name of stale) {
+    try {
+      await aws(["accessanalyzer", "delete-analyzer", "--analyzer-name", name, "--region", REGION]);
+    } catch (err) {
+      if (!isMissingAwsResource(err)) throw err;
+    }
+  }
+}
+
 function configRecorderNameFromArn(arn: string): string {
   const marker = ":recorder/";
   const index = arn.indexOf(marker);
@@ -441,6 +479,7 @@ describe.skipIf(!ENABLED)(
 
     beforeAll(async () => {
       mkdirSync(WORK_DIR, { recursive: true });
+      await sweepStaleE2eAnalyzers();
       await ensureStartupLoggingTargetBucket();
       existingGuardDutyDetectorId = await findExistingGuardDutyDetectorId(REGION);
       useExistingSecurityHubAccount = await isSecurityHubEnabled(REGION);
@@ -517,12 +556,21 @@ describe.skipIf(!ENABLED)(
             cleanupError = err;
           }
         }
+        try {
+          await sweepStaleE2eAnalyzers();
+        } catch (err) {
+          console.error("[account-foundation-e2e] stale analyzer sweep failed");
+          if (cleanupError === undefined) {
+            cleanupError = err;
+          }
+        }
         rmSync(WORK_DIR, { recursive: true, force: true });
         if (cleanupError !== undefined) {
           throw cleanupError;
         }
       } else {
         await cleanupStartupLoggingTargetBucket();
+        await sweepStaleE2eAnalyzers();
         rmSync(WORK_DIR, { recursive: true, force: true });
       }
     }, 300_000);

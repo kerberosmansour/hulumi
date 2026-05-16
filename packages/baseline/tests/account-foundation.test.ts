@@ -4,13 +4,13 @@
 // PRs; weekly schedule).
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import { AccountFoundation } from "../src/aws/account-foundation";
 import { GUARDDUTY_HARDENED_FEATURES } from "../src/aws/guardduty";
 import { AWS_TAG_VALUE_MAX_LENGTH } from "../src/aws/tags";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setup";
+import { expectNoForbiddenShortcuts } from "../../../tests/_utils/forbidden-shortcut";
 
 const IAC_ROLE_ARN = "arn:aws:iam::111122223333:role/hulumi-sandbox-iac-role";
 
@@ -488,33 +488,16 @@ describe("AccountFoundation — CloudTrail log group output for downstream alarm
 
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {
   it("packages/baseline/src/aws/ has zero setTimeout / sleep / await new Promise occurrences outside probes/", () => {
-    const root = resolve(__dirname, "../src/aws");
-    const banned = [/setTimeout/, /\bsleep\b/, /await new Promise/];
-    const offenders: string[] = [];
-
-    function walk(dir: string): void {
-      for (const entry of readdirSync(dir)) {
-        const full = join(dir, entry);
-        const st = statSync(full);
-        if (st.isDirectory()) {
-          // Probes/ is the sanctioned escape hatch for AWS eventual-consistency
-          // — every use of setTimeout in @hulumi/baseline lives there. Walking
-          // skips that subtree.
-          if (entry === "probes") continue;
-          walk(full);
-        } else if (entry.endsWith(".ts")) {
-          const text = readFileSync(full, "utf8");
-          for (const pat of banned) {
-            if (pat.test(text)) {
-              offenders.push(`${full} matched ${pat}`);
-            }
-          }
-        }
-      }
-    }
-
-    walk(root);
-    expect(offenders).toEqual([]);
+    expectNoForbiddenShortcuts({
+      dir: resolve(__dirname, "../src/aws"),
+      denyPatterns: [
+        {
+          label: "setTimeout/sleep/await new Promise",
+          pattern: /setTimeout|\bsleep\b|await new Promise/,
+        },
+      ],
+      excludePaths: ["probes"],
+    });
   });
 });
 

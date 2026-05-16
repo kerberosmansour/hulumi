@@ -16,6 +16,7 @@ export {
   h2BlocksUnencryptedStateBackend,
   h3AdvisoryIacRoleTag,
   h4StartupHardenedRequiresLogging,
+  h5SecureBucketExemptionRequiresHardening,
   H3_ENFORCEMENT_LEVEL,
   HULUMI_SECURE_BUCKET_TYPE,
   RAW_S3_BUCKET_TYPES,

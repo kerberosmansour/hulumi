@@ -13,6 +13,7 @@ import {
   h2BlocksUnencryptedStateBackend,
   h3AdvisoryIacRoleTag,
   h4StartupHardenedRequiresLogging,
+  h5SecureBucketExemptionRequiresHardening,
   H3_ENFORCEMENT_LEVEL,
   hulumiHardeningPackMetadata,
   matchSuppression,
@@ -426,6 +427,136 @@ describe("HulumiHardeningPack H4 — Startup-Hardened SecureBucket without loggi
   });
 });
 
+describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by real hardening", () => {
+  let violations: string[];
+  const report = (msg: string): void => {
+    violations.push(msg);
+  };
+  beforeEach(() => {
+    violations = [];
+  });
+
+  const PARENT = "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket";
+  const exemptedBucket = (): PolicyResource =>
+    makePolicyResource({
+      type: "aws:s3/bucket:Bucket",
+      urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
+      name: "sb-bucket",
+      props: {},
+    });
+  const hardenedSiblings = (): PolicyResource[] => [
+    makePolicyResource({
+      type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
+      urn: `${PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::sb-pab`,
+      name: "sb-pab",
+      props: {
+        blockPublicAcls: true,
+        ignorePublicAcls: true,
+        blockPublicPolicy: true,
+        restrictPublicBuckets: true,
+      },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
+      urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
+      name: "sb-sse",
+      props: {
+        rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
+      },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
+      urn: `${PARENT}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
+      name: "sb-own",
+      props: { rule: { objectOwnership: "BucketOwnerEnforced" } },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketVersioning:BucketVersioning",
+      urn: `${PARENT}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
+      name: "sb-ver",
+      props: { versioningConfiguration: { status: "Enabled" } },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketPolicy:BucketPolicy",
+      urn: `${PARENT}$aws:s3/bucketPolicy:BucketPolicy::sb-pol`,
+      name: "sb-pol",
+      props: {
+        policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Deny",
+              Principal: "*",
+              Action: "s3:*",
+              Condition: { Bool: { "aws:SecureTransport": "false" } },
+            },
+          ],
+        }),
+      },
+    }),
+  ];
+  const runH5 = (resources: PolicyResource[], config: Record<string, unknown> = {}): void =>
+    (
+      h5SecureBucketExemptionRequiresHardening.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs(resources, config), report);
+
+  it("reports HULUMI-H5 for a forged SecureBucket-typed wrapper around a raw bucket with no hardening (the H1 bypass)", () => {
+    runH5([exemptedBucket()]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H5/);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/SSE-KMS encryption/);
+    expect(violations[0]).toMatch(/BucketOwnerEnforced ownership controls/);
+    expect(violations[0]).toMatch(/enabled bucket versioning/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+    expect(violations[0]).toMatch(/forgeable/);
+  });
+
+  it("does NOT report when the exempted bucket is backed by all real hardened siblings (genuine SecureBucket)", () => {
+    runH5([exemptedBucket(), ...hardenedSiblings()]);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("reports only the specific missing control when hardening is partial (SSE present but AES256, not KMS)", () => {
+    const siblings = hardenedSiblings();
+    siblings[1] = makePolicyResource({
+      type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
+      urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
+      name: "sb-sse",
+      props: { rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "AES256" } }] },
+    });
+    runH5([exemptedBucket(), ...siblings]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/SSE-KMS encryption/);
+    expect(violations[0]).not.toMatch(/BucketPublicAccessBlock/);
+    expect(violations[0]).not.toMatch(/TLS-only/);
+  });
+
+  it("honors a HULUMI-H5 suppression scoped to the bucket URN", () => {
+    runH5([exemptedBucket()], {
+      suppressions: [
+        { ruleId: "HULUMI-H5", reason: "test", urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket` },
+      ],
+    });
+    expect(violations).toHaveLength(0);
+  });
+
+  it("does NOT report on a raw bucket with no SecureBucket ancestor (that is H1's job, not H5's)", () => {
+    runH5([
+      makePolicyResource({
+        type: "aws:s3/bucket:Bucket",
+        urn: "urn:pulumi:s::p::aws:s3/bucket:Bucket::plain-raw-bucket",
+        name: "plain-raw-bucket",
+        props: {},
+      }),
+    ]);
+    expect(violations).toHaveLength(0);
+  });
+});
+
 describe("Suppressions — scope correctly (security, defense in depth)", () => {
   it("matches a suppression scoped to a specific URN and silences that rule only", () => {
     const suppressions = [
@@ -482,12 +613,12 @@ describe("Suppressions — scope correctly (security, defense in depth)", () => 
 });
 
 describe("PackMetadata — shape is stable per interfaces.md §2", () => {
-  it("declares the four rules with correct IDs and enforcement phasing", () => {
+  it("declares the five rules with correct IDs and enforcement phasing", () => {
     const ids = hulumiHardeningPackMetadata.rules.map((r) => r.id);
-    expect(ids).toEqual(["HULUMI-H1", "HULUMI-H2", "HULUMI-H3", "HULUMI-H4"]);
+    expect(ids).toEqual(["HULUMI-H1", "HULUMI-H2", "HULUMI-H3", "HULUMI-H4", "HULUMI-H5"]);
     const h3 = hulumiHardeningPackMetadata.rules.find((r) => r.id === "HULUMI-H3")!;
     expect(h3.enforcement).toBe("mandatory");
-    for (const id of ["HULUMI-H1", "HULUMI-H2", "HULUMI-H4"]) {
+    for (const id of ["HULUMI-H1", "HULUMI-H2", "HULUMI-H4", "HULUMI-H5"]) {
       const r = hulumiHardeningPackMetadata.rules.find((x) => x.id === id)!;
       expect(r.enforcement).toBe("mandatory");
     }

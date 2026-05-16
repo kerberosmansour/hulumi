@@ -61,6 +61,12 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       throw new Error("Startup-Hardened requires logBucketArn; see docs/tiers.md");
     }
 
+    // Object Lock is the Startup-Hardened default, but a consumer may
+    // opt out with `objectLock: false` — e.g. the AWS Config / CloudTrail
+    // delivery bucket, whose delivery validation is incompatible with
+    // Object Lock default retention.
+    const objectLockEnabled = args.tier === "startup-hardened" && args.objectLock !== false;
+
     const tags = buildTags(args.tier);
     const childOptions = (...legacyTypes: string[]): pulumi.CustomResourceOptions => ({
       parent: this,
@@ -72,7 +78,7 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     this.bucket = new aws.s3.Bucket(
       `${name}-bucket`,
       {
-        ...(args.tier === "startup-hardened" ? { objectLockEnabled: true } : {}),
+        ...(objectLockEnabled ? { objectLockEnabled: true } : {}),
         ...(args.forceDestroy !== undefined ? { forceDestroy: args.forceDestroy } : {}),
         tags,
       },
@@ -235,9 +241,10 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       childOptions(),
     );
 
-    if (args.tier === "startup-hardened") {
-      const lockMode = args.objectLock?.mode ?? "governance";
-      const lockDays = args.objectLock?.days ?? 30;
+    if (objectLockEnabled) {
+      const lockCfg = args.objectLock || undefined;
+      const lockMode = lockCfg?.mode ?? "governance";
+      const lockDays = lockCfg?.days ?? 30;
       new aws.s3.BucketObjectLockConfiguration(
         `${name}-object-lock`,
         {
@@ -251,7 +258,9 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
         },
         childOptions(LEGACY_BUCKET_OBJECT_LOCK_V2_TYPE),
       );
+    }
 
+    if (args.tier === "startup-hardened") {
       new aws.s3.BucketLogging(
         `${name}-logging`,
         {

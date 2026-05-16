@@ -118,6 +118,15 @@ export class AccountFoundation
             tier: "startup-hardened" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
             logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
+            // This bucket is the CloudTrail + AWS Config delivery target.
+            // AWS Config's PutDeliveryChannel write-then-delete validation
+            // is incompatible with Object Lock default retention
+            // (InsufficientDeliveryPolicyException), so the delivery
+            // bucket opts out of WORM. Immutable CloudTrail retention is
+            // still provided by the Startup-Hardened EventDataStore;
+            // SecureBucket keeps Object Lock on by default for every
+            // other consumer.
+            objectLock: false as const,
             ...(args.logBucketForceDestroy !== undefined
               ? { forceDestroy: args.logBucketForceDestroy }
               : {}),

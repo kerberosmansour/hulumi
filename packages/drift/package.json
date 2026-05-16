@@ -36,20 +36,20 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/pulumi": "3.232.0"
+    "@pulumi/pulumi": "3.239.0"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudtrail": "3.1045.0",
-    "@aws-sdk/client-cloudwatch-logs": "3.1047.0",
+    "@aws-sdk/client-cloudtrail": "3.1048.0",
+    "@aws-sdk/client-cloudwatch-logs": "3.1048.0",
     "@aws-sdk/client-s3": "3.1047.0",
-    "@aws-sdk/client-sts": "3.1045.0",
+    "@aws-sdk/client-sts": "3.1048.0",
     "@aws-sdk/credential-providers": "3.1045.0",
     "p-timeout": "7.0.1",
     "simple-git": "3.36.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.27.0",
-    "@pulumi/pulumi": "3.232.0",
+    "@pulumi/aws": "7.30.0",
+    "@pulumi/pulumi": "3.239.0",
     "@types/node": "20.19.41",
     "memfs": "4.57.2",
     "typescript": "5.9.3",

@@ -246,6 +246,31 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
     expect(eds).toBeDefined();
     expect(eds!.inputs.retentionPeriod).toBe(7);
   });
+
+  it("objectLock:false disables Object Lock entirely but keeps Logging + EventDataStore", async () => {
+    const bucket = new SecureBucket("sb-hard-nolock", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+      objectLock: false,
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+
+    // Regression: AWS Config / CloudTrail delivery buckets cannot carry
+    // Object Lock default retention — its write-then-delete delivery
+    // validation fails with InsufficientDeliveryPolicyException. The
+    // opt-out must remove BOTH the lock config and bucket-level
+    // objectLockEnabled, while leaving the other hardened sub-resources.
+    expect(
+      findRegistration("aws:s3/bucketObjectLockConfiguration:BucketObjectLockConfiguration"),
+    ).toBeUndefined();
+    const rawBucket = findRegistration("aws:s3/bucket:Bucket");
+    expect(rawBucket).toBeDefined();
+    expect(rawBucket!.inputs.objectLockEnabled).toBeUndefined();
+
+    expect(findRegistration("aws:s3/bucketLogging:BucketLogging")).toBeDefined();
+    expect(findRegistration("aws:cloudtrail/eventDataStore:EventDataStore")).toBeDefined();
+  });
 });
 
 describe("SecureBucket — tier matrix delta count ≥ 3 (schema regression)", () => {

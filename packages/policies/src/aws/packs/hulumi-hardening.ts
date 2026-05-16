@@ -11,6 +11,7 @@ import {
   h2BlocksUnencryptedStateBackend,
   h3AdvisoryIacRoleTag,
   h4StartupHardenedRequiresLogging,
+  h5SecureBucketExemptionRequiresHardening,
 } from "../hulumi-hardening-pack";
 
 export const HulumiHardeningPack = new PolicyPack(hulumiHardeningPackMetadata.id, {
@@ -19,5 +20,6 @@ export const HulumiHardeningPack = new PolicyPack(hulumiHardeningPackMetadata.id
     h2BlocksUnencryptedStateBackend,
     h3AdvisoryIacRoleTag,
     h4StartupHardenedRequiresLogging,
+    h5SecureBucketExemptionRequiresHardening,
   ],
 });

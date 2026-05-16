@@ -10,9 +10,15 @@ import {
   h1NoRawGithubRepository,
   h2NoWildcardOidcTemplate,
   h3NoWildcardTrustPolicy,
+  h4NoClusterAdminViaGithubOidc,
   hulumiHardeningPackGithubMetadata,
 } from "../hulumi-hardening-pack.rules";
 
 export const HulumiGithubHardeningPack = new PolicyPack(hulumiHardeningPackGithubMetadata.id, {
-  policies: [h1NoRawGithubRepository, h2NoWildcardOidcTemplate, h3NoWildcardTrustPolicy],
+  policies: [
+    h1NoRawGithubRepository,
+    h2NoWildcardOidcTemplate,
+    h3NoWildcardTrustPolicy,
+    h4NoClusterAdminViaGithubOidc,
+  ],
 });

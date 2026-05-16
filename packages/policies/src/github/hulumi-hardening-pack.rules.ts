@@ -1,13 +1,14 @@
-// HulumiGithubHardeningPack rule handlers — H1, H2, and H3 (= G_OIDC_1).
-// H4 tier-monotonicity is an AST-level meta-test that lives alongside
-// the source tree (deferred to a follow-up — see lessons file). The
-// PolicyPack instance lives in src/github/packs/hulumi-hardening.ts
-// (one PolicyPack per process per @pulumi/policy contract).
+// HulumiGithubHardeningPack rule handlers — H1, H2, H3 (= G_OIDC_1), and
+// H4 (= G_OIDC_2, cluster-admin / AdministratorAccess bound to a
+// GitHub-OIDC-trusted role; stack-level). The PolicyPack instance lives
+// in src/github/packs/hulumi-hardening.ts (one PolicyPack per process
+// per @pulumi/policy contract).
 
-import type { ResourceValidationPolicy } from "@pulumi/policy";
+import type { ResourceValidationPolicy, StackValidationPolicy } from "@pulumi/policy";
 
 import { matchSuppression, type Suppression } from "./suppressions";
 import { G_OIDC_1 } from "./g-oidc-1";
+import { G_OIDC_2 } from "./g-oidc-2";
 
 const HULUMI_SECURE_REPOSITORY_TYPE = "hulumi:baseline:github:SecureRepository";
 const HULUMI_ORG_FOUNDATION_TYPE = "hulumi:baseline:github:OrgFoundation";
@@ -116,6 +117,18 @@ export const h3NoWildcardTrustPolicy: ResourceValidationPolicy = {
 };
 
 /**
+ * H4 = G_OIDC_2 — re-exported into the hardening pack as the rule
+ * directly (stack-level). Prefix kept for cookbook symmetry with the
+ * H1/H2/H3 cadence. Catches the *blast-radius* axis G_OIDC_1 does not:
+ * cluster-scoped EKS admin / AWS AdministratorAccess bound to a
+ * GitHub-OIDC-trusted IAM role.
+ */
+export const h4NoClusterAdminViaGithubOidc: StackValidationPolicy = {
+  ...G_OIDC_2,
+  name: "HULUMI-H4-no-cluster-admin-via-github-oidc",
+};
+
+/**
  * Pack metadata + assembled policy list. Consumed by the entry point at
  * `packs/hulumi-hardening.ts`.
  */
@@ -123,10 +136,11 @@ export const HULUMI_HARDENING_PACK_GITHUB_NAME = "hulumi-hardening-github";
 
 export const hulumiHardeningPackGithubMetadata = {
   id: HULUMI_HARDENING_PACK_GITHUB_NAME,
-  version: "1.1.0",
+  version: "1.2.0",
   rules: [
     "HULUMI-H1-no-raw-github-repository",
     "HULUMI-H2-no-wildcard-oidc-template",
     "HULUMI-H3-no-wildcard-trust-policy",
+    "HULUMI-H4-no-cluster-admin-via-github-oidc",
   ],
 } as const;

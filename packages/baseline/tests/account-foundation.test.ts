@@ -311,9 +311,13 @@ describe("AccountFoundation — real provider input compatibility", () => {
           Action: ["s3:GetBucketAcl", "s3:ListBucket"],
           Resource: "arn:aws:s3:::af-config-delivery-logs-bucket-mock",
         }),
+        // Regression: BucketOwnerEnforced ⇒ no ACLs. The recorder role
+        // (tried before the service principal) must not require
+        // s3:x-amz-acl or claim s3:PutObjectAcl, or PutDeliveryChannel
+        // fails with InsufficientDeliveryPolicyException.
         expect.objectContaining({
           Sid: "ConfigBucketDelivery",
-          Action: ["s3:PutObject", "s3:PutObjectAcl"],
+          Action: "s3:PutObject",
           Resource:
             "arn:aws:s3:::af-config-delivery-logs-bucket-mock/AWSLogs/111122223333/Config/*",
         }),
@@ -323,6 +327,10 @@ describe("AccountFoundation — real provider input compatibility", () => {
         }),
       ]),
     );
+
+    const configDelivery = inline.Statement.find((s) => s.Sid === "ConfigBucketDelivery");
+    expect(JSON.stringify(configDelivery)).not.toContain("x-amz-acl");
+    expect(JSON.stringify(configDelivery)).not.toContain("PutObjectAcl");
 
     const recorder = registrations.find((r) => r.type === "aws:cfg/recorder:Recorder");
     expect(recorder?.inputs.roleArn).not.toBe(IAC_ROLE_ARN);

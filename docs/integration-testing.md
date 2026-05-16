@@ -165,6 +165,7 @@ deletes the local Pulumi work directory.
 | Security Hub + 2 standards         | <$0.05                   | Per-check pricing; 2 standards = double cost.    |
 | KMS CMK ring (4 keys)              | $0 if torn down each run | $1/month per key if orphaned.                    |
 | S3 (log bucket)                    | <$0.01                   | Object count negligible.                         |
+| S3 (Startup-Hardened log target)   | <$0.01                   | Short-lived server-access-log target bucket.     |
 | S3 (drift-classify fixture bucket) | <$0.01                   | One tagged bucket, destroyed after the test.     |
 | CloudWatch Logs (Startup-Hardened) | <$0.01                   | 365-day retention but tiny ingest.               |
 
@@ -193,15 +194,18 @@ pnpm --filter @hulumi/baseline test -- tests/integration/
 ```
 
 Current status: the weekly workflow is wired for a real backend and the
-AccountFoundation sandbox lane has a real Pulumi Automation API
-up/assert/destroy smoke test. The drift-classifier lane now has one
-real-AWS S3 console-drift proof with cache-hit verification. The
-Startup-Hardened AccountFoundation lane, AWS API polling assertions,
-failure-injection cleanup tests, and the remaining drift real-AWS
+AccountFoundation sandbox and Startup-Hardened lanes have real Pulumi
+Automation API up/assert/destroy tests. Both lanes assert the returned
+CloudTrail, Config recorder, GuardDuty, Security Hub, and KMS outputs
+through AWS API calls before teardown. The Startup-Hardened lane also
+creates a scoped S3 server-access-log target bucket for the internal log
+bucket and deletes it during cleanup. The drift-classifier lane has one
+real-AWS S3 console-drift proof with cache-hit verification.
+Failure-injection cleanup tests and the remaining drift real-AWS
 scenarios remain explicit `it.todo()` / skipped roadmap work tracked in
 [integration-testing-roadmap.md](integration-testing-roadmap.md). That is
-intentional: the project must not pretend that a smoke pass is full e2e
-coverage.
+intentional: the project must not pretend that a success-path pass is
+full e2e coverage.
 
 ## Eventual-consistency contract
 
@@ -228,28 +232,31 @@ The `no-sleep-in-source` AST test asserts every use of `setTimeout` /
 
 ## What an "integration green" looks like
 
-For the currently implemented sandbox smoke lane, a green weekly
+For the currently implemented AccountFoundation lanes, a green weekly
 integration run means:
 
-- `pulumi up` for `AccountFoundation(tier: "sandbox")` completes via
-  Pulumi Automation API using OIDC and the configured backend.
+- `pulumi up` for `AccountFoundation(tier: "sandbox")` and
+  `AccountFoundation(tier: "startup-hardened")` completes via Pulumi
+  Automation API using OIDC and the configured backend.
 - The stack returns real provider outputs for CloudTrail, Config,
-  GuardDuty, Security Hub, and the four KMS keys.
+  GuardDuty, Security Hub, and the four KMS keys, and each output is
+  checked through the matching AWS API.
 - `pulumi destroy` and `removeStack` run in `afterAll`, and the local
   Pulumi work directory is removed.
+- The four test-created KMS keys are not left in `Enabled` state after
+  destroy. AWS's normal pending-deletion state counts as cleaned up.
 - A manual dispatch with `tier=sandbox` only runs the sandbox matrix lane.
+  A manual dispatch with `tier=startup-hardened` only runs the
+  Startup-Hardened lane; `tier=both` runs both serially.
 - If `HULUMI_DRIFT_INTEGRATION=1` is enabled for the workflow, the drift
   classifier creates one S3 fixture bucket, observes an out-of-band tag
   mutation through CloudTrail, returns `ConsoleBreakGlass / high`, proves
   the second classification is served from cache, and destroys the
   fixture stack.
-- The Startup-Hardened and drift-classify real-AWS lanes remain explicitly
-  gated until their broader account-wide assertions are implemented.
 
-The stronger M3 target still remains on the roadmap: poll AWS APIs until
-each sub-resource is `ACTIVE` / `ENABLED`, verify tag propagation on
-every taggable child, and run an orphan-resource sweep by stack-name
-prefix after teardown.
+The remaining AccountFoundation roadmap target is the deliberate
+failure-injection cleanup test. Broader drift real-AWS scenarios remain
+explicitly gated until their account-wide assertions are implemented.
 
 ## Edge platform integration lanes
 

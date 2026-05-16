@@ -1,13 +1,14 @@
 # Integration testing roadmap
 
-**Status as of v1.2.0 (runbook `hulumi-pre-public-launch` M3)**: this
-doc is the contract for the remaining real-AWS integration tests. The
-AccountFoundation sandbox lane now has a real Pulumi Automation API
-up/assert/destroy smoke test. The drift-classify lane now has one
-real-AWS S3 console-drift proof with cache-hit verification. The stronger
-AWS API polling assertions, Startup-Hardened lane, failure-injection
-cleanup scenario, and remaining drift real-AWS scenarios remain separate
-runbook work (`hulumi-integration-real-aws`, candidate for the v1.3 train).
+**Status as of v1.3.2 plus ticket #24**: this doc is the contract for
+the remaining real-AWS integration tests. The AccountFoundation sandbox
+and Startup-Hardened success paths now have real Pulumi Automation API
+up/assert/destroy tests with AWS API reachability checks and KMS cleanup
+assertions. The drift-classify lane now has one real-AWS S3 console-drift
+proof with cache-hit verification. The AccountFoundation
+failure-injection cleanup scenario and remaining drift real-AWS
+scenarios remain separate runbook work (`hulumi-integration-real-aws`,
+candidate for a later train).
 
 > Why a roadmap and not implementation? The sandbox-AWS deploy rig is a
 > 200–400 LOC undertaking per scenario, requires a configured Pulumi
@@ -20,10 +21,10 @@ runbook work (`hulumi-integration-real-aws`, candidate for the v1.3 train).
 
 ## What lives where
 
-| Test file                                                                    | Status                                           | Roadmap section                            |
-| ---------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
-| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | sandbox smoke implemented; `it.todo` ×2          | [#account-foundation](#account-foundation) |
-| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | S3 console-drift smoke implemented; `it.todo` ×2 | [#drift-classify](#drift-classify)         |
+| Test file                                                                    | Status                                                    | Roadmap section                            |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
+| `packages/baseline/tests/integration/account-foundation.integration.test.ts` | sandbox + startup success paths implemented; `it.todo` ×1 | [#account-foundation](#account-foundation) |
+| `packages/drift/tests/integration/drift-classify.integration.test.ts`        | S3 console-drift smoke implemented; `it.todo` ×2          | [#drift-classify](#drift-classify)         |
 
 Both files keep one always-on `it()` that asserts the
 `HULUMI_INTEGRATION=1` skip-gate is in place. That gate is a regression
@@ -66,7 +67,7 @@ Anything that lands real-AWS coverage will need:
 
 ## Account-foundation
 
-### Test 1 — Sandbox tier: smoke implemented; AWS API polling still pending
+### Test 1 — Sandbox tier: implemented
 
 **Current implementation**:
 
@@ -74,14 +75,17 @@ Anything that lands real-AWS coverage will need:
   creates a short-lived inline Pulumi Automation API stack when
   `HULUMI_INTEGRATION=1`, `HULUMI_TIER=sandbox`, one Pulumi backend is
   configured, and `HULUMI_IAC_ROLE_ARN` is set.
-- The test runs `Stack.up()`, asserts real provider outputs for
-  CloudTrail, Config, GuardDuty, Security Hub, and the four KMS keys,
-  then always calls `Stack.destroy()` and `removeStack()` in `afterAll`.
+- The test runs `Stack.up()`, asserts real provider outputs through AWS
+  API calls for CloudTrail, Config, GuardDuty, Security Hub, and the four
+  KMS keys, then always calls `Stack.destroy()` and `removeStack()` in
+  `afterAll`.
+- After destroy, the test checks that the four test-created KMS keys are
+  not left in `Enabled` state. AWS pending-deletion state counts as
+  cleaned up.
 - The test suppresses Pulumi output so logs do not print state, account
   identifiers, or backend details.
 
-**Remaining target**: all 6 sub-resources reach ACTIVE within 15 minutes;
-teardown succeeds.
+**Remaining target**: the separate failure-injection cleanup scenario.
 
 **Pre-conditions**:
 
@@ -112,9 +116,9 @@ new AccountFoundation("integration-test", {
 expected value, with a per-resource timeout of 5 minutes (capped at
 15 min total wall-clock).
 
-**Verdict**: every sub-resource reports the expected state within the
-budget, then `pulumi destroy` runs to completion without orphan
-resources.
+**Verdict**: every asserted sub-resource reports the expected state
+within the budget, then `pulumi destroy` runs to completion without
+enabled KMS orphans.
 
 **Cleanup invariant**: even if any assertion throws, `Stack.destroy()`
 runs in a `finally` block. The post-test `git status` shows a clean
@@ -122,12 +126,13 @@ working tree.
 
 **Wall-clock estimate**: 12–15 minutes per run.
 
-### Test 2 — Startup-Hardened tier
+### Test 2 — Startup-Hardened tier: implemented
 
-Same shape as Test 1, with `tier: "startup-hardened"`. Asserts the 6
-sub-resources from Test 1 PLUS the tier-specific extended set
-(currently: GuardDuty extended features, SecurityHub PCI standard,
-expanded IAM password policy). Reuse the polling helpers from Test 1.
+Same shape as Test 1, with `tier: "startup-hardened"`. The test creates
+a scoped S3 server-access-log target bucket for AccountFoundation's
+internal hardened log bucket, deletes that bucket in cleanup, and
+asserts CloudTrail multi-region/log-file-validation behavior alongside
+the common CloudTrail, Config, GuardDuty, Security Hub, and KMS checks.
 
 **Wall-clock estimate**: 15 minutes per run.
 
@@ -222,12 +227,12 @@ up via `pulumi destroy`.
 
 When `hulumi-integration-real-aws` ships:
 
-- [ ] The AccountFoundation sandbox smoke is extended with AWS API
-      polling for all 6 expected sub-resources.
-- [ ] The remaining 6 `it.todo()` slots above are replaced with real
+- [x] The AccountFoundation sandbox smoke is extended with AWS API
+      reachability checks for the expected sub-resources.
+- [ ] The remaining `it.todo()` slots above are replaced with real
       implementations.
-- [ ] All 7 tests gated on `HULUMI_INTEGRATION=1` (skip-gate preserved).
-- [ ] All 7 tests run cleanly in the weekly workflow.
+- [ ] All real-AWS tests gated on `HULUMI_INTEGRATION=1` (skip-gate preserved).
+- [ ] All real-AWS tests run cleanly in the weekly workflow.
 - [ ] Total wall-clock for the weekly workflow stays under 60 minutes.
 - [ ] No orphan resources after a full success-path run.
 - [ ] No orphan resources after a failure-injection run.

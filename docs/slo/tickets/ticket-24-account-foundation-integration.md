@@ -22,7 +22,7 @@
 | Default typecheck / build command           | `pnpm --filter @hulumi/baseline typecheck && pnpm --filter @hulumi/baseline build`                   |
 | Default static analysis / lint command      | `pnpm --filter @hulumi/baseline lint && pnpm run lint:license-boundary`                              |
 | Default unit / BDD command                  | `pnpm --filter @hulumi/baseline test -- tests/integration/account-foundation.integration.test.ts`    |
-| Default runtime validation command          | `gh workflow run weekly-integration.yml --ref ticket/24-account-foundation-integration -f tier=both` |
+| Default runtime validation command          | `gh workflow run weekly-integration.yml --ref main -f tier=both` (OIDC trust is main-scoped by design) |
 | Default dependency / security audit command | `pnpm run lint:exact-pin-guard`                                                                      |
 | Default debugger or state-inspection tool   | GitHub Actions job log plus bounded AWS CLI probes in the integration test                           |
 | Public interfaces stable by default         | `yes`                                                                                                |
@@ -179,11 +179,11 @@ weekly-integration workflow
 | Typecheck / build                | `pnpm --filter @hulumi/baseline typecheck && pnpm --filter @hulumi/baseline build`                                                      | passes                                                                          | passed                                                                                                                                                                         | pass    |                                                                                               |
 | Static analysis / lint           | `pnpm --filter @hulumi/baseline lint && pnpm run lint:license-boundary`                                                                 | passes                                                                          | passed                                                                                                                                                                         | pass    | license scan was rerun after build completed; an earlier parallel run saw `dist/` mid-rebuild |
 | Unit / BDD tests                 | `pnpm --filter @hulumi/baseline test -- tests/integration/account-foundation.integration.test.ts`                                       | local skip-gated pass with only the separate failure-injection `todo` remaining | passed with `1 passed`, `2 skipped`, `1 todo`                                                                                                                                  | pass    | startup success path is no longer a todo                                                      |
-| Runtime validation               | `gh workflow run weekly-integration.yml --ref ticket/24-account-foundation-integration -f tier=both`                                    | manual weekly integration passes or auth limitation recorded                    | blocked before test execution: workflow run #25947974310 accepted the branch, but both tier jobs failed at OIDC with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | blocked | trust policy appears main-branch scoped; no Pulumi up ran                                     |
+| Runtime validation               | `gh workflow run weekly-integration.yml --ref main -f tier=both`                                                                        | manual weekly integration passes for both tiers                                 | PASS: run [25953144114](https://github.com/kerberosmansour/hulumi/actions/runs/25953144114) on `main` — **sandbox => success** and **startup-hardened => success**; `account-foundation.integration.test.ts` `2 passed` (real deploy/assert/destroy), real-AWS step + Teardown ✓ | pass    | OIDC trust is main-scoped by design; proof runs from `main`. Sandbox green 9+ runs; startup-hardened required the user-approved production-fix chain (#149,#153–#158) + #150 |
 | Dependency / security audit      | `pnpm run lint:exact-pin-guard`                                                                                                         | passes                                                                          | passed: 13 pinned deps match expected integrity hashes                                                                                                                         | pass    | no deps changed                                                                               |
-| Resource bound / invariant check | weekly workflow job duration + KMS cleanup assertion                                                                                    | under 30 min job timeout; KMS keys not left enabled                             | local assertions implemented; real-AWS timing blocked by branch OIDC trust                                                                                                     | blocked | no AWS resources were created in the blocked run                                              |
+| Resource bound / invariant check | weekly workflow job duration + KMS cleanup assertion                                                                                    | under 30 min job timeout; KMS keys not left enabled                             | PASS: run 25953144114 real-AWS integration ~145s well under the 30-min job timeout; post-destroy KMS-cleanup assertion passed; `pulumi destroy` reclaimed all resources cleanly | pass    | EventDataStore termination-protection now honours forceDestroy (#158); e2e analyzer + EDS self-heal sweeps prevent orphan/cost accrual |
 | Compatibility check              | `pnpm test:integration`                                                                                                                 | command remains safe/contract-only locally                                      | passed: baseline/drift integration commands stayed skip-gated locally                                                                                                          | pass    | no AWS backend or role available locally                                                      |
-| `.gitignore` / artifact cleanup  | `git status --short`                                                                                                                    | no stray integration artifacts outside scoped files                             |                                                                                                                                                                                | pending |                                                                                               |
+| `.gitignore` / artifact cleanup  | `git status --short`                                                                                                                    | no stray integration artifacts outside scoped files                             | passed: worktree clean across all closeout commits                                                                                                                             | pass    |                                                                                               |
 | Diff whitespace                  | `git diff --check`                                                                                                                      | passes                                                                          | passed                                                                                                                                                                         | pass    |                                                                                               |
 
 ---
@@ -214,28 +214,34 @@ Workpad comment: https://github.com/kerberosmansour/hulumi/issues/24#issuecommen
 
 ### Completed
 
-- Replaced the sandbox-only integration gate with a tier-aware real-AWS deploy/assert/destroy body for `sandbox` and `startup-hardened`.
-- Added bounded AWS CLI reachability checks for CloudTrail, Config recorder, GuardDuty, Security Hub, and KMS keys.
-- Added post-destroy KMS cleanup assertion so test-created CMKs must not remain `Enabled`.
-- Updated integration docs and roadmap for the new success-path coverage and remaining failure-injection gap.
+- Replaced the sandbox-only integration gate with a tier-aware real-AWS deploy/assert/destroy body for `sandbox` and `startup-hardened` (PR #146).
+- Added bounded AWS CLI reachability checks for CloudTrail, Config recorder, GuardDuty, Security Hub, and KMS keys; post-destroy KMS-cleanup assertion.
+- **Real-AWS proof captured for BOTH tiers** on `main`, run [25953144114](https://github.com/kerberosmansour/hulumi/actions/runs/25953144114): sandbox **and** startup-hardened deploy → AWS-API assertions → destroy → KMS-cleanup all pass.
+- The startup-hardened lane had **never been deployable**; the real-AWS proof exposed a chain of production defects. Scope was **explicitly extended with user approval** (the §3 Non-Goal gate) to fix them:
+  - #149 — `logs` KMS key policy missing the CloudWatch Logs grant; CloudTrail not wired to its CWL log group (also resolves Codex security finding `205dfa88`).
+  - #153 — CloudTrail S3 data-event selector used a bare bucket ARN; Config `DeliveryChannel` missing `s3KmsKeyArn`.
+  - #154 — self-heal sweep for orphaned e2e IAM Access Analyzers (account quota).
+  - #155 / #156 — dropped the `s3:x-amz-acl` ACL condition (incompatible with `BucketOwnerEnforced`) from the Config delivery **bucket policy** and the **recorder-role** policy.
+  - #157 — opted the Config/CloudTrail delivery bucket out of Object Lock (GOVERNANCE/30d default retention broke Config's write-then-delete delivery validation); SecureBucket keeps Object Lock as the Startup-Hardened default for other consumers.
+  - #158 — EventDataStore `terminationProtectionEnabled` now honours `forceDestroy` so ephemeral stacks tear down; e2e EventDataStore self-heal sweep clears prior cost orphans.
+- #150 — independent: added CrossGuard policy **H5** closing the forged-SecureBucket-URN raw-bucket bypass (Codex security finding `3d1e90c1`).
 
 ### Tests And Validation
 
-- `pnpm --filter @hulumi/baseline test -- tests/integration/account-foundation.integration.test.ts` passed locally with `1 passed`, `2 skipped`, `1 todo`.
-- `pnpm --filter @hulumi/baseline typecheck` passed.
-- `pnpm --filter @hulumi/baseline build` passed.
-- `pnpm --filter @hulumi/baseline lint` passed.
-- `pnpm run lint:license-boundary` passed after sequential rerun.
-- `pnpm run lint:exact-pin-guard` passed.
-- `pnpm run format:check` passed.
-- `pnpm test:integration` passed locally with skip-gated real-AWS lanes.
-- Manual `weekly-integration` run #25947974310 was triggered for `tier=both` on the branch, but both tier jobs failed at AWS OIDC assume-role before test execution.
+- Authoritative runtime proof: weekly-integration run 25953144114 on `main`, `tier=both` — `conclusion=success`; both tier jobs `success`; startup-hardened `account-foundation.integration.test.ts` `2 passed | 5 skipped | 1 todo`, real-AWS step + Teardown ✓, ~145s (well under the 30-min job timeout); post-destroy KMS-cleanup assertion passed; `pulumi destroy` reclaimed all resources.
+- Sandbox real-AWS lane: green across 9+ consecutive runs during the fix chain.
+- Every closeout PR (#149–#158) passed the full CI matrix (typecheck/build/lint, baseline+policies+drift unit suites, license-boundary, exact-pin-guard, cooling-off, DCO, CodeQL) and `git diff --check`.
+- Local skip-gated `account-foundation.integration.test.ts` remains `1 passed` with only the separate failure-injection `todo`.
 
 ### Lessons / Follow-Ups
 
-- Real-AWS pre-merge proof is blocked by the sandbox role trust policy for feature branches. To finish the real AWS proof, either run the workflow after this branch reaches `main`, or temporarily authorize `repo:kerberosmansour/hulumi:ref:refs/heads/ticket/24-account-foundation-integration` in the sandbox OIDC trust policy and rerun workflow #25947974310.
+- The sandbox OIDC trust is **main-scoped by design** ([docs/integration-testing.md](../../integration-testing.md)); real-AWS proof must run from `main`, not a ticket branch. The contract's original branch-ref runtime command was unsatisfiable and has been corrected to `--ref main`.
+- Mock unit suites could not catch any of the startup-hardened production defects — they only surface under real AWS. Each fix was verified by the next real-AWS run advancing (resource count 1 → 9 → 37 → full), not by assertion alone.
+- AWS-doc verification (not guessing) was required: two `s3:x-amz-acl` hypotheses (#155/#156) were AWS-doc-grounded but not the Config-delivery root cause; the Object Lock vs Config-delivery incompatibility (#157), found via the sandbox/startup-hardened tier discriminator, was.
+- Follow-up (not blocking #24): failure-injection teardown scenario remains the documented `it.todo` per the roadmap.
 
 ### PR / Issue Links
 
-- PR: pending
+- PRs: #146 (base), #148, #149, #150, #153, #154, #155, #156, #157, #158 — all merged.
+- Issue: https://github.com/kerberosmansour/hulumi/issues/24
 - Issue: https://github.com/kerberosmansour/hulumi/issues/24

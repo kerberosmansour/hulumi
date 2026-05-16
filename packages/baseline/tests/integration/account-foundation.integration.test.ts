@@ -1,10 +1,9 @@
 // Real-AWS integration tests for `AccountFoundation`.
 //
-// The sandbox smoke path is intentionally narrow: it proves the secured
-// backend + OIDC + Pulumi Automation API path can create and destroy a real
-// AccountFoundation stack. Startup-Hardened and failure-injection scenarios
-// remain explicit roadmap work because they mutate more account-wide services
-// and need their own latency/cost evidence.
+// The weekly/manual path proves the secured backend + OIDC + Pulumi Automation
+// API path can create, inspect, and destroy real AccountFoundation stacks for
+// both supported tiers. Failure-injection remains roadmap work because it needs
+// a separate cost and blast-radius contract.
 
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -18,34 +17,131 @@ import {
   type InlineProgramArgs,
   type Stack,
 } from "@pulumi/pulumi/automation";
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { AccountFoundation } from "../../src/aws/account-foundation";
 
 const RUN_INTEGRATION = process.env.HULUMI_INTEGRATION === "1";
-const TIER = process.env.HULUMI_TIER ?? "sandbox";
+const RAW_TIER = process.env.HULUMI_TIER ?? "sandbox";
 const REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1";
 const IAC_ROLE_ARN = process.env.HULUMI_IAC_ROLE_ARN;
 const HAS_BACKEND = Boolean(process.env.PULUMI_BACKEND_URL ?? process.env.PULUMI_ACCESS_TOKEN);
 
-const SANDBOX_ENABLED = Boolean(
-  RUN_INTEGRATION && TIER === "sandbox" && HAS_BACKEND && IAC_ROLE_ARN,
+type AccountFoundationIntegrationTier = "sandbox" | "startup-hardened";
+
+function parseIntegrationTier(value: string): AccountFoundationIntegrationTier | undefined {
+  return value === "sandbox" || value === "startup-hardened" ? value : undefined;
+}
+
+const SELECTED_TIER = parseIntegrationTier(RAW_TIER);
+const ENABLED = Boolean(
+  RUN_INTEGRATION && SELECTED_TIER !== undefined && HAS_BACKEND && IAC_ROLE_ARN,
 );
 const TEST_ID = randomUUID().replace(/-/g, "").slice(0, 10);
-const RESOURCE_PREFIX = `af-e2e-${TEST_ID}`;
-const STACK_NAME = `sandbox-${TEST_ID}`;
+const RESOURCE_PREFIX = `af-e2e-${SELECTED_TIER === "startup-hardened" ? "sh" : "sb"}-${TEST_ID}`;
+const STACK_NAME = `${SELECTED_TIER ?? "unknown"}-${TEST_ID}`;
 const PROJECT_NAME = "hulumi-account-foundation-e2e";
 const WORK_DIR = resolve(__dirname, ".tmp", `${PROJECT_NAME}-${TEST_ID}`);
 const PULUMI_HOME = resolve(WORK_DIR, ".pulumi-home");
+const STARTUP_LOG_TARGET_BUCKET = `${RESOURCE_PREFIX}-logs-self-logging`;
+const AWS_POLL_MS = 10_000;
+const AWS_REACHABILITY_TIMEOUT_MS = 5 * 60 * 1000;
 const execFileAsync = promisify(execFile);
 
-async function findExistingGuardDutyDetectorId(region: string): Promise<string | undefined> {
-  const { stdout } = await execFileAsync(
-    "aws",
-    ["guardduty", "list-detectors", "--region", region, "--output", "json"],
-    { timeout: 30_000, maxBuffer: 1024 * 1024 },
+interface CloudTrailGetTrailResponse {
+  Trail?: {
+    TrailARN?: string;
+    IsMultiRegionTrail?: boolean;
+    LogFileValidationEnabled?: boolean;
+  };
+}
+
+interface CloudTrailStatusResponse {
+  IsLogging?: boolean;
+}
+
+interface ConfigRecorderResponse {
+  ConfigurationRecorders?: Array<{ name?: string }>;
+}
+
+interface GuardDutyDetectorResponse {
+  Status?: string;
+}
+
+interface SecurityHubDescribeHubResponse {
+  HubArn?: string;
+}
+
+interface KmsDescribeKeyResponse {
+  KeyMetadata?: {
+    KeyState?: string;
+  };
+}
+
+interface KmsRotationStatusResponse {
+  KeyRotationEnabled?: boolean;
+}
+
+interface CallerIdentityResponse {
+  Account?: string;
+}
+
+function requireSelectedTier(): AccountFoundationIntegrationTier {
+  if (SELECTED_TIER === undefined) {
+    throw new Error(`Unsupported HULUMI_TIER=${RAW_TIER}`);
+  }
+  return SELECTED_TIER;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function errorText(err: unknown): string {
+  if (err instanceof Error) {
+    const stderr = "stderr" in err && typeof err.stderr === "string" ? err.stderr : "";
+    return `${err.message}\n${stderr}`;
+  }
+  return String(err);
+}
+
+function isMissingAwsResource(err: unknown): boolean {
+  return /NoSuchBucket|NoSuchEntity|NotFound|NotFoundException|ResourceNotFoundException/i.test(
+    errorText(err),
   );
-  const parsed = JSON.parse(stdout) as { DetectorIds?: unknown };
+}
+
+async function aws(args: readonly string[], timeout = 30_000): Promise<string> {
+  const { stdout } = await execFileAsync("aws", [...args], {
+    timeout,
+    maxBuffer: 1024 * 1024,
+  });
+  return stdout;
+}
+
+async function awsJson<T>(args: readonly string[], timeout = 30_000): Promise<T> {
+  const stdout = await aws([...args, "--output", "json"], timeout);
+  return JSON.parse(stdout) as T;
+}
+
+async function waitUntil(description: string, check: () => Promise<boolean>): Promise<void> {
+  const deadline = Date.now() + AWS_REACHABILITY_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await sleep(AWS_POLL_MS);
+  }
+  throw new Error(
+    `${description} did not become reachable within ${AWS_REACHABILITY_TIMEOUT_MS}ms`,
+  );
+}
+
+async function findExistingGuardDutyDetectorId(region: string): Promise<string | undefined> {
+  const parsed = await awsJson<{ DetectorIds?: unknown }>([
+    "guardduty",
+    "list-detectors",
+    "--region",
+    region,
+  ]);
   if (!Array.isArray(parsed.DetectorIds)) {
     return undefined;
   }
@@ -54,20 +150,15 @@ async function findExistingGuardDutyDetectorId(region: string): Promise<string |
 
 async function isSecurityHubEnabled(region: string): Promise<boolean> {
   try {
-    await execFileAsync(
-      "aws",
-      ["securityhub", "describe-hub", "--region", region, "--output", "json"],
-      {
-        timeout: 30_000,
-        maxBuffer: 1024 * 1024,
-      },
-    );
+    await awsJson<SecurityHubDescribeHubResponse>([
+      "securityhub",
+      "describe-hub",
+      "--region",
+      region,
+    ]);
     return true;
   } catch (err) {
-    const text =
-      err instanceof Error
-        ? `${err.message}\n${"stderr" in err && typeof err.stderr === "string" ? err.stderr : ""}`
-        : String(err);
+    const text = errorText(err);
     if (/InvalidAccessException|not subscribed|not enabled/i.test(text)) {
       return false;
     }
@@ -85,22 +176,243 @@ function envWithDefined(values: Record<string, string | undefined>): Record<stri
   return out;
 }
 
+async function ensureStartupLoggingTargetBucket(): Promise<void> {
+  if (SELECTED_TIER !== "startup-hardened") return;
+
+  try {
+    await aws(["s3api", "head-bucket", "--bucket", STARTUP_LOG_TARGET_BUCKET]);
+  } catch (err) {
+    if (!isMissingAwsResource(err)) throw err;
+    const createBucketArgs =
+      REGION === "us-east-1"
+        ? ["s3api", "create-bucket", "--bucket", STARTUP_LOG_TARGET_BUCKET, "--region", REGION]
+        : [
+            "s3api",
+            "create-bucket",
+            "--bucket",
+            STARTUP_LOG_TARGET_BUCKET,
+            "--region",
+            REGION,
+            "--create-bucket-configuration",
+            `LocationConstraint=${REGION}`,
+          ];
+    await aws(createBucketArgs);
+  }
+
+  await aws([
+    "s3api",
+    "put-public-access-block",
+    "--bucket",
+    STARTUP_LOG_TARGET_BUCKET,
+    "--public-access-block-configuration",
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+  ]);
+  await aws([
+    "s3api",
+    "put-bucket-encryption",
+    "--bucket",
+    STARTUP_LOG_TARGET_BUCKET,
+    "--server-side-encryption-configuration",
+    '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}',
+  ]);
+
+  const identity = await awsJson<CallerIdentityResponse>(["sts", "get-caller-identity"]);
+  const account = identity.Account;
+  if (account === undefined || account.length === 0) {
+    throw new Error("Unable to resolve AWS account for startup logging target policy");
+  }
+  await aws([
+    "s3api",
+    "put-bucket-policy",
+    "--bucket",
+    STARTUP_LOG_TARGET_BUCKET,
+    "--policy",
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Sid: "AllowS3ServerAccessLogs",
+          Effect: "Allow",
+          Principal: { Service: "logging.s3.amazonaws.com" },
+          Action: "s3:PutObject",
+          Resource: `arn:aws:s3:::${STARTUP_LOG_TARGET_BUCKET}/${RESOURCE_PREFIX}-logs/*`,
+          Condition: {
+            StringEquals: { "aws:SourceAccount": account },
+          },
+        },
+      ],
+    }),
+  ]);
+}
+
+async function cleanupStartupLoggingTargetBucket(): Promise<void> {
+  if (SELECTED_TIER !== "startup-hardened") return;
+  try {
+    await aws(["s3", "rm", `s3://${STARTUP_LOG_TARGET_BUCKET}`, "--recursive"], 120_000);
+  } catch (err) {
+    if (!isMissingAwsResource(err)) throw err;
+  }
+  for (const args of [
+    ["s3api", "delete-bucket-policy", "--bucket", STARTUP_LOG_TARGET_BUCKET],
+    ["s3api", "delete-public-access-block", "--bucket", STARTUP_LOG_TARGET_BUCKET],
+    ["s3api", "delete-bucket", "--bucket", STARTUP_LOG_TARGET_BUCKET, "--region", REGION],
+  ]) {
+    try {
+      await aws(args);
+    } catch (err) {
+      if (!isMissingAwsResource(err)) throw err;
+    }
+  }
+}
+
+function configRecorderNameFromArn(arn: string): string {
+  const marker = ":recorder/";
+  const index = arn.indexOf(marker);
+  if (index === -1) {
+    throw new Error("Config recorder output did not contain an ARN recorder segment");
+  }
+  return arn.slice(index + marker.length);
+}
+
+async function assertCloudTrailReachable(
+  trailArn: string,
+  tier: AccountFoundationIntegrationTier,
+): Promise<void> {
+  await waitUntil("CloudTrail trail", async () => {
+    const trail = await awsJson<CloudTrailGetTrailResponse>([
+      "cloudtrail",
+      "get-trail",
+      "--name",
+      trailArn,
+      "--region",
+      REGION,
+    ]);
+    const status = await awsJson<CloudTrailStatusResponse>([
+      "cloudtrail",
+      "get-trail-status",
+      "--name",
+      trailArn,
+      "--region",
+      REGION,
+    ]);
+    const startupExpected =
+      tier !== "startup-hardened" ||
+      (trail.Trail?.IsMultiRegionTrail === true && trail.Trail?.LogFileValidationEnabled === true);
+    return (
+      typeof trail.Trail?.TrailARN === "string" &&
+      trail.Trail.TrailARN.length > 0 &&
+      status.IsLogging === true &&
+      startupExpected
+    );
+  });
+}
+
+async function assertConfigRecorderReachable(recorderArn: string): Promise<void> {
+  const recorderName = configRecorderNameFromArn(recorderArn);
+  await waitUntil("Config recorder", async () => {
+    const response = await awsJson<ConfigRecorderResponse>([
+      "configservice",
+      "describe-configuration-recorders",
+      "--configuration-recorder-names",
+      recorderName,
+      "--region",
+      REGION,
+    ]);
+    return (
+      response.ConfigurationRecorders?.some((recorder) => recorder.name === recorderName) === true
+    );
+  });
+}
+
+async function assertGuardDutyReachable(detectorId: string): Promise<void> {
+  await waitUntil("GuardDuty detector", async () => {
+    const response = await awsJson<GuardDutyDetectorResponse>([
+      "guardduty",
+      "get-detector",
+      "--detector-id",
+      detectorId,
+      "--region",
+      REGION,
+    ]);
+    return response.Status === "ENABLED";
+  });
+}
+
+async function assertSecurityHubReachable(): Promise<void> {
+  await waitUntil("Security Hub hub", async () => {
+    const response = await awsJson<SecurityHubDescribeHubResponse>([
+      "securityhub",
+      "describe-hub",
+      "--region",
+      REGION,
+    ]);
+    return typeof response.HubArn === "string" && response.HubArn.includes(":securityhub:");
+  });
+}
+
+async function assertKmsKeysReachable(kmsKeyArns: Record<string, string>): Promise<void> {
+  expect(Object.keys(kmsKeyArns).sort()).toEqual(["config", "data", "logs", "secrets"]);
+  for (const [service, arn] of Object.entries(kmsKeyArns)) {
+    await waitUntil(`KMS ${service} key`, async () => {
+      const key = await awsJson<KmsDescribeKeyResponse>([
+        "kms",
+        "describe-key",
+        "--key-id",
+        arn,
+        "--region",
+        REGION,
+      ]);
+      const rotation = await awsJson<KmsRotationStatusResponse>([
+        "kms",
+        "get-key-rotation-status",
+        "--key-id",
+        arn,
+        "--region",
+        REGION,
+      ]);
+      return key.KeyMetadata?.KeyState === "Enabled" && rotation.KeyRotationEnabled === true;
+    });
+  }
+}
+
+async function assertKmsKeysNotEnabled(kmsKeyArns: Record<string, string>): Promise<void> {
+  const stillEnabled: string[] = [];
+  for (const [service, arn] of Object.entries(kmsKeyArns)) {
+    try {
+      const key = await awsJson<KmsDescribeKeyResponse>([
+        "kms",
+        "describe-key",
+        "--key-id",
+        arn,
+        "--region",
+        REGION,
+      ]);
+      if (key.KeyMetadata?.KeyState === "Enabled") {
+        stillEnabled.push(service);
+      }
+    } catch (err) {
+      if (!isMissingAwsResource(err)) throw err;
+    }
+  }
+  if (stillEnabled.length > 0) {
+    throw new Error(
+      `[account-foundation-e2e] KMS keys still enabled after destroy: ${stillEnabled.join(", ")}`,
+    );
+  }
+}
+
 const skipReason = !RUN_INTEGRATION
   ? "HULUMI_INTEGRATION!=1 — set to 1 to opt into real-AWS integration"
-  : TIER !== "sandbox"
-    ? `HULUMI_TIER=${TIER} — sandbox smoke is the first real-AWS lane; startup-hardened remains roadmap work`
+  : SELECTED_TIER === undefined
+    ? `HULUMI_TIER=${RAW_TIER} — expected sandbox or startup-hardened`
     : !HAS_BACKEND
       ? "no Pulumi backend configured — set PULUMI_BACKEND_URL or PULUMI_ACCESS_TOKEN"
       : "HULUMI_IAC_ROLE_ARN unset — AccountFoundation requires the IaC role ARN";
 
 describe("AccountFoundation — real AWS integration (weekly)", () => {
   // See docs/integration-testing-roadmap.md#account-foundation for the
-  // full implementation contract: stack name, region, sub-resource
-  // poll list, cleanup invariant, expected wall-clock cost.
-  it.todo(
-    "Startup-Hardened tier: all 6 sub-resources + extended within 15 minutes (see docs/integration-testing-roadmap.md#account-foundation)",
-  );
-
+  // remaining failure-injection contract. Success-path sandbox and
+  // startup-hardened deploy/assert/destroy coverage lives below.
   it.todo(
     "Teardown runs on failure (force-fail variant) (see docs/integration-testing-roadmap.md#account-foundation)",
   );
@@ -114,27 +426,31 @@ describe("AccountFoundation — real AWS integration (weekly)", () => {
   });
 });
 
-describe.skipIf(!SANDBOX_ENABLED)(
-  "AccountFoundation — sandbox real AWS smoke (OIDC + S3 backend)",
+describe.skipIf(!ENABLED)(
+  "AccountFoundation — real AWS deploy/assert/destroy (OIDC + Pulumi backend)",
   () => {
     let stack: Stack | undefined;
     let existingGuardDutyDetectorId: string | undefined;
     let useExistingSecurityHubAccount = false;
+    let kmsKeyArns: Record<string, string> = {};
 
     beforeAll(async () => {
       mkdirSync(WORK_DIR, { recursive: true });
+      await ensureStartupLoggingTargetBucket();
       existingGuardDutyDetectorId = await findExistingGuardDutyDetectorId(REGION);
       useExistingSecurityHubAccount = await isSecurityHubEnabled(REGION);
       const pulumiCommand = await PulumiCommand.install();
+      const tier = requireSelectedTier();
       const args: InlineProgramArgs = {
         stackName: STACK_NAME,
         projectName: PROJECT_NAME,
         program: async () => {
           const foundation = new AccountFoundation(RESOURCE_PREFIX, {
-            tier: "sandbox",
+            tier,
             iacRoleArn: IAC_ROLE_ARN!,
             region: REGION,
             logBucketForceDestroy: true,
+            ...(tier === "startup-hardened" ? { kmsDenyWithoutTag: "off" as const } : {}),
             ...(existingGuardDutyDetectorId !== undefined ? { existingGuardDutyDetectorId } : {}),
             ...(useExistingSecurityHubAccount ? { useExistingSecurityHubAccount } : {}),
           });
@@ -173,9 +489,25 @@ describe.skipIf(!SANDBOX_ENABLED)(
           cleanupError = err;
         }
         try {
+          await assertKmsKeysNotEnabled(kmsKeyArns);
+        } catch (err) {
+          console.error("[account-foundation-e2e] KMS cleanup assertion failed");
+          if (cleanupError === undefined) {
+            cleanupError = err;
+          }
+        }
+        try {
           await stack.workspace.removeStack(stack.name);
         } catch (err) {
           console.error("[account-foundation-e2e] removeStack failed");
+          if (cleanupError === undefined) {
+            cleanupError = err;
+          }
+        }
+        try {
+          await cleanupStartupLoggingTargetBucket();
+        } catch (err) {
+          console.error("[account-foundation-e2e] startup log target cleanup failed");
           if (cleanupError === undefined) {
             cleanupError = err;
           }
@@ -185,11 +517,12 @@ describe.skipIf(!SANDBOX_ENABLED)(
           throw cleanupError;
         }
       } else {
+        await cleanupStartupLoggingTargetBucket();
         rmSync(WORK_DIR, { recursive: true, force: true });
       }
     }, 300_000);
 
-    it("deploys AccountFoundation sandbox and returns real provider outputs", async () => {
+    it("deploys AccountFoundation, reaches AWS APIs, and leaves no enabled KMS keys after destroy", async () => {
       expect(stack).toBeDefined();
       const up = await stack!.up({ onOutput: () => undefined });
       expect(up.summary.result).toBe("succeeded");
@@ -200,18 +533,24 @@ describe.skipIf(!SANDBOX_ENABLED)(
       expect(outputs.guardDutyDetectorId?.value).toEqual(expect.any(String));
       expect(outputs.securityHubHubArn?.value).toEqual(expect.stringContaining(":securityhub:"));
 
-      const kmsKeyArns = outputs.kmsKeyArns?.value as Record<string, string> | undefined;
-      expect(kmsKeyArns).toBeDefined();
-      expect(Object.keys(kmsKeyArns ?? {}).sort()).toEqual(["config", "data", "logs", "secrets"]);
-      for (const arn of Object.values(kmsKeyArns ?? {})) {
-        expect(arn).toEqual(expect.stringContaining(":kms:"));
-      }
+      const trailArn = outputs.cloudTrailArn?.value as string;
+      const configRecorderArn = outputs.configRecorderArn?.value as string;
+      const guardDutyDetectorId = outputs.guardDutyDetectorId?.value as string;
+      const outputKmsKeyArns = outputs.kmsKeyArns?.value as Record<string, string> | undefined;
+      expect(outputKmsKeyArns).toBeDefined();
+      kmsKeyArns = outputKmsKeyArns ?? {};
+
+      await assertCloudTrailReachable(trailArn, requireSelectedTier());
+      await assertConfigRecorderReachable(configRecorderArn);
+      await assertGuardDutyReachable(guardDutyDetectorId);
+      await assertSecurityHubReachable();
+      await assertKmsKeysReachable(kmsKeyArns);
     }, 900_000);
   },
 );
 
-if (!SANDBOX_ENABLED) {
-  describe("AccountFoundation — sandbox real AWS smoke skip notice", () => {
+if (!ENABLED) {
+  describe("AccountFoundation — real AWS integration skip notice", () => {
     it.skip(`integration suite skipped (${skipReason})`, () => {
       // intentionally empty
     });

@@ -125,6 +125,11 @@ export function createConfigService(args: ConfigHelperArgs): ConfigHelperResult 
     `${args.namePrefix}-config-delivery`,
     {
       s3BucketName: args.logBucketName,
+      // The log bucket has SSE-KMS default encryption (SecureBucket), so
+      // AWS Config must be told the CMK or PutDeliveryChannel fails with
+      // InsufficientDeliveryPolicyException ("provided kms key is
+      // 'null'"). The recorder role policy already grants this key.
+      s3KmsKeyArn: args.logKmsKeyArn,
       snapshotDeliveryProperties: {
         deliveryFrequency: args.tier === "startup-hardened" ? "One_Hour" : "TwentyFour_Hours",
       },

@@ -274,6 +274,13 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       new aws.cloudtrail.EventDataStore(
         `${name}-data-events`,
         {
+          // AWS defaults terminationProtectionEnabled=true, which makes
+          // the store impossible to `pulumi destroy`. Keep that protective
+          // default for real deployments, but honour the component's
+          // forceDestroy contract: when a consumer asks for a fully
+          // tear-down-able bucket (e.g. ephemeral e2e stacks) the data
+          // store must be deletable too.
+          terminationProtectionEnabled: args.forceDestroy === true ? false : true,
           retentionPeriod: 7,
           advancedEventSelectors: [
             {

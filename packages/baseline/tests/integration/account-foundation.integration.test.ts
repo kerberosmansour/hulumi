@@ -308,6 +308,70 @@ async function sweepStaleE2eAnalyzers(): Promise<void> {
   }
 }
 
+// The Startup-Hardened SecureBucket creates a CloudTrail EventDataStore.
+// A prior e2e run that created one but failed before `destroy` (or whose
+// store predates the forceDestroy fix) leaves a TERMINATION-PROTECTED,
+// billable store behind. Sweep only this suite's own stores —
+// `af-e2e-*-data-events` — disabling termination protection first so the
+// delete succeeds. Scoped by name so a real audit store is never touched.
+async function sweepStaleE2eEventDataStores(): Promise<void> {
+  if (SELECTED_TIER !== "startup-hardened") return;
+  let listed: {
+    EventDataStores?: {
+      EventDataStoreArn?: string;
+      Name?: string;
+      TerminationProtectionEnabled?: boolean;
+      Status?: string;
+    }[];
+  };
+  try {
+    listed = await awsJson(["cloudtrail", "list-event-data-stores", "--region", REGION]);
+  } catch (err) {
+    if (isMissingAwsResource(err)) return;
+    throw err;
+  }
+  const stale = (listed.EventDataStores ?? []).filter(
+    (
+      eds,
+    ): eds is {
+      EventDataStoreArn: string;
+      Name: string;
+      TerminationProtectionEnabled?: boolean;
+      Status?: string;
+    } =>
+      typeof eds.EventDataStoreArn === "string" &&
+      typeof eds.Name === "string" &&
+      eds.Name.startsWith("af-e2e-") &&
+      eds.Name.endsWith("-data-events") &&
+      eds.Status !== "PENDING_DELETION",
+  );
+  for (const eds of stale) {
+    try {
+      if (eds.TerminationProtectionEnabled === true) {
+        await aws([
+          "cloudtrail",
+          "update-event-data-store",
+          "--event-data-store",
+          eds.EventDataStoreArn,
+          "--no-termination-protection-enabled",
+          "--region",
+          REGION,
+        ]);
+      }
+      await aws([
+        "cloudtrail",
+        "delete-event-data-store",
+        "--event-data-store",
+        eds.EventDataStoreArn,
+        "--region",
+        REGION,
+      ]);
+    } catch (err) {
+      if (!isMissingAwsResource(err)) throw err;
+    }
+  }
+}
+
 function configRecorderNameFromArn(arn: string): string {
   const marker = ":recorder/";
   const index = arn.indexOf(marker);
@@ -480,6 +544,7 @@ describe.skipIf(!ENABLED)(
     beforeAll(async () => {
       mkdirSync(WORK_DIR, { recursive: true });
       await sweepStaleE2eAnalyzers();
+      await sweepStaleE2eEventDataStores();
       await ensureStartupLoggingTargetBucket();
       existingGuardDutyDetectorId = await findExistingGuardDutyDetectorId(REGION);
       useExistingSecurityHubAccount = await isSecurityHubEnabled(REGION);
@@ -564,6 +629,14 @@ describe.skipIf(!ENABLED)(
             cleanupError = err;
           }
         }
+        try {
+          await sweepStaleE2eEventDataStores();
+        } catch (err) {
+          console.error("[account-foundation-e2e] stale event-data-store sweep failed");
+          if (cleanupError === undefined) {
+            cleanupError = err;
+          }
+        }
         rmSync(WORK_DIR, { recursive: true, force: true });
         if (cleanupError !== undefined) {
           throw cleanupError;
@@ -571,6 +644,7 @@ describe.skipIf(!ENABLED)(
       } else {
         await cleanupStartupLoggingTargetBucket();
         await sweepStaleE2eAnalyzers();
+        await sweepStaleE2eEventDataStores();
         rmSync(WORK_DIR, { recursive: true, force: true });
       }
     }, 300_000);

@@ -245,6 +245,26 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
     const eds = findRegistration("aws:cloudtrail/eventDataStore:EventDataStore");
     expect(eds).toBeDefined();
     expect(eds!.inputs.retentionPeriod).toBe(7);
+    // Default (no forceDestroy): the audit data store stays
+    // termination-protected.
+    expect(eds!.inputs.terminationProtectionEnabled).toBe(true);
+  });
+
+  it("forceDestroy makes the EventDataStore deletable (terminationProtectionEnabled=false)", async () => {
+    const bucket = new SecureBucket("sb-hard-fd", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+      forceDestroy: true,
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+
+    // Regression: AWS defaults terminationProtectionEnabled=true, which
+    // makes `pulumi destroy` impossible. Ephemeral stacks that opt into
+    // forceDestroy must be able to tear the store down too.
+    const eds = findRegistration("aws:cloudtrail/eventDataStore:EventDataStore");
+    expect(eds).toBeDefined();
+    expect(eds!.inputs.terminationProtectionEnabled).toBe(false);
   });
 
   it("objectLock:false disables Object Lock entirely but keeps Logging + EventDataStore", async () => {

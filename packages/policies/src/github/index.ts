@@ -4,6 +4,8 @@
 // One PolicyPack per process per @pulumi/policy contract; see
 // packs/hulumi-hardening.ts and packs/cis-v1.ts for the entry points.
 
+export { federatedIsGithubOidc, GITHUB_OIDC_ISSUER_HOST } from "./github-oidc-issuer";
+
 export {
   G_OIDC_1,
   G_OIDC_1_AWS_IAM_ROLE_TYPE,

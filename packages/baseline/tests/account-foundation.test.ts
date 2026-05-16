@@ -480,6 +480,55 @@ describe("AccountFoundation — kmsDenyWithoutTag modes", () => {
   });
 });
 
+describe("AccountFoundation — real-AWS deploy-blocking regression guards", () => {
+  beforeEach(resetRegistrations);
+
+  // Regression: bare bucket ARNs in CloudTrail S3 data-event selectors
+  // are rejected by AWS with InvalidEventSelectorsException. The value
+  // must be an object-level ARN (trailing slash = all objects).
+  it("startup-hardened CloudTrail S3 data-event selector uses an object-level ARN (trailing slash)", async () => {
+    const af = new AccountFoundation("af-evsel", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111"],
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+
+    const trail = registrations.find((r) => r.type === "aws:cloudtrail/trail:Trail");
+    expect(trail).toBeDefined();
+    const selectors = trail!.inputs.eventSelectors as Array<{
+      dataResources?: Array<{ type: string; values: string[] }>;
+    }>;
+    const values = selectors.flatMap((s) => s.dataResources ?? []).flatMap((d) => d.values);
+    expect(values.length).toBeGreaterThan(0);
+    for (const v of values) {
+      expect(typeof v).toBe("string");
+      expect(v.endsWith("/")).toBe(true);
+    }
+  });
+
+  // Regression: the log bucket has SSE-KMS default encryption, so the
+  // AWS Config DeliveryChannel must carry the CMK or PutDeliveryChannel
+  // fails with InsufficientDeliveryPolicyException.
+  it("Config DeliveryChannel sets s3KmsKeyArn for the KMS-encrypted log bucket (both tiers)", async () => {
+    for (const tier of ["sandbox", "startup-hardened"] as const) {
+      resetRegistrations();
+      const af = new AccountFoundation(`af-dc-${tier}`, {
+        tier,
+        iacRoleArn: IAC_ROLE_ARN,
+        ...(tier === "startup-hardened" ? { orgAccountIds: ["111111111111"] } : {}),
+      });
+      await valueOf(af.configRecorderArn);
+      await settlePulumi();
+
+      const dc = registrations.find((r) => r.type === "aws:cfg/deliveryChannel:DeliveryChannel");
+      expect(dc, `DeliveryChannel missing for tier=${tier}`).toBeDefined();
+      expect(dc!.inputs.s3KmsKeyArn, `s3KmsKeyArn missing for tier=${tier}`).toBeDefined();
+    }
+  });
+});
+
 describe("AccountFoundation — CloudTrail log group output for downstream alarms", () => {
   beforeEach(resetRegistrations);
 

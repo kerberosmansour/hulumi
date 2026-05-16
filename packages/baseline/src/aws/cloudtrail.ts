@@ -38,7 +38,12 @@ export function createCloudTrail(args: CloudTrailHelperArgs): CloudTrailHelperRe
             dataResources: [
               {
                 type: "AWS::S3::Object",
-                values: [args.dataEventBucketArn],
+                // CloudTrail S3 object data events need an object-level
+                // ARN; a bare bucket ARN is rejected with
+                // InvalidEventSelectorsException. The trailing slash
+                // scopes it to all objects in the bucket (matches the
+                // AuditTrail component).
+                values: [pulumi.interpolate`${args.dataEventBucketArn}/`],
               },
             ],
           },

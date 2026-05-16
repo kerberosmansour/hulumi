@@ -13,9 +13,18 @@ export {
 } from "./g-oidc-1";
 
 export {
+  G_OIDC_2,
+  G_OIDC_2_AWS_IAM_ROLE_TYPE,
+  G_OIDC_2_EKS_ACCESS_POLICY_ASSOCIATION_TYPE,
+  G_OIDC_2_IAM_ROLE_POLICY_ATTACHMENT_TYPE,
+  trustPolicyTrustsGithubOidc,
+} from "./g-oidc-2";
+
+export {
   h1NoRawGithubRepository,
   h2NoWildcardOidcTemplate,
   h3NoWildcardTrustPolicy,
+  h4NoClusterAdminViaGithubOidc,
   HULUMI_HARDENING_PACK_GITHUB_NAME,
   hulumiHardeningPackGithubMetadata,
 } from "./hulumi-hardening-pack.rules";

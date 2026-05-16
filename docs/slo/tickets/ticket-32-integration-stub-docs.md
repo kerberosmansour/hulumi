@@ -189,7 +189,7 @@ Workpad comment: https://github.com/kerberosmansour/hulumi/issues/32#issuecommen
 - [x] Did I use a debugger or state-inspection tool when failure evidence was ambiguous?
 - [x] Did I remove temporary proof edits, debug output, and placeholder logic?
 - [x] Did I record evidence rather than claims?
-- [ ] Did I update the issue workpad and PR handoff notes?
+- [x] Did I update the issue workpad and PR handoff notes?
 
 ---
 
@@ -216,5 +216,5 @@ Workpad comment: https://github.com/kerberosmansour/hulumi/issues/32#issuecommen
 
 ### PR / Issue Links
 
-- PR: pending
+- PR: https://github.com/kerberosmansour/hulumi/pull/147
 - Issue: https://github.com/kerberosmansour/hulumi/issues/32

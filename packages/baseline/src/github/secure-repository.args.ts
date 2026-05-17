@@ -78,6 +78,22 @@ interface SecureRepositoryArgsCommon {
    * SecureRepository `name` when `adoptExisting` is true.
    */
   importRepositoryId?: string;
+  /**
+   * GitHub ruleset name to manage. Defaults to `${name}-ruleset`.
+   * Keep this set after importing a manually named existing ruleset.
+   */
+  rulesetName?: string;
+  /**
+   * Adopt an existing GitHub repository ruleset through Pulumi import.
+   * Requires `adoptExisting: true` and `rulesetImportId`.
+   */
+  adoptExistingRuleset?: boolean;
+  /**
+   * Pulumi import ID for the existing repository ruleset. The GitHub
+   * provider expects `<repository-name>:<ruleset-id>`, for example
+   * `zaprun:16489045`.
+   */
+  rulesetImportId?: string;
   /** Free-form description; the tag triple is appended automatically. */
   description?: pulumi.Input<string>;
   /** Repository topics (search labels). */

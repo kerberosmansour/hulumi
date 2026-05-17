@@ -33,11 +33,13 @@ function findRulesetFor(name: string): Registration | undefined {
   );
 }
 
-function captureRepositoryOptions(): {
-  seen: Array<{ ignoreChanges?: string[]; import?: string }>;
+function captureSecureRepositoryChildOptions(): {
+  repositories: Array<{ ignoreChanges?: string[]; import?: string }>;
+  rulesets: Array<{ import?: string }>;
   transformations: ResourceTransformation[];
 } {
-  const seen: Array<{ ignoreChanges?: string[]; import?: string }> = [];
+  const repositories: Array<{ ignoreChanges?: string[]; import?: string }> = [];
+  const rulesets: Array<{ import?: string }> = [];
   const transformations: ResourceTransformation[] = [
     (args) => {
       if (args.type === "github:index/repository:Repository") {
@@ -45,12 +47,18 @@ function captureRepositoryOptions(): {
         const captured: { ignoreChanges?: string[]; import?: string } = {};
         if (opts.ignoreChanges !== undefined) captured.ignoreChanges = opts.ignoreChanges;
         if (opts.import !== undefined) captured.import = opts.import;
-        seen.push(captured);
+        repositories.push(captured);
+      }
+      if (args.type === "github:index/repositoryRuleset:RepositoryRuleset") {
+        const opts = args.opts as { import?: string };
+        const captured: { import?: string } = {};
+        if (opts.import !== undefined) captured.import = opts.import;
+        rulesets.push(captured);
       }
       return undefined;
     },
   ];
-  return { seen, transformations };
+  return { repositories, rulesets, transformations };
 }
 
 describe("SecureRepository — Sandbox tier emits private repo + ruleset (happy path)", () => {
@@ -240,7 +248,7 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
   beforeEach(resetRegistrations);
 
   it("[happy path] imports an existing private repo while preserving hardened posture", async () => {
-    const repoOptions = captureRepositoryOptions();
+    const childOptions = captureSecureRepositoryChildOptions();
     const repo = new SecureRepository(
       "adopt-private",
       {
@@ -248,8 +256,11 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
         visibility: "private",
         adoptExisting: true,
         importRepositoryId: "adopt-private",
+        rulesetName: "existing-default-branch",
+        adoptExistingRuleset: true,
+        rulesetImportId: "adopt-private:12345",
       },
-      { transformations: repoOptions.transformations },
+      { transformations: childOptions.transformations },
     );
     await valueOf(repo.repoFullName);
     await settlePulumi();
@@ -267,6 +278,8 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
 
     const ruleset = findRulesetFor("adopt-private-ruleset");
     expect(ruleset).toBeDefined();
+    expect(ruleset!.id).toBe("adopt-private:12345");
+    expect(ruleset!.inputs.name).toBe("existing-default-branch");
     expect(ruleset!.inputs.enforcement).toBe("active");
     const rules = ruleset!.inputs.rules as Record<string, unknown>;
     expect(rules.deletion).toBe(true);
@@ -274,9 +287,9 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
     expect(rules.requiredSignatures).toBe(true);
     expect(rules.requiredLinearHistory).toBe(true);
     expect(rules.pullRequest).toBeDefined();
-    expect(repoOptions.seen).toHaveLength(1);
-    expect(repoOptions.seen[0]!.import).toBe("adopt-private");
-    expect(repoOptions.seen[0]!.ignoreChanges).toEqual(
+    expect(childOptions.repositories).toHaveLength(1);
+    expect(childOptions.repositories[0]!.import).toBe("adopt-private");
+    expect(childOptions.repositories[0]!.ignoreChanges).toEqual(
       expect.arrayContaining([
         "autoInit",
         "hasDownloads",
@@ -286,6 +299,8 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
         "ignoreVulnerabilityAlertsDuringRead",
       ]),
     );
+    expect(childOptions.rulesets).toHaveLength(1);
+    expect(childOptions.rulesets[0]!.import).toBe("adopt-private:12345");
   });
 
   it("[empty state] defaults the import id to the repository name", async () => {
@@ -313,6 +328,42 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
     }).toThrow(/importRepositoryId requires adoptExisting: true/);
   });
 
+  it("[invalid input] rejects rulesetImportId without explicit ruleset adoption", () => {
+    const partialArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExisting: true,
+      rulesetImportId: "existing-zaprun:12345",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("ruleset-partial", partialArgs);
+    }).toThrow(/rulesetImportId requires adoptExistingRuleset: true/);
+  });
+
+  it("[invalid input] rejects ruleset adoption unless the repository is being adopted", () => {
+    const partialArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExistingRuleset: true,
+      rulesetImportId: "new-repo:12345",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("ruleset-no-repo-adopt", partialArgs);
+    }).toThrow(/adoptExistingRuleset requires adoptExisting: true/);
+  });
+
+  it("[invalid input] requires a ruleset import id when adopting an existing ruleset", () => {
+    const partialArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExisting: true,
+      adoptExistingRuleset: true,
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("ruleset-no-import-id", partialArgs);
+    }).toThrow(/rulesetImportId is required when adoptExistingRuleset: true/);
+  });
+
   it("[invalid input] rejects a blank importRepositoryId", () => {
     const blankImportArgs = {
       tier: "sandbox",
@@ -323,6 +374,27 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
     expect(() => {
       new SecureRepository("adopt-blank", blankImportArgs);
     }).toThrow(/importRepositoryId must be non-empty/);
+  });
+
+  it("[invalid input] rejects blank ruleset name and import id", () => {
+    expect(() => {
+      new SecureRepository("blank-ruleset-name", {
+        tier: "sandbox",
+        visibility: "private",
+        rulesetName: " ",
+      });
+    }).toThrow(/rulesetName must be non-empty/);
+
+    const blankImportArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExisting: true,
+      adoptExistingRuleset: true,
+      rulesetImportId: " ",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("blank-ruleset-import", blankImportArgs);
+    }).toThrow(/rulesetImportId must be non-empty/);
   });
 
   it("[abuse case] public existing repos still require public visibility acknowledgement", () => {
@@ -338,14 +410,14 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
   });
 
   it("[compatibility] new repositories do not receive an import id by default", async () => {
-    const repoOptions = captureRepositoryOptions();
+    const childOptions = captureSecureRepositoryChildOptions();
     const repo = new SecureRepository(
       "create-default",
       {
         tier: "sandbox",
         visibility: "private",
       },
-      { transformations: repoOptions.transformations },
+      { transformations: childOptions.transformations },
     );
     await valueOf(repo.repoFullName);
     await settlePulumi();
@@ -354,11 +426,28 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
     expect(r).toBeDefined();
     expect(r!.id).toBeUndefined();
     expect(r!.inputs.autoInit).toBe(true);
-    expect(repoOptions.seen).toHaveLength(1);
-    expect(repoOptions.seen[0]!.import).toBeUndefined();
-    expect(repoOptions.seen[0]!.ignoreChanges).toEqual(
+    expect(childOptions.repositories).toHaveLength(1);
+    expect(childOptions.repositories[0]!.import).toBeUndefined();
+    expect(childOptions.repositories[0]!.ignoreChanges).toEqual(
       expect.arrayContaining(["hasIssues", "hasProjects", "hasWiki"]),
     );
+    expect(childOptions.rulesets).toHaveLength(1);
+    expect(childOptions.rulesets[0]!.import).toBeUndefined();
+  });
+
+  it("[compatibility] supports a custom managed ruleset name without importing", async () => {
+    const repo = new SecureRepository("custom-ruleset", {
+      tier: "sandbox",
+      visibility: "private",
+      rulesetName: "custom-default-branch-ruleset",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+
+    const ruleset = findRulesetFor("custom-ruleset-ruleset");
+    expect(ruleset).toBeDefined();
+    expect(ruleset!.id).toBeUndefined();
+    expect(ruleset!.inputs.name).toBe("custom-default-branch-ruleset");
   });
 });
 

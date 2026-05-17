@@ -150,8 +150,8 @@ caller args
 | Formatter | `pnpm run format:check` | passes | Passed: all matched files use Prettier style | `passed` | |
 | Typecheck / build | `pnpm --filter @hulumi/baseline typecheck && pnpm --filter @hulumi/baseline build` | passes | Passed: `tsc --noEmit` and `tsc -p tsconfig.build.json` | `passed` | |
 | Static analysis / lint | `pnpm --filter @hulumi/baseline lint && pnpm run lint:license-boundary` | passes | Passed: ESLint plus `license-boundary-lint: OK` | `passed` | |
-| Unit / BDD tests | `pnpm --filter @hulumi/baseline test -- tests/github/secure-repository.test.ts` | passes | Passed: 28 tests; broader `pnpm --filter @hulumi/baseline test` also passed with 129 passed, 7 skipped, 1 todo | `passed` | |
-| Runtime validation | Pulumi mock registration inspection in BDD tests; disposable `pulumi preview --diff` against `kerberosmansour/zaprun` | passes | Passed: adopted repo registrations carry import IDs; preview imported `kerberosmansour/zaprun`, resolved `repoFullName` / `repoNodeId`, and preserved existing issues/projects/wiki/downloads settings after the adoption safety fix | `passed` | No `pulumi up`; preview used local file backend under `/tmp` |
+| Unit / BDD tests | `pnpm --filter @hulumi/baseline test -- tests/github/secure-repository.test.ts` | passes | Passed: 33 tests; broader `pnpm --filter @hulumi/baseline test` also passed with 134 passed, 7 skipped, 1 todo | `passed` | |
+| Runtime validation | Pulumi mock registration inspection in BDD tests; disposable `pulumi preview --diff` against `kerberosmansour/zaprun` | passes | Passed: adopted repo registrations carry import IDs; preview imported `kerberosmansour/zaprun`, resolved `repoFullName` / `repoNodeId`, imported ruleset `zaprun:16489045`, and preserved existing issues/projects/wiki/downloads settings after the adoption safety fix | `passed` | No `pulumi up`; preview used local file backend under `/tmp` |
 | Dependency / security audit | `pnpm run lint:exact-pin-guard` | passes | Passed: `exact-pin-guard: OK` | `passed` | No dependency changes |
 | Resource bound / invariant check | BDD tests for explicit adoption and invalid import args | passes | Passed: `importRepositoryId` without `adoptExisting: true` throws; blank import IDs are rejected in implementation | `passed` | |
 | Compatibility check | BDD test that default `SecureRepository` has no import option | passes | Passed: default-created repo registration has no import id | `passed` | Existing constructor behavior preserved |
@@ -180,13 +180,14 @@ Workpad comment: <https://github.com/kerberosmansour/hulumi/issues/167#issuecomm
 ### Completed
 
 - Added explicit `adoptExisting` / `importRepositoryId` support to `SecureRepository`.
+- Added explicit `rulesetName` / `adoptExistingRuleset` / `rulesetImportId` support for existing default-branch rulesets.
 - Preserved create-new behavior when adoption args are absent.
-- Added BDD coverage for import IDs, default import ID, partial-adoption rejection, public-adoption acknowledgement, and compatibility.
+- Added BDD coverage for import IDs, default import ID, ruleset import IDs, custom ruleset names, partial-adoption rejection, public-adoption acknowledgement, and compatibility.
 - Added component docs for first-time import, steady-state cleanup, and public repository friction.
 
 ### Tests And Validation
 
-- `pnpm --filter @hulumi/baseline test -- tests/github/secure-repository.test.ts` failed red before implementation, then passed with 28 tests.
+- `pnpm --filter @hulumi/baseline test -- tests/github/secure-repository.test.ts` failed red before implementation, then passed with 33 tests.
 - `pnpm run format:check`
 - `pnpm --filter @hulumi/baseline typecheck && pnpm --filter @hulumi/baseline build`
 - `pnpm --filter @hulumi/baseline lint && pnpm run lint:license-boundary`
@@ -199,10 +200,10 @@ Workpad comment: <https://github.com/kerberosmansour/hulumi/issues/167#issuecomm
 
 - Pulumi import is a first-adoption state transition: users should remove `adoptExisting` and `importRepositoryId` after the repository is in state.
 - Real zaprun preview showed repository adoption works and exposed a safety edge: feature toggles not owned by `SecureRepository` must be ignored so adoption does not disable issues/projects/wiki/downloads. The PR now preserves those settings with `ignoreChanges`.
-- The zaprun preview still plans a Hulumi-named `zaprun-ruleset`; existing manually-created rulesets with different names are not imported by this ticket.
+- The follow-up zaprun preview imported the manually-created ruleset with `rulesetName: "hulumi-startup-hardened-default-branch"` and `rulesetImportId: "zaprun:16489045"`, so it no longer plans a duplicate Hulumi-named ruleset.
 - A future helper could detect mismatches between component name and import ID before preview, but this ticket intentionally keeps the API small.
 
 ### PR / Issue Links
 
-- PR: <https://github.com/kerberosmansour/hulumi/pull/168>
+- PRs: <https://github.com/kerberosmansour/hulumi/pull/168>, <https://github.com/kerberosmansour/hulumi/pull/169>, <https://github.com/kerberosmansour/hulumi/pull/170>
 - Issue: <https://github.com/kerberosmansour/hulumi/issues/167>

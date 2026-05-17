@@ -214,6 +214,25 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
       throw new Error("importRepositoryId must be non-empty when provided");
     }
 
+    const adoptExistingRuleset = args.adoptExistingRuleset === true;
+    if (args.rulesetName !== undefined && args.rulesetName.trim().length === 0) {
+      throw new Error("rulesetName must be non-empty when provided");
+    }
+    if (!adoptExistingRuleset && args.rulesetImportId !== undefined) {
+      throw new Error(
+        "rulesetImportId requires adoptExistingRuleset: true so SecureRepository never imports an existing ruleset implicitly",
+      );
+    }
+    if (adoptExistingRuleset && !adoptExisting) {
+      throw new Error("adoptExistingRuleset requires adoptExisting: true");
+    }
+    if (adoptExistingRuleset && args.rulesetImportId === undefined) {
+      throw new Error("rulesetImportId is required when adoptExistingRuleset: true");
+    }
+    if (args.rulesetImportId !== undefined && args.rulesetImportId.trim().length === 0) {
+      throw new Error("rulesetImportId must be non-empty when provided");
+    }
+
     const description = buildDescription(args.tier, args.description, publicJustification);
 
     const parent = { parent: this } as const;
@@ -293,7 +312,7 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
     }
 
     const rulesetArgs: github.RepositoryRulesetArgs = {
-      name: `${name}-ruleset`,
+      name: args.rulesetName ?? `${name}-ruleset`,
       repository: this.repository.name,
       target: "branch",
       enforcement: "active",
@@ -315,7 +334,10 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
         return out;
       });
     }
-    this.ruleset = new github.RepositoryRuleset(`${name}-ruleset`, rulesetArgs, providerOpts);
+    const rulesetOpts: pulumi.CustomResourceOptions = adoptExistingRuleset
+      ? { ...providerOpts, import: args.rulesetImportId! }
+      : providerOpts;
+    this.ruleset = new github.RepositoryRuleset(`${name}-ruleset`, rulesetArgs, rulesetOpts);
 
     this.repoFullName = this.repository.fullName;
     this.repoNodeId = this.repository.nodeId;

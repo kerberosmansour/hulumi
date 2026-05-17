@@ -38,18 +38,18 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1047.0"
+    "@aws-sdk/client-secrets-manager": "3.1048.0"
   },
   "peerDependencies": {
-    "@pulumi/aws": "7.27.0",
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.232.0"
+    "@pulumi/aws": "7.30.0",
+    "@pulumi/kubernetes": "4.31.0",
+    "@pulumi/pulumi": "3.239.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1047.0",
-    "@pulumi/aws": "7.27.0",
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.232.0",
+    "@aws-sdk/client-secrets-manager": "3.1048.0",
+    "@pulumi/aws": "7.30.0",
+    "@pulumi/kubernetes": "4.31.0",
+    "@pulumi/pulumi": "3.239.0",
     "@types/node": "20.19.41",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

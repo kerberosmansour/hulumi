@@ -22,15 +22,15 @@ const LOCKFILE = join(REPO_ROOT, "pnpm-lock.yaml");
 const ALLOWED = [
   {
     name: "@pulumi/pulumi",
-    version: "3.232.0",
+    version: "3.239.0",
     integrity:
-      "sha512-5Pl48cCwOOZEvG7b6w6sErrD1D/QiEwiPqEtHCIzF/alU0yzFjo95uxNteKFlt0LsnzWsZ58DJHgBe9gurjIFg==",
+      "sha512-3OqN4x1OYgan3LvkiYCQYapm9phYnZzcu3usvovAXcQA3x5N5izHi9lmx0N/NLRsQQswE021ZvTTC2HZrYcqTg==",
   },
   {
     name: "@pulumi/aws",
-    version: "7.27.0",
+    version: "7.30.0",
     integrity:
-      "sha512-I3zArWb8F8QVfcWhBBW8h4dB1Omb823G3H2Ej66t0PFyfUHC7t79MDlG0UvoaZqrmXkDG7nFVFB4xdQTZ62R6w==",
+      "sha512-R1CnPcGD/ECRj/JZw2N+MLKwhKkm0C8aF+S5arBXf1j85qb+67lg+E2skgR2GtAIj6PJ1Qy8usEx+4ZlVeit7Q==",
   },
   {
     name: "@pulumi/policy",
@@ -61,9 +61,9 @@ const ALLOWED = [
   // Bumps subject to the same cooling-off gate as the rest.
   {
     name: "@pulumi/kubernetes",
-    version: "4.30.0",
+    version: "4.31.0",
     integrity:
-      "sha512-ZCS4HwBvcxfdPDw44L1/SCqoIttCVugx/FZzqRFRq+leKRIfigAYt4sILXlqulNtX6XjlWVzZO8zva3Ygk7hGA==",
+      "sha512-Lc0W0IQ/03o5KgV3j8KjWVSkZqo/qzyYy8/AInft54yFoTcu++xhoBVDU3l1NBf+Q0BsONYPKsn4Z00a7Y9alQ==",
   },
   // Added in Hulumi v1.2.0 M4 (Hulumi-for-K8s runbook). Runtime dep of
   // KubernetesSecretFromAwsSecretsManager + RdsCredentialSecret. Treated as a
@@ -71,9 +71,9 @@ const ALLOWED = [
   // integrity hash is part of the supply-chain story for the K8s package.
   {
     name: "@aws-sdk/client-secrets-manager",
-    version: "3.1047.0",
+    version: "3.1048.0",
     integrity:
-      "sha512-jKwVKPssSxB8DbMfZ4lUW5Q6fyeJnjvz76GBsb1fUTWcRxGukzkXd5Di5oTUQnYv+BUen97+ZjTz/Azi6hUmzQ==",
+      "sha512-GELp/vb1Kzk/xBUOx21OGti12OiuMwSYBoFAq5RhIcJGC7eBzSUa40zZZlsQsGXDW0OQb9Er+Ll3htr9doGFeg==",
   },
   // Added in runbook hulumi-pre-public-launch M4 (issue #27). Runtime deps of
   // @hulumi/drift — published to npm alongside @pulumi/* + @hulumi/k8s-baseline,
@@ -82,21 +82,21 @@ const ALLOWED = [
   // tampered bytes will fail this guard at CI.
   {
     name: "@aws-sdk/client-cloudtrail",
-    version: "3.1045.0",
+    version: "3.1048.0",
     integrity:
-      "sha512-FERHosVdC9SD/J9UTNtItGyhnXdMNHrvqkWxCuvHteWLSPWz9GrHNiuVnZ+dBD3yaM49isk6/TNIZlTSdZqJ1w==",
+      "sha512-46cFOxN4RDIbKq36LGs3dbamHOSVhjkPmoTJyg+qH0Lkr0XWbteXPiYuilpzJMtJDDu6Y3uO0yzIeQN4xIUvuA==",
   },
   {
     name: "@aws-sdk/client-cloudwatch-logs",
-    version: "3.1047.0",
+    version: "3.1048.0",
     integrity:
-      "sha512-e64h4CDfpwvm/vDX7v87Rvo805cO3MDx+icTiwX0R6riXcYAUuj5JKIYOf35O4qFUhYiE+hEuUEWbFFHfJ5OVw==",
+      "sha512-0ck+MgIMIfM+VY2LJTo3Nwwxe2skjmmCoFmuR6k6ZeLCi3xp6oKKJtJbl3UJN/vrWmEmZp8JhtBR9w09TV5O5g==",
   },
   {
     name: "@aws-sdk/client-sts",
-    version: "3.1045.0",
+    version: "3.1048.0",
     integrity:
-      "sha512-oDJJ7rM1osvfBdfZuhQ5DM6lHD9iuypL9m2LsEiA/lB8xuE5uPYsftNDcS0J9VRXFSvYTqC14K7Y5vMMKMg0vw==",
+      "sha512-CE/RhHaIoLmmlKva/rmNB0A0/WWta+GozzTGl5kNc8fAnlR5iA0ygz8zw6VQRwFWz2b8T56qA8lapKcslztHfA==",
   },
   {
     name: "@aws-sdk/credential-providers",

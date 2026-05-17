@@ -67,6 +67,17 @@ interface SecureRepositoryArgsCommon {
   provider?: github.Provider;
   /** Per-doc default `main`. */
   defaultBranch?: pulumi.Input<string>;
+  /**
+   * Adopt an existing GitHub repository through Pulumi import instead of
+   * creating a new repository. This is explicit so existing callers never
+   * silently switch resource ownership mode.
+   */
+  adoptExisting?: boolean;
+  /**
+   * Pulumi import ID for the existing repository. Defaults to the
+   * SecureRepository `name` when `adoptExisting` is true.
+   */
+  importRepositoryId?: string;
   /** Free-form description; the tag triple is appended automatically. */
   description?: pulumi.Input<string>;
   /** Repository topics (search labels). */

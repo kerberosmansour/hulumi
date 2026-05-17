@@ -215,6 +215,103 @@ describe("SecureRepository — abuse case: public visibility opt-in friction", (
   });
 });
 
+describe("SecureRepository — existing repository adoption (Pulumi import)", () => {
+  beforeEach(resetRegistrations);
+
+  it("[happy path] imports an existing private repo while preserving hardened posture", async () => {
+    const repo = new SecureRepository("adopt-private", {
+      tier: "startup-hardened",
+      visibility: "private",
+      adoptExisting: true,
+      importRepositoryId: "adopt-private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+
+    const r = findGithubRepo("adopt-private-repo");
+    expect(r).toBeDefined();
+    expect(r!.id).toBe("adopt-private");
+    expect(r!.inputs.name).toBe("adopt-private");
+    expect(r!.inputs.visibility).toBe("private");
+    expect(r!.inputs.allowMergeCommit).toBe(false);
+    expect(r!.inputs.allowSquashMerge).toBe(true);
+    expect(r!.inputs.allowRebaseMerge).toBe(false);
+    expect(r!.inputs.deleteBranchOnMerge).toBe(true);
+
+    const ruleset = findRulesetFor("adopt-private-ruleset");
+    expect(ruleset).toBeDefined();
+    expect(ruleset!.inputs.enforcement).toBe("active");
+    const rules = ruleset!.inputs.rules as Record<string, unknown>;
+    expect(rules.deletion).toBe(true);
+    expect(rules.nonFastForward).toBe(true);
+    expect(rules.requiredSignatures).toBe(true);
+    expect(rules.requiredLinearHistory).toBe(true);
+    expect(rules.pullRequest).toBeDefined();
+  });
+
+  it("[empty state] defaults the import id to the repository name", async () => {
+    const repo = new SecureRepository("adopt-default-id", {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExisting: true,
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+
+    const r = findGithubRepo("adopt-default-id-repo");
+    expect(r).toBeDefined();
+    expect(r!.id).toBe("adopt-default-id");
+  });
+
+  it("[invalid input] rejects importRepositoryId without explicit adoption", () => {
+    const partialArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      importRepositoryId: "existing-zaprun",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("adopt-partial", partialArgs);
+    }).toThrow(/importRepositoryId requires adoptExisting: true/);
+  });
+
+  it("[invalid input] rejects a blank importRepositoryId", () => {
+    const blankImportArgs = {
+      tier: "sandbox",
+      visibility: "private",
+      adoptExisting: true,
+      importRepositoryId: "  ",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("adopt-blank", blankImportArgs);
+    }).toThrow(/importRepositoryId must be non-empty/);
+  });
+
+  it("[abuse case] public existing repos still require public visibility acknowledgement", () => {
+    const publicAdoptionArgs = {
+      tier: "sandbox",
+      visibility: "public",
+      adoptExisting: true,
+      importRepositoryId: "public-zaprun",
+    } as unknown as ConstructorParameters<typeof SecureRepository>[1];
+    expect(() => {
+      new SecureRepository("adopt-public-no-ack", publicAdoptionArgs);
+    }).toThrow(/public visibility requires acknowledgePublic: true/);
+  });
+
+  it("[compatibility] new repositories do not receive an import id by default", async () => {
+    const repo = new SecureRepository("create-default", {
+      tier: "sandbox",
+      visibility: "private",
+    });
+    await valueOf(repo.repoFullName);
+    await settlePulumi();
+
+    const r = findGithubRepo("create-default-repo");
+    expect(r).toBeDefined();
+    expect(r!.id).toBeUndefined();
+  });
+});
+
 describe("SecureRepository — pull-request rule (default-branch ruleset)", () => {
   beforeEach(resetRegistrations);
 

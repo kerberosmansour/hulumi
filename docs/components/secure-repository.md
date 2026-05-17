@@ -64,6 +64,16 @@ adopt it. After the repository is imported into state, remove `adoptExisting`
 and `importRepositoryId` from the program and run another preview; the resource
 should remain under management without a replacement.
 
+Hulumi does not manage repository feature toggles such as issues, projects,
+wiki, downloads, or the create-time `autoInit` flag. The component preserves
+those existing settings with Pulumi `ignoreChanges` so adopting a live
+repository does not silently disable collaboration features.
+
+Repository adoption imports the `github.Repository` child. The default-branch
+ruleset is still created by Hulumi. If the repository already has a manual
+ruleset with a different name, preview will show a new Hulumi-managed ruleset;
+reconcile or remove the manual ruleset before applying if you want one ruleset.
+
 Public repositories still require `acknowledgePublic: true` and a non-empty
 `publicJustification`. Supplying `importRepositoryId` without
 `adoptExisting: true` is rejected so imports cannot happen implicitly.

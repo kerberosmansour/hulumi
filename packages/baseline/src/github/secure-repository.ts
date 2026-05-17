@@ -195,12 +195,25 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
       });
     }
 
+    const adoptExisting = args.adoptExisting === true;
+    if (!adoptExisting && args.importRepositoryId !== undefined) {
+      throw new Error(
+        "importRepositoryId requires adoptExisting: true so SecureRepository never imports an existing repository implicitly",
+      );
+    }
+    if (args.importRepositoryId !== undefined && args.importRepositoryId.trim().length === 0) {
+      throw new Error("importRepositoryId must be non-empty when provided");
+    }
+
     const description = buildDescription(args.tier, args.description, publicJustification);
 
     const parent = { parent: this } as const;
-    const providerOpts: pulumi.ResourceOptions = args.provider
+    const providerOpts: pulumi.CustomResourceOptions = args.provider
       ? { ...parent, provider: args.provider }
       : parent;
+    const repositoryOpts: pulumi.CustomResourceOptions = adoptExisting
+      ? { ...providerOpts, import: args.importRepositoryId ?? name }
+      : providerOpts;
 
     const isStartupHardened = args.tier === "startup-hardened";
     const enableSecretScanning = args.secretScanning ?? isStartupHardened;
@@ -238,7 +251,7 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
         },
       };
     }
-    this.repository = new github.Repository(`${name}-repo`, repoArgs, providerOpts);
+    this.repository = new github.Repository(`${name}-repo`, repoArgs, repositoryOpts);
 
     // Repository ruleset — Sandbox: deletion + force-push protection; Startup-
     // Hardened adds signed-commits-required + a sensible default PR rule +

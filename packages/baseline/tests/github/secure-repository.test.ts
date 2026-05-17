@@ -14,6 +14,7 @@
 //   - The `hulumi:controls` tag is DELIBERATELY OMITTED in M1 — M3 adds it.
 
 import { describe, it, expect, beforeEach } from "vitest";
+import type { ResourceTransformation } from "@pulumi/pulumi";
 
 import { SecureRepository } from "../../src/github/secure-repository";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "../setup";
@@ -30,6 +31,26 @@ function findRulesetFor(name: string): Registration | undefined {
   return registrations.find(
     (r) => r.type === "github:index/repositoryRuleset:RepositoryRuleset" && r.name === name,
   );
+}
+
+function captureRepositoryOptions(): {
+  seen: Array<{ ignoreChanges?: string[]; import?: string }>;
+  transformations: ResourceTransformation[];
+} {
+  const seen: Array<{ ignoreChanges?: string[]; import?: string }> = [];
+  const transformations: ResourceTransformation[] = [
+    (args) => {
+      if (args.type === "github:index/repository:Repository") {
+        const opts = args.opts as { ignoreChanges?: string[]; import?: string };
+        const captured: { ignoreChanges?: string[]; import?: string } = {};
+        if (opts.ignoreChanges !== undefined) captured.ignoreChanges = opts.ignoreChanges;
+        if (opts.import !== undefined) captured.import = opts.import;
+        seen.push(captured);
+      }
+      return undefined;
+    },
+  ];
+  return { seen, transformations };
 }
 
 describe("SecureRepository — Sandbox tier emits private repo + ruleset (happy path)", () => {
@@ -219,18 +240,24 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
   beforeEach(resetRegistrations);
 
   it("[happy path] imports an existing private repo while preserving hardened posture", async () => {
-    const repo = new SecureRepository("adopt-private", {
-      tier: "startup-hardened",
-      visibility: "private",
-      adoptExisting: true,
-      importRepositoryId: "adopt-private",
-    });
+    const repoOptions = captureRepositoryOptions();
+    const repo = new SecureRepository(
+      "adopt-private",
+      {
+        tier: "startup-hardened",
+        visibility: "private",
+        adoptExisting: true,
+        importRepositoryId: "adopt-private",
+      },
+      { transformations: repoOptions.transformations },
+    );
     await valueOf(repo.repoFullName);
     await settlePulumi();
 
     const r = findGithubRepo("adopt-private-repo");
     expect(r).toBeDefined();
     expect(r!.id).toBe("adopt-private");
+    expect(r!.inputs.autoInit).toBeUndefined();
     expect(r!.inputs.name).toBe("adopt-private");
     expect(r!.inputs.visibility).toBe("private");
     expect(r!.inputs.allowMergeCommit).toBe(false);
@@ -247,6 +274,18 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
     expect(rules.requiredSignatures).toBe(true);
     expect(rules.requiredLinearHistory).toBe(true);
     expect(rules.pullRequest).toBeDefined();
+    expect(repoOptions.seen).toHaveLength(1);
+    expect(repoOptions.seen[0]!.import).toBe("adopt-private");
+    expect(repoOptions.seen[0]!.ignoreChanges).toEqual(
+      expect.arrayContaining([
+        "autoInit",
+        "hasDownloads",
+        "hasIssues",
+        "hasProjects",
+        "hasWiki",
+        "ignoreVulnerabilityAlertsDuringRead",
+      ]),
+    );
   });
 
   it("[empty state] defaults the import id to the repository name", async () => {
@@ -299,16 +338,27 @@ describe("SecureRepository — existing repository adoption (Pulumi import)", ()
   });
 
   it("[compatibility] new repositories do not receive an import id by default", async () => {
-    const repo = new SecureRepository("create-default", {
-      tier: "sandbox",
-      visibility: "private",
-    });
+    const repoOptions = captureRepositoryOptions();
+    const repo = new SecureRepository(
+      "create-default",
+      {
+        tier: "sandbox",
+        visibility: "private",
+      },
+      { transformations: repoOptions.transformations },
+    );
     await valueOf(repo.repoFullName);
     await settlePulumi();
 
     const r = findGithubRepo("create-default-repo");
     expect(r).toBeDefined();
     expect(r!.id).toBeUndefined();
+    expect(r!.inputs.autoInit).toBe(true);
+    expect(repoOptions.seen).toHaveLength(1);
+    expect(repoOptions.seen[0]!.import).toBeUndefined();
+    expect(repoOptions.seen[0]!.ignoreChanges).toEqual(
+      expect.arrayContaining(["hasIssues", "hasProjects", "hasWiki"]),
+    );
   });
 });
 

@@ -26,6 +26,15 @@ const CONTROLS_CLAIMED_BY_SECURE_REPOSITORY: readonly string[] = [
   ...nistSsdfV11.secureRepository,
 ];
 
+const REPOSITORY_SETTINGS_PRESERVED_BY_DEFAULT: readonly string[] = [
+  "autoInit",
+  "hasDownloads",
+  "hasIssues",
+  "hasProjects",
+  "hasWiki",
+  "ignoreVulnerabilityAlertsDuringRead",
+];
+
 /**
  * Type guard — true when args take the public-visibility branch with the
  * runtime opt-in markers present. Even if a caller cast through `as any`,
@@ -211,9 +220,13 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
     const providerOpts: pulumi.CustomResourceOptions = args.provider
       ? { ...parent, provider: args.provider }
       : parent;
+    const repositoryBaseOpts: pulumi.CustomResourceOptions = {
+      ...providerOpts,
+      ignoreChanges: [...REPOSITORY_SETTINGS_PRESERVED_BY_DEFAULT],
+    };
     const repositoryOpts: pulumi.CustomResourceOptions = adoptExisting
-      ? { ...providerOpts, import: args.importRepositoryId ?? name }
-      : providerOpts;
+      ? { ...repositoryBaseOpts, import: args.importRepositoryId ?? name }
+      : repositoryBaseOpts;
 
     const isStartupHardened = args.tier === "startup-hardened";
     const enableSecretScanning = args.secretScanning ?? isStartupHardened;
@@ -235,8 +248,8 @@ export class SecureRepository extends pulumi.ComponentResource implements Secure
       allowSquashMerge: true,
       allowRebaseMerge: false,
       deleteBranchOnMerge: true,
-      autoInit: true,
     };
+    if (!adoptExisting) repoArgs.autoInit = true;
     if (args.defaultBranch !== undefined) repoArgs.defaultBranch = args.defaultBranch;
     if (args.topics !== undefined) repoArgs.topics = args.topics;
     // security-and-analysis is gated on visibility — GitHub rejects these

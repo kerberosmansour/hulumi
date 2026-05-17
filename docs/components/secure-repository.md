@@ -40,6 +40,9 @@ new SecureRepository("zaprun", {
   visibility: "public",
   adoptExisting: true,
   importRepositoryId: "zaprun",
+  rulesetName: "hulumi-startup-hardened-default-branch",
+  adoptExistingRuleset: true,
+  rulesetImportId: "zaprun:16489045",
   acknowledgePublic: true,
   publicJustification: "Open-source CLI published for public security review",
   requiredStatusChecks: {
@@ -56,24 +59,29 @@ new SecureRepository("zaprun", {
 In most cases, the component name, GitHub repository name, and
 `importRepositoryId` should all match. If `importRepositoryId` is omitted while
 `adoptExisting` is true, Hulumi uses the component name as the import ID.
+Rulesets require a separate import ID because GitHub identifies them by numeric
+ID; the Pulumi provider expects `<repository-name>:<ruleset-id>`.
 
 Run `pulumi preview` before `pulumi up` and check for unintended renames,
 visibility changes, or ruleset conflicts. Pulumi requires imported resource
 inputs to match the existing cloud resource closely enough for the provider to
 adopt it. After the repository is imported into state, remove `adoptExisting`
-and `importRepositoryId` from the program and run another preview; the resource
-should remain under management without a replacement.
+and `importRepositoryId`, and remove `adoptExistingRuleset` and
+`rulesetImportId` if you imported a ruleset. Keep `rulesetName` when the
+existing ruleset uses a non-default name. Run another preview; the resources
+should remain under management without replacements.
 
 Hulumi does not manage repository feature toggles such as issues, projects,
 wiki, downloads, or the create-time `autoInit` flag. The component preserves
 those existing settings with Pulumi `ignoreChanges` so adopting a live
 repository does not silently disable collaboration features.
 
-Repository adoption imports the `github.Repository` child. The default-branch
-ruleset is still created by Hulumi. If the repository already has a manual
-ruleset with a different name, preview will show a new Hulumi-managed ruleset;
-reconcile or remove the manual ruleset before applying if you want one ruleset.
+Repository adoption imports the `github.Repository` child. Ruleset adoption
+imports the default-branch `github.RepositoryRuleset` child separately. If the
+repository already has a manual ruleset and you do not set
+`adoptExistingRuleset`, preview will show a new Hulumi-managed ruleset.
 
 Public repositories still require `acknowledgePublic: true` and a non-empty
 `publicJustification`. Supplying `importRepositoryId` without
-`adoptExisting: true` is rejected so imports cannot happen implicitly.
+`adoptExisting: true`, or `rulesetImportId` without
+`adoptExistingRuleset: true`, is rejected so imports cannot happen implicitly.

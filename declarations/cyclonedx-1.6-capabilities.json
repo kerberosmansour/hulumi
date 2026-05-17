@@ -4,11 +4,11 @@
   "specVersion": "1.6",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-05-06T00:00:00Z",
+    "timestamp": "2026-05-17T00:00:00Z",
     "component": {
       "type": "application",
       "name": "hulumi",
-      "version": "1.2.0"
+      "version": "1.3.2"
     }
   },
   "declarations": {
@@ -19,7 +19,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "baseline",
-          "version": "1.2.0",
+          "version": "1.3.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -44,11 +44,11 @@
           "type": "library",
           "group": "@hulumi",
           "name": "policies",
-          "version": "1.2.0",
+          "version": "1.3.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
-              "value": "OWASP-C1,OWASP-C5,OWASP-C9"
+              "value": "OWASP-C1,OWASP-C5,OWASP-C7,OWASP-C9"
             },
             {
               "name": "cdx:sunlit:capability",
@@ -61,6 +61,18 @@
             {
               "name": "cdx:sunlit:capability",
               "value": "github-actions-hardening-policy"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-hardening-policy"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "origin-bypass-policy"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "deployment-governance-policy"
             }
           ]
         },
@@ -69,7 +81,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "drift",
-          "version": "1.2.0",
+          "version": "1.3.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -90,7 +102,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "k8s-baseline",
-          "version": "1.2.0",
+          "version": "1.3.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -109,6 +121,68 @@
               "value": "aws-secrets-manager-kubernetes-secret"
             }
           ]
+        },
+        {
+          "bom-ref": "component:@hulumi/cloudflare-baseline",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "cloudflare-baseline",
+          "version": "1.3.2",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C1,OWASP-C5,OWASP-C7,OWASP-C8,OWASP-C9"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-zone-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-public-hostname"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-edge-waf-baseline"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-bot-protection-baseline"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-protected-admin-hostname"
+            }
+          ]
+        },
+        {
+          "bom-ref": "component:@hulumi/platform-patterns",
+          "type": "library",
+          "group": "@hulumi",
+          "name": "platform-patterns",
+          "version": "1.3.2",
+          "properties": [
+            {
+              "name": "cdx:sunlit:controls",
+              "value": "OWASP-C1,OWASP-C5,OWASP-C7,OWASP-C8,OWASP-C9"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "cloudflare-origin-ingress"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "github-aws-oidc-deployment-role"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "deployment-repository-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "build-provenance-foundation"
+            }
+          ]
         }
       ]
     },
@@ -118,6 +192,24 @@
         "target": "component:@hulumi/baseline",
         "predicate": "Provides a secure-by-default AWS S3 bucket component with public access blocks, KMS encryption defaults, and TLS-only policy support.",
         "reasoning": "Repository README describes SecureBucket as part of @hulumi/baseline and lists public-access blocks, SSE-KMS, and TLS-only policies."
+      },
+      {
+        "bom-ref": "claim:hulumi:cloudflare-protected-admin-hostname",
+        "target": "component:@hulumi/cloudflare-baseline",
+        "predicate": "Provides Cloudflare protected admin hostname and edge baseline capabilities for zone, hostname, WAF, and bot-protection hardening.",
+        "reasoning": "The @hulumi/cloudflare-baseline package and edge-platform cookbooks document Cloudflare hardened hostname patterns."
+      },
+      {
+        "bom-ref": "claim:hulumi:cloudflare-origin-ingress",
+        "target": "component:@hulumi/platform-patterns",
+        "predicate": "Provides a Cloudflare origin-ingress pattern that binds edge hostnames to private origins and supports origin-bypass policy checks.",
+        "reasoning": "The @hulumi/platform-patterns package includes cloudflare-origin-ingress source and tests."
+      },
+      {
+        "bom-ref": "claim:hulumi:github-aws-oidc-deployment-role",
+        "target": "component:@hulumi/platform-patterns",
+        "predicate": "Provides a GitHub-to-AWS OIDC deployment role and repository foundation patterns for secretless deployment pipelines.",
+        "reasoning": "The @hulumi/platform-patterns package includes github-aws-oidc-deployment-role and deployment-repository-foundation source and tests."
       },
       {
         "bom-ref": "claim:hulumi:drift-classifier",

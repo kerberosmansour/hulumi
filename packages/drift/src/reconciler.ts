@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { isSecuritySingletonType } from "./discovery";
+
 export const RECONCILER_PLAN_SCHEMA_VERSION = "hulumi.drift.reconcile.plan.v1";
 
 export const RECONCILER_RESOURCE_STATES = [
@@ -377,7 +379,8 @@ function classifyTarget(
   const inRegion = matchesOne(target.identity.region, scope.regions);
   const inAccount = matchesOne(target.identity.accountId, scope.accountIds);
   const olderThanMinAge = matchesAge(target.identity.createdAt, scope.minAgeMinutes, now);
-  const singleton = target.identity.singleton === true;
+  const singleton =
+    target.identity.singleton === true || isSecuritySingletonType(target.identity.type);
 
   if (scope.resourcePrefix === undefined && !target.inState && target.existsInCloud) {
     blocked.push({

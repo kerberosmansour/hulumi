@@ -4,6 +4,7 @@ import {
   DescribeLogGroupsCommand,
   type CloudWatchLogsClientConfig,
 } from "@aws-sdk/client-cloudwatch-logs";
+import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 
 import type {
   ReconcileActionExecutor,
@@ -14,18 +15,26 @@ import type {
 export interface CloudWatchLogGroupExecutorArgs {
   client?: CloudWatchLogsClient;
   clientConfig?: CloudWatchLogsClientConfig;
+  stsClient?: STSClient;
   expectedPrefix: string;
 }
 
 export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
   private readonly client: CloudWatchLogsClient;
+  private readonly stsClient: STSClient;
   private readonly expectedPrefix: string;
+  private resolvedAccountId?: string;
 
   constructor(args: CloudWatchLogGroupExecutorArgs) {
     if (args.expectedPrefix.trim().length < 6 || /[*?]/.test(args.expectedPrefix)) {
       throw new Error("Refusing broad CloudWatch Logs cleanup prefix.");
     }
     this.client = args.client ?? new CloudWatchLogsClient(args.clientConfig ?? {});
+    this.stsClient =
+      args.stsClient ??
+      new STSClient(
+        args.clientConfig?.region !== undefined ? { region: args.clientConfig.region } : {},
+      );
     this.expectedPrefix = args.expectedPrefix;
   }
 
@@ -47,6 +56,11 @@ export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
         status: "blocked",
         message: "action is not a CloudWatch log group delete",
       };
+    }
+
+    const placementBlock = await this.blockOnPlacementMismatch(action);
+    if (placementBlock !== undefined) {
+      return placementBlock;
     }
 
     try {
@@ -73,6 +87,63 @@ export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
       }
       throw err;
     }
+  }
+
+  // Fail-closed binding: the configured client must operate in the same
+  // account and region the action's resource was discovered in. A mis-wired
+  // (prod creds / wrong region) client must never delete a same-name log
+  // group that belongs to an unrelated placement.
+  private async blockOnPlacementMismatch(
+    action: ReconcilePlanAction,
+  ): Promise<ReconcileActionResult | undefined> {
+    const expectedAccountId = action.resource.accountId;
+    const expectedRegion = action.resource.region;
+    if (expectedAccountId === undefined || expectedRegion === undefined) {
+      return {
+        actionId: action.id,
+        status: "blocked",
+        message: "resource account or region is unknown; refusing to delete on unknown placement",
+      };
+    }
+
+    let resolvedAccountId: string;
+    let resolvedRegion: string;
+    try {
+      resolvedAccountId = await this.resolveAccountId();
+      resolvedRegion = await this.client.config.region();
+    } catch {
+      return {
+        actionId: action.id,
+        status: "blocked",
+        message: "could not resolve client account or region; refusing to delete",
+      };
+    }
+
+    if (resolvedAccountId !== expectedAccountId) {
+      return {
+        actionId: action.id,
+        status: "blocked",
+        message: "client account does not match the resource account",
+      };
+    }
+    if (resolvedRegion !== expectedRegion) {
+      return {
+        actionId: action.id,
+        status: "blocked",
+        message: "client region does not match the resource region",
+      };
+    }
+    return undefined;
+  }
+
+  private async resolveAccountId(): Promise<string> {
+    if (this.resolvedAccountId !== undefined) return this.resolvedAccountId;
+    const identity = await this.stsClient.send(new GetCallerIdentityCommand({}));
+    if (identity.Account === undefined || identity.Account.length === 0) {
+      throw new Error("STS GetCallerIdentity returned no account");
+    }
+    this.resolvedAccountId = identity.Account;
+    return this.resolvedAccountId;
   }
 
   private async logGroupExists(logGroupName: string): Promise<boolean> {

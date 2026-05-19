@@ -63,6 +63,7 @@ export {
 } from "./adapters/cloudwatch-log-group";
 export {
   discoverReconcileTargets,
+  isSecuritySingletonType,
   type CloudInventoryResource,
   type DiscoverReconcileTargetsRequest,
   type DiscoverReconcileTargetsResult,

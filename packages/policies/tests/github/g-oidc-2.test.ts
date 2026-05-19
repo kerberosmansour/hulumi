@@ -123,6 +123,40 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
     expect(violations[0]).toMatch(/AdministratorAccess/);
   });
 
+  it("flags AdministratorAccess on a role whose Principal.Federated is an array (GitHub + another) (#170)", () => {
+    const arrayFedTrust = JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {
+            Federated: [
+              "arn:aws:iam::1:oidc-provider/accounts.google.com",
+              "arn:aws:iam::1:oidc-provider/token.actions.githubusercontent.com",
+            ],
+          },
+          Action: "sts:AssumeRoleWithWebIdentity",
+        },
+      ],
+    });
+    const arrayFedRole = res({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::array-fed",
+      name: "array-fed",
+      props: { assumeRolePolicy: arrayFedTrust, arn: "arn:aws:iam::1:role/array-fed" },
+    });
+    const attach = res({
+      type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::admin",
+      name: "admin",
+      props: { policyArn: "arn:aws:iam::aws:policy/AdministratorAccess" },
+      propertyDependencies: { role: [arrayFedRole] },
+    });
+    violations = run(makeStackArgs([arrayFedRole, attach]));
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/AdministratorAccess/);
+  });
+
   it("does NOT flag a namespace-scoped AmazonEKSEditPolicy association", () => {
     const assoc = res({
       type: "aws:eks/accessPolicyAssociation:AccessPolicyAssociation",

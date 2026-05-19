@@ -7,6 +7,27 @@
 
 > Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.3.2.
 
+## Table of contents
+
+- [Overview](#overview)
+  - [What is Hulumi?](#what-is-hulumi)
+  - [What problem does it solve?](#what-problem-does-it-solve)
+  - [Project goals](#project-goals)
+  - [Non-goals](#non-goals)
+- [Quick start](#quick-start)
+- [What's in the box](#whats-in-the-box-v132)
+- [Canonical install](#canonical-install)
+  - [Pulumi packages (npm)](#pulumi-packages-npm)
+  - [Claude Code skill (`/hulumi-threat-model`)](#claude-code-skill-hulumi-threat-model)
+- [Documentation](#documentation)
+- [Release history](#release-history)
+- [Design principles](#design-principles)
+- [Project layout](#project-layout)
+- [Getting involved](#getting-involved)
+- [License](#license)
+- [Trade-marks](#trade-marks)
+- [Acknowledgements](#acknowledgements)
+
 ## Overview
 
 ### What is Hulumi?
@@ -32,6 +53,23 @@ Provisioning a defensible cloud account today usually means one of:
 The pain compounds when an AI coding agent is in the loop — it'll happily generate plausible-looking but unhardened IaC unless something opinionated stops it. Hulumi is that opinionated thing.
 
 For the longer "why" with design tradeoffs and when _not_ to use Hulumi, see [docs/why-hulumi.md](./docs/why-hulumi.md).
+
+### Project goals
+
+1. **Misconfiguration-resistant at authoring time.** A wrong default should be hard to express in the first place — not flagged by a scanner after it ships.
+2. **Apache-2.0 across the board.** Components, policies, and skill outputs cite control frameworks **by ID only**, so nothing — including generated threat models — is encumbered by CCM / CIS / CAIQ licensing.
+3. **Local-first, no phone-home.** No hosted service, no telemetry, no runtime dependency on Hulumi infrastructure.
+4. **Safe in an AI-agent loop.** Opinionated defaults and a CrossGuard policy pack so an agent authoring IaC can't quietly ship an unhardened resource.
+
+### Non-goals
+
+Hulumi is deliberately _not_ these things ([full rationale](./docs/why-hulumi.md#what-hulumi-explicitly-is-not)):
+
+- **Not a CSPM or hosted SaaS** — it prevents misconfiguration at IaC time; pair it with your runtime scanner, don't replace one.
+- **Not a multi-cloud abstraction** — AWS-first by design; GitHub, Kubernetes, and Cloudflare edge are supported, other clouds are not (yet).
+- **Not a CIS Benchmark / framework-text distribution** — IDs and upstream links only; buy the Benchmark from CIS for the prose.
+- **Not a replacement for code review or threat modeling** — it makes both cheaper, not unnecessary.
+- **Not Terraform / CDK / OpenTofu** — Pulumi (TypeScript) only for v1.x.
 
 ## Quick start
 
@@ -60,15 +98,15 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 
 ## What's in the box (v1.3.2)
 
-| Package                                  | What it gives you                                                                                                                                                                                                                                                                  |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub**: `SecureRepository` (with `acknowledgePublic` opt-in and existing-repo / ruleset adoption) + `OrgFoundation`. Sandbox / Startup-Hardened tiers throughout.                                                               |
-| `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H5) + `CisV5Pack` sections 1–3. **GitHub**: `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack`. **K8s / Edge**: Kubernetes, Cloudflare, origin-bypass, deployment-governance, and workflow-governance packs. `Suppression` API. |
-| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors the TLA+ spec exactly, with non-suppressible `tierDegraded` / `featureNotLicensed` verdicts.                                                                               |
-| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `MetricsServer`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`, plus runtime-detection, backup, and add-on foundations.      |
-| `@hulumi/cloudflare-baseline`            | **Cloudflare edge**: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`, `BotProtectionBaseline`, and `ProtectedAdminHostname`.                                                                                                                                                 |
-| `@hulumi/platform-patterns`              | **Cross-provider edge patterns**: `CloudflareOriginIngress`, `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and `BuildProvenanceFoundation`.                                                                                                                     |
-| `/hulumi-threat-model` Claude Code skill | 14 prebuilt scenarios — AWS (5), GitHub (4), EKS (2), and Operations (3) — producing citation-only threat-model markdown.                                                                                                                                                          |
+| Package                                  | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@hulumi/baseline`                       | **AWS — foundations**: `SecureBucket`, `AccountFoundation`. **AWS — operations** (v1.2): `Ec2PatchBaseline` + `Ec2PatchWaves` (SSM patch-management orchestration with tier-aware reboot waves), `DetectiveServicesEnable` (IAM Access Analyzer + **Amazon Inspector v2** vulnerability scanning for EC2/ECR/Lambda), `AuditTrail` (multi-region CloudTrail with log-file validation), `IdentityAlarms`, `MonitoringFoundation`. **GitHub**: `SecureRepository` (with `acknowledgePublic` opt-in and existing-repo / ruleset adoption) + `OrgFoundation`. Sandbox / Startup-Hardened tiers throughout. |
+| `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H5) + `CisV5Pack` sections 1–3 + `HulumiOperationsHardeningPack` (patch-group, CloudTrail posture, log-group KMS, Inspector v2 coverage). **GitHub**: `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack`. **K8s / Edge**: Kubernetes, Cloudflare, origin-bypass, deployment-governance, and workflow-governance packs. `Suppression` API.                                                                                                                                                                                                           |
+| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors the TLA+ spec exactly, with non-suppressible `tierDegraded` / `featureNotLicensed` verdicts.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `MetricsServer`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`, plus runtime-detection, backup, and add-on foundations.                                                                                                                                                                                                                                                                                                                          |
+| `@hulumi/cloudflare-baseline`            | **Cloudflare edge**: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`, `BotProtectionBaseline`, and `ProtectedAdminHostname`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `@hulumi/platform-patterns`              | **Cross-provider edge patterns**: `CloudflareOriginIngress`, `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and `BuildProvenanceFoundation`.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/hulumi-threat-model` Claude Code skill | 14 prebuilt scenarios — AWS (5), GitHub (4), EKS (2), and Operations (3) — producing citation-only threat-model markdown.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 The GitHub-as-Infrastructure surface lives under a hard infra-only scope contract — see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md) Global Execution Rule 0 for the boundary, plus the [GitHub webhook drift cookbook](./docs/cookbooks/github-webhook-drift.md) and the [`secure-repository-smoke`](./examples/secure-repository-smoke/) wedge surface.
 
@@ -132,12 +170,12 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 
 ## Release history
 
-| Version | Date       | What landed                                                                                                                                  |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0.0  | 2026-04-25 | AWS baseline (`SecureBucket`, `AccountFoundation`), `HulumiHardeningPack` + CIS v5 §1–3, drift classifier, threat-model skill — all SLSA-L3. |
-| v1.1.0  | 2026-04-26 | GitHub-as-Infrastructure surface (`SecureRepository`, `OrgFoundation`, GitHub policy + drift, GitHub scenarios).                             |
-| v1.2.0  | 2026-05-01 | Kubernetes / EKS baseline (`@hulumi/k8s-baseline`) + Operations threat-model scenarios.                                                      |
-| v1.3.2  | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.                                    |
+| Version | Date       | What landed                                                                                                                                                                                                                                                                    |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| v1.0.0  | 2026-04-25 | AWS baseline (`SecureBucket`, `AccountFoundation`), `HulumiHardeningPack` + CIS v5 §1–3, drift classifier, threat-model skill — all SLSA-L3.                                                                                                                                   |
+| v1.1.0  | 2026-04-26 | GitHub-as-Infrastructure surface (`SecureRepository`, `OrgFoundation`, GitHub policy + drift, GitHub scenarios).                                                                                                                                                               |
+| v1.2.0  | 2026-05-01 | Kubernetes / EKS baseline (`@hulumi/k8s-baseline`) **plus the AWS Operations suite**: `Ec2PatchBaseline`/`Ec2PatchWaves` patch management, `DetectiveServicesEnable` (Inspector v2), `AuditTrail`, `HulumiOperationsHardeningPack`, and the Operations threat-model scenarios. |
+| v1.3.2  | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.                                                                                                                                                                      |
 
 Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md). For what's next, watch the [issue tracker](https://github.com/kerberosmansour/hulumi/issues) and [CHANGELOG.md](./CHANGELOG.md).
 

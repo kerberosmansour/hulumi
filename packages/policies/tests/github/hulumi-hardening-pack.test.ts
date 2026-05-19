@@ -428,3 +428,66 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     expect(h3NoWildcardTrustPolicy.validateResource).toBe(G_OIDC_1.validateResource);
   });
 });
+
+// Cluster B regression — `isChildOfSecureRepository` / `isChildOfOrgFoundation`
+// used `urn.includes(\`${type}$\`)` over the full URN. An attacker-controlled
+// logical name embedding the parent type token bypassed H1 / H2 entirely.
+describe("HulumiGithubHardeningPack — forged-logical-name URN spoof", () => {
+  let violations: string[];
+  const report = (m: string): void => {
+    violations.push(m);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("H1 still reports a raw github.Repository whose LOGICAL NAME embeds SecureRepository type", () => {
+    // Spoof: raw github.Repository with logical name
+    // `hulumi:baseline:github:SecureRepository$victim`. URN contains the
+    // type token via the logical-name suffix; type chain is just
+    // `github:index/repository:Repository`.
+    const args = makeResourceArgs({
+      type: "github:index/repository:Repository",
+      urn: "urn:pulumi:s::p::github:index/repository:Repository::hulumi:baseline:github:SecureRepository$victim",
+      name: "hulumi:baseline:github:SecureRepository$victim",
+      props: { name: "victim-repo" },
+    });
+
+    (
+      h1NoRawGithubRepository.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H1/);
+  });
+
+  it("H2 still reports a wildcard OIDC template whose LOGICAL NAME embeds OrgFoundation type", () => {
+    // Spoof on H2's wildcard guard — same forged-logical-name trick.
+    const args = makeResourceArgs({
+      type: "github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate",
+      urn: "urn:pulumi:s::p::github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate::hulumi:baseline:github:OrgFoundation$spoof",
+      name: "hulumi:baseline:github:OrgFoundation$spoof",
+      // Wildcard claim — H2's mandatory rejection axis. Pre-fix, the URN's
+      // logical-name spoof made `isChildOfOrgFoundation` return true via
+      // substring match, so H2 early-returned and the wildcard was never
+      // inspected. Post-fix, the anchored check returns false (template's
+      // type chain is not under any real OrgFoundation), and the wildcard
+      // is reported as it should be.
+      props: { includeClaimKeys: ["*"] },
+    });
+
+    (
+      h2NoWildcardOidcTemplate.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations.length).toBeGreaterThanOrEqual(1);
+    expect(violations[0]).toMatch(/HULUMI-H2/);
+  });
+});

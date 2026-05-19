@@ -315,3 +315,44 @@ describe("HulumiDeploymentGovernancePack DEPLOY_GOV_2 — long-lived AWS secret 
     expect(violations).toEqual([]);
   });
 });
+
+// Cluster B regression — URN substring spoof (`isChildOf` used `urn.includes`
+// over the FULL URN, so a raw resource whose operator-controlled logical
+// name contained the parent type token bypassed every DEPLOY_GOV_1 check).
+describe("HulumiDeploymentGovernancePack DEPLOY_GOV_1 — forged-logical-name URN spoof", () => {
+  let violations: string[];
+  const report = (m: string): void => {
+    violations.push(m);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("reports DEPLOY_GOV_1 even when the repo's LOGICAL NAME embeds the foundation type", () => {
+    // Exploit: declare a raw github.Repository with logical name
+    // `<DeploymentRepositoryFoundation type>$<anything>`. The URL now contains
+    // the substring `hulumi:platform:DeploymentRepositoryFoundation$` but the
+    // resource is NOT a child of any DeploymentRepositoryFoundation — its
+    // type chain is just `github:index/repository:Repository`. A safe
+    // anchored check parses the URN type chain and refuses this spoof.
+    const spoofedRepo = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      // Logical name carries the parent type substring; type chain does not.
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}$deploy-repo`,
+      name: `${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}$deploy-repo`,
+      props: { name: "victim-repo", topics: ["deployment"] },
+    });
+
+    (
+      deployGov1RequireProtectedEnvironment.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([spoofedRepo]), report);
+
+    // Without the anchored fix, this assertion is `.toEqual([])` — the spoof bypasses.
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(DEPLOY_GOV_1_RULE_ID);
+  });
+});

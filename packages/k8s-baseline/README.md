@@ -19,17 +19,17 @@ The exact `@pulumi/*` versions match `peerDependencies`.
 
 ## Components
 
-| Component                               | Purpose                                                                                        |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `HardenedHelmRelease`                   | Helm release with PSA-baseline labels, SHA-pinned chart digest, default release-name stability |
-| `MetricsServer`                         | Kubernetes Metrics API install for HPA telemetry with secure-by-default APIService TLS         |
-| `EksSubnetTagger`                       | Auto-tag EKS-bound subnets with `kubernetes.io/role/{,internal-}elb`                           |
-| `EksAdminAccessPath`                    | Auditable EKS operator access path for private or restricted-public control-plane hardening    |
-| `IstioFoundation`                       | Bundled hardened Istio install (`istiod` + `istio-cni` + `ingressgateway`, PSA-baseline-clean) |
-| `AlbMeshedHttpEntrypoint`               | ALB Ingress + Istio `Gateway` + `VirtualService` + `AuthorizationPolicy` for one workload      |
-| `KubernetesSecretFromAwsSecretsManager` | K8s `Secret` from an AWS Secrets Manager value, fail-closed on JSON-shape violations           |
-| `RdsCredentialSecret`                   | Extract RDS auto-managed master credential into a K8s `Secret` with fail-closed semantics      |
-| `GitHubAppCredential`                   | Secrets Manager container + JWT-mint helper bundle for GitHub App credential rotation          |
+| Component                               | Purpose                                                                                                                                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HardenedHelmRelease`                   | Helm release with exact chart-version pinning (no `latest`, no semver ranges), enforced `https://`/`oci://` repository scheme, PSA-baseline labels, default release-name stability |
+| `MetricsServer`                         | Kubernetes Metrics API install for HPA telemetry with secure-by-default APIService TLS                                                                                             |
+| `EksSubnetTagger`                       | Auto-tag EKS-bound subnets with `kubernetes.io/role/{,internal-}elb`                                                                                                               |
+| `EksAdminAccessPath`                    | Auditable EKS operator access path for private or restricted-public control-plane hardening                                                                                        |
+| `IstioFoundation`                       | Bundled hardened Istio install (`istiod` + `istio-cni` + `ingressgateway`, PSA-baseline-clean)                                                                                     |
+| `AlbMeshedHttpEntrypoint`               | ALB Ingress + Istio `Gateway` + `VirtualService` + `AuthorizationPolicy` for one workload                                                                                          |
+| `KubernetesSecretFromAwsSecretsManager` | K8s `Secret` from an AWS Secrets Manager value, fail-closed on JSON-shape violations                                                                                               |
+| `RdsCredentialSecret`                   | Extract RDS auto-managed master credential into a K8s `Secret` with fail-closed semantics                                                                                          |
+| `GitHubAppCredential`                   | Secrets Manager container + JWT-mint helper bundle for GitHub App credential rotation                                                                                              |
 
 ## Quick-start — `IstioFoundation`
 

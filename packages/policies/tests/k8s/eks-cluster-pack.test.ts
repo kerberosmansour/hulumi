@@ -90,6 +90,51 @@ describe("Scenario: EKS public endpoint broad CIDR rejected (HULUMI-EKS-CL-1)", 
     expect(violations).toHaveLength(0);
   });
 
+  it("rejects public endpoint with split-range CIDRs covering all of IPv4", () => {
+    const args = makeArgs({
+      type: "aws:eks/cluster:Cluster",
+      urn: "urn:p::p::aws:eks/cluster:Cluster::split-range",
+      name: "split-range",
+      props: {
+        vpcConfig: {
+          endpointPublicAccess: true,
+          publicAccessCidrs: ["0.0.0.0/1", "128.0.0.0/1"],
+        },
+        enabledClusterLogTypes: ["audit"],
+      },
+    });
+    (
+      eksCl1NoBroadPublicEndpoint.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-EKS-CL-1/);
+  });
+
+  it("rejects public endpoint with malformed publicAccessCidrs", () => {
+    const args = makeArgs({
+      type: "aws:eks/cluster:Cluster",
+      urn: "urn:p::p::aws:eks/cluster:Cluster::malformed",
+      name: "malformed",
+      props: {
+        vpcConfig: {
+          endpointPublicAccess: true,
+          publicAccessCidrs: ["not-a-cidr"],
+        },
+        enabledClusterLogTypes: ["audit"],
+      },
+    });
+    (
+      eksCl1NoBroadPublicEndpoint.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
   it("allows private-only endpoint regardless of CIDRs", () => {
     const args = makeArgs({
       type: "aws:eks/cluster:Cluster",

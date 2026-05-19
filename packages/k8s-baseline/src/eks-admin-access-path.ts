@@ -11,12 +11,12 @@ import type {
   EksAdminAccessPathOutputs,
   EksEndpointAccessConfig,
 } from "./eks-admin-access-path.outputs";
+import { analyzeCidrCoverage } from "./cidr-coverage";
 
 export const EKS_ADMIN_ACCESS_PATH_COMPONENT_TYPE = "hulumi:k8s:EksAdminAccessPath";
 
 const HTTPS_PORT = 443;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const BROAD_CIDRS = new Set(["0.0.0.0/0", "::/0"]);
 const VALID_ENDPOINT_MODES: ReadonlySet<EksEndpointAccessMode> = new Set([
   "private",
   "restricted-public",
@@ -45,8 +45,27 @@ function normalizeStringList(field: string, values: string[] | undefined): strin
   });
 }
 
-function hasBroadCidr(values: string[]): string | undefined {
-  return values.find((value) => BROAD_CIDRS.has(value));
+/**
+ * Validate a CIDR list and decide whether it is "broad" — i.e. it covers the
+ * entire IPv4 or IPv6 address space. A bare-literal `0.0.0.0/0` / `::/0` set
+ * membership check is bypassed by a semantically equivalent split such as
+ * `["0.0.0.0/1", "128.0.0.0/1"]`, so coverage is computed by merging the
+ * parsed ranges. Malformed entries (previously any non-blank string was
+ * accepted) are rejected outright.
+ *
+ * Returns:
+ *  - `{ malformed }` if any entry is not a syntactically valid CIDR,
+ *  - `{ broad: true }` if the union covers a whole address family,
+ *  - `{ broad: false }` otherwise.
+ */
+function classifyCidrs(name: string, field: string, values: string[]): { broad: boolean } {
+  const result = analyzeCidrCoverage(values);
+  if (result.malformed !== undefined) {
+    throw new Error(
+      `EksAdminAccessPath: ${field} contains a malformed/invalid CIDR "${result.malformed}" (component "${name}")`,
+    );
+  }
+  return { broad: result.coversInternet };
 }
 
 function requireTemporaryBroadPublicAccess(
@@ -117,11 +136,11 @@ function normalizeArgs(name: string, args: EksAdminAccessPathArgs): NormalizedAr
     );
   }
 
-  const broadPublicCidr = hasBroadCidr(publicAccessCidrs);
+  const publicCidrClass = classifyCidrs(name, "publicAccessCidrs", publicAccessCidrs);
   let temporaryBroadPublicAccess: TemporaryBroadPublicAccess | undefined;
-  if (broadPublicCidr !== undefined && endpointMode !== "public-temporary") {
+  if (publicCidrClass.broad && endpointMode !== "public-temporary") {
     throw new Error(
-      `EksAdminAccessPath: publicAccessCidrs contains ${broadPublicCidr}; use endpointMode "public-temporary" with temporaryBroadPublicAccess instead (component "${name}")`,
+      `EksAdminAccessPath: publicAccessCidrs covers the entire internet (e.g. 0.0.0.0/0, ::/0, or a split-range union); use endpointMode "public-temporary" with temporaryBroadPublicAccess instead (component "${name}")`,
     );
   }
   if (endpointMode === "public-temporary") {
@@ -135,13 +154,14 @@ function normalizeArgs(name: string, args: EksAdminAccessPathArgs): NormalizedAr
     );
   }
 
-  const broadOperatorCidr =
-    hasBroadCidr(operatorCidrBlocks) ?? hasBroadCidr(operatorIpv6CidrBlocks);
-  if (broadOperatorCidr !== undefined) {
-    const field =
-      broadOperatorCidr === "::/0" ? "operatorAccess.ipv6CidrBlocks" : "operatorAccess.cidrBlocks";
+  if (classifyCidrs(name, "operatorAccess.cidrBlocks", operatorCidrBlocks).broad) {
     throw new Error(
-      `EksAdminAccessPath: ${field} contains ${broadOperatorCidr}; broad control-plane SG ingress is refused (component "${name}")`,
+      `EksAdminAccessPath: operatorAccess.cidrBlocks covers the entire internet (e.g. 0.0.0.0/0 or a split-range union); broad control-plane SG ingress is refused (component "${name}")`,
+    );
+  }
+  if (classifyCidrs(name, "operatorAccess.ipv6CidrBlocks", operatorIpv6CidrBlocks).broad) {
+    throw new Error(
+      `EksAdminAccessPath: operatorAccess.ipv6CidrBlocks covers the entire internet (e.g. ::/0 or a split-range union); broad control-plane SG ingress is refused (component "${name}")`,
     );
   }
 

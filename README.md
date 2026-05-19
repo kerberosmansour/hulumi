@@ -60,15 +60,15 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 
 ## What's in the box (v1.3.2)
 
-| Package                                  | What it gives you                                                                                                                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub**: `SecureRepository` (with `acknowledgePublic` opt-in and existing-repo / ruleset adoption) + `OrgFoundation`. Sandbox / Startup-Hardened tiers throughout. |
+| Package                                  | What it gives you                                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@hulumi/baseline`                       | **AWS**: `SecureBucket` + `AccountFoundation`. **GitHub**: `SecureRepository` (with `acknowledgePublic` opt-in and existing-repo / ruleset adoption) + `OrgFoundation`. Sandbox / Startup-Hardened tiers throughout.                                                               |
 | `@hulumi/policies`                       | **AWS**: `HulumiHardeningPack` (H1–H5) + `CisV5Pack` sections 1–3. **GitHub**: `HulumiGithubHardeningPack` (H1+H2+`G_OIDC_1`) + `CisGithubV1Pack`. **K8s / Edge**: Kubernetes, Cloudflare, origin-bypass, deployment-governance, and workflow-governance packs. `Suppression` API. |
-| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors the TLA+ spec exactly, with non-suppressible `tierDegraded` / `featureNotLicensed` verdicts. |
-| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `MetricsServer`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`, plus runtime-detection, backup, and add-on foundations. |
-| `@hulumi/cloudflare-baseline`            | **Cloudflare edge**: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`, `BotProtectionBaseline`, and `ProtectedAdminHostname`. |
-| `@hulumi/platform-patterns`              | **Cross-provider edge patterns**: `CloudflareOriginIngress`, `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and `BuildProvenanceFoundation`. |
-| `/hulumi-threat-model` Claude Code skill | 14 prebuilt scenarios — AWS (5), GitHub (4), EKS (2), and Operations (3) — producing citation-only threat-model markdown. |
+| `@hulumi/drift`                          | `DriftClassifier` with 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict matrix mirrors the TLA+ spec exactly, with non-suppressible `tierDegraded` / `featureNotLicensed` verdicts.                                                                               |
+| `@hulumi/k8s-baseline`                   | **Kubernetes / EKS**: `HardenedHelmRelease`, `MetricsServer`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`, plus runtime-detection, backup, and add-on foundations.      |
+| `@hulumi/cloudflare-baseline`            | **Cloudflare edge**: `ZoneFoundation`, `PublicHostname`, `EdgeWafBaseline`, `BotProtectionBaseline`, and `ProtectedAdminHostname`.                                                                                                                                                 |
+| `@hulumi/platform-patterns`              | **Cross-provider edge patterns**: `CloudflareOriginIngress`, `GitHubAwsOidcDeploymentRole`, `DeploymentRepositoryFoundation`, and `BuildProvenanceFoundation`.                                                                                                                     |
+| `/hulumi-threat-model` Claude Code skill | 14 prebuilt scenarios — AWS (5), GitHub (4), EKS (2), and Operations (3) — producing citation-only threat-model markdown.                                                                                                                                                          |
 
 The GitHub-as-Infrastructure surface lives under a hard infra-only scope contract — see [`docs/slo/completed/RUNBOOK-hulumi-github.md`](./docs/slo/completed/RUNBOOK-hulumi-github.md) Global Execution Rule 0 for the boundary, plus the [GitHub webhook drift cookbook](./docs/cookbooks/github-webhook-drift.md) and the [`secure-repository-smoke`](./examples/secure-repository-smoke/) wedge surface.
 
@@ -105,12 +105,12 @@ Restart Claude Code. The skill registers via its `SKILL.md` frontmatter and beco
 
 Prebuilt scenarios:
 
-| Domain     | Scenario IDs                                                                                                                |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Domain     | Scenario IDs                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | AWS        | `aws-multi-account-baseline`, `s3-public-bucket-hardening`, `iam-least-privilege`, `rds-encryption-at-rest`, `lambda-secrets-access` |
-| GitHub     | `github-oidc-trust-cloud-account`, `github-actions-supply-chain`, `github-app-token-exposure`, `github-self-hosted-runner`   |
-| EKS        | `eks-cluster-baseline`, `eks-runtime-and-backup`                                                                             |
-| Operations | `operations-audit-pipeline-broken`, `operations-detective-services-disabled`, `operations-patch-compliance-lapse`            |
+| GitHub     | `github-oidc-trust-cloud-account`, `github-actions-supply-chain`, `github-app-token-exposure`, `github-self-hosted-runner`           |
+| EKS        | `eks-cluster-baseline`, `eks-runtime-and-backup`                                                                                     |
+| Operations | `operations-audit-pipeline-broken`, `operations-detective-services-disabled`, `operations-patch-compliance-lapse`                    |
 
 See [`docs/threat-model-examples/`](./docs/threat-model-examples/) for example outputs.
 
@@ -127,17 +127,17 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Are bootstrapping a fresh AWS account                              | [Account bootstrap cookbook](./docs/cookbooks/account-bootstrap.md) |
 | Want a controls-aligned threat model before writing IaC            | [Threat-modeling cookbook](./docs/cookbooks/threat-modeling.md)     |
 | Are wiring drift detection into CI                                 | [Drift detection cookbook](./docs/cookbooks/drift-detection.md)     |
-| Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                           |
+| Want to hack on Hulumi itself                                      | [Development guide](./docs/development.md)                          |
 | Hit a recurring gotcha and want a quick answer                     | [FAQ](./docs/faq.md)                                                |
 
 ## Release history
 
-| Version  | Date       | What landed                                                                                                   |
-| -------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
-| v1.0.0   | 2026-04-25 | AWS baseline (`SecureBucket`, `AccountFoundation`), `HulumiHardeningPack` + CIS v5 §1–3, drift classifier, threat-model skill — all SLSA-L3. |
-| v1.1.0   | 2026-04-26 | GitHub-as-Infrastructure surface (`SecureRepository`, `OrgFoundation`, GitHub policy + drift, GitHub scenarios). |
-| v1.2.0   | 2026-05-01 | Kubernetes / EKS baseline (`@hulumi/k8s-baseline`) + Operations threat-model scenarios.                        |
-| v1.3.2   | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.      |
+| Version | Date       | What landed                                                                                                                                  |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0.0  | 2026-04-25 | AWS baseline (`SecureBucket`, `AccountFoundation`), `HulumiHardeningPack` + CIS v5 §1–3, drift classifier, threat-model skill — all SLSA-L3. |
+| v1.1.0  | 2026-04-26 | GitHub-as-Infrastructure surface (`SecureRepository`, `OrgFoundation`, GitHub policy + drift, GitHub scenarios).                             |
+| v1.2.0  | 2026-05-01 | Kubernetes / EKS baseline (`@hulumi/k8s-baseline`) + Operations threat-model scenarios.                                                      |
+| v1.3.2  | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.                                    |
 
 Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md). For what's next, watch the [issue tracker](https://github.com/kerberosmansour/hulumi/issues) and [CHANGELOG.md](./CHANGELOG.md).
 

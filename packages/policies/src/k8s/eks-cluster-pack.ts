@@ -9,6 +9,7 @@ import type { ResourceValidationPolicy } from "@pulumi/policy";
 
 import type { PackMetadata } from "../metadata";
 import { matchSuppression, type Suppression } from "../aws/suppressions";
+import { analyzeCidrCoverage } from "./cidr-coverage";
 
 const DOCS_BASE = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/README.md";
 
@@ -53,9 +54,27 @@ export const eksCl1NoBroadPublicEndpoint: ResourceValidationPolicy = {
     if (matchSuppression("HULUMI-EKS-CL-1", args.urn, suppressions).suppressed) return;
     const cidrs = vpc.publicAccessCidrs ?? [];
     // AWS default for unset is ["0.0.0.0/0"] — the unsafe-by-default behavior we want to catch.
-    if (cidrs.length === 0 || cidrs.includes("0.0.0.0/0")) {
+    if (cidrs.length === 0) {
       reportViolation(
-        `HULUMI-EKS-CL-1: EKS cluster ${args.urn} has endpointPublicAccess=true with publicAccessCidrs containing 0.0.0.0/0 (or unset, which defaults to 0.0.0.0/0). Restrict to the operator network. Docs: ${DOCS_BASE}`,
+        `HULUMI-EKS-CL-1: EKS cluster ${args.urn} has endpointPublicAccess=true with publicAccessCidrs unset, which defaults to 0.0.0.0/0. Restrict to the operator network. Docs: ${DOCS_BASE}`,
+      );
+      return;
+    }
+    // Bare-literal includes("0.0.0.0/0") is bypassed by a split like
+    // ["0.0.0.0/1","128.0.0.0/1"] that collectively covers the internet.
+    // Use coverage analysis to catch the split-range form and also reject
+    // any syntactically malformed CIDR string (the previous control
+    // accepted any non-blank string).
+    const coverage = analyzeCidrCoverage(cidrs);
+    if (coverage.malformed !== undefined) {
+      reportViolation(
+        `HULUMI-EKS-CL-1: EKS cluster ${args.urn} has a malformed/invalid publicAccessCidrs entry "${coverage.malformed}". Provide syntactically valid CIDR(s). Docs: ${DOCS_BASE}`,
+      );
+      return;
+    }
+    if (coverage.coversInternet) {
+      reportViolation(
+        `HULUMI-EKS-CL-1: EKS cluster ${args.urn} has endpointPublicAccess=true with publicAccessCidrs that cover the entire internet (0.0.0.0/0, ::/0, or a split-range union such as 0.0.0.0/1 + 128.0.0.0/1). Restrict to the operator network. Docs: ${DOCS_BASE}`,
       );
     }
   },

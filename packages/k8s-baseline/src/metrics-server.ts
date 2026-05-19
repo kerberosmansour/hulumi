@@ -51,13 +51,30 @@ function validateArgs(args: MetricsServerArgs): void {
       throw new Error("MetricsServer: extraArgs must not contain empty strings");
     }
   }
-  if (extraArgs.includes("--kubelet-insecure-tls") && args.insecureKubeletTls === undefined) {
+  if (hasKubeletInsecureTlsFlag(extraArgs) && args.insecureKubeletTls === undefined) {
     throw new Error(
       "MetricsServer: --kubelet-insecure-tls requires insecureKubeletTls with a non-empty reason",
     );
   }
   requireReason("insecureKubeletTls", args.insecureKubeletTls);
   requireReason("insecureApiServiceTls", args.insecureApiServiceTls);
+}
+
+const KUBELET_INSECURE_TLS_FLAG = "--kubelet-insecure-tls";
+
+/**
+ * pflag accepts a boolean flag either bare (`--kubelet-insecure-tls`) or as a
+ * single argv token with an `=value` suffix (`--kubelet-insecure-tls=true`,
+ * `=1`, `=t`, `=TRUE`, …). An exact-literal `Array.includes` of the bare flag
+ * misses every `=value` form, letting the insecure flag reach Helm without the
+ * mandatory `insecureKubeletTls` reason. Treat any of these forms — including a
+ * contradictory explicit `=false` (the component owns this flag; passing it at
+ * all is a misconfig that must surface the opt-in) — as the insecure flag.
+ */
+function hasKubeletInsecureTlsFlag(extraArgs: readonly string[]): boolean {
+  return extraArgs.some(
+    (a) => a === KUBELET_INSECURE_TLS_FLAG || a.startsWith(`${KUBELET_INSECURE_TLS_FLAG}=`),
+  );
 }
 
 function setIfDefined(target: Record<string, unknown>, key: string, value: unknown): void {
@@ -90,11 +107,8 @@ export class MetricsServer extends pulumi.ComponentResource implements MetricsSe
     );
 
     const chartArgs = [...(args.extraArgs ?? [])];
-    if (
-      args.insecureKubeletTls?.enabled === true &&
-      !chartArgs.includes("--kubelet-insecure-tls")
-    ) {
-      chartArgs.push("--kubelet-insecure-tls");
+    if (args.insecureKubeletTls?.enabled === true && !hasKubeletInsecureTlsFlag(chartArgs)) {
+      chartArgs.push(KUBELET_INSECURE_TLS_FLAG);
     }
 
     const values: Record<string, unknown> = {

@@ -82,6 +82,23 @@ describe("MetricsServer — happy paths", () => {
     expect(await valueOf(metrics.insecureApiServiceTlsReason)).toMatch(/temporary bootstrap/);
   });
 
+  test("explicit =true kubelet flag with a supplied reason records the reason", async () => {
+    const metrics = new MetricsServer("cluster-metrics", {
+      extraArgs: ["--kubelet-insecure-tls=true"],
+      insecureKubeletTls: {
+        enabled: true,
+        reason: "node serving certs rotating during bootstrap",
+      },
+    });
+    await settlePulumi();
+
+    const releaseReg = registrations.find((r) => r.type === "kubernetes:helm.sh/v3:Release");
+    const values = releaseReg!.inputs.values as Record<string, unknown>;
+    // The auto-append guard must recognise the =true form and NOT duplicate.
+    expect(values.args).toEqual(["--kubelet-insecure-tls=true"]);
+    expect(await valueOf(metrics.insecureKubeletTlsReason)).toMatch(/node serving certs rotating/);
+  });
+
   test("outputs expose the metrics APIService name and chart version", async () => {
     const metrics = new MetricsServer("cluster-metrics");
     await settlePulumi();
@@ -118,6 +135,30 @@ describe("MetricsServer — invalid input refusals", () => {
   test("raw kubelet insecure TLS flag requires explicit reason", () => {
     expect(
       () => new MetricsServer("cluster-metrics", { extraArgs: ["--kubelet-insecure-tls"] }),
+    ).toThrow(/requires insecureKubeletTls with a non-empty reason/);
+  });
+
+  test("kubelet insecure TLS flag in =true form requires explicit reason", () => {
+    expect(
+      () => new MetricsServer("cluster-metrics", { extraArgs: ["--kubelet-insecure-tls=true"] }),
+    ).toThrow(/requires insecureKubeletTls with a non-empty reason/);
+  });
+
+  test("kubelet insecure TLS flag in =TRUE form requires explicit reason", () => {
+    expect(
+      () => new MetricsServer("cluster-metrics", { extraArgs: ["--kubelet-insecure-tls=TRUE"] }),
+    ).toThrow(/requires insecureKubeletTls with a non-empty reason/);
+  });
+
+  test("kubelet insecure TLS flag in =1 form requires explicit reason", () => {
+    expect(
+      () => new MetricsServer("cluster-metrics", { extraArgs: ["--kubelet-insecure-tls=1"] }),
+    ).toThrow(/requires insecureKubeletTls with a non-empty reason/);
+  });
+
+  test("contradictory --kubelet-insecure-tls=false still requires explicit opt-in", () => {
+    expect(
+      () => new MetricsServer("cluster-metrics", { extraArgs: ["--kubelet-insecure-tls=false"] }),
     ).toThrow(/requires insecureKubeletTls with a non-empty reason/);
   });
 

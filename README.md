@@ -52,7 +52,7 @@ export const scratchArn = scratch.arn;
 
 That single line gets you a bucket with public access blocked, SSE-KMS, a TLS-only bucket policy, and the right ownership controls — no checklist to re-derive. Switch `tier: "startup-hardened"` when you graduate the stack to a real account. The full walkthrough (including `AccountFoundation` and the policy pack) is in [docs/getting-started.md](./docs/getting-started.md).
 
-To threat-model **before** writing IaC, install the Claude Code skill (see [Installation](#installation)) and run:
+To threat-model **before** writing IaC, install the Claude Code skill (see [Canonical install](#canonical-install)) and run:
 
 ```bash
 /hulumi-threat-model aws-multi-account-baseline
@@ -74,7 +74,7 @@ The GitHub-as-Infrastructure surface lives under a hard infra-only scope contrac
 
 Every published `@hulumi/*` tarball ships with SLSA Build L3 provenance — see [verify-provenance.md](./docs/cookbooks/verify-provenance.md). The full changelog lives in [CHANGELOG.md](./CHANGELOG.md).
 
-## Installation
+## Canonical install
 
 Hulumi lives at a single canonical GitHub path: **`kerberosmansour/hulumi`**. Any other path is unofficial — see [SECURITY.md](./SECURITY.md) for typosquat reporting. Every published `@hulumi/*` tarball ships with SLSA Build L3 attestation; verify before installing per [verify-provenance.md](./docs/cookbooks/verify-provenance.md) (`gh attestation verify ...`).
 

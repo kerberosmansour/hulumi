@@ -84,8 +84,7 @@ function inspectAwsIamTrustPolicy(
     const s = stmt as Record<string, unknown>;
     const principal = s.Principal as Record<string, unknown> | undefined;
     if (!principal || principal.Federated === undefined) continue;
-    const fed = String(principal.Federated);
-    if (!federatedIsGithubOidc(fed)) continue;
+    if (!federatedIsGithubOidc(principal.Federated)) continue;
     const conds = s.Condition as Record<string, unknown> | undefined;
     if (!conds || typeof conds !== "object") continue;
     for (const [operator, rawCondition] of Object.entries(conds)) {

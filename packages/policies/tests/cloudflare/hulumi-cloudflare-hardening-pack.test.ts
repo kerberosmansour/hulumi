@@ -367,3 +367,64 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
     expect(violations[0]).toContain(appRecord.urn);
   });
 });
+
+// Cluster B regression — `isChildOf` in this pack used `urn.includes(\`${type}$\`)`
+// over the full URN; the operator-controlled logical-name suffix could embed
+// PUBLIC_HOSTNAME_TYPE or ZONE_FOUNDATION_TYPE and bypass CF_DNS_1 / CF_DNSSEC_1.
+describe("HulumiCloudflareHardeningPack — forged-logical-name URN spoof", () => {
+  let violations: string[];
+  const report = (m: string): void => {
+    violations.push(m);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("CF_DNS_1 reports even when a raw DNS record's LOGICAL NAME embeds PublicHostname type", () => {
+    // Raw DNS record marked as a public application whose logical name
+    // carries the PublicHostname type token. Type chain is just the raw
+    // DnsRecord, NOT a child of any PublicHostname component.
+    const spoofedArgs = makeResourceArgs({
+      type: DNS_RECORD_TYPE,
+      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::${PUBLIC_HOSTNAME_TYPE}$app-record`,
+      name: `${PUBLIC_HOSTNAME_TYPE}$app-record`,
+      // `purpose: "public-app"` makes this a real DNS-only public-app
+      // record CF_DNS_1 should reject. Pre-fix, the spoofed logical name
+      // made `isChildOf(urn, PUBLIC_HOSTNAME_TYPE)` substring-match `true`
+      // → CF_DNS_1 early-returned and the violation never fired. Post-fix,
+      // the anchored helper returns false (no real PublicHostname parent)
+      // → the rule proceeds and reports as it should.
+      props: { type: "A", proxied: false, purpose: "public-app" },
+    });
+
+    (
+      cfDns1NoDnsOnlyPublicAppRecord.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(spoofedArgs, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(CF_DNS_1_RULE_ID);
+  });
+
+  it("CF_DNSSEC_1 reports even when a raw zone's LOGICAL NAME embeds ZoneFoundation type", () => {
+    const spoofedZone = makePolicyResource({
+      type: ZONE_TYPE,
+      urn: `urn:pulumi:s::p::${ZONE_TYPE}::${ZONE_FOUNDATION_TYPE}$evil-zone`,
+      name: `${ZONE_FOUNDATION_TYPE}$evil-zone`,
+      props: {},
+    });
+
+    (
+      cfDnssec1RequirePublicZoneDnssec.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([spoofedZone]), report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(CF_DNSSEC_1_RULE_ID);
+  });
+});

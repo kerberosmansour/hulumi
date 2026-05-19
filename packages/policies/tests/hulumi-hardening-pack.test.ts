@@ -444,12 +444,18 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       name: "sb-bucket",
       props: {},
     });
+  // Fixtures explicitly bind each sibling to the exempted bucket via the
+  // `bucket` prop and (for the policy) via the `Resource` block. This is
+  // what a genuine SecureBucket emits — and is what H5's value-binding
+  // check requires to defeat the "decoy siblings targeting a different
+  // bucket" bypass.
   const hardenedSiblings = (): PolicyResource[] => [
     makePolicyResource({
       type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
       urn: `${PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::sb-pab`,
       name: "sb-pab",
       props: {
+        bucket: "sb-bucket",
         blockPublicAcls: true,
         ignorePublicAcls: true,
         blockPublicPolicy: true,
@@ -461,6 +467,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
       name: "sb-sse",
       props: {
+        bucket: "sb-bucket",
         rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
       },
     }),
@@ -468,19 +475,20 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
       urn: `${PARENT}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
       name: "sb-own",
-      props: { rule: { objectOwnership: "BucketOwnerEnforced" } },
+      props: { bucket: "sb-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
     }),
     makePolicyResource({
       type: "aws:s3/bucketVersioning:BucketVersioning",
       urn: `${PARENT}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
       name: "sb-ver",
-      props: { versioningConfiguration: { status: "Enabled" } },
+      props: { bucket: "sb-bucket", versioningConfiguration: { status: "Enabled" } },
     }),
     makePolicyResource({
       type: "aws:s3/bucketPolicy:BucketPolicy",
       urn: `${PARENT}$aws:s3/bucketPolicy:BucketPolicy::sb-pol`,
       name: "sb-pol",
       props: {
+        bucket: "sb-bucket",
         policy: JSON.stringify({
           Version: "2012-10-17",
           Statement: [
@@ -488,6 +496,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
               Effect: "Deny",
               Principal: "*",
               Action: "s3:*",
+              Resource: ["arn:aws:s3:::sb-bucket", "arn:aws:s3:::sb-bucket/*"],
               Condition: { Bool: { "aws:SecureTransport": "false" } },
             },
           ],
@@ -629,5 +638,203 @@ describe("PackMetadata — shape is stable per interfaces.md §2", () => {
       expect(rule.docsUrl).toBeTruthy();
       expect(rule.frameworkIds.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// Cluster B regression — two URN/binding bypasses against H5 that the
+// previous implementation missed:
+//   1. Decoy siblings parented under the same forged SecureBucket wrapper
+//      that satisfy shape checks but reference a DIFFERENT bucket via
+//      their `bucket` prop / the policy's `Resource` block.
+//   2. Sibling resources whose URNs share the `bucket.urn.split("$")[0]`
+//      string prefix but whose actual parent component type is different
+//      (the old `startsWith(parentPrefix)` check is fooled by any URN
+//      sharing the project + outer-type-prefix segment).
+describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)", () => {
+  let violations: string[];
+  const report = (msg: string): void => {
+    violations.push(msg);
+  };
+  beforeEach(() => {
+    violations = [];
+  });
+
+  const PARENT = "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucket";
+  const exemptedBucket = (): PolicyResource =>
+    makePolicyResource({
+      type: "aws:s3/bucket:Bucket",
+      urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
+      name: "sb-bucket",
+      props: {},
+    });
+
+  // Decoy siblings: same parent component URN prefix and correct shape,
+  // but every `bucket` prop / Resource ARN points at "other-bucket".
+  const decoySiblings = (): PolicyResource[] => [
+    makePolicyResource({
+      type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
+      urn: `${PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::decoy-pab`,
+      name: "decoy-pab",
+      props: {
+        bucket: "other-bucket",
+        blockPublicAcls: true,
+        ignorePublicAcls: true,
+        blockPublicPolicy: true,
+        restrictPublicBuckets: true,
+      },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
+      urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::decoy-sse`,
+      name: "decoy-sse",
+      props: {
+        bucket: "other-bucket",
+        rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
+      },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
+      urn: `${PARENT}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::decoy-own`,
+      name: "decoy-own",
+      props: { bucket: "other-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketVersioning:BucketVersioning",
+      urn: `${PARENT}$aws:s3/bucketVersioning:BucketVersioning::decoy-ver`,
+      name: "decoy-ver",
+      props: { bucket: "other-bucket", versioningConfiguration: { status: "Enabled" } },
+    }),
+    makePolicyResource({
+      type: "aws:s3/bucketPolicy:BucketPolicy",
+      urn: `${PARENT}$aws:s3/bucketPolicy:BucketPolicy::decoy-pol`,
+      name: "decoy-pol",
+      props: {
+        bucket: "other-bucket",
+        policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Deny",
+              Principal: "*",
+              Action: "s3:*",
+              Resource: ["arn:aws:s3:::other-bucket", "arn:aws:s3:::other-bucket/*"],
+              Condition: { Bool: { "aws:SecureTransport": "false" } },
+            },
+          ],
+        }),
+      },
+    }),
+  ];
+
+  const runH5 = (resources: PolicyResource[]): void =>
+    (
+      h5SecureBucketExemptionRequiresHardening.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs(resources), report);
+
+  it("reports HULUMI-H5 when siblings exist but target a DIFFERENT bucket (decoy-sibling bypass)", () => {
+    runH5([exemptedBucket(), ...decoySiblings()]);
+    expect(violations).toHaveLength(1);
+    // Every control is missing because none is bound to the exempted bucket.
+    expect(violations[0]).toMatch(/HULUMI-H5/);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/SSE-KMS encryption/);
+    expect(violations[0]).toMatch(/BucketOwnerEnforced ownership controls/);
+    expect(violations[0]).toMatch(/enabled bucket versioning/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+  });
+
+  it("reports HULUMI-H5 when 'siblings' are parented under an UNRELATED component that shares a URN string prefix", () => {
+    // Old code used `r.urn.startsWith(bucket.urn.split('$')[0])` which would
+    // accept a resource under any component whose URN starts with the same
+    // project/stack/outer-type-prefix segment. The anchored helper requires
+    // the parent component type chain to match.
+    const UNRELATED_PARENT = "urn:pulumi:s::p::hulumi:baseline:aws:SecureBucketImposter";
+    const wronglyParented = makePolicyResource({
+      type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
+      urn: `${UNRELATED_PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::wrong-pab`,
+      name: "wrong-pab",
+      props: {
+        bucket: "sb-bucket",
+        blockPublicAcls: true,
+        ignorePublicAcls: true,
+        blockPublicPolicy: true,
+        restrictPublicBuckets: true,
+      },
+    });
+    runH5([exemptedBucket(), wronglyParented]);
+    // PAB is reported missing because the only PAB-shaped resource is not
+    // a sibling of the exempted bucket's parent component.
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+  });
+
+  it("reports HULUMI-H5 when the bucket policy's Resource block names a DIFFERENT bucket (decoy policy)", () => {
+    // The four non-policy siblings are correctly bound; the policy alone
+    // names another bucket in Resource. Only the TLS-only-policy control
+    // should be reported as missing.
+    const PARENT_LOCAL = PARENT; // alias for clarity
+    const siblings: PolicyResource[] = [
+      makePolicyResource({
+        type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
+        urn: `${PARENT_LOCAL}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::sb-pab`,
+        name: "sb-pab",
+        props: {
+          bucket: "sb-bucket",
+          blockPublicAcls: true,
+          ignorePublicAcls: true,
+          blockPublicPolicy: true,
+          restrictPublicBuckets: true,
+        },
+      }),
+      makePolicyResource({
+        type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
+        urn: `${PARENT_LOCAL}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
+        name: "sb-sse",
+        props: {
+          bucket: "sb-bucket",
+          rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
+        },
+      }),
+      makePolicyResource({
+        type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
+        urn: `${PARENT_LOCAL}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
+        name: "sb-own",
+        props: { bucket: "sb-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
+      }),
+      makePolicyResource({
+        type: "aws:s3/bucketVersioning:BucketVersioning",
+        urn: `${PARENT_LOCAL}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
+        name: "sb-ver",
+        props: { bucket: "sb-bucket", versioningConfiguration: { status: "Enabled" } },
+      }),
+      makePolicyResource({
+        type: "aws:s3/bucketPolicy:BucketPolicy",
+        urn: `${PARENT_LOCAL}$aws:s3/bucketPolicy:BucketPolicy::sb-pol`,
+        name: "sb-pol",
+        props: {
+          bucket: "sb-bucket",
+          policy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Deny",
+                Principal: "*",
+                Action: "s3:*",
+                // Decoy: Resource names a different bucket.
+                Resource: ["arn:aws:s3:::other-bucket", "arn:aws:s3:::other-bucket/*"],
+                Condition: { Bool: { "aws:SecureTransport": "false" } },
+              },
+            ],
+          }),
+        },
+      }),
+    ];
+    runH5([exemptedBucket(), ...siblings]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+    expect(violations[0]).not.toMatch(/all-true BucketPublicAccessBlock/);
   });
 });

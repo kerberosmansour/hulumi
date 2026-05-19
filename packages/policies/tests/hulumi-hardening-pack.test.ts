@@ -282,7 +282,7 @@ describe("HulumiHardeningPack H3 — MANDATORY (M5 flip) on IAM role missing hul
       type: "aws:iam/role:Role",
       urn: "urn:pulumi:s::p::aws:iam/role:Role::raw-role",
       name: "raw-role",
-      props: {},
+      props: { bucket: "sb-bucket", id: "sb-bucket" },
     });
     (
       h3AdvisoryIacRoleTag.validateResource as (
@@ -442,7 +442,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       type: "aws:s3/bucket:Bucket",
       urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
       name: "sb-bucket",
-      props: {},
+      props: { bucket: "sb-bucket", id: "sb-bucket" },
     });
   const hardenedSiblings = (): PolicyResource[] => [
     makePolicyResource({
@@ -450,6 +450,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       urn: `${PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::sb-pab`,
       name: "sb-pab",
       props: {
+        bucket: "sb-bucket",
         blockPublicAcls: true,
         ignorePublicAcls: true,
         blockPublicPolicy: true,
@@ -461,6 +462,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
       name: "sb-sse",
       props: {
+        bucket: "sb-bucket",
         rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
       },
     }),
@@ -468,19 +470,20 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
       urn: `${PARENT}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
       name: "sb-own",
-      props: { rule: { objectOwnership: "BucketOwnerEnforced" } },
+      props: { bucket: "sb-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
     }),
     makePolicyResource({
       type: "aws:s3/bucketVersioning:BucketVersioning",
       urn: `${PARENT}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
       name: "sb-ver",
-      props: { versioningConfiguration: { status: "Enabled" } },
+      props: { bucket: "sb-bucket", versioningConfiguration: { status: "Enabled" } },
     }),
     makePolicyResource({
       type: "aws:s3/bucketPolicy:BucketPolicy",
       urn: `${PARENT}$aws:s3/bucketPolicy:BucketPolicy::sb-pol`,
       name: "sb-pol",
       props: {
+        bucket: "sb-bucket",
         policy: JSON.stringify({
           Version: "2012-10-17",
           Statement: [
@@ -488,6 +491,7 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
               Effect: "Deny",
               Principal: "*",
               Action: "s3:*",
+              Resource: ["arn:aws:s3:::sb-bucket", "arn:aws:s3:::sb-bucket/*"],
               Condition: { Bool: { "aws:SecureTransport": "false" } },
             },
           ],
@@ -535,6 +539,38 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
     expect(violations[0]).not.toMatch(/TLS-only/);
   });
 
+
+
+  it("reports HULUMI-H5 when siblings are present but target a different bucket (decoy bypass)", () => {
+    const siblings = hardenedSiblings().map((r) =>
+      makePolicyResource({
+        ...r,
+        props: {
+          ...((r.props ?? {}) as Record<string, unknown>),
+          bucket: "decoy-bucket",
+          policy:
+            r.type === "aws:s3/bucketPolicy:BucketPolicy"
+              ? JSON.stringify({
+                  Version: "2012-10-17",
+                  Statement: [
+                    {
+                      Effect: "Deny",
+                      Principal: "*",
+                      Action: "s3:*",
+                      Resource: ["arn:aws:s3:::decoy-bucket", "arn:aws:s3:::decoy-bucket/*"],
+                      Condition: { Bool: { "aws:SecureTransport": "false" } },
+                    },
+                  ],
+                })
+              : ((r.props ?? {}) as Record<string, unknown>).policy,
+        },
+      }),
+    );
+    runH5([exemptedBucket(), ...siblings]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H5/);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+  });
   it("honors a HULUMI-H5 suppression scoped to the bucket URN", () => {
     runH5([exemptedBucket()], {
       suppressions: [

@@ -217,6 +217,23 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function bucketTargetCandidates(bucket: PolicyResource): Set<string> {
+  const out = new Set<string>();
+  if (typeof bucket.name === "string" && bucket.name !== "") out.add(bucket.name);
+  const bucketProps = (bucket.props ?? {}) as Record<string, unknown>;
+  const named = bucketProps.bucket;
+  const id = bucketProps.id;
+  if (typeof named === "string" && named !== "") out.add(named);
+  if (typeof id === "string" && id !== "") out.add(id);
+  return out;
+}
+
+function bucketControlTargetsBucket(props: Record<string, unknown>, bucket: PolicyResource): boolean {
+  const target = props.bucket;
+  if (typeof target !== "string" || target === "") return false;
+  return bucketTargetCandidates(bucket).has(target);
+}
+
 function isAllPublicAccessBlocked(props: Record<string, unknown>): boolean {
   return (
     props.blockPublicAcls === true &&
@@ -245,7 +262,7 @@ function isVersioningEnabled(props: Record<string, unknown>): boolean {
   return asRecord(props.versioningConfiguration)?.status === "Enabled";
 }
 
-function isTlsOnlyPolicy(props: Record<string, unknown>): boolean {
+function isTlsOnlyPolicyForBucket(props: Record<string, unknown>, bucket: PolicyResource): boolean {
   let doc: unknown = props.policy;
   if (typeof doc === "string") {
     try {
@@ -254,13 +271,29 @@ function isTlsOnlyPolicy(props: Record<string, unknown>): boolean {
       return false;
     }
   }
+  const bucketName = typeof (props.bucket) === "string" ? (props.bucket as string) : undefined;
+  if (!bucketName || !bucketTargetCandidates(bucket).has(bucketName)) return false;
+  const bucketArn = `arn:aws:s3:::${bucketName}`;
+  const objectArn = `${bucketArn}/*`;
+
   const statements = asRecord(doc)?.Statement;
   const list = Array.isArray(statements) ? statements : [];
   return list.some((raw) => {
     const stmt = asRecord(raw);
     if (stmt?.Effect !== "Deny") return false;
     const secureTransport = asRecord(asRecord(stmt.Condition)?.Bool)?.["aws:SecureTransport"];
-    return secureTransport === "false" || secureTransport === false;
+    if (!(secureTransport === "false" || secureTransport === false)) return false;
+
+    const action = stmt.Action;
+    const actions = Array.isArray(action) ? action : [action];
+    const hasS3All = actions.some((a) => typeof a === "string" && a === "s3:*");
+    if (!hasS3All) return false;
+
+    const resource = stmt.Resource;
+    const resources = Array.isArray(resource) ? resource : [resource];
+    const hasBucketArn = resources.some((r) => typeof r === "string" && r === bucketArn);
+    const hasObjectArn = resources.some((r) => typeof r === "string" && r === objectArn);
+    return hasBucketArn && hasObjectArn;
   });
 }
 
@@ -294,27 +327,57 @@ export const h5SecureBucketExemptionRequiresHardening: StackValidationPolicy = {
       const parentPrefix = bucket.urn.split("$")[0];
       const sibling = (
         types: readonly string[],
-        ok: (props: Record<string, unknown>) => boolean,
+        ok: (resource: PolicyResource) => boolean,
       ): boolean =>
         args.resources.some(
           (r: PolicyResource) =>
-            types.includes(r.type) &&
-            r.urn.startsWith(parentPrefix) &&
-            ok((r.props ?? {}) as Record<string, unknown>),
+            types.includes(r.type) && r.urn.startsWith(parentPrefix) && ok(r),
         );
 
       const missing: string[] = [];
-      if (!sibling(BUCKET_PAB_TYPES, isAllPublicAccessBlocked)) {
+      if (
+        !sibling(
+          BUCKET_PAB_TYPES,
+          (r) =>
+            bucketControlTargetsBucket((r.props ?? {}) as Record<string, unknown>, bucket) &&
+            isAllPublicAccessBlocked((r.props ?? {}) as Record<string, unknown>),
+        )
+      ) {
         missing.push("all-true BucketPublicAccessBlock");
       }
-      if (!sibling(BUCKET_SSE_TYPES, isKmsSse)) missing.push("SSE-KMS encryption");
-      if (!sibling(BUCKET_OWNERSHIP_TYPES, isOwnerEnforced)) {
+      if (
+        !sibling(
+          BUCKET_SSE_TYPES,
+          (r) =>
+            bucketControlTargetsBucket((r.props ?? {}) as Record<string, unknown>, bucket) &&
+            isKmsSse((r.props ?? {}) as Record<string, unknown>),
+        )
+      )
+        missing.push("SSE-KMS encryption");
+      if (
+        !sibling(
+          BUCKET_OWNERSHIP_TYPES,
+          (r) =>
+            bucketControlTargetsBucket((r.props ?? {}) as Record<string, unknown>, bucket) &&
+            isOwnerEnforced((r.props ?? {}) as Record<string, unknown>),
+        )
+      ) {
         missing.push("BucketOwnerEnforced ownership controls");
       }
-      if (!sibling(BUCKET_VERSIONING_TYPES, isVersioningEnabled)) {
+      if (
+        !sibling(
+          BUCKET_VERSIONING_TYPES,
+          (r) =>
+            bucketControlTargetsBucket((r.props ?? {}) as Record<string, unknown>, bucket) &&
+            isVersioningEnabled((r.props ?? {}) as Record<string, unknown>),
+        )
+      ) {
         missing.push("enabled bucket versioning");
       }
-      if (!sibling(BUCKET_POLICY_TYPES, isTlsOnlyPolicy)) missing.push("TLS-only bucket policy");
+      if (
+        !sibling(BUCKET_POLICY_TYPES, (r) => isTlsOnlyPolicyForBucket((r.props ?? {}) as Record<string, unknown>, bucket))
+      )
+        missing.push("TLS-only bucket policy");
 
       if (missing.length > 0) {
         reportViolation(

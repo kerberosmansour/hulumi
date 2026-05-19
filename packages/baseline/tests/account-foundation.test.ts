@@ -604,6 +604,77 @@ describe("AccountFoundation — CloudTrail log group output for downstream alarm
   });
 });
 
+describe("AccountFoundation — audit-delivery bucket tamper-resistance invariant (HIGH)", () => {
+  beforeEach(resetRegistrations);
+
+  it("sandbox internal log bucket still emits the CloudTrail-Lake EventDataStore (immutable audit capture)", async () => {
+    const af = new AccountFoundation("af-sandbox-eds", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+
+    const eds = registrations.find(
+      (r) => r.type === "aws:cloudtrail/eventDataStore:EventDataStore",
+    );
+    expect(eds).toBeDefined();
+    expect(eds!.inputs.retentionPeriod).toBe(7);
+  });
+
+  it("startup-hardened internal log bucket carries the deny-audit-tampering invariant, sparing the Config writability-check key", async () => {
+    const af = new AccountFoundation("af-hardened-deny", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111"],
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+
+    const bucketPolicy = registrations.find((r) => r.type === "aws:s3/bucketPolicy:BucketPolicy");
+    expect(bucketPolicy).toBeDefined();
+    const doc = parsePolicy(bucketPolicy!.inputs.policy);
+    const deny = doc.Statement.find((s) => s.Sid === "DenyAuditLogTampering");
+    expect(deny).toBeDefined();
+    expect(deny!.Effect).toBe("Deny");
+    expect(deny!.Action).toEqual([
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketVersioning",
+    ]);
+    const resources = deny!.Resource as string[];
+    expect(resources.some((r) => r.includes("/AWSLogs/111122223333/CloudTrail/*"))).toBe(true);
+    expect(resources.some((r) => r.includes("/AWSLogs/111122223333/Config/ConfigHistory/*"))).toBe(
+      true,
+    );
+    expect(JSON.stringify(deny)).not.toContain("ConfigWritabilityCheckFile");
+  });
+
+  it("startup-hardened AccountFoundation rejects logBucketForceDestroy=true on the audit bucket", () => {
+    expect(
+      () =>
+        new AccountFoundation("af-hardened-fd", {
+          tier: "startup-hardened",
+          iacRoleArn: IAC_ROLE_ARN,
+          orgAccountIds: ["111111111111"],
+          logBucketForceDestroy: true,
+        }),
+    ).toThrowError(/audit.*forceDestroy.*docs\/tiers\.md/i);
+  });
+
+  it("sandbox AccountFoundation still honors logBucketForceDestroy=true (ephemeral e2e cleanup)", async () => {
+    const af = new AccountFoundation("af-sandbox-fd", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+      logBucketForceDestroy: true,
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+    const bucket = registrations.find((r) => r.type === "aws:s3/bucket:Bucket");
+    expect(bucket?.inputs.forceDestroy).toBe(true);
+  });
+});
+
 describe("AccountFoundation — no sleep / setTimeout in component-composition source", () => {
   it("packages/baseline/src/aws/ has zero setTimeout / sleep / await new Promise occurrences outside probes/", () => {
     expectNoForbiddenShortcuts({

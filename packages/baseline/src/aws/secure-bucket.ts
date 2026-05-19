@@ -61,6 +61,26 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       throw new Error("Startup-Hardened requires logBucketArn; see docs/tiers.md");
     }
 
+    // This bucket genuinely backs CloudTrail and/or AWS Config delivery —
+    // it is an audit-record sink, not an arbitrary data bucket. Its
+    // tamper-resistance is keyed off this declared FUNCTION, independent of
+    // the parent tier, so the invariant holds at one chokepoint.
+    const backsAuditDelivery =
+      args.awsServiceLogDelivery?.cloudTrail === true ||
+      args.awsServiceLogDelivery?.config === true;
+
+    // M-FORCEDESTROY block: a Startup-Hardened bucket that backs the audit
+    // trail must never be silently tear-down-able. forceDestroy stays fully
+    // usable for non-audit buckets and for sandbox-tier ephemeral e2e
+    // stacks (which legitimately `pulumi destroy`).
+    if (backsAuditDelivery && args.forceDestroy === true && args.tier === "startup-hardened") {
+      throw new Error(
+        "Startup-Hardened audit-delivery bucket (CloudTrail/Config) must not set " +
+          "forceDestroy: destroying it would erase tamper-evident audit records; " +
+          "see docs/tiers.md",
+      );
+    }
+
     // Object Lock is the Startup-Hardened default, but a consumer may
     // opt out with `objectLock: false` — e.g. the AWS Config / CloudTrail
     // delivery bucket, whose delivery validation is incompatible with
@@ -232,6 +252,41 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
               );
             }
 
+            // Retention floor WITHOUT bucket-wide Object Lock. AWS Config's
+            // PutDeliveryChannel write-then-delete probe writes/deletes a
+            // single key (AWSLogs/<acct>/Config/ConfigWritabilityCheckFile),
+            // so a bucket-wide Object Lock default retention breaks Config
+            // (InsufficientDeliveryPolicyException) — which is why this
+            // bucket sets objectLock:false. Instead, a scoped deny makes the
+            // delivered audit records tamper-resistant while deliberately
+            // EXCLUDING the writability-check key (the deny targets only the
+            // CloudTrail log prefix and the Config ConfigHistory/
+            // ConfigSnapshot prefixes — never the Config delivery prefix at
+            // large, and never the probe key — so Config's probe still
+            // round-trips).
+            if (backsAuditDelivery && args.tier === "startup-hardened") {
+              const protectedPrefixes: string[] = [];
+              if (args.awsServiceLogDelivery?.cloudTrail === true) {
+                protectedPrefixes.push(`${arn}/AWSLogs/${accountId}/CloudTrail/*`);
+              }
+              if (args.awsServiceLogDelivery?.config === true) {
+                protectedPrefixes.push(
+                  `${arn}/AWSLogs/${accountId}/Config/ConfigHistory/*`,
+                  `${arn}/AWSLogs/${accountId}/Config/ConfigSnapshot/*`,
+                );
+              }
+              statements.push({
+                Sid: "DenyAuditLogTampering",
+                Effect: "Deny",
+                Principal: "*",
+                Action: ["s3:DeleteObject", "s3:DeleteObjectVersion", "s3:PutBucketVersioning"],
+                // The bucket ARN guards s3:PutBucketVersioning (which acts
+                // on the bucket, not an object); the prefixes guard the
+                // delete actions on the delivered audit objects.
+                Resource: [arn, ...protectedPrefixes],
+              });
+            }
+
             return JSON.stringify({
               Version: "2012-10-17",
               Statement: statements,
@@ -260,6 +315,9 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
       );
     }
 
+    // BucketLogging stays tier-gated: server-access logging needs a
+    // pre-existing external target bucket, which the sandbox smoke path
+    // deliberately does not provision.
     if (args.tier === "startup-hardened") {
       new aws.s3.BucketLogging(
         `${name}-logging`,
@@ -270,7 +328,15 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
         },
         childOptions(LEGACY_BUCKET_LOGGING_V2_TYPE),
       );
+    }
 
+    // The CloudTrail-Lake EventDataStore has no external-target dependency,
+    // so it is keyed off the bucket's audit FUNCTION rather than the tier.
+    // This restores immutable audit capture for the sandbox
+    // AccountFoundation internal log bucket. Startup-Hardened with a
+    // logBucketArn but no audit-delivery role keeps the historical
+    // behaviour (EventDataStore emitted) for back-compat.
+    if (backsAuditDelivery || args.tier === "startup-hardened") {
       new aws.cloudtrail.EventDataStore(
         `${name}-data-events`,
         {

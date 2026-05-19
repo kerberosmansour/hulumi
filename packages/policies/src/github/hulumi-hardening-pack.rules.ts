@@ -9,6 +9,7 @@ import type { ResourceValidationPolicy, StackValidationPolicy } from "@pulumi/po
 import { matchSuppression, type Suppression } from "./suppressions";
 import { G_OIDC_1 } from "./g-oidc-1";
 import { G_OIDC_2 } from "./g-oidc-2";
+import { isUrnChildOfComponent } from "../urn";
 
 const HULUMI_SECURE_REPOSITORY_TYPE = "hulumi:baseline:github:SecureRepository";
 const HULUMI_ORG_FOUNDATION_TYPE = "hulumi:baseline:github:OrgFoundation";
@@ -30,11 +31,17 @@ function readSuppressions(config: Record<string, unknown> | undefined): Suppress
 }
 
 function isChildOfSecureRepository(urn: string): boolean {
-  return urn.includes(`${HULUMI_SECURE_REPOSITORY_TYPE}$`);
+  // Anchored URN type-chain check — see ../urn.ts. The prior
+  // `urn.includes(\`${HULUMI_SECURE_REPOSITORY_TYPE}$\`)` was bypassed by a
+  // raw github.Repository declared with a logical name carrying the
+  // SecureRepository type token.
+  return isUrnChildOfComponent(urn, HULUMI_SECURE_REPOSITORY_TYPE);
 }
 
 function isChildOfOrgFoundation(urn: string): boolean {
-  return urn.includes(`${HULUMI_ORG_FOUNDATION_TYPE}$`);
+  // Anchored URN type-chain check — see ../urn.ts. Same forged-logical-name
+  // spoof class as isChildOfSecureRepository above.
+  return isUrnChildOfComponent(urn, HULUMI_ORG_FOUNDATION_TYPE);
 }
 
 /**

@@ -8,6 +8,17 @@ import type {
   ResourceRelationship,
 } from "./reconciler";
 
+// Security-control services that are account-region singletons by nature:
+// deleting one tears down the account's entire detection/posture surface.
+// Treated as shared singletons even when discovery has no caller-supplied
+// `singleton` flag, so the reconciler's singleton guard always fires.
+const SECURITY_SINGLETON_TYPE =
+  /^aws:guardduty\/detector:Detector$|^aws:securityhub\/account:Account$/;
+
+export function isSecuritySingletonType(type: string): boolean {
+  return SECURITY_SINGLETON_TYPE.test(type);
+}
+
 export interface PulumiStateResource {
   urn: string;
   type: string;
@@ -98,7 +109,11 @@ export function discoverReconcileTargets(
       ...(cloud?.accountId !== undefined ? { accountId: cloud.accountId } : {}),
       ...(cloud?.tags !== undefined ? { tags: cloud.tags } : {}),
       ...(cloud?.createdAt !== undefined ? { createdAt: cloud.createdAt } : {}),
-      ...(cloud?.singleton !== undefined ? { singleton: cloud.singleton } : {}),
+      ...(cloud?.singleton === true || isSecuritySingletonType(resource.type)
+        ? { singleton: true }
+        : cloud?.singleton !== undefined
+          ? { singleton: cloud.singleton }
+          : {}),
     };
     if (physicalId !== undefined) identity.physicalId = physicalId;
     targets.push({
@@ -115,11 +130,15 @@ export function discoverReconcileTargets(
       continue;
     }
     const ownership = ownershipEvidenceFor(resource, request.scope);
+    const identity: ResourceIdentity =
+      isSecuritySingletonType(resource.type) && resource.singleton !== true
+        ? { ...resource, singleton: true }
+        : resource;
     targets.push({
-      identity: resource,
+      identity,
       inState: false,
       existsInCloud: true,
-      relationship: relationshipFor(resource, ownership),
+      relationship: relationshipFor(identity, ownership),
       ownership,
     });
   }

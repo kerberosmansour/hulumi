@@ -157,6 +157,33 @@ export class DriftClassifier {
       providerDrift: pv.detected,
     };
 
+    // FAIL-CLOSED GATE (M-ADAPTERFAIL). A rejected / failed required
+    // adapter unwraps to {detected:false, ok:false}. Trusting only
+    // `detected` would treat that as "clean" (mutated=false) and emit
+    // None/none, which would then be cached and short-circuit every
+    // subsequent call inside the TTL — a fail-open. The Automation-API
+    // (`auto`) and provider-version (`pv`) adapters are required inputs
+    // to the matrix (`mutated` / `providerDrift`); if either failed we
+    // cannot trust the snapshot, so degrade to the SAME verdict the
+    // probe-failure path (E1) produces — Unknown / low — and DO NOT
+    // write that degraded result to the cache.
+    const requiredAdapterFailed = !auto.ok || !pv.ok;
+    if (requiredAdapterFailed) {
+      const degradedVerdict: DriftVerdict = {
+        resource,
+        source: "Unknown",
+        confidence: "low",
+        evidence,
+        ...(buildRecommendation("Unknown") !== undefined
+          ? { recommendation: buildRecommendation("Unknown")! }
+          : {}),
+      };
+      // Same effect as the meetsMinConfidence early-return below: return
+      // without writing the cache so a degraded run never becomes the
+      // cached canonical entry and never short-circuits later calls.
+      return degradedVerdict;
+    }
+
     let { source, confidence } = hardenedVerdict(snapshot);
     if (
       !probeResult.ok &&
@@ -169,12 +196,33 @@ export class DriftClassifier {
       // for the maintainer.
     }
 
-    // CloudTrail console events promote the verdict directly when the
-    // probe is unavailable but events surfaced via the long-window
-    // lookup. (Tracked separately from the in-flight probe sentinel.)
-    if (snapshot.mutated && ct.detected && !snapshot.eventDelivered) {
+    // Mixed / ConsoleBreakGlass escalation is driven by REAL CloudTrail
+    // audit evidence (`ct.detected`), NOT by probe liveness alone
+    // (M-MIXED). hardenedVerdict() may return Mixed / ConsoleBreakGlass
+    // purely from `snapshot.eventDelivered` (a healthy in-flight probe
+    // sentinel) — but a live probe is not proof a console event actually
+    // occurred. The `!snapshot.eventDelivered` guard that used to wrap
+    // this block has been removed so the ct.detected-based correction
+    // ALSO runs when the probe is healthy.
+    if (snapshot.mutated && ct.detected) {
+      // Real console event observed in CloudTrail → escalate. This also
+      // covers the long-window lookup case where the probe was
+      // unavailable but events surfaced.
       source = snapshot.providerDrift ? "Mixed" : "ConsoleBreakGlass";
       confidence = "high";
+    } else if ((source === "Mixed" || source === "ConsoleBreakGlass") && !ct.detected) {
+      // hardenedVerdict escalated to Mixed / ConsoleBreakGlass from
+      // probe liveness alone, but CloudTrail did NOT actually observe a
+      // console event. Demote to the appropriate non-escalated verdict:
+      // mutated + providerDrift → ProviderApiChurn / medium (matrix
+      // row 4 semantics); otherwise → Unknown / low (matrix row 5).
+      if (snapshot.providerDrift) {
+        source = "ProviderApiChurn";
+        confidence = "medium";
+      } else {
+        source = "Unknown";
+        confidence = "low";
+      }
     }
 
     if (snapshot.mutated && gl.detected && source === "Unknown") {
@@ -238,6 +286,13 @@ const CONFIDENCE_RANK: Record<Confidence, number> = {
 };
 
 function meetsMinConfidence(actual: Confidence, threshold: Confidence | undefined): boolean {
+  // Hardened default (M-ADAPTERFAIL): a `confidence:"none"` only ever
+  // accompanies a None verdict or a degraded run. Even when the caller
+  // sets no explicit threshold, never let a `none`-confidence verdict
+  // become the cached canonical entry (it would short-circuit every
+  // subsequent call inside the TTL — a fail-open). All real verdicts
+  // carry low/medium/high.
+  if (CONFIDENCE_RANK[actual] <= CONFIDENCE_RANK.none) return false;
   if (!threshold) return true;
   return CONFIDENCE_RANK[actual] >= CONFIDENCE_RANK[threshold];
 }

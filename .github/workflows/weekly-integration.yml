@@ -39,6 +39,13 @@ jobs:
     name: account-foundation integration (real AWS)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Scheduled runs do not need an environment review (no actor), but
+    # the workflow_dispatch path is fired with the dispatching actor's
+    # permissions and consumes OIDC against the sandbox account. Gate
+    # behind a protected environment so any manual dispatch must clear
+    # required reviewers. (Maintainer must configure
+    # `aws-weekly-integration` in repo settings — see PR body.)
+    environment: aws-weekly-integration
     strategy:
       fail-fast: false
       # AccountFoundation touches account-wide services such as Config,
@@ -153,12 +160,53 @@ jobs:
           aws-region: ${{ vars.AWS_SANDBOX_REGION }}
           role-session-name: hulumi-weekly-integration-${{ matrix.tier }}
 
+      - name: Verify state bucket is owned by the sandbox account
+        if: steps.env.outputs.backend_mode == 's3'
+        env:
+          STATE_BUCKET: ${{ steps.env.outputs.state_bucket }}
+          AWS_SANDBOX_ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+        run: |
+          # Name-shape checks (hulumi- prefix + account-id suffix) do not
+          # prove ownership: an attacker can pre-create a bucket whose
+          # name embeds our account ID in another AWS account. Resolve
+          # the canonical owner and fail closed on mismatch BEFORE any
+          # state I/O or bucket hardening writes. The `s3api` calls below
+          # additionally pass --expected-bucket-owner as defense in depth.
+          : "${AWS_SANDBOX_ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          if aws s3api head-bucket \
+            --bucket "$STATE_BUCKET" \
+            --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" >/dev/null 2>&1; then
+            OWNER_ID="$(aws s3api get-bucket-acl \
+              --bucket "$STATE_BUCKET" \
+              --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" \
+              --query 'Owner.ID' --output text)"
+            CANONICAL_ID="$(aws s3api list-buckets \
+              --query 'Owner.ID' --output text)"
+            if [ -z "$OWNER_ID" ] || [ "$OWNER_ID" != "$CANONICAL_ID" ]; then
+              echo "::error::State bucket owner does not match the sandbox account canonical user. Refusing to touch it."
+              exit 1
+            fi
+            echo "State bucket ownership verified against the sandbox account."
+          else
+            # head-bucket failed under --expected-bucket-owner: either the
+            # bucket does not exist yet (we will create it below, owned by
+            # this account) or it exists but is NOT owned by the sandbox
+            # account (403). Distinguish the two — fail closed on 403.
+            if aws s3api head-bucket --bucket "$STATE_BUCKET" >/dev/null 2>&1; then
+              echo "::error::State bucket exists but is not owned by the sandbox account. Refusing to touch it."
+              exit 1
+            fi
+            echo "State bucket does not exist yet — it will be created in this account by the hardening step."
+          fi
+
       - name: Ensure S3 Pulumi state backend is hardened
         if: steps.env.outputs.backend_mode == 's3'
         env:
           STATE_BUCKET: ${{ steps.env.outputs.state_bucket }}
           STATE_REGION: ${{ steps.env.outputs.state_region }}
+          AWS_SANDBOX_ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
         run: |
+          : "${AWS_SANDBOX_ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
           if ! aws s3api head-bucket --bucket "$STATE_BUCKET" >/dev/null 2>&1; then
             if [ "$STATE_REGION" = "us-east-1" ]; then
               aws s3api create-bucket --bucket "$STATE_BUCKET" --region "$STATE_REGION"
@@ -172,15 +220,18 @@ jobs:
 
           aws s3api put-public-access-block \
             --bucket "$STATE_BUCKET" \
+            --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" \
             --public-access-block-configuration \
               BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 
           aws s3api put-bucket-versioning \
             --bucket "$STATE_BUCKET" \
+            --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" \
             --versioning-configuration Status=Enabled
 
           aws s3api put-bucket-encryption \
             --bucket "$STATE_BUCKET" \
+            --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" \
             --server-side-encryption-configuration \
               '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
 

@@ -293,6 +293,130 @@ describe("SecureBucket — Startup-Hardened tier adds object-lock + logging + da
   });
 });
 
+describe("SecureBucket — audit-delivery tamper-resistance invariant (HIGH)", () => {
+  beforeEach(resetRegistrations);
+
+  it("startup-hardened audit-delivery bucket with forceDestroy:true throws (M-FORCEDESTROY block)", () => {
+    expect(
+      () =>
+        new SecureBucket("sb-audit-fd", {
+          tier: "startup-hardened",
+          logBucketArn: LOG_BUCKET_ARN,
+          objectLock: false,
+          awsServiceLogDelivery: { cloudTrail: true, config: true },
+          forceDestroy: true,
+        }),
+    ).toThrowError(/audit.*forceDestroy.*docs\/tiers\.md/i);
+  });
+
+  it("non-audit startup-hardened bucket with forceDestroy:true is still allowed", async () => {
+    const bucket = new SecureBucket("sb-nonaudit-fd", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+      forceDestroy: true,
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    const bucketReg = findRegistration("aws:s3/bucket:Bucket");
+    expect(bucketReg?.inputs.forceDestroy).toBe(true);
+  });
+
+  it("sandbox audit-delivery bucket with forceDestroy:true is still allowed (ephemeral e2e)", async () => {
+    const bucket = new SecureBucket("sb-sandbox-audit-fd", {
+      tier: "sandbox",
+      awsServiceLogDelivery: { cloudTrail: true, config: true },
+      forceDestroy: true,
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    const bucketReg = findRegistration("aws:s3/bucket:Bucket");
+    expect(bucketReg?.inputs.forceDestroy).toBe(true);
+  });
+
+  it("startup-hardened audit bucket policy denies deleting CloudTrail/Config history objects but NOT the Config writability-check key", async () => {
+    const bucket = new SecureBucket("sb-audit-deny", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+      objectLock: false,
+      awsServiceLogDelivery: { cloudTrail: true, config: true },
+    });
+    await valueOf(bucket.bucketPolicy.policy);
+    await settlePulumi();
+
+    const policy = findRegistration("aws:s3/bucketPolicy:BucketPolicy");
+    expect(policy).toBeDefined();
+    const doc = parsePolicy(policy!.inputs.policy);
+    const deny = doc.Statement.find((s) => s.Sid === "DenyAuditLogTampering");
+    expect(deny).toBeDefined();
+    expect(deny!.Effect).toBe("Deny");
+    expect(deny!.Principal).toBe("*");
+    expect(deny!.Action).toEqual([
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketVersioning",
+    ]);
+
+    const resources = deny!.Resource as string[];
+    // CloudTrail log objects are protected.
+    expect(resources).toContain(
+      "arn:aws:s3:::sb-audit-deny-bucket-mock/AWSLogs/111122223333/CloudTrail/*",
+    );
+    // Config history + snapshot objects are protected.
+    expect(resources).toContain(
+      "arn:aws:s3:::sb-audit-deny-bucket-mock/AWSLogs/111122223333/Config/ConfigHistory/*",
+    );
+    expect(resources).toContain(
+      "arn:aws:s3:::sb-audit-deny-bucket-mock/AWSLogs/111122223333/Config/ConfigSnapshot/*",
+    );
+    // The bucket itself is covered for the PutBucketVersioning lock.
+    expect(resources).toContain("arn:aws:s3:::sb-audit-deny-bucket-mock");
+
+    // The AWS Config write-then-delete probe key MUST NOT be denied, or
+    // PutDeliveryChannel fails with InsufficientDeliveryPolicyException.
+    const serialized = JSON.stringify(deny);
+    expect(serialized).not.toContain("ConfigWritabilityCheckFile");
+    // The deny must not blanket the whole Config prefix (that would catch
+    // the writability-check key).
+    expect(resources).not.toContain(
+      "arn:aws:s3:::sb-audit-deny-bucket-mock/AWSLogs/111122223333/Config/*",
+    );
+  });
+
+  it("sandbox audit-delivery bucket emits the CloudTrail-Lake EventDataStore regardless of tier", async () => {
+    const bucket = new SecureBucket("sb-sandbox-eds", {
+      tier: "sandbox",
+      awsServiceLogDelivery: { cloudTrail: true, config: true },
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+
+    const eds = findRegistration("aws:cloudtrail/eventDataStore:EventDataStore");
+    expect(eds).toBeDefined();
+    expect(eds!.inputs.retentionPeriod).toBe(7);
+    // No tier-gated BucketLogging in sandbox (needs an external target).
+    expect(findRegistration("aws:s3/bucketLogging:BucketLogging")).toBeUndefined();
+  });
+
+  it("sandbox bucket WITHOUT awsServiceLogDelivery emits no EventDataStore", async () => {
+    const bucket = new SecureBucket("sb-sandbox-no-eds", { tier: "sandbox" });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    expect(findRegistration("aws:cloudtrail/eventDataStore:EventDataStore")).toBeUndefined();
+  });
+
+  it("non-audit startup-hardened bucket policy has no deny-audit-tampering statement", async () => {
+    const bucket = new SecureBucket("sb-hard-nonaudit", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+    });
+    await valueOf(bucket.bucketPolicy.policy);
+    await settlePulumi();
+    const policy = findRegistration("aws:s3/bucketPolicy:BucketPolicy");
+    const doc = parsePolicy(policy!.inputs.policy);
+    expect(doc.Statement.find((s) => s.Sid === "DenyAuditLogTampering")).toBeUndefined();
+  });
+});
+
 describe("SecureBucket — tier matrix delta count ≥ 3 (schema regression)", () => {
   it("Startup-Hardened sub-resource type set minus Sandbox set has ≥3 members", async () => {
     resetRegistrations();

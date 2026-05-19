@@ -21,6 +21,14 @@ jobs:
     name: cleanup AccountFoundation e2e stack
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Destructive: assumes the sandbox OIDC role, drains S3, runs
+    # `pulumi destroy`, and removes the stack. Gated behind a protected
+    # GitHub Environment with required reviewers (maintainer must
+    # configure `e2e-cleanup` with required reviewers — see PR body).
+    # `if:` is defense-in-depth so a non-main ref can never trigger it
+    # even before the environment review is reached.
+    environment: e2e-cleanup
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -115,6 +123,45 @@ jobs:
           role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
           aws-region: ${{ steps.env.outputs.region }}
           role-session-name: hulumi-e2e-cleanup
+
+      - name: Verify state bucket is owned by the sandbox account
+        env:
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          AWS_SANDBOX_ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+        run: |
+          # The name-shape check in the validation step (hulumi- prefix +
+          # account-id suffix) does not prove ownership. Before this
+          # workflow drains S3 and runs `pulumi destroy`, resolve the
+          # canonical bucket owner and fail closed unless it is the
+          # sandbox account. Pulumi-Cloud-token mode has no bucket — skip.
+          : "${AWS_SANDBOX_ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          if [ -z "${PULUMI_BACKEND_URL:-}" ]; then
+            echo "No S3 backend URL — Pulumi Cloud token mode, no bucket to verify."
+            exit 0
+          fi
+          BUCKET="$(node -e 'process.stdout.write(new URL(process.env.PULUMI_BACKEND_URL).hostname)')"
+          echo "::add-mask::$BUCKET"
+          if [ -z "$BUCKET" ]; then
+            echo "::error::Could not resolve state bucket from PULUMI_BACKEND_URL."
+            exit 1
+          fi
+          if aws s3api head-bucket \
+            --bucket "$BUCKET" \
+            --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" >/dev/null 2>&1; then
+            OWNER_ID="$(aws s3api get-bucket-acl \
+              --bucket "$BUCKET" \
+              --expected-bucket-owner "$AWS_SANDBOX_ACCOUNT_ID" \
+              --query 'Owner.ID' --output text)"
+            CANONICAL_ID="$(aws s3api list-buckets --query 'Owner.ID' --output text)"
+            if [ -z "$OWNER_ID" ] || [ "$OWNER_ID" != "$CANONICAL_ID" ]; then
+              echo "::error::State bucket owner does not match the sandbox account canonical user. Refusing to destroy."
+              exit 1
+            fi
+            echo "State bucket ownership verified against the sandbox account."
+          else
+            echo "::error::State bucket is missing or not owned by the sandbox account. Refusing to destroy."
+            exit 1
+          fi
 
       - name: Build cleanup dependencies
         run: pnpm --filter @hulumi/drift build

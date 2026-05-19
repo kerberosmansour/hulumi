@@ -5,12 +5,80 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { resolve } from "node:path";
+import * as pulumi from "@pulumi/pulumi";
 
 import { AccountFoundation } from "../src/aws/account-foundation";
 import { GUARDDUTY_HARDENED_FEATURES } from "../src/aws/guardduty";
 import { AWS_TAG_VALUE_MAX_LENGTH } from "../src/aws/tags";
 import { registrations, resetRegistrations, valueOf, settlePulumi } from "./setup";
 import { expectNoForbiddenShortcuts } from "../../../tests/_utils/forbidden-shortcut";
+
+/**
+ * Install a healthy-posture stub for the `aws:guardduty/getDetector`
+ * invoke. The reused-detector posture assertion in guardduty.ts (see
+ * M-DETECTIVEREUSE) calls `getDetectorOutput({id})` and throws unless
+ * `status === "ENABLED"` and `findingPublishingFrequency ===
+ * "FIFTEEN_MINUTES"`. The shared `setup.ts` mock returns `args.inputs`
+ * for unknown invoke tokens (no `status` field), so reuse-path tests
+ * here must layer in a tuned mock that returns a baseline-compliant
+ * detector. Dedicated negative-path tests for non-ENABLED /
+ * non-FIFTEEN_MINUTES live in tests/guardduty-reuse-posture.test.ts
+ * (their own per-file mock isolation).
+ */
+function installHealthyGuardDutyDetectorMock(): void {
+  pulumi.runtime.setMocks({
+    newResource: (args: pulumi.runtime.MockResourceArgs) => {
+      const existingId = args.id !== undefined && args.id.length > 0 ? args.id : undefined;
+      registrations.push({
+        type: args.type,
+        name: args.name,
+        inputs: { ...(args.inputs as Record<string, unknown>) },
+        ...(existingId !== undefined ? { id: existingId } : {}),
+        ...(args.provider !== undefined ? { provider: args.provider } : {}),
+      });
+      const baseState: Record<string, unknown> = { ...(args.inputs as Record<string, unknown>) };
+      if (args.type.startsWith("aws:s3/bucketV2") || args.type.startsWith("aws:s3/bucket")) {
+        baseState.arn = baseState.arn ?? `arn:aws:s3:::${args.name}-mock`;
+        baseState.bucketDomainName =
+          baseState.bucketDomainName ?? `${args.name}-mock.s3.amazonaws.com`;
+      } else if (args.type === "aws:cloudwatch/logGroup:LogGroup") {
+        baseState.name = baseState.name ?? args.name;
+      } else {
+        baseState.arn = baseState.arn ?? `arn:aws:mock:${args.type}:${args.name}`;
+      }
+      return { id: existingId ?? `${args.name}_id`, state: baseState };
+    },
+    call: (args: pulumi.runtime.MockCallArgs) => {
+      if (args.token === "aws:index/getCallerIdentity:getCallerIdentity") {
+        return {
+          accountId: "111122223333",
+          arn: "arn:aws:iam::111122223333:user/mock",
+          userId: "MOCKID",
+        };
+      }
+      if (args.token === "aws:index/getRegion:getRegion") {
+        return {
+          name: "us-east-1",
+          description: "US East (N. Virginia)",
+          endpoint: "ec2.us-east-1.amazonaws.com",
+        };
+      }
+      if (args.token === "aws:guardduty/getDetector:getDetector") {
+        return {
+          id: (args.inputs as { id?: string }).id ?? "mock-detector",
+          arn: "arn:aws:guardduty:us-east-1:111122223333:detector/mock",
+          region: "us-east-1",
+          serviceRoleArn: "arn:aws:iam::111122223333:role/aws-service-role/guardduty",
+          tags: {},
+          features: [],
+          status: "ENABLED",
+          findingPublishingFrequency: "FIFTEEN_MINUTES",
+        };
+      }
+      return args.inputs;
+    },
+  });
+}
 
 const IAC_ROLE_ARN = "arn:aws:iam::111122223333:role/hulumi-sandbox-iac-role";
 
@@ -368,7 +436,17 @@ describe("AccountFoundation — real provider input compatibility", () => {
     expect(ephemeralBucket?.inputs.forceDestroy).toBe(true);
   });
 
-  it("references an existing GuardDuty detector without creating a new one", async () => {
+  // M-DETECTIVEREUSE: the reuse path now also asserts posture
+  // (status === ENABLED && findingPublishingFrequency === FIFTEEN_MINUTES)
+  // via `aws.guardduty.getDetectorOutput`. We install a baseline-compliant
+  // detector mock so the *structural* invariants this test was originally
+  // written for — no new Detector resource is created with `enable`/tags
+  // — still hold under the strengthened reuse contract. Negative-path
+  // posture tests (SUSPENDED / SIX_HOURS) live in
+  // tests/guardduty-reuse-posture.test.ts which uses per-file mock
+  // isolation to drive the failure branches.
+  it("references an existing GuardDuty detector without creating a new one (posture-validated)", async () => {
+    installHealthyGuardDutyDetectorMock();
     const existingDetectorId = "existing-detector-123";
     const af = new AccountFoundation("af-existing-guardduty", {
       tier: "sandbox",
@@ -601,6 +679,77 @@ describe("AccountFoundation — CloudTrail log group output for downstream alarm
     await settlePulumi();
 
     expect(registrations.some((r) => r.type === "aws:cloudwatch/logGroup:LogGroup")).toBe(false);
+  });
+});
+
+describe("AccountFoundation — audit-delivery bucket tamper-resistance invariant (HIGH)", () => {
+  beforeEach(resetRegistrations);
+
+  it("sandbox internal log bucket still emits the CloudTrail-Lake EventDataStore (immutable audit capture)", async () => {
+    const af = new AccountFoundation("af-sandbox-eds", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+
+    const eds = registrations.find(
+      (r) => r.type === "aws:cloudtrail/eventDataStore:EventDataStore",
+    );
+    expect(eds).toBeDefined();
+    expect(eds!.inputs.retentionPeriod).toBe(7);
+  });
+
+  it("startup-hardened internal log bucket carries the deny-audit-tampering invariant, sparing the Config writability-check key", async () => {
+    const af = new AccountFoundation("af-hardened-deny", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+      orgAccountIds: ["111111111111"],
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+
+    const bucketPolicy = registrations.find((r) => r.type === "aws:s3/bucketPolicy:BucketPolicy");
+    expect(bucketPolicy).toBeDefined();
+    const doc = parsePolicy(bucketPolicy!.inputs.policy);
+    const deny = doc.Statement.find((s) => s.Sid === "DenyAuditLogTampering");
+    expect(deny).toBeDefined();
+    expect(deny!.Effect).toBe("Deny");
+    expect(deny!.Action).toEqual([
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketVersioning",
+    ]);
+    const resources = deny!.Resource as string[];
+    expect(resources.some((r) => r.includes("/AWSLogs/111122223333/CloudTrail/*"))).toBe(true);
+    expect(resources.some((r) => r.includes("/AWSLogs/111122223333/Config/ConfigHistory/*"))).toBe(
+      true,
+    );
+    expect(JSON.stringify(deny)).not.toContain("ConfigWritabilityCheckFile");
+  });
+
+  it("startup-hardened AccountFoundation rejects logBucketForceDestroy=true on the audit bucket", () => {
+    expect(
+      () =>
+        new AccountFoundation("af-hardened-fd", {
+          tier: "startup-hardened",
+          iacRoleArn: IAC_ROLE_ARN,
+          orgAccountIds: ["111111111111"],
+          logBucketForceDestroy: true,
+        }),
+    ).toThrowError(/audit.*forceDestroy.*docs\/tiers\.md/i);
+  });
+
+  it("sandbox AccountFoundation still honors logBucketForceDestroy=true (ephemeral e2e cleanup)", async () => {
+    const af = new AccountFoundation("af-sandbox-fd", {
+      tier: "sandbox",
+      iacRoleArn: IAC_ROLE_ARN,
+      logBucketForceDestroy: true,
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+    const bucket = registrations.find((r) => r.type === "aws:s3/bucket:Bucket");
+    expect(bucket?.inputs.forceDestroy).toBe(true);
   });
 });
 

@@ -572,3 +572,42 @@ describe("CisV5Pack metadata — every registered rule has a runtime test", () =
     }
   });
 });
+
+// Cluster B regression — cis_2_1_1_ssePresent and cis_2_1_5_tlsOnly skip
+// when `args.urn.includes("hulumi:baseline:aws:SecureBucket$")`. That
+// substring fires on attacker-controlled logical names too. Advisory
+// enforcement only, but the same forged-logical-name spoof class.
+describe("CIS-v5 §2.1.1 / §2.1.5 — forged-logical-name URN spoof", () => {
+  let violations: string[];
+  const report = (m: string): void => {
+    violations.push(m);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("CIS 2.1.1 still advises a raw bucket whose LOGICAL NAME embeds SecureBucket type", () => {
+    const args = makeResourceArgs({
+      type: "aws:s3/bucketV2:BucketV2",
+      urn: "urn:pulumi:s::p::aws:s3/bucketV2:BucketV2::hulumi:baseline:aws:SecureBucket$evil-bucket",
+      name: "hulumi:baseline:aws:SecureBucket$evil-bucket",
+      props: {},
+    });
+    invokeResource(cis_2_1_1_ssePresent, args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:2\.1\.1/);
+  });
+
+  it("CIS 2.1.5 still advises a raw bucket whose LOGICAL NAME embeds SecureBucket type", () => {
+    const args = makeResourceArgs({
+      type: "aws:s3/bucketV2:BucketV2",
+      urn: "urn:pulumi:s::p::aws:s3/bucketV2:BucketV2::hulumi:baseline:aws:SecureBucket$evil-bucket",
+      name: "hulumi:baseline:aws:SecureBucket$evil-bucket",
+      props: {},
+    });
+    invokeResource(cis_2_1_5_tlsOnly, args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:2\.1\.5/);
+  });
+});

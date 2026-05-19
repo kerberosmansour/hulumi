@@ -203,8 +203,18 @@ Then set a repository **secret**:
 | `PULUMI_BACKEND_URL` | `s3://hulumi-pulumi-state-<account-id>?region=us-east-1` |
 
 The workflow refuses state bucket names that do not start with
-`hulumi-` and end with the sandbox account ID. That prevents accidentally
-pointing an open-source CI run at a production or shared state bucket.
+`hulumi-` and end with the sandbox account ID. That name-shape check is a
+first-line guard against an obvious typo pointing CI at a differently
+named bucket — it is **not** an ownership control. A bucket name is not a
+trust boundary: any AWS account can pre-create a bucket whose name embeds
+our account ID. Ownership is enforced separately and authoritatively: the
+weekly-integration and e2e-cleanup workflows resolve the bucket's
+canonical owner (`aws s3api get-bucket-acl … Owner.ID`) and pass
+`--expected-bucket-owner <sandbox-account-id>` on every `s3api` call that
+touches the state bucket, failing the job closed before any state I/O,
+bucket hardening, or `pulumi destroy` if the owner is not the sandbox
+account. That prevents pointing an open-source CI run at a production,
+shared, or attacker-controlled state bucket.
 The backend bucket is not part of the stacks under test, so normal
 `pulumi destroy` runs do not delete it or its versioned state objects.
 Treat backend retention and lifecycle expiration as an explicit sandbox

@@ -151,4 +151,83 @@ describe("EksAdminAccessPath — invalid input refusals", () => {
         }),
     ).toThrow(/clusterSecurityGroupId is required/);
   });
+
+  test("Scenario: restricted public endpoint rejects split-range full IPv4 coverage", () => {
+    expect(
+      () =>
+        new EksAdminAccessPath("admin-path", {
+          clusterName: "prod-eks",
+          endpointMode: "restricted-public",
+          publicAccessCidrs: ["0.0.0.0/1", "128.0.0.0/1"],
+        }),
+    ).toThrow(/public-temporary/);
+  });
+
+  test("Scenario: operator cidrBlocks reject split-range full IPv4 coverage", () => {
+    expect(
+      () =>
+        new EksAdminAccessPath("admin-path", {
+          clusterName: "prod-eks",
+          endpointMode: "private",
+          clusterSecurityGroupId: "sg-cluster",
+          operatorAccess: {
+            cidrBlocks: ["0.0.0.0/1", "128.0.0.0/1"],
+          },
+        }),
+    ).toThrow(/operatorAccess\.cidrBlocks.*broad control-plane SG ingress is refused/);
+  });
+
+  test("Scenario: operator ipv6CidrBlocks reject split-range full IPv6 coverage", () => {
+    expect(
+      () =>
+        new EksAdminAccessPath("admin-path", {
+          clusterName: "prod-eks",
+          endpointMode: "private",
+          clusterSecurityGroupId: "sg-cluster",
+          operatorAccess: {
+            ipv6CidrBlocks: ["::/1", "8000::/1"],
+          },
+        }),
+    ).toThrow(/operatorAccess\.ipv6CidrBlocks.*broad control-plane SG ingress is refused/);
+  });
+
+  test("Scenario: malformed CIDR is rejected", () => {
+    expect(
+      () =>
+        new EksAdminAccessPath("admin-path", {
+          clusterName: "prod-eks",
+          endpointMode: "restricted-public",
+          publicAccessCidrs: ["999.0.0.0/8"],
+        }),
+    ).toThrow(/malformed|invalid CIDR/i);
+  });
+
+  test("Scenario: missing prefix length is rejected as malformed", () => {
+    expect(
+      () =>
+        new EksAdminAccessPath("admin-path", {
+          clusterName: "prod-eks",
+          endpointMode: "restricted-public",
+          publicAccessCidrs: ["203.0.113.10"],
+        }),
+    ).toThrow(/malformed|invalid CIDR/i);
+  });
+
+  test("Scenario: canonical single 0.0.0.0/0 under public-temporary exception still accepted", async () => {
+    const c = new EksAdminAccessPath("admin-path", {
+      clusterName: "prod-eks",
+      endpointMode: "public-temporary",
+      publicAccessCidrs: ["0.0.0.0/0"],
+      temporaryBroadPublicAccess: {
+        reason: "bootstrap operator VPN",
+        expiresOn: "2026-06-30",
+      },
+    });
+
+    await settlePulumi();
+
+    expect(await valueOf(c.endpointPublicAccess)).toBe(true);
+    expect(await valueOf(c.publicAccessCidrs)).toEqual(["0.0.0.0/0"]);
+    expect(await valueOf(c.policyExceptionReason)).toMatch(/bootstrap operator VPN/);
+  });
 });

@@ -6,6 +6,7 @@ import type {
 
 import type { PackMetadata } from "../metadata";
 import { matchSuppression, type Suppression } from "../aws/suppressions";
+import { isUrnChildOfComponent } from "../urn";
 
 export const CF_DNS_1_RULE_ID = "CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD";
 export const CF_DNSSEC_1_RULE_ID = "CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC";
@@ -39,7 +40,12 @@ function isDnsRecordType(type: string): boolean {
 }
 
 function isChildOf(urn: string, componentType: string): boolean {
-  return urn.includes(`${componentType}$`);
+  // Anchored URN type-chain check — see ../urn.ts. The previous form
+  // `urn.includes(\`${componentType}$\`)` matched a substring anywhere in
+  // the URN, including the operator-controlled logical-name suffix, so a
+  // raw DnsRecord / zone named `hulumi:cloudflare:PublicHostname$x` could
+  // bypass CF_DNS_1 / CF_DNSSEC_1.
+  return isUrnChildOfComponent(urn, componentType);
 }
 
 function stringArrayIncludes(value: unknown, needle: string): boolean {

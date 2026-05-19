@@ -5,6 +5,7 @@ import type {
 } from "@pulumi/policy";
 
 import type { PackMetadata } from "../metadata";
+import { isUrnChildOfComponent } from "../urn";
 
 export const DEPLOY_GOV_1_RULE_ID = "DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT";
 export const DEPLOY_GOV_2_RULE_ID = "DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS";
@@ -85,7 +86,12 @@ function hasOidcRoleEvidence(resources: readonly PolicyResource[], repoName: str
 }
 
 function isChildOf(resource: PolicyResource, componentType: string): boolean {
-  return resource.urn.includes(`${componentType}$`);
+  // Anchored URN type-chain check — see ../urn.ts. The previous form
+  // `resource.urn.includes(\`${componentType}$\`)` was bypassed when a raw
+  // resource was declared with a logical name embedding the component type,
+  // because Pulumi URNs include the operator-controlled logical name after
+  // the final `::`.
+  return isUrnChildOfComponent(resource.urn, componentType);
 }
 
 function deploymentRepositoryFoundationName(resource: PolicyResource): string | undefined {

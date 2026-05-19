@@ -9,7 +9,10 @@
 
 import type { ResourceValidationPolicy } from "@pulumi/policy";
 
+import { isUrnChildOfComponent } from "../urn";
+
 const CIS_DOCS = "https://www.cisecurity.org/benchmark/amazon_web_services";
+const HULUMI_SECURE_BUCKET_TYPE = "hulumi:baseline:aws:SecureBucket";
 
 const S3_BUCKET_TYPES = ["aws:s3/bucket:Bucket", "aws:s3/bucketV2:BucketV2"] as const;
 
@@ -161,7 +164,11 @@ export const cis_2_1_1_ssePresent: ResourceValidationPolicy = {
   enforcementLevel: "advisory",
   validateResource: (args, reportViolation) => {
     if (!(S3_BUCKET_TYPES as readonly string[]).includes(args.type)) return;
-    if (args.urn.includes("hulumi:baseline:aws:SecureBucket$")) return;
+    // Anchored URN type-chain check — see ../urn.ts. The previous
+    // `args.urn.includes("hulumi:baseline:aws:SecureBucket$")` matched the
+    // operator-controlled logical-name suffix and let a raw bucket named
+    // `hulumi:baseline:aws:SecureBucket$x` silence this advisory.
+    if (isUrnChildOfComponent(args.urn, HULUMI_SECURE_BUCKET_TYPE)) return;
     reportViolation(
       violation(
         "CIS-AWS-v5.0.0:2.1.1",
@@ -179,7 +186,11 @@ export const cis_2_1_5_tlsOnly: ResourceValidationPolicy = {
   enforcementLevel: "advisory",
   validateResource: (args, reportViolation) => {
     if (!(S3_BUCKET_TYPES as readonly string[]).includes(args.type)) return;
-    if (args.urn.includes("hulumi:baseline:aws:SecureBucket$")) return;
+    // Anchored URN type-chain check — see ../urn.ts. The previous
+    // `args.urn.includes("hulumi:baseline:aws:SecureBucket$")` matched the
+    // operator-controlled logical-name suffix and let a raw bucket named
+    // `hulumi:baseline:aws:SecureBucket$x` silence this advisory.
+    if (isUrnChildOfComponent(args.urn, HULUMI_SECURE_BUCKET_TYPE)) return;
     reportViolation(
       violation(
         "CIS-AWS-v5.0.0:2.1.5",

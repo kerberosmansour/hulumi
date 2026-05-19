@@ -270,13 +270,47 @@ async function cleanupStartupLoggingTargetBucket(): Promise<void> {
   }
 }
 
+// Exact-shape predicates for the sweepers below. Affix-only filters
+// (startsWith/endsWith) are too loose: an attacker-named or operator-
+// created resource that happens to share the prefix and suffix would be
+// silently deleted. The shapes here are derived from RESOURCE_PREFIX
+// (`af-e2e-(sb|sh)-<10 lowercase hex>`) plus the suite's own resource
+// templates in src/aws (see `${name}-logs-data-events` in
+// secure-bucket.ts and `hulumi-${name}-access-analyzer` in
+// iam-baseline.ts). The sweepers below match the EXACT regex AND log-
+// and-skip anything that matches the affix but fails the exact regex —
+// fail closed, do not delete.
+export const E2E_ANALYZER_NAME_REGEX =
+  /^hulumi-af-e2e-(sb|sh)-[0-9a-f]{10}(?:-[A-Za-z0-9]+)*-access-analyzer$/;
+export const E2E_EVENT_DATA_STORE_NAME_REGEX =
+  /^af-e2e-(sb|sh)-[0-9a-f]{10}(?:-[A-Za-z0-9]+)*-data-events$/;
+
+export function looksLikeE2eAnalyzerName(name: string): boolean {
+  return name.startsWith("hulumi-af-e2e-") && name.endsWith("-access-analyzer");
+}
+
+export function looksLikeE2eEventDataStoreName(name: string): boolean {
+  return name.startsWith("af-e2e-") && name.endsWith("-data-events");
+}
+
+export function isE2eAnalyzerName(name: string): boolean {
+  return E2E_ANALYZER_NAME_REGEX.test(name);
+}
+
+export function isE2eEventDataStoreName(name: string): boolean {
+  return E2E_EVENT_DATA_STORE_NAME_REGEX.test(name);
+}
+
 // IAM Access Analyzer is a Startup-Hardened-only sub-resource and AWS
 // caps analyzers per account/region (default 1). A prior e2e run that
 // failed AFTER the analyzer was created can orphan it (a failed
 // `pulumi up` is not always reclaimed by destroy), exhausting the quota
 // and blocking every later run with ServiceQuotaExceededException. Sweep
-// only THIS suite's own analyzers — names are `hulumi-af-e2e-*-access-
-// analyzer` — so a real account/organization analyzer is never touched.
+// only THIS suite's own analyzers — names match the EXACT generated
+// shape `hulumi-af-e2e-(sb|sh)-<10 hex>-…-access-analyzer`. Candidates
+// that match the loose affix but FAIL the exact regex are logged and
+// skipped (fail closed), so a real account/organization analyzer is
+// never touched.
 async function sweepStaleE2eAnalyzers(): Promise<void> {
   if (SELECTED_TIER !== "startup-hardened") return;
   let listed: { analyzers?: { name?: string }[] };
@@ -291,14 +325,19 @@ async function sweepStaleE2eAnalyzers(): Promise<void> {
     if (isMissingAwsResource(err)) return;
     throw err;
   }
-  const stale = (listed.analyzers ?? [])
+  const candidates = (listed.analyzers ?? [])
     .map((a) => a.name)
-    .filter(
-      (name): name is string =>
-        typeof name === "string" &&
-        name.startsWith("hulumi-af-e2e-") &&
-        name.endsWith("-access-analyzer"),
-    );
+    .filter((name): name is string => typeof name === "string" && looksLikeE2eAnalyzerName(name));
+  const stale: string[] = [];
+  for (const name of candidates) {
+    if (isE2eAnalyzerName(name)) {
+      stale.push(name);
+    } else {
+      console.warn(
+        `[account-foundation-e2e] skipping access analyzer ${name}: matches affix but not the exact e2e shape; refusing to delete`,
+      );
+    }
+  }
   for (const name of stale) {
     try {
       await aws(["accessanalyzer", "delete-analyzer", "--analyzer-name", name, "--region", REGION]);
@@ -308,12 +347,22 @@ async function sweepStaleE2eAnalyzers(): Promise<void> {
   }
 }
 
+// Maximum age (ms) for an EventDataStore created without a Hulumi-owned
+// tag to still be considered a stale e2e leftover. Suite resources are
+// short-lived (a single weekly run + occasional manual cleanup); 24h is
+// generous slack for retries. Anything older is treated as not-ours.
+const E2E_EVENT_DATA_STORE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 // The Startup-Hardened SecureBucket creates a CloudTrail EventDataStore.
 // A prior e2e run that created one but failed before `destroy` (or whose
 // store predates the forceDestroy fix) leaves a TERMINATION-PROTECTED,
-// billable store behind. Sweep only this suite's own stores —
-// `af-e2e-*-data-events` — disabling termination protection first so the
-// delete succeeds. Scoped by name so a real audit store is never touched.
+// billable store behind. Sweep only this suite's own stores: names match
+// the EXACT generated shape `af-e2e-(sb|sh)-<10 hex>-…-data-events` AND
+// either carry a Hulumi-owned tag OR were created within the last 24h.
+// Candidates that match the loose affix but FAIL the exact regex are
+// logged and skipped (fail closed), as are candidates that match the
+// exact regex but have neither a Hulumi tag nor a recent creation time.
+// Disable termination protection first so the delete succeeds.
 async function sweepStaleE2eEventDataStores(): Promise<void> {
   if (SELECTED_TIER !== "startup-hardened") return;
   let listed: {
@@ -322,6 +371,7 @@ async function sweepStaleE2eEventDataStores(): Promise<void> {
       Name?: string;
       TerminationProtectionEnabled?: boolean;
       Status?: string;
+      CreatedTimestamp?: string;
     }[];
   };
   try {
@@ -330,7 +380,7 @@ async function sweepStaleE2eEventDataStores(): Promise<void> {
     if (isMissingAwsResource(err)) return;
     throw err;
   }
-  const stale = (listed.EventDataStores ?? []).filter(
+  const candidates = (listed.EventDataStores ?? []).filter(
     (
       eds,
     ): eds is {
@@ -338,13 +388,31 @@ async function sweepStaleE2eEventDataStores(): Promise<void> {
       Name: string;
       TerminationProtectionEnabled?: boolean;
       Status?: string;
+      CreatedTimestamp?: string;
     } =>
       typeof eds.EventDataStoreArn === "string" &&
       typeof eds.Name === "string" &&
-      eds.Name.startsWith("af-e2e-") &&
-      eds.Name.endsWith("-data-events") &&
+      looksLikeE2eEventDataStoreName(eds.Name) &&
       eds.Status !== "PENDING_DELETION",
   );
+  const stale: typeof candidates = [];
+  for (const eds of candidates) {
+    if (!isE2eEventDataStoreName(eds.Name)) {
+      console.warn(
+        `[account-foundation-e2e] skipping EventDataStore ${eds.Name}: matches affix but not the exact e2e shape; refusing to delete`,
+      );
+      continue;
+    }
+    const ownedByHulumi = await isEventDataStoreOwnedByHulumi(eds.EventDataStoreArn);
+    const recentEnough = isRecentEnough(eds.CreatedTimestamp);
+    if (!ownedByHulumi && !recentEnough) {
+      console.warn(
+        `[account-foundation-e2e] skipping EventDataStore ${eds.Name}: exact-name match but no Hulumi tag and not within the ${E2E_EVENT_DATA_STORE_MAX_AGE_MS}ms window; refusing to delete`,
+      );
+      continue;
+    }
+    stale.push(eds);
+  }
   for (const eds of stale) {
     try {
       if (eds.TerminationProtectionEnabled === true) {
@@ -369,6 +437,32 @@ async function sweepStaleE2eEventDataStores(): Promise<void> {
     } catch (err) {
       if (!isMissingAwsResource(err)) throw err;
     }
+  }
+}
+
+function isRecentEnough(createdTimestamp: string | undefined): boolean {
+  if (typeof createdTimestamp !== "string" || createdTimestamp.length === 0) return false;
+  const created = Date.parse(createdTimestamp);
+  if (Number.isNaN(created)) return false;
+  return Date.now() - created <= E2E_EVENT_DATA_STORE_MAX_AGE_MS;
+}
+
+async function isEventDataStoreOwnedByHulumi(arn: string): Promise<boolean> {
+  try {
+    const response = await awsJson<{
+      ResourceTagList?: { TagsList?: { Key?: string; Value?: string }[] }[];
+    }>(["cloudtrail", "list-tags", "--resource-id-list", arn, "--region", REGION]);
+    const tagsList = response.ResourceTagList?.[0]?.TagsList ?? [];
+    return tagsList.some(
+      (tag) =>
+        (tag.Key === "ManagedBy" && tag.Value === "Hulumi") ||
+        (tag.Key === "hulumi:component" && typeof tag.Value === "string"),
+    );
+  } catch (err) {
+    if (isMissingAwsResource(err)) return false;
+    // If list-tags fails for any other reason, fall back to creation-time
+    // (which the caller will also evaluate); do not infer ownership.
+    return false;
   }
 }
 
@@ -515,6 +609,48 @@ const skipReason = !RUN_INTEGRATION
     : !HAS_BACKEND
       ? "no Pulumi backend configured — set PULUMI_BACKEND_URL or PULUMI_ACCESS_TOKEN"
       : "HULUMI_IAC_ROLE_ARN unset — AccountFoundation requires the IaC role ARN";
+
+describe("AccountFoundation — e2e sweep name predicates (always-on unit checks)", () => {
+  // The integration suite is gated behind real-AWS credentials and
+  // skips in normal CI. These unit-style assertions exercise the pure
+  // name predicates so the affix-vs-exact-shape contract that protects
+  // against deleting non-e2e resources is verified on every CI run.
+  it("accepts a real generated EventDataStore name and rejects adversarial affix matches", () => {
+    expect(isE2eEventDataStoreName("af-e2e-sb-0123456789-logs-data-events")).toBe(true);
+    expect(isE2eEventDataStoreName("af-e2e-sh-abcdef0123-logs-data-events")).toBe(true);
+    expect(isE2eEventDataStoreName("af-e2e-sb-0123456789-data-events")).toBe(true);
+    // Adversarial / unrelated names that match the loose affix but are
+    // NOT this suite's own resources MUST be rejected.
+    expect(isE2eEventDataStoreName("af-e2e-prod-audit-data-events")).toBe(false);
+    expect(isE2eEventDataStoreName("af-e2e-sb-data-events")).toBe(false);
+    expect(isE2eEventDataStoreName("af-e2e-sb-ZZZZZZZZZZ-logs-data-events")).toBe(false);
+    expect(isE2eEventDataStoreName("af-e2e-xx-0123456789-logs-data-events")).toBe(false);
+    expect(isE2eEventDataStoreName("not-an-e2e-data-events")).toBe(false);
+    // Random suffix appended by autonaming would break the exact regex —
+    // the sweep then logs-and-skips rather than deleting, which is the
+    // intended fail-closed behaviour.
+    expect(isE2eEventDataStoreName("af-e2e-sh-abcdef0123-logs-data-events-7a3b5c1")).toBe(false);
+    // But the loose affix predicate (the candidate filter) must still
+    // accept adversarial-shaped names so the fail-closed branch is
+    // exercised in production — otherwise we would silently never log
+    // the skip warning.
+    expect(looksLikeE2eEventDataStoreName("af-e2e-prod-audit-data-events")).toBe(true);
+    expect(looksLikeE2eEventDataStoreName("af-e2e-sb-0123456789-logs-data-events")).toBe(true);
+    expect(looksLikeE2eEventDataStoreName("hulumi-pulumi-state")).toBe(false);
+  });
+
+  it("accepts a real generated access analyzer name and rejects adversarial affix matches", () => {
+    expect(isE2eAnalyzerName("hulumi-af-e2e-sh-abcdef0123-access-analyzer")).toBe(true);
+    expect(isE2eAnalyzerName("hulumi-af-e2e-sb-0123456789-access-analyzer")).toBe(true);
+    // Adversarial / unrelated.
+    expect(isE2eAnalyzerName("hulumi-af-e2e-org-audit-access-analyzer")).toBe(false);
+    expect(isE2eAnalyzerName("hulumi-af-e2e-sh-ZZZZZZZZZZ-access-analyzer")).toBe(false);
+    expect(isE2eAnalyzerName("hulumi-af-e2e-sb-access-analyzer")).toBe(false);
+    expect(isE2eAnalyzerName("organization-access-analyzer")).toBe(false);
+    expect(looksLikeE2eAnalyzerName("hulumi-af-e2e-org-audit-access-analyzer")).toBe(true);
+    expect(looksLikeE2eAnalyzerName("organization-access-analyzer")).toBe(false);
+  });
+});
 
 describe("AccountFoundation — real AWS integration (weekly)", () => {
   // See docs/integration-testing-roadmap.md#account-foundation for the

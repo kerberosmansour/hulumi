@@ -84,4 +84,131 @@ describe("workflow-governance linter", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("workflow-governance: pass");
   });
+
+  it("flags a workflow_dispatch job that assumes an AWS role without a protected environment (WF_ENV_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "cleanup.yml"),
+      [
+        "name: cleanup",
+        "on:",
+        "  workflow_dispatch:",
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  cleanup:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        `      - uses: aws-actions/configure-aws-credentials@${SHA} # v6`,
+        "        with:",
+        "          role-to-assume: arn:aws:iam::123456789012:role/cleanup",
+        "          aws-region: us-east-1",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_ENV_1_DISPATCH_PRIVILEGED_JOB_REQUIRES_ENVIRONMENT");
+    expect(output).toContain("cleanup.yml");
+    expect(output).toContain("'cleanup'");
+  });
+
+  it("flags a workflow_dispatch job that runs `pulumi destroy` without a protected environment (WF_ENV_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "teardown.yml"),
+      [
+        "name: teardown",
+        "on:",
+        "  workflow_dispatch:",
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  teardown:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        "      - run: pulumi destroy --yes",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_ENV_1_DISPATCH_PRIVILEGED_JOB_REQUIRES_ENVIRONMENT");
+  });
+
+  it("passes when a workflow_dispatch privileged job declares a protected environment (WF_ENV_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "cleanup.yml"),
+      [
+        "name: cleanup",
+        "on:",
+        "  workflow_dispatch:",
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  cleanup:",
+        "    runs-on: ubuntu-latest",
+        "    environment: aws-cleanup",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        `      - uses: aws-actions/configure-aws-credentials@${SHA} # v6`,
+        "        with:",
+        "          role-to-assume: arn:aws:iam::123456789012:role/cleanup",
+        "          aws-region: us-east-1",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("workflow-governance: pass");
+  });
+
+  it("does not flag workflows without workflow_dispatch even if they assume AWS roles (WF_ENV_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "scheduled.yml"),
+      [
+        "name: scheduled",
+        "on:",
+        "  schedule:",
+        '    - cron: "0 4 * * 0"',
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  job:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        `      - uses: aws-actions/configure-aws-credentials@${SHA} # v6`,
+        "        with:",
+        "          role-to-assume: arn:aws:iam::123456789012:role/scheduled",
+        "          aws-region: us-east-1",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("workflow-governance: pass");
+  });
 });

@@ -38,6 +38,13 @@ jobs:
     name: reconciler plan
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The plan role is read-only, but workflow_dispatch is fired with
+    # the actor's permissions and the job still consumes OIDC against
+    # the sandbox account. Gate behind a low-friction protected
+    # environment so the linter's WF_ENV_1 invariant holds without
+    # changing the read-only blast radius. (Maintainer must configure
+    # `aws-reconciler-plan` in repo settings — see PR body.)
+    environment: aws-reconciler-plan
     outputs:
       suffix: ${{ steps.env.outputs.suffix }}
       resource_prefix_hash: ${{ steps.env.outputs.resource_prefix_hash }}

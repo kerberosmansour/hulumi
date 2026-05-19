@@ -80,13 +80,17 @@ curious readers:
 
 ## Failed-run cleanup
 
-If a real-AWS run fails during teardown, use the maintainer-only
+If a real-AWS run fails during teardown, use the
 [`e2e-cleanup`](../.github/workflows/e2e-cleanup.yml) workflow instead
-of ad hoc console deletion. Pass the 10-character suffix from the failed
-stack name (`sandbox-<suffix>`). The cleanup script selects that Pulumi
-stack from the private backend, drains only S3 buckets whose physical
-name starts with `af-e2e-<suffix>-`, then runs `pulumi destroy` and
-`removeStack`.
+of ad hoc console deletion. It is destructive (drains S3 + `pulumi
+destroy` + `removeStack`) so it is gated behind the protected
+`e2e-cleanup` GitHub Environment (required reviewers) and only runs on
+`refs/heads/main`; it also verifies the state bucket is owned by the
+sandbox account before destroying anything. Pass the 10-character suffix
+from the failed stack name (`sandbox-<suffix>`). The cleanup script
+selects that Pulumi stack from the private backend, drains only S3
+buckets whose physical name starts with `af-e2e-<suffix>-`, then runs
+`pulumi destroy` and `removeStack`.
 
 The cleanup path is intentionally Pulumi-state driven. `@hulumi/drift`
 is useful for classifying drift, but it is not a deletion engine and its

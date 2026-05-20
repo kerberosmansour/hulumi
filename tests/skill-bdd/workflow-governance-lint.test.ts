@@ -234,7 +234,7 @@ type WfgModule = {
     ) => Promise<{ name: string; protection_rules: Array<{ type: string }> } | null>;
   }) => Promise<Array<{ ruleId: string; file: string; line: number; message: string }>>;
 };
-// @ts-ignore — .mjs has no .d.ts; runtime contract documented in JSDoc on the export
+// @ts-expect-error TS7016: .mjs has no .d.ts; runtime contract documented in JSDoc on the export
 const wfg = (await import("../../scripts/workflow-governance-lint.mjs")) as unknown as WfgModule;
 const { collectWorkflowGovernanceDiagnosticsAsync, WF_ENV_1_RULE_ID } = wfg;
 

@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Pulumi peer-dependency ranges in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` widened from **exact-pin** (e.g. `"@pulumi/aws": "7.27.0"`) to **caret-semver** (e.g. `"@pulumi/aws": "^7.27.0"`). Lets downstream Pulumi infra repos consume `@hulumi/*` without npm `ERESOLVE` when they have bumped their Pulumi SDK by a minor or patch ahead of Hulumi's tested floor. Consumers stay free to pin Pulumi SDK as tightly as they like; Hulumi just stops *requiring* exact-equality. Discovered downstream at [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70) where consuming `@hulumi/baseline@1.4.0` was blocked by sunlit-guardian's `@pulumi/aws@7.30.0` (Hulumi peer-pinned `7.27.0`).
-- This is PATCH-level per semver: no API change, no behaviour change for any existing valid resolution; only widens which dependency trees are *also* valid.
+- Pulumi peer-dependency ranges in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` widened from **exact-pin** (e.g. `"@pulumi/aws": "7.27.0"`) to **caret-semver** (e.g. `"@pulumi/aws": "^7.27.0"`). Lets downstream Pulumi infra repos consume `@hulumi/*` without npm `ERESOLVE` when they have bumped their Pulumi SDK by a minor or patch ahead of Hulumi's tested floor. Consumers stay free to pin Pulumi SDK as tightly as they like; Hulumi just stops _requiring_ exact-equality. Discovered downstream at [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70) where consuming `@hulumi/baseline@1.4.0` was blocked by sunlit-guardian's `@pulumi/aws@7.30.0` (Hulumi peer-pinned `7.27.0`).
+- This is PATCH-level per semver: no API change, no behaviour change for any existing valid resolution; only widens which dependency trees are _also_ valid.
 
 ## [1.4.0] — 2026-05-20
 

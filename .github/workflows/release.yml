@@ -141,15 +141,16 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: hulumi-release-artifacts
-          # v7 input semantics — use an explicit `**` glob anchored at the
-          # directory. The v1.3.2 release used v6 with `path: .release-
-          # artifacts/` (bare directory + trailing slash) and worked. PR
-          # #141 pinned v7 but the bare-directory form silently emitted "No
-          # files were found" on the v1.4.0 tag-triggered run despite
-          # files being present (see diagnostic step above). Pinning to
-          # the explicit glob form sidesteps the regression and is the
-          # form actions/upload-artifact v7 docs recommend for uploading
-          # everything in a directory.
+          # v5+ default `include-hidden-files: false` skips any directory
+          # or file whose name starts with `.`. Because `.release-artifacts/`
+          # is itself dot-prefixed, every path under it counts as hidden
+          # and the action emits "No files were found" even when the
+          # directory contains the .tgz + SBOM files (see PR #187
+          # post-mortem and the diagnostic step's `ls -la` output).
+          # Setting include-hidden-files: true uploads the contents of the
+          # dot-prefixed staging directory without changing repo-level
+          # hidden-file handling (this glob is scoped to .release-artifacts).
+          include-hidden-files: true
           path: .release-artifacts/**
           if-no-files-found: error
           retention-days: 7

@@ -171,29 +171,29 @@ describe("Feature: Atomic six-package publish-readiness", () => {
       expect(distinct.size, `version skew across packages: ${JSON.stringify(versions)}`).toBe(1);
     });
 
-    it("the atomic version matches the latest CHANGELOG entry (1.3.x)", () => {
+    it("the atomic version matches the latest CHANGELOG entry (1.4.x)", () => {
       const changelog = readRepoFile("CHANGELOG.md");
       const versions = PUBLISHABLE_PACKAGES.map((pkg) => readPackageJson(pkg).version);
-      // Latest changelog entry is the v1.3 train; assert all packages are 1.3.x.
+      // Latest changelog entry is the v1.4 train; assert all packages are 1.4.x.
       for (const version of versions) {
-        expect(version, `package version "${version}" is not on the 1.3.x train`).toMatch(
-          /^1\.3\.\d+/,
+        expect(version, `package version "${version}" is not on the 1.4.x train`).toMatch(
+          /^1\.4\.\d+/,
         );
       }
-      // And the changelog has a [1.3.2] entry corresponding to that train.
-      expect(changelog).toMatch(/\[1\.3\.2\]/);
+      // And the changelog has a [1.4.0] entry corresponding to that train.
+      expect(changelog).toMatch(/\[1\.4\.0\]/);
     });
   });
 
-  describe("Scenario: v1.3 security advisory registration is prepared", () => {
+  describe("Scenario: v1.4 security advisory registration is prepared", () => {
     it("release docs enumerate GHSA candidates before package publication", () => {
-      const advisory = readRepoFile("docs/release/v1.3.2-security-advisories.md");
+      const advisory = readRepoFile("docs/release/v1.4.0-security-advisories.md");
 
       expect(advisory).toContain("GitHub's repository security advisory API");
       expect(advisory).toContain("@hulumi/baseline");
       expect(advisory).toContain("@hulumi/policies");
       expect(advisory).toContain("@hulumi/drift");
-      expect(advisory).toContain("< 1.3.2");
+      expect(advisory).toContain("< 1.4.0");
       expect(advisory).toContain("Patched version");
     });
   });

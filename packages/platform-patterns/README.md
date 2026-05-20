@@ -56,7 +56,7 @@ Rotate historically exposed origin IPs after Cloudflare onboarding. Tunnel and a
 ## Install And Import Paths
 
 ```bash
-pnpm add @hulumi/platform-patterns @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/cloudflare@6.15.0 @pulumi/github@6.13.1 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/platform-patterns @hulumi/baseline @pulumi/aws @pulumi/cloudflare @pulumi/github @pulumi/pulumi
 ```
 
 ```ts

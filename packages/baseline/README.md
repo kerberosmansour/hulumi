@@ -13,14 +13,12 @@ Apache-2.0. SLSA Build L3 attestation on every published tarball.
 ## Install
 
 ```bash
-pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 # Optional, for the GitHub-side surface:
-pnpm add @pulumi/github@6.13.1
+pnpm add @pulumi/github
 ```
 
-The exact `@pulumi/*` versions match `peerDependencies`. Bumps go through
-a 72h/24h cooling-off CI gate — see the project
-[SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
+`@hulumi/baseline@1.4.1` accepts any caret-compatible Pulumi SDK (`@pulumi/aws` in the `7.x` line, `@pulumi/pulumi` in the `3.x` line, `@pulumi/github` in the `6.x` line). The versions Hulumi is **tested against** are listed in this package's `peerDependencies` — that's the floor, not a ceiling. If you already have these SDKs installed at any compatible version, you don't need to change them. The 72h/24h cooling-off CI gate applies inside Hulumi when **we** bump our tested floor — see the project [SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
 
 ## Quick-start — `SecureBucket`
 

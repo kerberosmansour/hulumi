@@ -35,9 +35,15 @@ The example tests under `examples/` import from `dist/` via the `exports` map. W
 
 `@pulumi/aws@7.x` deprecates the `V2` family (`s3.BucketV2`, `s3.BucketServerSideEncryptionConfigurationV2`, etc.) in favor of the non-V2 names. Current `SecureBucket` releases construct the non-V2 resources and include aliases back to the previous V2 child type tokens. If you still see V2 warnings from Hulumi packages, first run a fresh build and confirm your lockfile is not pinned to an older `@hulumi/baseline`; then see [v2-migration.md](./v2-migration.md) for the migration checklist.
 
-### `@pulumi/*` exact pins block a `pnpm update`
+### Do I need to pin Pulumi to the exact versions Hulumi tested against?
 
-By design. Every `@pulumi/*` dep is exact-pinned with an integrity hash; the `scripts/exact-pin-guard.mjs` CI step refuses lockfile drift. Bumps go through the 72h/24h cooling-off gate ([SECURITY.md § Pulumi cooling-off policy](../SECURITY.md)). If a `pnpm update` fails CI, that's the guard working — open a deliberate PR with the new version + integrity hash + cooling-off justification.
+**No — as of 1.4.1.** Hulumi's published packages have caret-range peer dependencies (e.g. `"@pulumi/aws": "^7.27.0"`), so any compatible SDK in the same major version line satisfies the peer. Use whatever Pulumi SDK your project already runs on; Hulumi will install. The versions listed in each `peerDependencies` block are the **tested floor**, not a requirement that you match them.
+
+(Inside the Hulumi repo itself, our own `pnpm-lock.yaml` is locked to exact versions with integrity hashes — that's our own defense against a tampered SDK re-publish, enforced by `scripts/exact-pin-guard.mjs`. That's independent of what we ask of you, the consumer.)
+
+### `@pulumi/*` exact pins block a `pnpm update` inside the Hulumi repo
+
+By design. Inside the Hulumi repo, every `@pulumi/*` dep is exact-pinned in `pnpm-lock.yaml` with an integrity hash; the `scripts/exact-pin-guard.mjs` CI step refuses lockfile drift. Bumps go through the 72h/24h cooling-off gate ([SECURITY.md § Pulumi cooling-off policy](../SECURITY.md)). If a `pnpm update` inside the Hulumi repo fails CI, that's the guard working — open a deliberate PR with the new version + integrity hash + cooling-off justification. This guard does not apply to your project consuming Hulumi from npm — see the entry above.
 
 ### My PR fails the DCO check
 

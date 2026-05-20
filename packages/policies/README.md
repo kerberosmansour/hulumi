@@ -11,7 +11,7 @@ Apache-2.0. SLSA Build L3 attestation on every published tarball.
 ## Install
 
 ```bash
-pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
+pnpm add -D @hulumi/policies @pulumi/policy
 ```
 
 ## Quick-start — load a policy pack locally

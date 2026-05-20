@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/k8s-baseline",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Hardened Pulumi K8s / EKS / Istio / RDS / Secrets-Manager baseline components — HardenedHelmRelease, EksSubnetTagger, IstioFoundation, AlbMeshedHttpEntrypoint, KubernetesSecretFromAwsSecretsManager, RdsCredentialSecret, GitHubAppCredential. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
   "publishConfig": {

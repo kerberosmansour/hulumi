@@ -95,7 +95,7 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/cloudflare-baseline@1.3.2 --pack-destination .
-gh attestation verify ./hulumi-cloudflare-baseline-1.3.2.tgz \
+pnpm pack @hulumi/cloudflare-baseline@1.4.0 --pack-destination .
+gh attestation verify ./hulumi-cloudflare-baseline-1.4.0.tgz \
   --repo kerberosmansour/hulumi
 ```

@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/platform-patterns",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Cross-provider Pulumi patterns for Cloudflare edge ingress, AWS deployment identity, and GitHub deployment repositories.",
   "license": "Apache-2.0",
   "publishConfig": {

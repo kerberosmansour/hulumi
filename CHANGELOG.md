@@ -5,6 +5,188 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-05-20
+
+The security-hardening release. Atomic six-package publish: `@hulumi/baseline@1.4.0`,
+`@hulumi/policies@1.4.0`, `@hulumi/drift@1.4.0`, `@hulumi/k8s-baseline@1.4.0`,
+`@hulumi/cloudflare-baseline@1.4.0`, `@hulumi/platform-patterns@1.4.0`. All six packages
+ship with SLSA Build L3 + npm provenance via the existing trusted-publishing release
+path (no long-lived `NPM_TOKEN`).
+
+Scope: closes 19 Codex security findings (4 HIGH + 15 MEDIUM) plus 5 unreported but
+exploitable instances of the same root causes, collapsed into 8 root-cause clusters in
+PR #178. Adds doc-vs-live drift protection in PR #179. Pure-additive new exports + an
+opt-in CLI flag warrant MINOR (not PATCH) per semver, even though most line-count is in
+the security fixes themselves.
+
+Six findings warrant individual GHSAs — see
+[`docs/release/v1.4.0-security-advisories.md`](./docs/release/v1.4.0-security-advisories.md)
+for the per-advisory cross-reference. The remaining findings are repo-internal
+(workflow gating, e2e sweep, drift classifier internals) and are documented in
+`### Security` below — they do not affect downstream consumers of the published library
+tarballs.
+
+### Added
+
+- **`@hulumi/policies/urn.ts`** — new shared anchored-URN-parsing helpers
+  (`parseUrn`, `isUrnChildOfComponent`, `urnsShareParentComponent`). Replaces six
+  unsafe `urn.includes()` substring patterns across the AWS, GitHub, Cloudflare,
+  Platform, and CIS-v5 policy packs. Future policy packs should use this helper
+  rather than re-deriving URN matching logic.
+- **`@hulumi/baseline.aws.SecureBucket`** — new function-keyed audit-bucket invariant
+  that fires when the bucket backs CloudTrail/Config delivery (i.e.
+  `awsServiceLogDelivery.cloudTrail === true || .config === true`): blocks
+  `forceDestroy: true` on startup-hardened audit buckets; emits the CloudTrail-Lake
+  `EventDataStore` whenever the bucket backs audit delivery (regardless of parent
+  AccountFoundation tier); adds a deny-`s3:DeleteObject*` bucket-policy retention
+  floor scoped to the CloudTrail / Config history + snapshot prefixes (excludes the
+  `ConfigWritabilityCheckFile` probe key).
+- **`@hulumi/baseline.aws.guardduty`** — when reusing a detector via
+  `existingDetectorId`, the component now asserts the detector is `ENABLED` with
+  `findingPublishingFrequency: FIFTEEN_MINUTES`. A suspended / weaker / non-Hulumi
+  detector now fails the deployment rather than silently satisfying the baseline
+  output.
+- **`@hulumi/baseline.aws.securityhub`** — when `useExistingAccount: true`, CIS and
+  NIST `StandardsSubscription` resources are now created with `retainOnDelete: true`
+  so destroying a reused account-wide hub no longer unsubscribes CIS / NIST.
+- **`@hulumi/drift.classifier`** — pre-`hardenedVerdict` degradation gate fails closed
+  to `Unknown / low` when any required adapter (`auto`, `pv`) has `ok === false`, and
+  the degraded verdict is not written to the cache. The Mixed / ConsoleBreakGlass
+  promotion now requires real `ct.detected` evidence, not a healthy probe alone. The
+  6-row TLA+-bound verdict matrix in `tests/_utils/trace-matrix.ts` is byte-identical —
+  the fix is classifier-only and the matrix invariant is preserved.
+- **`@hulumi/drift.reconciler` + `discovery`** — security-singleton type inference: a
+  shared `isSecuritySingletonType` predicate marks `aws:guardduty/detector:Detector`
+  and `aws:securityhub/account:Account` as singletons unconditionally, so the existing
+  `scope.allowSingletonDelete` guard fires even when the caller forgot to set
+  `singleton: true`.
+- **`@hulumi/drift.adapters.CloudWatchLogGroupExecutor`** — resolves the client's
+  effective account (via cached STS GetCallerIdentity) and configured region, and
+  blocks execution when `action.resource.accountId` / `region` doesn't match. Fails
+  closed when either is absent or resolution throws.
+- **`@hulumi/policies` H5 value-binding** — H5 sibling matching now uses
+  `urnsShareParentComponent` (anchored type-chain match) AND value-binding: every
+  sibling's `bucket` prop and the bucket policy's `Resource` ARNs must reference the
+  exempted bucket explicitly. Closes the decoy-sibling H5 HIGH finding.
+- **`@hulumi/policies.github.G_OIDC_1` + `G_OIDC_2`** — `federatedIsGithubOidc` now
+  accepts `string | string[] | unknown` and matches per-array-entry. A trust policy
+  listing the real GitHub OIDC provider alongside any second federated provider is now
+  caught (was the bypass mechanism in both HIGH findings).
+- **`@hulumi/k8s-baseline.MetricsServer`** — `--kubelet-insecure-tls=<any>` argv-form
+  now triggers the `insecureKubeletTlsReason` requirement (was bare-form only,
+  bypassed by `=true`).
+- **`@hulumi/k8s-baseline.EksAdminAccessPath`** — `publicAccessCidrs` and
+  `operatorAccess.cidrBlocks` / `ipv6CidrBlocks` now run a true union-coverage check
+  (BigInt-based interval merge over IPv4 / IPv6 spaces), rejecting split-range
+  bypasses like `["0.0.0.0/1","128.0.0.0/1"]`. Same fix applied to the policy
+  back-stop at `packages/policies/src/k8s/eks-cluster-pack.ts`.
+- **`scripts/workflow-governance-lint.mjs`** — new `WF_ENV_1` rule requires every
+  `workflow_dispatch` job that assumes an AWS role or runs `pulumi destroy` to declare
+  a protected `environment:`.
+
+### Changed
+
+- **`packages/k8s-baseline/README.md`** — removed the false "SHA-pinned chart digest"
+  claim on `HardenedHelmRelease`; updated to describe what is actually enforced
+  (exact-version pinning, https/oci repo scheme, PSA-baseline labels, default
+  release-name stability).
+- **`docs/deployment/sandbox-account.md`** — the documented IAM trust-policy example's
+  `:sub` value is now a JSON array (was single string), accepting the env-form sub
+  claims emitted by GitHub for workflow jobs declaring `environment:`. Added explainer
+  paragraph. Landed via PR #179.
+- **`.github/workflows/e2e-cleanup.yml`** — adds `environment: e2e-cleanup` + `if:
+github.ref == 'refs/heads/main'` defence-in-depth.
+- **`.github/workflows/weekly-integration.yml`** — adds `environment:
+aws-weekly-integration` + S3 bucket-owner verification step (uses
+  `--expected-bucket-owner`).
+- **`.github/workflows/drift-reconciler-cleanup.yml`** — adds `environment:
+aws-reconciler-plan` to the plan job; the execute job's pre-existing
+  `aws-reconciler-execute` env declaration now has a corresponding configured
+  Environment in repo settings (closeout of issue #180).
+- **`packages/baseline/tests/integration/account-foundation.integration.test.ts`** —
+  the e2e sweep helper now uses exact-regex + Hulumi-owned-tag-or-creation-time-window
+  scoping (was loose prefix-and-suffix affix match) and fails closed on borderline
+  matches.
+- **README scenario inventory** — corrected to reflect the 14 prebuilt threat-model
+  scenarios actually shipped (AWS 5, GitHub 4, EKS 2, Operations 3) — the v1.3.2
+  README still listed only 9.
+- **README "What's in the box"** — surfaces the AWS Operations suite that shipped in
+  v1.2.0 but was never reflected in the table (`Ec2PatchBaseline`, `Ec2PatchWaves`,
+  `DetectiveServicesEnable` Inspector v2, `AuditTrail`, `IdentityAlarms`,
+  `MonitoringFoundation`, `HulumiOperationsHardeningPack`).
+
+### Security
+
+GHSAs filed for findings affecting downstream consumers of the published library
+tarballs (full per-advisory detail in
+[`docs/release/v1.4.0-security-advisories.md`](./docs/release/v1.4.0-security-advisories.md)):
+
+- **G_OIDC_1 + G_OIDC_2 array-Federated spoof** (`@hulumi/policies`, 2× HIGH). A trust
+  policy that lists the real GitHub OIDC provider ARN alongside any second federated
+  provider could bypass both the wildcard-OIDC guard and the EKS-cluster-admin /
+  AdministratorAccess detector. **Patched in 1.4.0.**
+- **URN-substring spoof class** (`@hulumi/policies`, 1× HIGH + 1× MED reported plus
+  4 latent in cloudflare, github, cis-v5 packs). A raw resource declared with a
+  logical name embedding a parent-component type token bypassed every pack that used
+  `urn.includes("<type>$")`. **Patched in 1.4.0.**
+- **H5 decoy-sibling bypass** (`@hulumi/policies`, HIGH). A forged SecureBucket
+  wrapper could ship five decoy hardening siblings targeting a different bucket; H5
+  reported no violation while the exempted raw bucket stayed unhardened. **Patched in
+  1.4.0** via value-binding (`bucket` prop + Resource ARNs).
+- **Audit-delivery bucket integrity cluster** (`@hulumi/baseline.aws`, 1× HIGH + 2× MED).
+  `objectLock:false` on startup-hardened CloudTrail/Config delivery; `forceDestroy`
+  permitting purge of audit logs on destroy; sandbox-tier AccountFoundation dropping
+  CloudTrail-Lake EventDataStore. **Patched in 1.4.0** via the function-keyed
+  `awsServiceLogDelivery` invariant in `SecureBucket`.
+- **Drift fail-open verdicts** (`@hulumi/drift`, 2× MED). Automation-API adapter
+  failure cached as `None / none`; Mixed / ConsoleBreakGlass promotion on healthy
+  probe alone without `ct.detected` evidence. **Patched in 1.4.0** via the
+  classifier-only pre-`hardenedVerdict` degradation gate. TLA+ verdict matrix
+  unchanged.
+- **Detective-service reuse downgrade** (`@hulumi/baseline.aws`, MED).
+  `existingDetectorId` and `useExistingAccount` reuse paths asserted existence, not
+  posture. **Patched in 1.4.0** via posture assertion + `retainOnDelete` on standards
+  subscriptions.
+
+Repo-internal findings (closed by PR #178 / #179 but not warranting consumer-facing
+GHSAs):
+
+- CloudWatch executor cross-account/region binding (drift internals).
+- Security-singleton inference for GuardDuty/SecurityHub (drift internals).
+- Kubelet `--kubelet-insecure-tls=true` pflag-form bypass (k8s-baseline).
+- EKS split-CIDR coverage (k8s-baseline + policy back-stop).
+- e2e sweep over-broad name-affix deletion (integration test only).
+- `e2e-cleanup.yml` missing maintainer-review gate (workflow YAML + GitHub
+  Environment).
+- weekly-integration / e2e-cleanup S3 state-bucket ownership-not-verified (workflow
+  YAML + docs).
+- Cleanup workflow lacks maintainer approval gate (workflow YAML).
+- Documented "SHA-pinned chart digest" claim in `@hulumi/k8s-baseline/README.md`
+  that was not actually implemented (doc fix; no runtime bypass).
+
+### Migration
+
+Upgrading from 1.3.2 is normally `pnpm update @hulumi/*` with no code changes. Two
+caveats for downstream consumers using narrow patterns:
+
+- **`@hulumi/baseline.aws.SecureBucket` with `forceDestroy: true`**: if your stack
+  sets `forceDestroy: true` AND `awsServiceLogDelivery.cloudTrail` (or `.config`) AND
+  `tier: "startup-hardened"`, the constructor will throw at preview time. This is
+  intentional security tightening — the audit bucket is the only S3 surface this rule
+  applies to. Either remove `forceDestroy` from the audit-delivery bucket, or drop
+  the bucket's tier to sandbox if the stack is ephemeral.
+- **`@hulumi/baseline.aws.guardduty` reuse**: if your stack passes `existingDetectorId`
+  and the detector is not currently `ENABLED` with `findingPublishingFrequency:
+FIFTEEN_MINUTES`, the deployment will now abort. Enable / reconfigure the detector
+  first, or stop reusing it.
+
+A pre-release `Configure AWS credentials` smoke run of every protected
+`workflow_dispatch` workflow (`e2e-cleanup`, `aws-weekly-integration`,
+`aws-reconciler-plan`, `aws-reconciler-execute`) confirmed OIDC
+`AssumeRoleWithWebIdentity` succeeds under the new trust policy (sandbox role's
+`:sub` widened from single string to a three-element array). Maintainer setup updated
+in `docs/deployment/sandbox-account.md` per PR #179.
+
 ## [1.3.2] — 2026-05-15
 
 The Hulumi Edge Platform release. Atomic six-package publish:

@@ -75,8 +75,8 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/k8s-baseline@1.3.2 --pack-destination .
-gh attestation verify ./hulumi-k8s-baseline-1.3.2.tgz \
+pnpm pack @hulumi/k8s-baseline@1.4.0 --pack-destination .
+gh attestation verify ./hulumi-k8s-baseline-1.4.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 

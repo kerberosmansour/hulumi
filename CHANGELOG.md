@@ -5,12 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.1] — 2026-05-20
+
+Consumer-friendliness patch release. Atomic six-package publish: `@hulumi/baseline@1.4.1`,
+`@hulumi/policies@1.4.1`, `@hulumi/drift@1.4.1`, `@hulumi/k8s-baseline@1.4.1`,
+`@hulumi/cloudflare-baseline@1.4.1`, `@hulumi/platform-patterns@1.4.1`. All six packages
+ship with SLSA Build L3 + npm provenance via the existing trusted-publishing release
+path. `@hulumi/cloudflare-baseline` and `@hulumi/platform-patterns` republish unchanged
+to preserve the atomic-six convention.
 
 ### Changed
 
-- Pulumi peer-dependency ranges in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` widened from **exact-pin** (e.g. `"@pulumi/aws": "7.27.0"`) to **caret-semver** (e.g. `"@pulumi/aws": "^7.27.0"`). Lets downstream Pulumi infra repos consume `@hulumi/*` without npm `ERESOLVE` when they have bumped their Pulumi SDK by a minor or patch ahead of Hulumi's tested floor. Consumers stay free to pin Pulumi SDK as tightly as they like; Hulumi just stops _requiring_ exact-equality. Discovered downstream at [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70) where consuming `@hulumi/baseline@1.4.0` was blocked by sunlit-guardian's `@pulumi/aws@7.30.0` (Hulumi peer-pinned `7.27.0`).
-- This is PATCH-level per semver: no API change, no behaviour change for any existing valid resolution; only widens which dependency trees are _also_ valid.
+- Pulumi peer-dependency ranges in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` widened from **exact-pin** (e.g. `"@pulumi/aws": "7.27.0"`) to **caret-semver** (e.g. `"@pulumi/aws": "^7.27.0"`). Lets downstream Pulumi infra repos consume `@hulumi/*` without npm `ERESOLVE` when they have bumped their Pulumi SDK by a minor or patch ahead of Hulumi's tested floor. Consumers stay free to pin Pulumi SDK as tightly as they like; Hulumi just stops _requiring_ exact-equality. Discovered downstream at [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70) where consuming `@hulumi/baseline@1.4.0` was blocked by sunlit-guardian's `@pulumi/aws@7.30.0` (Hulumi peer-pinned `7.27.0`). PR #190.
+- This is PATCH-level per semver: no API change, no behaviour change for any existing valid resolution; only widens which dependency trees are _also_ valid. Hulumi's own `devDependencies` and `pnpm-lock.yaml` continue to resolve to the exact-pinned versions — `scripts/exact-pin-guard.mjs` continues to pass (13/13 deps OK), preserving the defense-in-depth integrity-hash check.
 
 ## [1.4.0] — 2026-05-20
 

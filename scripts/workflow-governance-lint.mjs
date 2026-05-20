@@ -13,13 +13,20 @@ const SHA_REF = /^[0-9a-f]{40}$/i;
 const USES_LINE = /^\s*-?\s*uses:\s*["']?([^"'\s#]+)["']?/;
 
 function parseArgs(argv) {
-  const options = { repoRoot: process.cwd() };
+  const options = { repoRoot: process.cwd(), checkSettings: false };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--repo-root") {
       const next = argv[i + 1];
       if (!next) throw new Error("--repo-root requires a path");
       options.repoRoot = resolve(next);
       i += 1;
+    } else if (argv[i] === "--check-settings") {
+      // Opt-in WF_ENV_1 settings-state check (ticket-183). Calls
+      // `gh api /repos/{owner}/{repo}/environments/<name>` for every
+      // privileged-job env declared in YAML and flags environments that
+      // are missing from repo settings OR have zero protection rules.
+      // Default off — local lint runs remain offline; CI opts in.
+      options.checkSettings = true;
     } else {
       throw new Error(`unknown argument: ${argv[i]}`);
     }
@@ -246,6 +253,43 @@ function jobDeclaresEnvironment(job, jobsIndent) {
   return false;
 }
 
+function extractJobEnvironmentName(job, jobsIndent) {
+  // Extract the environment NAME from a direct job-level `environment:`
+  // declaration. Returns null if no env is declared (which is the
+  // structural-WF_ENV_1 case the existing rule already catches) or if
+  // the declaration uses a templated `${{ ... }}` value (templated
+  // names don't lock to a specific env, so the settings-state check
+  // cannot meaningfully apply).
+  //
+  // Supports both YAML forms:
+  //   environment: my-env
+  //   environment: "my-env"
+  //   environment:
+  //     name: my-env
+  const expected = " ".repeat(jobsIndent + 2);
+  const scalarRe = /^\s+environment:\s+["']?([A-Za-z][A-Za-z0-9_-]*)["']?\s*(?:#.*)?$/;
+  const bareRe = /^\s+environment:\s*(?:#.*)?$/;
+  const nameRe = /^\s+name:\s+["']?([A-Za-z][A-Za-z0-9_-]*)["']?\s*(?:#.*)?$/;
+  for (let i = 0; i < job.lines.length; i += 1) {
+    const { text } = job.lines[i];
+    if (!text.startsWith(`${expected}environment:`)) continue;
+    const scalar = text.match(scalarRe);
+    if (scalar) return scalar[1];
+    if (bareRe.test(text)) {
+      for (let j = i + 1; j < job.lines.length; j += 1) {
+        const sub = job.lines[j].text;
+        if (sub.trim() === "") continue;
+        const m = sub.match(nameRe);
+        if (m) return m[1];
+        // First non-blank that isn't `name:` means we've exited the
+        // env block; give up rather than walking the whole job body.
+        break;
+      }
+    }
+  }
+  return null;
+}
+
 function jobIsPrivileged(job) {
   // Returns a short reason if the job assumes an AWS role or runs
   // `pulumi destroy`, otherwise undefined.
@@ -356,6 +400,147 @@ export function collectWorkflowGovernanceDiagnostics(options = {}) {
   return diagnostics;
 }
 
+/**
+ * Async variant of {@link collectWorkflowGovernanceDiagnostics} that adds
+ * the WF_ENV_1 settings-state check when `options.checkSettings` is true.
+ *
+ * Background: the existing WF_ENV_1 rule catches "privileged job missing
+ * `environment:` line in YAML" but cannot catch "YAML declares
+ * `environment: foo` but no `foo` Environment exists in repo settings
+ * (or it exists with zero protection rules)". GitHub treats unknown /
+ * unprotected environment names as unprotected. The settings-state
+ * check (ticket-183) closes that gap.
+ *
+ * Default-off — `options.checkSettings` defaults to false; without it
+ * this function returns the exact same diagnostics as the sync version.
+ * Opt-in via `options.checkSettings: true` (programmatic) or the
+ * `--check-settings` CLI flag.
+ *
+ * The check delegates the actual lookup to `options.resolveEnvironment`
+ * so tests can pass a stub. The production CLI wires up a resolver that
+ * shells out to `gh api /repos/{owner}/{repo}/environments/<name>`.
+ *
+ * @param {object} [options]
+ * @param {string} [options.repoRoot]
+ * @param {boolean} [options.checkSettings]
+ * @param {(name: string) => Promise<{ name: string; protection_rules: { type: string }[] } | null>} [options.resolveEnvironment]
+ * @returns {Promise<Array<{ ruleId: string; file: string; line: number; message: string }>>}
+ */
+export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
+  const diagnostics = collectWorkflowGovernanceDiagnostics(options);
+  if (!options.checkSettings) return diagnostics;
+  if (typeof options.resolveEnvironment !== "function") {
+    throw new Error(
+      "collectWorkflowGovernanceDiagnosticsAsync: checkSettings=true requires options.resolveEnvironment to be a function",
+    );
+  }
+  const repoRoot = resolve(options.repoRoot ?? process.cwd());
+  const files = listGovernanceFiles(repoRoot);
+  // Collect (envName, file, line) candidates for every privileged
+  // workflow_dispatch job that declares an environment. Jobs that
+  // *don't* declare an environment are already covered by the
+  // structural WF_ENV_1 check — no need to settings-check them.
+  const candidates = [];
+  for (const file of files) {
+    if (!file.startsWith(".github/workflows/")) continue;
+    const lines = readFileSync(join(repoRoot, file), "utf8").split(/\r?\n/);
+    if (!workflowHasDispatchTrigger(lines)) continue;
+    const jobsIndent = detectJobsIndent(lines);
+    if (jobsIndent < 0) continue;
+    for (const job of extractJobs(lines)) {
+      if (!jobIsPrivileged(job)) continue;
+      const envName = extractJobEnvironmentName(job, jobsIndent);
+      if (!envName) continue;
+      candidates.push({ envName, file, line: job.startLine + 1 });
+    }
+  }
+  // Memoize per env name so two jobs declaring the same environment
+  // generate exactly one resolver call. Cache scope is one invocation.
+  const cache = new Map();
+  for (const candidate of candidates) {
+    if (!cache.has(candidate.envName)) {
+      cache.set(candidate.envName, resolveSafely(options.resolveEnvironment, candidate.envName));
+    }
+  }
+  for (const candidate of candidates) {
+    const result = await cache.get(candidate.envName);
+    if (result.error) {
+      diagnostics.push(
+        makeDiagnostic(
+          WF_ENV_1_RULE_ID,
+          candidate.file,
+          candidate.line,
+          `environment '${candidate.envName}' resolver error: ${result.error}`,
+        ),
+      );
+      continue;
+    }
+    if (result.value === null) {
+      diagnostics.push(
+        makeDiagnostic(
+          WF_ENV_1_RULE_ID,
+          candidate.file,
+          candidate.line,
+          `environment '${candidate.envName}' declared in workflow but not configured in repo settings`,
+        ),
+      );
+      continue;
+    }
+    const rules = result.value.protection_rules;
+    if (!Array.isArray(rules) || rules.length === 0) {
+      diagnostics.push(
+        makeDiagnostic(
+          WF_ENV_1_RULE_ID,
+          candidate.file,
+          candidate.line,
+          `environment '${candidate.envName}' configured but has zero protection rules`,
+        ),
+      );
+    }
+  }
+  return diagnostics;
+}
+
+async function resolveSafely(resolver, name) {
+  try {
+    const value = await resolver(name);
+    return { value, error: null };
+  } catch (err) {
+    return { value: null, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function productionResolveEnvironment(name) {
+  // Production CLI resolver: shell out to `gh api`. Uses `{owner}/{repo}`
+  // placeholders so `gh` reads the current git context — no manual
+  // owner/repo parsing in this script.
+  const result = spawnSync(
+    "gh",
+    [
+      "api",
+      `/repos/{owner}/{repo}/environments/${name}`,
+      "-H",
+      "Accept: application/vnd.github+json",
+    ],
+    { encoding: "utf8" },
+  );
+  if (result.error && result.error.code === "ENOENT") {
+    throw new Error("`gh` CLI not installed or not on PATH");
+  }
+  if (result.status === 0) {
+    try {
+      return JSON.parse(result.stdout);
+    } catch (err) {
+      throw new Error(`gh api returned non-JSON: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  const stderr = (result.stderr ?? "").trim();
+  // gh returns "Not Found (HTTP 404)" for missing environments — that
+  // is the signal we want, not an error.
+  if (/HTTP 404|Not Found/i.test(stderr)) return null;
+  throw new Error(`gh api failed (exit ${result.status}): ${stderr || "no stderr"}`);
+}
+
 function formatDiagnostic(diagnostic, repoRoot) {
   const file = diagnostic.file.startsWith(repoRoot)
     ? relative(repoRoot, diagnostic.file)
@@ -364,21 +549,29 @@ function formatDiagnostic(diagnostic, repoRoot) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  try {
-    const options = parseArgs(process.argv.slice(2));
-    const diagnostics = collectWorkflowGovernanceDiagnostics(options);
-    if (diagnostics.length === 0) {
-      console.log("workflow-governance: pass");
-      process.exit(0);
+  (async () => {
+    try {
+      const options = parseArgs(process.argv.slice(2));
+      let diagnostics;
+      if (options.checkSettings) {
+        options.resolveEnvironment = productionResolveEnvironment;
+        diagnostics = await collectWorkflowGovernanceDiagnosticsAsync(options);
+      } else {
+        diagnostics = collectWorkflowGovernanceDiagnostics(options);
+      }
+      if (diagnostics.length === 0) {
+        console.log("workflow-governance: pass");
+        process.exit(0);
+      }
+      console.error("workflow-governance: fail");
+      for (const diagnostic of diagnostics) {
+        console.error(formatDiagnostic(diagnostic, options.repoRoot));
+      }
+      process.exit(1);
+    } catch (error) {
+      console.error("workflow-governance: error");
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(2);
     }
-    console.error("workflow-governance: fail");
-    for (const diagnostic of diagnostics) {
-      console.error(formatDiagnostic(diagnostic, options.repoRoot));
-    }
-    process.exit(1);
-  } catch (error) {
-    console.error("workflow-governance: error");
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(2);
-  }
+  })();
 }

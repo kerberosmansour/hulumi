@@ -93,7 +93,11 @@ IAM → **Roles** → **Create role** → **Custom trust policy**, paste
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:kerberosmansour/hulumi:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:kerberosmansour/hulumi:ref:refs/heads/main",
+            "repo:kerberosmansour/hulumi:environment:e2e-cleanup",
+            "repo:kerberosmansour/hulumi:environment:aws-weekly-integration"
+          ]
         }
       }
     }
@@ -101,9 +105,22 @@ IAM → **Roles** → **Create role** → **Custom trust policy**, paste
 }
 ```
 
-The strict `sub` filter accepts only workflows running against the
-`main` branch of `kerberosmansour/hulumi`. PRs from feature branches
-and forks cannot assume this role.
+The `sub` filter accepts only workflows running against the `main` branch
+of `kerberosmansour/hulumi`. PRs from feature branches and forks cannot
+assume this role. The list-of-strings form matches IAM `StringEquals` "any
+of these values" semantics — no wildcards.
+
+The two `environment:*` entries are required because workflow jobs that
+declare a [protected GitHub Environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/managing-environments-for-deployment)
+get an OIDC token whose `sub` claim takes the form
+`repo:OWNER/REPO:environment:<name>` instead of `repo:OWNER/REPO:ref:<ref>`.
+Without these entries `AssumeRoleWithWebIdentity` returns
+`Not authorized` for any workflow gated behind a maintainer-review
+environment, which today covers `e2e-cleanup` (destructive cleanup) and
+`aws-weekly-integration` (real-AWS integration). When you add another
+protected environment that assumes this role, add a matching
+`repo:kerberosmansour/hulumi:environment:<new-env>` entry here and
+re-apply the trust policy.
 
 - **Permissions**: attach a customer-managed policy based on
   [`weekly-integration-iam-policy.json`](weekly-integration-iam-policy.json),

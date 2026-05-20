@@ -212,3 +212,170 @@ describe("workflow-governance linter", () => {
     expect(result.stdout).toContain("workflow-governance: pass");
   });
 });
+
+// =============================================================================
+// WF_ENV_1 settings-state verification (ticket-183, opt-in via --check-settings
+// or { checkSettings: true } JS-API option). Direct JS-API tests with a
+// stubbable resolver — no spawn, no real `gh` calls.
+// =============================================================================
+
+// workflow-governance-lint.mjs is plain JS without a `.d.ts`. The runtime
+// contract is documented in JSDoc on the .mjs export and exercised by the
+// BDD tests below. Dynamic import + a local type assertion keeps the TS
+// compiler happy without adding a declaration file outside this ticket's
+// allow-list and without an unused `@ts-expect-error` directive.
+type WfgModule = {
+  WF_ENV_1_RULE_ID: string;
+  collectWorkflowGovernanceDiagnosticsAsync: (options: {
+    repoRoot?: string;
+    checkSettings?: boolean;
+    resolveEnvironment?: (
+      name: string,
+    ) => Promise<{ name: string; protection_rules: Array<{ type: string }> } | null>;
+  }) => Promise<Array<{ ruleId: string; file: string; line: number; message: string }>>;
+};
+// @ts-expect-error TS7016: .mjs has no .d.ts; runtime contract documented in JSDoc on the export
+const wfg = (await import("../../scripts/workflow-governance-lint.mjs")) as unknown as WfgModule;
+const { collectWorkflowGovernanceDiagnosticsAsync, WF_ENV_1_RULE_ID } = wfg;
+
+type EnvironmentSettings = {
+  name: string;
+  protection_rules: Array<{ type: string }>;
+};
+
+function writePrivilegedWorkflow(fixture: string, filename: string, envName: string): void {
+  writeFileSync(
+    join(fixture, ".github", "workflows", filename),
+    [
+      "name: privileged",
+      "on:",
+      "  workflow_dispatch:",
+      "",
+      "permissions:",
+      "  contents: read",
+      "",
+      "jobs:",
+      "  destroy:",
+      "    runs-on: ubuntu-latest",
+      `    environment: ${envName}`,
+      "    steps:",
+      `      - uses: aws-actions/configure-aws-credentials@${SHA} # v4`,
+      "      - run: pulumi destroy",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+}
+
+describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
+  it("does NOT change behavior when checkSettings is unset (default-off)", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "good-env");
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+    });
+    // Pre-existing structural WF_ENV_1 not triggered (env declared); no
+    // settings-check diagnostic added (checkSettings unset).
+    expect(diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID)).toEqual(
+      [],
+    );
+  });
+
+  it("passes when every privileged-job env is configured WITH protection rules", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "good-env");
+    const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => {
+      if (name === "good-env") {
+        return { name, protection_rules: [{ type: "required_reviewers" }] };
+      }
+      return null;
+    };
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment,
+    });
+    expect(diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID)).toEqual(
+      [],
+    );
+  });
+
+  it("flags WF_ENV_1 when a YAML-referenced env is NOT configured in repo settings (resolver returns null)", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "missing-env");
+    const resolveEnvironment = async (_name: string): Promise<EnvironmentSettings | null> => null;
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment,
+    });
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    expect(envDiags).toHaveLength(1);
+    expect(envDiags[0].message).toContain("missing-env");
+    expect(envDiags[0].message).toMatch(/not configured in repo settings/);
+  });
+
+  it("flags WF_ENV_1 when an env is configured but has ZERO protection rules", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "open-env");
+    const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => ({
+      name,
+      protection_rules: [],
+    });
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment,
+    });
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    expect(envDiags).toHaveLength(1);
+    expect(envDiags[0].message).toContain("open-env");
+    expect(envDiags[0].message).toMatch(/zero protection rules/);
+  });
+
+  it("surfaces resolver errors as diagnostics, not silent passes", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "broken-resolver");
+    const resolveEnvironment = async (_name: string): Promise<EnvironmentSettings | null> => {
+      throw new Error("gh auth required");
+    };
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment,
+    });
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    expect(envDiags).toHaveLength(1);
+    expect(envDiags[0].message).toContain("broken-resolver");
+    expect(envDiags[0].message).toMatch(/gh auth required/);
+  });
+
+  it("throws a helpful Error if checkSettings is true but no resolver is provided", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "any-env");
+    await expect(
+      collectWorkflowGovernanceDiagnosticsAsync({
+        repoRoot: fixture,
+        checkSettings: true,
+      }),
+    ).rejects.toThrow(/resolveEnvironment/);
+  });
+
+  it("memoizes resolver calls per env name within one invocation", async () => {
+    const fixture = makeFixture();
+    // Two workflows both declare environment: shared-env on privileged jobs.
+    writePrivilegedWorkflow(fixture, "destroy-a.yml", "shared-env");
+    writePrivilegedWorkflow(fixture, "destroy-b.yml", "shared-env");
+    let calls = 0;
+    const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => {
+      calls += 1;
+      return { name, protection_rules: [{ type: "required_reviewers" }] };
+    };
+    await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment,
+    });
+    expect(calls).toBe(1); // memoization — same env queried only once
+  });
+});

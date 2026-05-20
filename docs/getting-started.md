@@ -23,7 +23,7 @@ This walkthrough takes you from "clean machine" to a working hardened S3 bucket 
 | -------------------------- | --------- | --------------------------------------------------- |
 | Node.js                    | 20 LTS    | Hulumi packages target Node 20.                     |
 | pnpm                       | ≥ 9       | The repo and recommended setup use pnpm.            |
-| Pulumi CLI                 | ≥ 3.232.0 | Matches Hulumi's pinned `@pulumi/pulumi`.           |
+| Pulumi CLI                 | ≥ 3.232.0 | Hulumi's tested floor for `@pulumi/pulumi`.         |
 | (optional) Claude Code CLI | latest    | Required only for the `/hulumi-threat-model` skill. |
 | (optional) AWS CLI         | ≥ 2.15    | Only needed when you eventually run `pulumi up`.    |
 
@@ -59,10 +59,10 @@ The skill writes `docs/threat-model-s3-public-bucket-hardening-YYYYMMDD.md` in y
 ```bash
 mkdir hulumi-quickstart && cd hulumi-quickstart
 pulumi new aws-typescript --name hulumi-quickstart --description "Hulumi quickstart" --yes --force
-pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 ```
 
-> The exact `@pulumi/pulumi` and `@pulumi/aws` versions match Hulumi's peerDependency pins. If you bump them, also re-run `pnpm install` to refresh the lockfile.
+> Hulumi 1.4.1+ accepts any caret-compatible Pulumi SDK (`@pulumi/pulumi` in the `3.x` line, `@pulumi/aws` in the `7.x` line). The exact versions Hulumi is tested against live in each package's `peerDependencies` as the floor. If you already have these SDKs at a compatible version, you don't need to change them.
 
 Replace the generated `index.ts` with:
 
@@ -91,7 +91,7 @@ You did not have to know any of those defaults. That's the point of `SecureBucke
 The pack catches the things a misconfigured PR could reintroduce — like reaching past `SecureBucket` to instantiate a raw `aws.s3.BucketV2`, or pointing the Pulumi backend at `file://`.
 
 ```bash
-pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
+pnpm add -D @hulumi/policies @pulumi/policy
 mkdir policies && cd policies
 cp ../node_modules/@hulumi/policies/PulumiPolicy.yaml .
 cat > index.ts <<'EOF'

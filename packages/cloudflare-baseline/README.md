@@ -68,7 +68,7 @@ new ProtectedAdminHostname("admin", {
 ## Install And Import Paths
 
 ```bash
-pnpm add @hulumi/cloudflare-baseline @pulumi/cloudflare@6.15.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/cloudflare-baseline @pulumi/cloudflare @pulumi/pulumi
 ```
 
 ```ts

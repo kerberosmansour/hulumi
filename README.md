@@ -5,7 +5,7 @@
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![npm @hulumi/baseline](https://img.shields.io/npm/v/@hulumi/baseline.svg)](https://www.npmjs.com/package/@hulumi/baseline)
 
-> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.4.0.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.4.1.
 
 ## Table of contents
 
@@ -76,8 +76,10 @@ Hulumi is deliberately _not_ these things ([full rationale](./docs/why-hulumi.md
 Add the baseline package and Pulumi's provider, then use a hardened component instead of the raw resource:
 
 ```bash
-pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 ```
+
+(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.4.1 accepts caret-compatible Pulumi SDKs.)
 
 ```ts
 import { SecureBucket } from "@hulumi/baseline/aws";
@@ -96,7 +98,7 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 /hulumi-threat-model aws-multi-account-baseline
 ```
 
-## What's in the box (v1.4.0)
+## What's in the box (v1.4.1)
 
 | Package                                  | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -119,17 +121,17 @@ Hulumi lives at a single canonical GitHub path: **`kerberosmansour/hulumi`**. An
 ### Pulumi packages (npm)
 
 ```bash
-pnpm add @hulumi/baseline @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 # Optional, recommended:
-pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
+pnpm add -D @hulumi/policies @pulumi/policy
 pnpm add @hulumi/drift   # if you want the drift classifier
 # Kubernetes / EKS surface:
-pnpm add @hulumi/k8s-baseline @pulumi/kubernetes@4.30.0
+pnpm add @hulumi/k8s-baseline @pulumi/kubernetes
 # Cloudflare edge + cross-provider deployment patterns:
-pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare@6.15.0 @pulumi/github@6.13.1
+pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare @pulumi/github
 ```
 
-The exact `@pulumi/*` versions match Hulumi's `peerDependencies` pins. Bumps go through a 72h/24h cooling-off CI gate — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
+Hulumi 1.4.1 accepts any caret-compatible Pulumi SDK (same major version line). The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
 
 ### Claude Code skill (`/hulumi-threat-model`)
 
@@ -177,6 +179,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | v1.2.0  | 2026-05-01 | Kubernetes / EKS baseline (`@hulumi/k8s-baseline`) **plus the AWS Operations suite**: `Ec2PatchBaseline`/`Ec2PatchWaves` patch management, `DetectiveServicesEnable` (Inspector v2), `AuditTrail`, `HulumiOperationsHardeningPack`, and the Operations threat-model scenarios.                                                                                                                                                                                               |
 | v1.3.2  | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.                                                                                                                                                                                                                                                                                                                                                                    |
 | v1.4.0  | 2026-05-20 | Security-hardening release — closes 19 Codex findings (4 HIGH + 15 MEDIUM) + 5 unreported instances of the same root causes. Adds shared anchored-URN helper (`@hulumi/policies/urn`), function-keyed audit-bucket invariant in `SecureBucket`, drift fail-closed classifier, kubelet-flag + CIDR-union validators, and the `WF_ENV_1` workflow-governance lint. 6 GHSAs — see [`docs/release/v1.4.0-security-advisories.md`](./docs/release/v1.4.0-security-advisories.md). |
+| v1.4.1  | 2026-05-20 | Consumer-friendliness patch. Loosened `@pulumi/*` peer-dep ranges from exact-version pins (`"@pulumi/aws": "7.27.0"`) to caret ranges (`"^7.27.0"`) so projects on slightly newer Pulumi SDKs can install Hulumi without npm ERESOLVE. No API or behaviour change. Hulumi's own internal lockfile + integrity-hash discipline is unchanged.                                                                                                                                  |
 
 Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md). For what's next, watch the [issue tracker](https://github.com/kerberosmansour/hulumi/issues) and [CHANGELOG.md](./CHANGELOG.md).
 
@@ -185,7 +188,8 @@ Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-
 - Apache-2.0 throughout.
 - **IDs only** — no verbatim CCM / AICM / CIS / CAIQ control text in source. See [docs/mappings/licensing.md](./docs/mappings/licensing.md).
 - No hosted-service runtime dependency; no telemetry phone-home.
-- `@pulumi/*` deps exact-pinned with integrity hashes; bumps go through a 72h/24h cooling-off gate.
+- Inside the Hulumi repo, `@pulumi/*` deps are pinned exact-version with integrity hashes (defense against tampered SDK re-publishes). Consumers install with caret-range peer deps — no exact pin is required of you.
+- Hulumi's own SDK bumps go through a 72h/24h cooling-off gate before they land.
 - SLSA Build L3 attestation on every npm release.
 - CIS AWS Foundations v5.0.0 primary rule-ID set; v7.0.0 staged.
 - `SKILL.md` per folder (agentskills.io cross-tool standard).

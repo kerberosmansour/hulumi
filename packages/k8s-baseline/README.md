@@ -11,11 +11,10 @@ Apache-2.0. SLSA Build L3 attestation on every published tarball.
 ## Install
 
 ```bash
-pnpm add @hulumi/k8s-baseline @pulumi/kubernetes@4.30.0 \
-         @pulumi/aws@7.27.0 @pulumi/pulumi@3.232.0
+pnpm add @hulumi/k8s-baseline @pulumi/kubernetes @pulumi/aws @pulumi/pulumi
 ```
 
-The exact `@pulumi/*` versions match `peerDependencies`.
+`@hulumi/k8s-baseline@1.4.1` accepts any caret-compatible Pulumi SDK (`@pulumi/kubernetes` `4.x`, `@pulumi/aws` `7.x`, `@pulumi/pulumi` `3.x`). The versions Hulumi is tested against are listed in this package's `peerDependencies` — that's the floor, not a ceiling.
 
 ## Components
 

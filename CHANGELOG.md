@@ -5,12 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.1] — 2026-05-20
+
+Small fix so it's easier to use Hulumi alongside newer Pulumi SDKs.
+
+**What changed.** Before 1.4.1, the `@hulumi/*` packages demanded Pulumi SDKs at one exact version (for example: `"@pulumi/aws": "7.27.0"`). If your project already used a slightly newer Pulumi SDK — even a patch ahead — npm refused to install Hulumi. As of 1.4.1, Hulumi accepts any SDK in the same major version line (`"@pulumi/aws": "^7.27.0"`), so projects on `7.27.0`, `7.28.0`, `7.30.0`, etc. can install Hulumi without surgery on their own dependencies.
+
+**What this doesn't change.** Your project can still pin Pulumi SDKs as tightly as you want. The change just means Hulumi stops _requiring_ that you match its exact version. There are no API changes, no behaviour changes, no removed exports — code that worked on 1.4.0 keeps working on 1.4.1.
+
+**Why we still treat our own builds strictly.** Inside the Hulumi repo we keep the SDKs locked to specific versions with integrity hashes — that's our defense against a tampered re-publish of an SDK we depend on. That discipline is untouched. Loosening only applies to what we ask of you, the consumer.
+
+**Atomic six-package release.** All six packages bump to 1.4.1 together so they release in lockstep: `@hulumi/baseline`, `@hulumi/policies`, `@hulumi/drift`, `@hulumi/k8s-baseline`, `@hulumi/cloudflare-baseline`, `@hulumi/platform-patterns`. The last two have no code changes; they re-publish at 1.4.1 only to keep the lockstep. Every published tarball carries SLSA Build L3 provenance.
+
+**Discovered downstream.** [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70). PR [#190](https://github.com/kerberosmansour/Hulumi/pull/190).
 
 ### Changed
 
-- Pulumi peer-dependency ranges in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` widened from **exact-pin** (e.g. `"@pulumi/aws": "7.27.0"`) to **caret-semver** (e.g. `"@pulumi/aws": "^7.27.0"`). Lets downstream Pulumi infra repos consume `@hulumi/*` without npm `ERESOLVE` when they have bumped their Pulumi SDK by a minor or patch ahead of Hulumi's tested floor. Consumers stay free to pin Pulumi SDK as tightly as they like; Hulumi just stops _requiring_ exact-equality. Discovered downstream at [sunlit-guardian#70](https://github.com/kerberosmansour/sunlit-guardian/issues/70) where consuming `@hulumi/baseline@1.4.0` was blocked by sunlit-guardian's `@pulumi/aws@7.30.0` (Hulumi peer-pinned `7.27.0`).
-- This is PATCH-level per semver: no API change, no behaviour change for any existing valid resolution; only widens which dependency trees are _also_ valid.
+- Loosened the Pulumi peer dependencies in `@hulumi/baseline`, `@hulumi/drift`, `@hulumi/k8s-baseline`, and `@hulumi/policies` from exact-version pins to caret ranges. Covers `@pulumi/aws`, `@pulumi/github`, `@pulumi/kubernetes`, `@pulumi/policy`, `@pulumi/pulumi`.
 
 ## [1.4.0] — 2026-05-20
 

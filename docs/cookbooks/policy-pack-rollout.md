@@ -12,7 +12,7 @@ You have an existing Pulumi stack, you can't migrate every resource to `SecureBu
 ## Preconditions
 
 - An existing Pulumi (TypeScript) stack you can `pulumi preview` against.
-- `@pulumi/policy@1.20.0` installed alongside `@hulumi/policies@1.0.0`.
+- `@pulumi/policy` installed alongside `@hulumi/policies` (any caret-compatible `1.x` SDK; the version Hulumi is tested against is in the `peerDependencies` of `@hulumi/policies`).
 - Read-only walkthrough first: load the pack as advisory, see what fires, then promote to mandatory.
 
 ## Steps
@@ -20,7 +20,7 @@ You have an existing Pulumi stack, you can't migrate every resource to `SecureBu
 ### 1. Install
 
 ```bash
-pnpm add -D @hulumi/policies @pulumi/policy@1.20.0
+pnpm add -D @hulumi/policies @pulumi/policy
 mkdir policies && cd policies
 cp ../node_modules/@hulumi/policies/PulumiPolicy.yaml .
 cat > index.ts <<'EOF'

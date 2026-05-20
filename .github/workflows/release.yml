@@ -118,11 +118,39 @@ jobs:
               "packages/$pkg"
           done
 
+      - name: Verify release-artifact directory before upload (diagnostic)
+        # The v1.4.0 release run regressed at this point — upload-artifact
+        # said "No files were found" even though the previous `Generate
+        # tarballs` step had ls-ed six .tgz files in this directory. This
+        # diagnostic step captures the directory contents immediately
+        # before the upload, fails the job loudly if the dir is empty, and
+        # records the file count + total size in the run log. See PR #186
+        # post-mortem.
+        run: |
+          set -euo pipefail
+          test -d .release-artifacts || { echo "::error::.release-artifacts/ does not exist"; exit 1; }
+          ls -la .release-artifacts/
+          count=$(find .release-artifacts -mindepth 1 -maxdepth 1 -type f | wc -l)
+          echo "file count: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::.release-artifacts/ is empty immediately before upload"
+            exit 1
+          fi
+
       - name: Upload release artifacts for isolated signing
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: hulumi-release-artifacts
-          path: .release-artifacts/
+          # v7 input semantics — use an explicit `**` glob anchored at the
+          # directory. The v1.3.2 release used v6 with `path: .release-
+          # artifacts/` (bare directory + trailing slash) and worked. PR
+          # #141 pinned v7 but the bare-directory form silently emitted "No
+          # files were found" on the v1.4.0 tag-triggered run despite
+          # files being present (see diagnostic step above). Pinning to
+          # the explicit glob form sidesteps the regression and is the
+          # form actions/upload-artifact v7 docs recommend for uploading
+          # everything in a directory.
+          path: .release-artifacts/**
           if-no-files-found: error
           retention-days: 7
 

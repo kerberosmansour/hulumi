@@ -72,6 +72,7 @@ docs/slo/
 .opencode/
 **/agent-logs/
 **/.agent-state/
+LESSONS-BACKLOG.md
 
 # Drift classifier cache (users decide their own policy; we ignore in this repo)
 .hulumi/

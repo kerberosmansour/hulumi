@@ -29,13 +29,14 @@ citations:
 
 ## Scenario
 
-A platform engineer adopts third-party Actions in CI workflows. Recent incidents — trivy-action March 2026 (75/76 tags compromised), tj-actions/changed-files (~23k repos affected), Sysdig Shai-Hulund worm (November 2025), Wiz prt-scan campaign — have all exploited the same primitive: workflows referencing Actions by mutable tag rather than commit SHA, and orgs without an allow-list policy. Hulumi's `OrgFoundation` (M2) ships the SHA-pin-required Actions allowlist policy at startup-hardened tier; M3's `HulumiGithubHardeningPack` enforces this declaratively at preview-time.
+A platform engineer adopts third-party Actions in CI workflows. Recent incidents - trivy-action March 2026 (75/76 tags compromised), tj-actions/changed-files (~23k repos affected), Sysdig Shai-Hulud worm (November 2025), Wiz prt-scan campaign, and AI-scaled fork-PR pwn-request campaigns - have all exploited adjacent primitives: workflows referencing Actions by mutable tag, orgs without an allow-list policy, privileged workflows checking out untrusted PR code, and release/deploy jobs that expose secrets or OIDC tokens to code from the wrong trust boundary. Hulumi's `OrgFoundation` (M2) ships the SHA-pin-required Actions allowlist policy at startup-hardened tier; M3's `HulumiGithubHardeningPack` enforces this declaratively at preview-time; the workflow-governance linter gives consumers a local CI gate for workflow YAML drift.
 
 ## Actors
 
 - Platform Engineer (trusted, configures the org-level allowlist)
 - Workflow Author (semi-trusted, picks Actions from the allow-listed set)
 - Compromised Maintainer of a third-party Action (untrusted, primary attacker)
+- External PR Attacker (untrusted, opens AI-generated fork PRs at scale)
 - AI Coding Agent (trusted, authoring workflows; could be tricked into citing mutable tags)
 
 ## Assets
@@ -43,6 +44,7 @@ A platform engineer adopts third-party Actions in CI workflows. Recent incidents
 - Workflow YAML files referencing third-party Actions
 - Organization-level Actions allowlist (`ActionsOrganizationPermissions`)
 - Repository secrets accessible to the workflow
+- OIDC token minting permission (`id-token: write`)
 - Build artifacts produced by the workflow
 - Cache entries in `actions/cache`
 
@@ -52,7 +54,7 @@ A platform engineer adopts third-party Actions in CI workflows. Recent incidents
 |---|---|---|---|
 | T | Third-party Action repo compromise (trivy-action / tj-actions pattern) | Maintainer account compromised; attacker re-tags `v1` to point at malicious commit. Workflows on mutable tags pick up malicious version. | CCM:DSI-04, NIST-SSDF-v1.1:PO.3, OpenSSF-Scorecard:Pinned-Dependencies, MITRE-ATTCK:T1195, GitHub-Well-Architected:PW.5 |
 | S | Cache poisoning via Action with cache-write capability | Compromised Action with `actions/cache` write access poisons the cache for a subsequent legitimate run. | CCM:DSI-02, NIST-SSDF-v1.1:PW.6, MITRE-ATTCK:T1195, GitHub-Well-Architected:PW.6 |
-| E | Pwn-request via PR diff content reaching write context | A `pull_request_target` workflow runs against attacker PR diff with base-repo's secret context; attacker scripts exfil secrets. | CCM:IAM-07, NIST-SSDF-v1.1:PW.7, OpenSSF-Scorecard:Token-Permissions, GitHub-Well-Architected:PS.2 |
+| E | AI-scaled pwn-request via PR diff content reaching write context | An external contributor opens many convincing fork PRs and relies on a privileged `pull_request_target` or downstream `workflow_run` chain to check out attacker-controlled head code. Package lifecycle scripts, build steps, or tests then run with base-repo secrets, write-capable `GITHUB_TOKEN`, or OIDC minting permission and exfiltrate credentials or publish poisoned artifacts. | CCM:IAM-07, NIST-SSDF-v1.1:PW.7, OpenSSF-Scorecard:Token-Permissions, GitHub-Well-Architected:PS.2 |
 | I | Information disclosure via runner exfil after Action compromise | Compromised Action reads environment, secrets, or filesystem state and exfils to attacker URL. | CCM:DSI-03, NIST-SSDF-v1.1:PO.5, MITRE-ATTCK:T1195 |
 
 ## Recommended Hulumi Components
@@ -60,6 +62,7 @@ A platform engineer adopts third-party Actions in CI workflows. Recent incidents
 - `@hulumi/baseline.github.OrgFoundation` — Shipped in Hulumi v1.1.0 M2. Provisions org-level `ActionsOrganizationPermissions` with `shaPinningRequired: true`.
 - `@hulumi/policies.github.HulumiGithubHardeningPack` — Shipped in Hulumi v1.1.0 M3. H1 declaratively rejects raw `github.Repository` not wrapped in `SecureRepository`.
 - `@hulumi/drift.adapters.GithubWebhookFallbackAdapter` — Shipped in Hulumi v1.1.0 M4. Detects org-level allowlist drift via webhook events.
+- `scripts/workflow-governance-lint.mjs` — Shipped in Hulumi v1.4.0; WF_PR_1 added after the 2026-05-25 pwn-request review. Fails privileged `pull_request_target` / `workflow_run` workflows that check out attacker-controlled head code.
 
 ## Open Questions
 

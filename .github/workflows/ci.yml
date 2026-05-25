@@ -202,7 +202,7 @@ jobs:
           ls -la .release-artifacts/
 
   attestation-dry-run:
-    name: SLSA attestation dry-run (main push only)
+    name: SLSA attestation dry-run (pre-tag)
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

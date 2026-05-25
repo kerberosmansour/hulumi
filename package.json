@@ -21,7 +21,7 @@
     "test:drift": "pnpm --filter @hulumi/drift test",
     "test:drift:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
     "test:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/baseline test -- tests/integration/ && HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
-    "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs attestation-dry-run on every PR'",
+    "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs release-artifacts-dry-run on PRs and attestation-dry-run on main pushes'",
     "release:verify-attestations": "for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
     "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml — see docs/integration-testing.md.' && exit 0",
     "cleanup:e2e-stack": "node scripts/cleanup-e2e-stack.mjs",

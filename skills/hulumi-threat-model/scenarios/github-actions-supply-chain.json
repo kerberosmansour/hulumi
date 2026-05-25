@@ -1,7 +1,7 @@
 {
   "id": "github-actions-supply-chain",
   "title": "GitHub Actions supply-chain risk — third-party Action ingestion, SHA-pinning, pwn-request, cache poisoning",
-  "description": "A platform engineer adopts third-party Actions in CI workflows. Recent incidents — trivy-action March 2026 (75/76 tags compromised), tj-actions/changed-files (~23k repos affected), Sysdig Shai-Hulund worm (November 2025), Wiz prt-scan campaign — have all exploited the same primitive: workflows referencing Actions by mutable tag rather than commit SHA, and orgs without an allow-list policy. Hulumi's `OrgFoundation` (M2) ships the SHA-pin-required Actions allowlist policy at startup-hardened tier; M3's `HulumiGithubHardeningPack` enforces this declaratively at preview-time.",
+  "description": "A platform engineer adopts third-party Actions in CI workflows. Recent incidents - trivy-action March 2026 (75/76 tags compromised), tj-actions/changed-files (~23k repos affected), Sysdig Shai-Hulud worm (November 2025), Wiz prt-scan campaign, and AI-scaled fork-PR pwn-request campaigns - have all exploited adjacent primitives: workflows referencing Actions by mutable tag, orgs without an allow-list policy, privileged workflows checking out untrusted PR code, and release/deploy jobs that expose secrets or OIDC tokens to code from the wrong trust boundary. Hulumi's `OrgFoundation` (M2) ships the SHA-pin-required Actions allowlist policy at startup-hardened tier; M3's `HulumiGithubHardeningPack` enforces this declaratively at preview-time; the workflow-governance linter gives consumers a local CI gate for workflow YAML drift.",
   "requiredFrameworks": [
     "CCM",
     "NIST-SSDF-v1.1",
@@ -14,12 +14,14 @@
     "Platform Engineer (trusted, configures the org-level allowlist)",
     "Workflow Author (semi-trusted, picks Actions from the allow-listed set)",
     "Compromised Maintainer of a third-party Action (untrusted, primary attacker)",
+    "External PR Attacker (untrusted, opens AI-generated fork PRs at scale)",
     "AI Coding Agent (trusted, authoring workflows; could be tricked into citing mutable tags)"
   ],
   "assets": [
     "Workflow YAML files referencing third-party Actions",
     "Organization-level Actions allowlist (`ActionsOrganizationPermissions`)",
     "Repository secrets accessible to the workflow",
+    "OIDC token minting permission (`id-token: write`)",
     "Build artifacts produced by the workflow",
     "Cache entries in `actions/cache`"
   ],
@@ -49,8 +51,8 @@
     },
     {
       "type": "E",
-      "name": "Pwn-request via PR diff content reaching write context",
-      "description": "A pull-request workflow runs against attacker-controlled PR diff content with `pull_request_target` (which carries the base-repo's secret context). Attacker scripts in the diff exfiltrate secrets to an attacker-controlled endpoint. Mitigation: minimize secret access on PR workflows; ensure `permissions: contents: read` default at workflow level (`OrganizationSettings.defaultWorkflowPermissions`).",
+      "name": "AI-scaled pwn-request via PR diff content reaching write context",
+      "description": "An external contributor opens many convincing fork PRs and relies on a privileged `pull_request_target` or downstream `workflow_run` chain to check out attacker-controlled head code. Package lifecycle scripts, build steps, or tests then run with base-repo secrets, write-capable `GITHUB_TOKEN`, or OIDC minting permission and exfiltrate credentials or publish poisoned artifacts. Mitigation: keep `pull_request_target` metadata-only, never check out PR head code in a privileged workflow, keep PR CI on `pull_request` with `permissions: contents: read`, and reject cloud OIDC trust subjects for pull requests.",
       "controls": [
         "CCM:IAM-07",
         "NIST-SSDF-v1.1:PW.7",
@@ -80,6 +82,11 @@
       "name": "@hulumi/drift.adapters.GithubWebhookFallbackAdapter",
       "availability": "Shipped in Hulumi v1.1.0 M4",
       "rationale": "Detects org-level allowlist drift via the `repository_ruleset` and `organization` webhook events; surfaces `tier-degraded` honestly for non-GHEC tiers."
+    },
+    {
+      "name": "scripts/workflow-governance-lint.mjs",
+      "availability": "Shipped in Hulumi v1.4.0; WF_PR_1 added after the 2026-05-25 pwn-request review",
+      "rationale": "Fails privileged `pull_request_target` / `workflow_run` workflows that check out attacker-controlled head code, alongside SHA pinning, token-permission, CODEOWNERS, and protected-environment checks."
     }
   ]
 }

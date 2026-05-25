@@ -175,8 +175,35 @@ jobs:
           git show "$BASE_SHA:pnpm-lock.yaml" > /tmp/base-lock.yaml || echo "" > /tmp/base-lock.yaml
           node scripts/cooling-off-diff.mjs /tmp/base-lock.yaml pnpm-lock.yaml
 
+  release-artifacts-dry-run:
+    name: release artifact dry-run (PR, no OIDC)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - name: Build tarballs (dry-run, no publish)
+        run: |
+          mkdir -p .release-artifacts
+          ABS_DEST="$(pwd)/.release-artifacts"
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
+            (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
+          done
+          ls -la .release-artifacts/
+
   attestation-dry-run:
     name: SLSA attestation dry-run (pre-tag)
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -202,7 +229,6 @@ jobs:
           done
           ls -la .release-artifacts/
       - name: Attest provenance (dry-run; not consumed)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: ".release-artifacts/*.tgz"

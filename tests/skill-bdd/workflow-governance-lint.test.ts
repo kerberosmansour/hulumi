@@ -85,6 +85,100 @@ describe("workflow-governance linter", () => {
     expect(result.stdout).toContain("workflow-governance: pass");
   });
 
+  it("flags pull_request_target workflows that check out attacker-controlled PR head code (WF_PR_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "pr-label.yml"),
+      [
+        "name: pr-label",
+        "on:",
+        "  pull_request_target:",
+        "    types: [opened, synchronize]",
+        "permissions:",
+        "  contents: read",
+        "  pull-requests: write",
+        "jobs:",
+        "  risky:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        "        with:",
+        "          ref: ${{ github.event.pull_request.head.sha }}",
+        "      - run: npm ci",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT");
+    expect(output).toContain("pr-label.yml");
+  });
+
+  it("flags workflow_run workflows that check out the triggering run head commit (WF_PR_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "post-ci.yml"),
+      [
+        "name: post-ci",
+        "on:",
+        "  workflow_run:",
+        '    workflows: ["ci"]',
+        "    types: [completed]",
+        "permissions:",
+        "  contents: read",
+        "jobs:",
+        "  risky:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - uses: actions/checkout@${SHA} # v6`,
+        "        with:",
+        "          ref: ${{ github.event.workflow_run.head_sha }}",
+        "      - run: npm test",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT");
+    expect(output).toContain("post-ci.yml");
+  });
+
+  it("allows metadata-only pull_request_target workflows without PR-head checkout (WF_PR_1)", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "pr-metadata.yml"),
+      [
+        "name: pr-metadata",
+        "on:",
+        "  pull_request_target:",
+        "    types: [opened, reopened]",
+        "permissions:",
+        "  contents: read",
+        "  pull-requests: write",
+        "jobs:",
+        "  label:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: echo 'metadata only'",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("workflow-governance: pass");
+  });
+
   it("flags a workflow_dispatch job that assumes an AWS role without a protected environment (WF_ENV_1)", () => {
     const fixture = makeFixture();
     writeFileSync(

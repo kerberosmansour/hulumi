@@ -8,9 +8,13 @@ export const WF_SHA_1_RULE_ID = "WF_SHA_1_FULL_LENGTH_SHA_PIN";
 export const WF_PERM_1_RULE_ID = "WF_PERM_1_MINIMUM_GITHUB_TOKEN_PERMISSIONS";
 export const WF_CODEOWNERS_1_RULE_ID = "WF_CODEOWNERS_1_WORKFLOWS_PROTECTED";
 export const WF_ENV_1_RULE_ID = "WF_ENV_1_DISPATCH_PRIVILEGED_JOB_REQUIRES_ENVIRONMENT";
+export const WF_PR_1_RULE_ID = "WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT";
 
 const SHA_REF = /^[0-9a-f]{40}$/i;
 const USES_LINE = /^\s*-?\s*uses:\s*["']?([^"'\s#]+)["']?/;
+const CHECKOUT_USES = /^\s*-?\s*uses:\s*["']?actions\/checkout@/i;
+const UNTRUSTED_HEAD_REF =
+  /github\.(?:event\.pull_request\.head\.sha|head_ref|event\.workflow_run\.head_sha|event\.workflow_run\.head_branch)/;
 
 function parseArgs(argv) {
   const options = { repoRoot: process.cwd(), checkSettings: false };
@@ -150,6 +154,63 @@ function lintWorkflowPermissions(file, lines) {
   return diagnostics;
 }
 
+function workflowHasTrigger(lines, trigger) {
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    const line = lines[idx];
+    const inline = /^on:\s*(.*)$/.exec(line);
+    if (!inline || /^\s/.test(line)) continue;
+    const rest = inline[1].trim();
+    if (rest.length > 0 && !rest.startsWith("#")) {
+      if (new RegExp(`\\b${trigger}\\b`).test(rest)) return true;
+      continue;
+    }
+    for (let j = idx + 1; j < lines.length; j += 1) {
+      const child = lines[j];
+      if (child.trim() === "") continue;
+      if (!/^\s/.test(child)) break;
+      const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const triggerRe = new RegExp(`^\\s+(?:-\\s*)?${escaped}(?:\\s*:.*|\\s*(?:#.*)?)$`);
+      if (triggerRe.test(child)) return true;
+    }
+  }
+  return false;
+}
+
+function leadingSpaces(line) {
+  return line.match(/^\s*/)[0].length;
+}
+
+function lintPrivilegedUntrustedHeadCheckout(file, lines) {
+  const privilegedTrigger = workflowHasTrigger(lines, "pull_request_target")
+    ? "pull_request_target"
+    : workflowHasTrigger(lines, "workflow_run")
+      ? "workflow_run"
+      : undefined;
+  if (!privilegedTrigger) return [];
+
+  const diagnostics = [];
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    if (!CHECKOUT_USES.test(lines[idx])) continue;
+    const stepIndent = leadingSpaces(lines[idx]);
+    for (let j = idx + 1; j < lines.length; j += 1) {
+      const text = lines[j];
+      if (text.trim() === "") continue;
+      if (leadingSpaces(text) <= stepIndent && /^\s*-\s+/.test(text)) break;
+      if (!UNTRUSTED_HEAD_REF.test(text)) continue;
+      diagnostics.push(
+        makeDiagnostic(
+          WF_PR_1_RULE_ID,
+          file,
+          j + 1,
+          `${privilegedTrigger} workflow checks out attacker-controlled head code in a privileged context; use pull_request for code execution or keep this workflow metadata-only`,
+        ),
+      );
+      break;
+    }
+  }
+  return diagnostics;
+}
+
 // WF_ENV_1 helpers.
 //
 // `workflow_dispatch` is operator-triggered with the actor's permissions —
@@ -172,27 +233,7 @@ function workflowHasDispatchTrigger(lines) {
   //     workflow_dispatch:
   //     schedule:
   //       - cron: ...
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    const line = lines[idx];
-    const inline = /^on:\s*(.*)$/.exec(line);
-    if (!inline || /^\s/.test(line)) continue;
-    const rest = inline[1].trim();
-    if (rest.length > 0 && !rest.startsWith("#")) {
-      // Flow-style `on:` value on the same line.
-      if (/\bworkflow_dispatch\b/.test(rest)) return true;
-      continue;
-    }
-    // Block-style `on:` — walk indented children.
-    for (let j = idx + 1; j < lines.length; j += 1) {
-      const child = lines[j];
-      if (child.trim() === "") continue;
-      if (!/^\s/.test(child)) break;
-      if (/^\s+workflow_dispatch\s*:/.test(child) || /^\s+workflow_dispatch\s*$/.test(child)) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return workflowHasTrigger(lines, "workflow_dispatch");
 }
 
 function extractJobs(lines) {
@@ -351,6 +392,7 @@ function lintWorkflowFile(repoRoot, file) {
     if (diagnostic) diagnostics.push(diagnostic);
   });
   diagnostics.push(...lintWorkflowPermissions(file, lines));
+  diagnostics.push(...lintPrivilegedUntrustedHeadCheckout(file, lines));
   diagnostics.push(...lintWorkflowDispatchEnvironments(file, lines));
   return diagnostics;
 }

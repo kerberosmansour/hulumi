@@ -5,6 +5,7 @@ import * as cloudflare from "@pulumi/cloudflare";
 import type {
   CloudflareOriginIngressAllowlistAopArgs,
   CloudflareOriginIngressArgs,
+  CloudflareOriginIngressTunnelArgs,
   OriginRuntimeContract,
 } from "./cloudflare-origin-ingress.args";
 import type {
@@ -28,6 +29,56 @@ function assertInputString(value: pulumi.Input<string>, label: string): void {
   if (typeof value === "string" && value.trim().length === 0) {
     throw new Error(`CloudflareOriginIngress: ${label} must be non-empty`);
   }
+}
+
+function validateTunnelRoute(route: {
+  readonly hostname: string;
+  readonly service: pulumi.Input<string>;
+  readonly httpHostHeader?: pulumi.Input<string>;
+}): void {
+  assertHostname(route.hostname);
+  assertInputString(route.service, "service");
+  if (route.httpHostHeader !== undefined) {
+    assertInputString(route.httpHostHeader, "httpHostHeader");
+  }
+}
+
+function tunnelIngress(route: {
+  readonly hostname: string;
+  readonly service: pulumi.Input<string>;
+  readonly httpHostHeader?: pulumi.Input<string>;
+}): cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngress {
+  return {
+    hostname: route.hostname,
+    service: route.service,
+    originRequest: {
+      noTlsVerify: false,
+      matchSnItoHost: true,
+      ...(route.httpHostHeader !== undefined ? { httpHostHeader: route.httpHostHeader } : {}),
+    },
+  };
+}
+
+function tunnelRoutes(args: CloudflareOriginIngressTunnelArgs): Array<{
+  readonly hostname: string;
+  readonly service: pulumi.Input<string>;
+  readonly httpHostHeader?: pulumi.Input<string>;
+  readonly runtime: OriginRuntimeContract;
+}> {
+  return [
+    {
+      hostname: args.hostname,
+      service: args.service,
+      ...(args.httpHostHeader !== undefined ? { httpHostHeader: args.httpHostHeader } : {}),
+      runtime: args.runtime,
+    },
+    ...(args.additionalRoutes ?? []).map((route) => ({
+      hostname: route.hostname,
+      service: route.service,
+      ...(route.httpHostHeader !== undefined ? { httpHostHeader: route.httpHostHeader } : {}),
+      runtime: route.runtime ?? args.runtime,
+    })),
+  ];
 }
 
 function assertListenerAuth(refs: CloudflareOriginIngressArgs["listenerAuth"]): void {
@@ -112,6 +163,14 @@ export class CloudflareOriginIngress
       assertInputString(args.cloudflareAccountId, "cloudflareAccountId");
       assertInputString(args.tunnelSecret, "tunnelSecret");
       assertInputString(args.service, "service");
+      if (args.httpHostHeader !== undefined) {
+        assertInputString(args.httpHostHeader, "httpHostHeader");
+      }
+      for (const route of args.additionalRoutes ?? []) {
+        validateTunnelRoute(route);
+      }
+
+      const routes = tunnelRoutes(args);
 
       const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(
         `${name}-tunnel`,
@@ -130,25 +189,15 @@ export class CloudflareOriginIngress
           tunnelId: tunnel.id,
           source: "cloudflare",
           config: {
-            ingresses: [
-              {
-                hostname: args.hostname,
-                service: args.service,
-                originRequest: {
-                  noTlsVerify: false,
-                  matchSnItoHost: true,
-                },
-              },
-              { service: "http_status:404" },
-            ],
+            ingresses: [...routes.map(tunnelIngress), { service: "http_status:404" }],
           },
         },
         { parent: this },
       );
       resourceIds.push(tunnel.id, config.id);
       protectionLayers = ["cloudflare_tunnel"];
-      runtimeContracts = [args.runtime];
-      if (args.runtime.automation === "cookbook-only") {
+      runtimeContracts = routes.map((route) => route.runtime);
+      if (routes.some((route) => route.runtime.automation === "cookbook-only")) {
         degradedControls.push("runtime_automation_cookbook_only");
       }
     } else {

@@ -49,6 +49,70 @@ describe("CloudflareOriginIngress", () => {
     ]);
   });
 
+  it("supports one tunnel with multiple hostname routes and explicit origin host headers", async () => {
+    const ingress = new CloudflareOriginIngress("api-edge", {
+      tier: "startup-hardened",
+      mode: "tunnel",
+      cloudflareAccountId: "acct_123",
+      tunnelName: "shared-api-edge",
+      hostname: "platform-api.example.com",
+      service: "http://platform-api.default.svc.cluster.local:9090",
+      httpHostHeader: "platform-api.default.svc.cluster.local",
+      tunnelSecret: "AQIDBAUGBwgBAgMEBQYHCAECAwQFBgcIAQIDBAUGBwg=",
+      runtime: { kind: "eks", automation: "managed-contract" },
+      additionalRoutes: [
+        {
+          hostname: "upstream-proxy.example.com",
+          service: "http://upstream-proxy.default.svc.cluster.local:9091",
+          httpHostHeader: "upstream-proxy.default.svc.cluster.local",
+          runtime: { kind: "eks", automation: "cookbook-only", notes: "same namespace" },
+        },
+      ],
+    });
+
+    await settlePulumi();
+
+    expect(
+      registrations.filter(
+        (r) => r.type === "cloudflare:index/zeroTrustTunnelCloudflared:ZeroTrustTunnelCloudflared",
+      ),
+    ).toHaveLength(1);
+    expect(
+      inputsFor(
+        "cloudflare:index/zeroTrustTunnelCloudflaredConfig:ZeroTrustTunnelCloudflaredConfig",
+      ),
+    ).toMatchObject({
+      config: {
+        ingresses: [
+          {
+            hostname: "platform-api.example.com",
+            service: "http://platform-api.default.svc.cluster.local:9090",
+            originRequest: expect.objectContaining({
+              httpHostHeader: "platform-api.default.svc.cluster.local",
+              noTlsVerify: false,
+            }),
+          },
+          {
+            hostname: "upstream-proxy.example.com",
+            service: "http://upstream-proxy.default.svc.cluster.local:9091",
+            originRequest: expect.objectContaining({
+              httpHostHeader: "upstream-proxy.default.svc.cluster.local",
+              noTlsVerify: false,
+            }),
+          },
+          { service: "http_status:404" },
+        ],
+      },
+    });
+    await expect(valueOf(ingress.runtimeContracts)).resolves.toEqual([
+      { kind: "eks", automation: "managed-contract" },
+      { kind: "eks", automation: "cookbook-only", notes: "same namespace" },
+    ]);
+    await expect(valueOf(ingress.degradedControls)).resolves.toEqual([
+      "runtime_automation_cookbook_only",
+    ]);
+  });
+
   it("names cookbook-only runtime support explicitly", async () => {
     const ingress = new CloudflareOriginIngress("serverless", {
       tier: "sandbox",

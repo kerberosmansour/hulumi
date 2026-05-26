@@ -49,7 +49,7 @@ export class ZoneFoundation extends pulumi.ComponentResource implements ZoneFoun
         `${name}-min-tls-version`,
         {
           zoneId: args.zoneId,
-          settingId: "minTlsVersion",
+          settingId: "min_tls_version",
           value: settings.minTlsVersion,
         },
         { parent: this },
@@ -61,7 +61,7 @@ export class ZoneFoundation extends pulumi.ComponentResource implements ZoneFoun
         `${name}-always-use-https`,
         {
           zoneId: args.zoneId,
-          settingId: "alwaysUseHttps",
+          settingId: "always_use_https",
           value: pulumi
             .output(settings.alwaysUseHttps)
             .apply((enabled) => (enabled ? "on" : "off")),
@@ -75,7 +75,7 @@ export class ZoneFoundation extends pulumi.ComponentResource implements ZoneFoun
         `${name}-automatic-https-rewrites`,
         {
           zoneId: args.zoneId,
-          settingId: "automaticHttpsRewrites",
+          settingId: "automatic_https_rewrites",
           value: pulumi
             .output(settings.automaticHttpsRewrites)
             .apply((enabled) => (enabled ? "on" : "off")),

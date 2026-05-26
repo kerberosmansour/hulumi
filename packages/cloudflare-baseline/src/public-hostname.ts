@@ -97,12 +97,16 @@ export class PublicHostname extends pulumi.ComponentResource implements PublicHo
       ...(args.comment !== undefined ? { comment: args.comment } : {}),
       ...(args.priority !== undefined ? { priority: args.priority } : {}),
       ...(proxyEligible ? { proxied: effectiveProxied } : {}),
-      tags: [
-        "hulumi:component=PublicHostname",
-        `hulumi:tier=${args.tier}`,
-        `hulumi:purpose=${args.purpose}`,
-        `hulumi:protection=${effectiveProxied ? "proxied" : "dns-only"}`,
-      ],
+      ...(args.emitDnsRecordTags === false
+        ? {}
+        : {
+            tags: [
+              "hulumi:component=PublicHostname",
+              `hulumi:tier=${args.tier}`,
+              `hulumi:purpose=${args.purpose}`,
+              `hulumi:protection=${effectiveProxied ? "proxied" : "dns-only"}`,
+            ],
+          }),
     };
     const record = new cloudflare.DnsRecord(`${name}-record`, recordArgs, { parent: this });
 

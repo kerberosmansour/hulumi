@@ -33,6 +33,8 @@ new PublicHostname("app", {
 
 DNS-only public application records require `acknowledgeDnsOnlyExposure: true` and a non-empty `dnsOnlyJustification`. Use that path only for a bounded migration or when another origin-control layer is already in place.
 
+If a Cloudflare plan/account rejects DNS record tags, set `emitDnsRecordTags: false` and keep other ownership evidence in place.
+
 ```ts
 import {
   BotProtectionBaseline,
@@ -64,6 +66,8 @@ new ProtectedAdminHostname("admin", {
   allowedEmailDomains: ["example.com"],
 });
 ```
+
+Custom WAF rule expressions can be `pulumi.Input<string>` values, including Pulumi secret outputs, for private IP allowlists and other sensitive predicates.
 
 ## Install And Import Paths
 

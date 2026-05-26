@@ -4,6 +4,7 @@ import * as cloudflare from "@pulumi/cloudflare";
 import type {
   CloudflarePlan,
   EdgeWafAction,
+  EdgeWafExpression,
   EdgeWafBaselineArgs,
   EdgeWafCustomRule,
   EdgeWafRateLimitRule,
@@ -109,8 +110,8 @@ function assertRuleName(name: string, fieldName: string): string {
   return trimmed;
 }
 
-function assertExpression(expression: RulesetExpression): string {
-  const trimmed = expression.expression.trim();
+function assertExpressionString(expression: string): string {
+  const trimmed = expression.trim();
   if (trimmed.length === 0) {
     throw new Error("EdgeWafBaseline: ruleset expression must be non-empty");
   }
@@ -118,6 +119,25 @@ function assertExpression(expression: RulesetExpression): string {
     throw new Error("EdgeWafBaseline: ruleset expression must not contain control characters");
   }
   return trimmed;
+}
+
+function isRulesetExpression(expression: EdgeWafExpression): expression is RulesetExpression {
+  return (
+    typeof expression === "object" &&
+    expression !== null &&
+    "expression" in expression &&
+    "source" in expression
+  );
+}
+
+function assertExpression(expression: EdgeWafExpression): pulumi.Input<string> {
+  if (isRulesetExpression(expression)) {
+    return assertExpressionString(expression.expression);
+  }
+  if (typeof expression === "string") {
+    return assertExpressionString(expression);
+  }
+  return pulumi.output(expression).apply(assertExpressionString);
 }
 
 function assertAction(action: EdgeWafAction): void {

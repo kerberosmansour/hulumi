@@ -44,8 +44,11 @@ new PublicHostname("legacy-app", {
 | `target`                     | yes         | DNS record content.                                                                      |
 | `purpose`                    | yes         | `public-app` for HTTP application traffic, or `dns` for non-application records.         |
 | `proxied`                    | no          | Defaults to `true` for proxy-eligible public applications; omitted for DNS-only records. |
+| `emitDnsRecordTags`          | no          | Defaults to `true`; set `false` only when the Cloudflare plan/account rejects DNS tags.  |
 | `acknowledgeDnsOnlyExposure` | conditional | Required with `dnsOnlyJustification` when a public application sets `proxied: false`.    |
 | `dnsOnlyJustification`       | conditional | Non-empty reason recorded in a structured security event.                                |
+
+When `emitDnsRecordTags` is disabled, keep other policy evidence in place. The flag exists for Cloudflare zones where tagged DNS records fail quota checks; it should not be used to hide drift or ownership context.
 
 ## Outputs
 

@@ -19,10 +19,21 @@ new CloudflareOriginIngress("edge", {
   cloudflareAccountId: "acct_123",
   hostname: "app.example.com",
   service: "http://app.default.svc.cluster.local:8080",
+  httpHostHeader: "app.default.svc.cluster.local",
+  additionalRoutes: [
+    {
+      hostname: "api.example.com",
+      service: "http://api.default.svc.cluster.local:8080",
+      httpHostHeader: "api.default.svc.cluster.local",
+      runtime: { kind: "eks", automation: "managed-contract" },
+    },
+  ],
   tunnelSecret: pulumi.secret("base64-tunnel-secret"),
   runtime: { kind: "eks", automation: "managed-contract" },
 });
 ```
+
+Use `additionalRoutes` when one tunnel should front several public hostnames. `httpHostHeader` is optional, but it is useful for service meshes and virtual-hosted origins that route by internal service FQDN rather than by the public Cloudflare hostname.
 
 ## Allowlist+AOP Mode
 

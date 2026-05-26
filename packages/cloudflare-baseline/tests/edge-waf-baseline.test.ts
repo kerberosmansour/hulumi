@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import * as pulumi from "@pulumi/pulumi";
 
 import { EdgeWafBaseline, loginRateLimitRule, validatedRulesetExpression } from "../src";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
@@ -120,5 +121,38 @@ describe("EdgeWafBaseline", () => {
       });
     }).toThrow(/maximum of 20 custom WAF rules/);
     expect(registrations.filter((r) => !r.type.startsWith("hulumi:"))).toHaveLength(0);
+  });
+
+  it("accepts Pulumi-secret custom WAF expressions without forcing plaintext construction", async () => {
+    new EdgeWafBaseline("edge-secret", {
+      tier: "startup-hardened",
+      zoneId: "zone_123",
+      plan: "free",
+      enableManagedRulesets: false,
+      customRules: [
+        {
+          name: "ip-allowlist",
+          action: "block",
+          expression: pulumi.secret(
+            '(http.host in {"api.example.com"}) and not ip.src in {198.51.100.10/32}',
+          ),
+        },
+      ],
+    });
+
+    await settlePulumi();
+
+    const custom = rulesets().find((ruleset) => ruleset.phase === "http_request_firewall_custom");
+    const serializedRules = custom?.rules as { value?: Record<string, unknown>[] } | undefined;
+    expect(serializedRules?.value).toBeDefined();
+
+    const rules = serializedRules?.value;
+    expect(rules).toEqual([
+      expect.objectContaining({
+        action: "block",
+        ref: "ip-allowlist",
+        expression: expect.stringContaining("api.example.com"),
+      }),
+    ]);
   });
 });

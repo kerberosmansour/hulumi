@@ -34,4 +34,34 @@ describe("ZoneFoundation", () => {
     expect(childResources).toHaveLength(2);
     await expect(valueOf(zone.appliedControls)).resolves.toEqual(["dnssec", "ssl_mode_strict"]);
   });
+
+  it("uses Cloudflare API snake_case setting identifiers for optional zone settings", async () => {
+    new ZoneFoundation("api-zone", {
+      tier: "startup-hardened",
+      zoneId: "zone_123",
+      settings: {
+        minTlsVersion: "1.2",
+        alwaysUseHttps: true,
+        automaticHttpsRewrites: true,
+      },
+    });
+
+    await settlePulumi();
+
+    const settingIds = registrations
+      .filter((r) => r.type === "cloudflare:index/zoneSetting:ZoneSetting")
+      .map((r) => r.inputs.settingId);
+
+    expect(settingIds).toEqual(
+      expect.arrayContaining([
+        "ssl",
+        "min_tls_version",
+        "always_use_https",
+        "automatic_https_rewrites",
+      ]),
+    );
+    expect(settingIds).not.toEqual(
+      expect.arrayContaining(["minTlsVersion", "alwaysUseHttps", "automaticHttpsRewrites"]),
+    );
+  });
 });

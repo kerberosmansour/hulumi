@@ -15,6 +15,13 @@ export interface PublicHostnameArgs {
   readonly ttl?: pulumi.Input<number>;
   readonly priority?: pulumi.Input<number>;
   readonly proxied?: boolean;
+  /**
+   * Emit Cloudflare DNS record tags used by Hulumi policy/drift evidence.
+   *
+   * Defaults to true. Set to false only for Cloudflare plans/accounts whose
+   * DNS record tag quota rejects tagged records.
+   */
+  readonly emitDnsRecordTags?: boolean;
   readonly acknowledgeDnsOnlyExposure?: boolean;
   readonly dnsOnlyJustification?: string;
   readonly comment?: pulumi.Input<string>;

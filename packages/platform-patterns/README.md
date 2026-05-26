@@ -24,6 +24,15 @@ new CloudflareOriginIngress("edge", {
   cloudflareAccountId: "acct_123",
   hostname: "app.example.com",
   service: "http://app.default.svc.cluster.local:8080",
+  httpHostHeader: "app.default.svc.cluster.local",
+  additionalRoutes: [
+    {
+      hostname: "api.example.com",
+      service: "http://api.default.svc.cluster.local:8080",
+      httpHostHeader: "api.default.svc.cluster.local",
+      runtime: { kind: "eks", automation: "managed-contract" },
+    },
+  ],
   tunnelSecret: pulumi.secret("base64-tunnel-secret"),
   runtime: { kind: "eks", automation: "managed-contract" },
 });
@@ -50,6 +59,8 @@ new BuildProvenanceFoundation("provenance", {
   artifactName: "dist/**",
 });
 ```
+
+Tunnel mode can front multiple public hostnames with one Cloudflare tunnel. Use `httpHostHeader` for service meshes or virtual-hosted origins that need the internal service FQDN at the origin.
 
 Rotate historically exposed origin IPs after Cloudflare onboarding. Tunnel and allowlist+AOP patterns protect the active path, but old DNS and logs may have revealed previous origin addresses.
 

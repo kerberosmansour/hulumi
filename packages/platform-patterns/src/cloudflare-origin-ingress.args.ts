@@ -16,6 +16,13 @@ export interface ListenerAuthSecretReferences {
   readonly nextSecretReference?: string;
 }
 
+export interface CloudflareTunnelRoute {
+  readonly hostname: string;
+  readonly service: pulumi.Input<string>;
+  readonly httpHostHeader?: pulumi.Input<string>;
+  readonly runtime?: OriginRuntimeContract;
+}
+
 interface OriginIngressCommonArgs {
   readonly tier: Tier;
   readonly hostname: string;
@@ -28,6 +35,8 @@ export interface CloudflareOriginIngressTunnelArgs extends OriginIngressCommonAr
   readonly tunnelName?: string;
   readonly tunnelSecret: pulumi.Input<string>;
   readonly service: pulumi.Input<string>;
+  readonly httpHostHeader?: pulumi.Input<string>;
+  readonly additionalRoutes?: readonly CloudflareTunnelRoute[];
   readonly runtime: OriginRuntimeContract;
 }
 

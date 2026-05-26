@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- `@hulumi/cloudflare-baseline.ZoneFoundation` now uses Cloudflare's snake_case zone setting IDs (`min_tls_version`, `always_use_https`, `automatic_https_rewrites`) so optional TLS/HTTPS hardening settings route correctly through the Cloudflare v4 API.
+- `@hulumi/cloudflare-baseline.PublicHostname` now supports `emitDnsRecordTags: false` for Cloudflare zones whose plan/account quota rejects DNS record tags, while keeping Hulumi evidence tags enabled by default.
+- `@hulumi/cloudflare-baseline.EdgeWafBaseline` now accepts `pulumi.Input<string>` custom WAF expressions, including Pulumi secret outputs, without forcing callers to materialize sensitive allowlist expressions as plaintext strings.
+- `@hulumi/platform-patterns.CloudflareOriginIngress` tunnel mode now supports multiple hostname routes on one tunnel plus per-route `httpHostHeader`, covering EKS/Istio service-FQDN origin routing without creating duplicate tunnels.
+
 ## [1.4.1] — 2026-05-20
 
 Small fix so it's easier to use Hulumi alongside newer Pulumi SDKs.

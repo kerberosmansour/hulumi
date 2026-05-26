@@ -5,10 +5,11 @@ import type { HttpMethod, RulesetExpression } from "./ruleset-expressions";
 
 export type CloudflarePlan = "free" | "pro" | "business" | "enterprise";
 export type EdgeWafAction = "block" | "challenge" | "managed_challenge" | "log";
+export type EdgeWafExpression = RulesetExpression | pulumi.Input<string>;
 
 export interface EdgeWafCustomRule {
   readonly name: string;
-  readonly expression: RulesetExpression;
+  readonly expression: EdgeWafExpression;
   readonly action: EdgeWafAction;
   readonly description?: string;
 }

@@ -103,6 +103,48 @@ describe("PublicHostname", () => {
     await expect(valueOf(txt.protectionMode)).resolves.toBe("dns-only");
   });
 
+  it("can omit DNS record tags for Cloudflare zones whose plan quota forbids tags", async () => {
+    new PublicHostname("tagless-app", {
+      tier: "startup-hardened",
+      zoneId: "zone_123",
+      hostname: "api.example.com",
+      recordType: "CNAME",
+      target: "tunnel.example.com",
+      purpose: "public-app",
+      emitDnsRecordTags: false,
+    });
+
+    await settlePulumi();
+
+    expect(dnsRecordInputs()).toMatchObject({
+      name: "api.example.com",
+      type: "CNAME",
+      proxied: true,
+    });
+    expect(dnsRecordInputs()).not.toHaveProperty("tags");
+  });
+
+  it("emits DNS record tags by default for drift and policy evidence", async () => {
+    new PublicHostname("tagged-app", {
+      tier: "startup-hardened",
+      zoneId: "zone_123",
+      hostname: "tagged.example.com",
+      recordType: "CNAME",
+      target: "tunnel.example.com",
+      purpose: "public-app",
+    });
+
+    await settlePulumi();
+
+    expect(dnsRecordInputs()).toMatchObject({
+      tags: expect.arrayContaining([
+        "hulumi:component=PublicHostname",
+        "hulumi:purpose=public-app",
+        "hulumi:protection=proxied",
+      ]),
+    });
+  });
+
   it("rejects invalid hostnames before provider resource registration", () => {
     expect(
       () =>

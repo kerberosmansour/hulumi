@@ -242,7 +242,7 @@ Releases are atomic across the six packages — `@hulumi/baseline`, `@hulumi/pol
 2. Tag `v<x.y.z>` on `main`.
 3. `.github/workflows/release.yml` builds, attests, and publishes via npm trusted publishing (OIDC, no `NPM_TOKEN`).
 4. Post-publish, `release:verify-attestations` (in the root `package.json`) verifies the freshly-published tarballs against the canonical repo.
-5. Publish any prepared GitHub Security Advisories for fixes included in the release. For v1.3.2, use [`docs/release/v1.3.2-security-advisories.md`](./release/v1.3.2-security-advisories.md).
+5. Publish any prepared GitHub Security Advisories for fixes included in the release. Release-specific advisory or release-note drafts live under [`docs/release/`](./release/).
 6. CHANGELOG.md updated under the new version heading.
 
 If a publish goes wrong, **don't `npm unpublish`.** Cut a `<x.y.z+1>` patch instead — unpublishing breaks downstream lockfiles for everyone who installed in the failure window. See [SECURITY.md](../SECURITY.md) for the responsible-disclosure path if the publish was compromised.

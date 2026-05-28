@@ -32,11 +32,11 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 
 ### AWS
 
-| Pack                         | Coverage                                                                                                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `aws/packs/hulumi-hardening` | `HulumiHardeningPack` — invariants H1–H5 plus `STATE-1`, `PRIM-1` through `PRIM-4`, and `DETECT-1` through `DETECT-3`                                                         |
-| `aws/packs/cis-v5`           | `CisV5Pack` — CIS AWS Foundations Benchmark v5.0.0 sections 1–3 (IDs-only — see [licensing](https://github.com/kerberosmansour/hulumi/blob/main/docs/mappings/licensing.md)) |
-| `aws-org/packs/hulumi-aws-org-hardening` | `HulumiAwsOrgHardeningPack` — delegated admins, role separation, approved SCP set, and account-level S3 Public Access Block posture |
+| Pack                                     | Coverage                                                                                                                                                                     |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aws/packs/hulumi-hardening`             | `HulumiHardeningPack` — invariants H1–H5 plus `STATE-1`, `PRIM-1` through `PRIM-4`, and `DETECT-1` through `DETECT-3`                                                        |
+| `aws/packs/cis-v5`                       | `CisV5Pack` — CIS AWS Foundations Benchmark v5.0.0 sections 1–3 (IDs-only — see [licensing](https://github.com/kerberosmansour/hulumi/blob/main/docs/mappings/licensing.md)) |
+| `aws-org/packs/hulumi-aws-org-hardening` | `HulumiAwsOrgHardeningPack` — delegated admins, role separation, approved SCP set, and account-level S3 Public Access Block posture                                          |
 
 ### GitHub
 
@@ -47,10 +47,10 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 
 ### Cloudflare And Platform
 
-| Pack                                   | Coverage                                                                                                                     |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `cloudflare/packs/hulumi-hardening`    | `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD`, `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC`, `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE` |
-| `platform/packs/origin-bypass`         | `X_ORIGIN_1_NO_PUBLIC_AWS_ORIGIN_BYPASS` advisory for public AWS origins without tunnel or allowlist+AOP evidence            |
+| Pack                                   | Coverage                                                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cloudflare/packs/hulumi-hardening`    | `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD`, `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC`, `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE`                                                               |
+| `platform/packs/origin-bypass`         | `X_ORIGIN_1_NO_PUBLIC_AWS_ORIGIN_BYPASS` advisory for public AWS origins without tunnel or allowlist+AOP evidence                                                                          |
 | `platform/packs/deployment-governance` | `DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT`, `DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS`, `DEPLOY_GOV_3_NO_UNAPPROVED_SELF_HOSTED_RUNNERS`, `DEPLOY_GOV_4_PRIVILEGED_WORKFLOWS_REQUIRE_OIDC` |
 
 The workflow-governance linter lives at `scripts/workflow-governance-lint.mjs`

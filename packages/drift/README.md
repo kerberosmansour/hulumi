@@ -49,9 +49,8 @@ foundation posture, and GitHub environment/runner governance.
 ```bash
 hulumi validate live \
   --config hulumi-live-validator.json \
-  --out-json .hulumi-artifacts/live-validator/findings.json \
-  --out-markdown .hulumi-artifacts/live-validator/summary.md \
-  --out-sarif .hulumi-artifacts/live-validator/findings.sarif
+  --format json,markdown,sarif \
+  --out-dir .hulumi-artifacts/live-validator
 ```
 
 The CLI is advisory-only: it reads configured posture facts, emits findings, and never

@@ -78,7 +78,7 @@ describe("Hulumi AWS organization hardening pack", () => {
     );
 
     expect(violations.some((m) => /HULUMI-ORG-1/.test(m))).toBe(true);
-    expect(violations.join("\n")).toMatch(/guardduty.amazonaws.com/);
+    expect(violations.join("\n")).toContain("guardduty.amazonaws.com");
   });
 
   it("Scenario: one role for bootstrap and steady-state reports ORG-2", () => {

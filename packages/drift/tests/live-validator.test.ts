@@ -207,7 +207,7 @@ describe("hulumi validate live", () => {
       severity: "critical",
       status: "fail",
       resource: "repo|prod\n<script>",
-      message: "critical drift\n| hidden row",
+      message: "critical drift\n\\| hidden row",
       evidence: { secretToken: "do-not-print", repo: "repo|prod\n<script>" },
     });
     const report = {
@@ -224,7 +224,7 @@ describe("hulumi validate live", () => {
 
     expect(JSON.parse(json).findings[0].evidence.secretToken).toBe("[redacted]");
     expect(markdown).toContain("repo\\|prod<br>&lt;script&gt;");
-    expect(markdown).toContain("critical drift<br>\\| hidden row");
+    expect(markdown).toContain("critical drift<br>\\\\\\| hidden row");
     expect(sarif).not.toContain("do-not-print");
     expect(JSON.parse(sarif).runs[0].results[0].message.text).toContain("critical drift");
   });

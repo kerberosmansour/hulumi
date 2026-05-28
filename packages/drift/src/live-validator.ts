@@ -760,6 +760,7 @@ function redactValue(value: unknown, depth = 0, key = ""): unknown {
 
 function escapeMarkdownCell(value: string): string {
   return value
+    .replace(/\\/g, "\\\\")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

@@ -15,6 +15,7 @@ import type {
 
 import type { PackMetadata, EnforcementLevel } from "../metadata";
 import { matchSuppression, type Suppression } from "./suppressions";
+import { federatedIsGithubOidc } from "../github/github-oidc-issuer";
 import { urnsShareParentComponent } from "../urn";
 
 export const HULUMI_SECURE_BUCKET_TYPE = "hulumi:baseline:aws:SecureBucket";
@@ -231,15 +232,7 @@ function valueIsBroad(value: unknown): boolean {
 function roleTrustUsesGithubOidc(statement: Record<string, unknown>): boolean {
   const principal = asRecord(statement.Principal);
   if (principal?.Federated === undefined) return false;
-  const federated = principal.Federated;
-  if (typeof federated === "string")
-    return federated.includes("token.actions.githubusercontent.com");
-  if (Array.isArray(federated)) {
-    return federated.some(
-      (entry) => typeof entry === "string" && entry.includes("token.actions.githubusercontent.com"),
-    );
-  }
-  return false;
+  return federatedIsGithubOidc(principal.Federated);
 }
 
 export const primitive1GithubOidcNoWildcard: ResourceValidationPolicy = {

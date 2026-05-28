@@ -213,6 +213,45 @@ describe("HulumiHardeningPack primitive backstops", () => {
     expect(violations[0]).toContain("PRIM-1");
   });
 
+  it("does not treat spoofed GitHub OIDC host substrings as GitHub OIDC trust", () => {
+    for (const federated of [
+      "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com.evil.com",
+      "arn:aws:iam::111122223333:oidc-provider/evil.com/token.actions.githubusercontent.com",
+    ]) {
+      const args = makeResourceArgs({
+        type: "aws:iam/role:Role",
+        urn: "urn:pulumi:s::p::aws:iam/role:Role::deploy",
+        name: "deploy",
+        props: {
+          assumeRolePolicy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: { Federated: federated },
+                Action: "sts:AssumeRoleWithWebIdentity",
+                Condition: {
+                  StringLike: {
+                    "token.actions.githubusercontent.com:sub": "repo:org/repo:*",
+                  },
+                },
+              },
+            ],
+          }),
+        },
+      });
+
+      (
+        primitive1GithubOidcNoWildcard.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
+    }
+
+    expect(violations).toHaveLength(0);
+  });
+
   it("flags broad Secrets Manager resource policies", () => {
     const args = makeResourceArgs({
       type: "aws:secretsmanager/secretPolicy:SecretPolicy",

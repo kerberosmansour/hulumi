@@ -171,17 +171,19 @@ describe("Feature: Atomic six-package publish-readiness", () => {
       expect(distinct.size, `version skew across packages: ${JSON.stringify(versions)}`).toBe(1);
     });
 
-    it("the atomic version matches the latest CHANGELOG entry (1.4.x)", () => {
+    it("the atomic version matches the latest CHANGELOG entry", () => {
       const changelog = readRepoFile("CHANGELOG.md");
       const versions = PUBLISHABLE_PACKAGES.map((pkg) => readPackageJson(pkg).version);
-      // Latest changelog entry is the v1.4 train; assert all packages are 1.4.x.
+      const latest = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/m)?.[1];
+
+      if (latest === undefined) {
+        throw new Error("CHANGELOG.md is missing a released version heading");
+      }
       for (const version of versions) {
-        expect(version, `package version "${version}" is not on the 1.4.x train`).toMatch(
-          /^1\.4\.\d+/,
+        expect(version, `package version "${version}" does not match CHANGELOG ${latest}`).toBe(
+          latest,
         );
       }
-      // And the changelog has a [1.4.0] entry corresponding to that train.
-      expect(changelog).toMatch(/\[1\.4\.0\]/);
     });
   });
 

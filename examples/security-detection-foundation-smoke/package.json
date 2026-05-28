@@ -1,0 +1,21 @@
+{
+  "name": "@hulumi-examples/security-detection-foundation-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mocks-only smoke example for SecurityDetectionFoundation.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hulumi/baseline": "workspace:*",
+    "@pulumi/aws": "7.27.0",
+    "@pulumi/pulumi": "3.232.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.41",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}

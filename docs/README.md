@@ -41,10 +41,11 @@ Welcome. This index is the single jumping-off point for every doc in the repo. P
 
 ## Reference
 
-- [Components](./components/README.md) — `SecureBucket`, `AccountFoundation`, `DriftClassifier`, plus the K8s/EKS surface (`HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`).
+- [Components](./components/README.md) — `SecureBucket`, `AccountFoundation`, `AwsOrganizationSecurityFoundation`, `PulumiStateBackendFoundation`, `EksClusterFoundation`, `SecurityDetectionFoundation`, `RunnerGovernanceFoundation`, `DriftClassifier`, `hulumi validate live`, plus the K8s/EKS surface (`HardenedHelmRelease`, `EksSubnetTagger`, `IstioFoundation`, `AlbMeshedHttpEntrypoint`, `KubernetesSecretFromAwsSecretsManager`, `RdsCredentialSecret`, `GitHubAppCredential`).
 - [Framework mappings](./mappings/) — CCM v4.1, CIS AWS v5.0.0, NIST 800-53 r5, NIST 800-218A, MITRE ATLAS v5.1.
 - [Tier matrix](./tiers.md) — what differs between Sandbox and Startup-Hardened, by component.
 - [Threat-model examples](./threat-model-examples/) — sample outputs from `/hulumi-threat-model`.
+- [Release notes](./release/) — package-release notes and security-advisory preparation docs.
 - [Lessons learned](./slo/lessons/) — per-milestone notes capturing design decisions and surprises.
 - [Launch artifacts](./launch/) — outreach drafts, blog pitches, CFP submissions.
 - Runbooks — [AWS](./slo/completed/RUNBOOK-hulumi.md), [GitHub](./slo/completed/RUNBOOK-hulumi-github.md), [K8s baseline](./slo/completed/RUNBOOK-hulumi-k8s.md), [combined Operations + K8s security](./slo/completed/RUNBOOK-hulumi-operations-k8s-security.md). Layout convention: [docs/slo/README.md](./slo/README.md).
@@ -60,4 +61,4 @@ Two formats of the same material on the drift classifier. Pick whichever fits ho
 
 - **IDs only.** Every reference to CCM, AICM, CIS, CAIQ, NIST, or ATLAS controls is by ID with a link to the upstream. We never embed verbatim control text in `skills/` or `packages/` source. See [licensing.md](./mappings/licensing.md) for the rationale.
 - **Code samples are the contract.** TypeScript snippets in component docs and cookbooks are kept in sync with `packages/*/tests/` BDD suites. If a snippet here drifts from the test, the test wins — please open an issue.
-- **`v0.x` is pre-release.** The roadmap in [README.md](../README.md#what-ships-when-roadmap) tells you which milestone shipped what. If a doc references something marked `planned`, treat it as a forward reference, not a present-tense API.
+- **Release notes are the contract.** The root [README release history](../README.md#release-history) and [CHANGELOG.md](../CHANGELOG.md) tell you which package release shipped each public API. If a doc references something marked `planned`, treat it as a forward reference, not a present-tense API.

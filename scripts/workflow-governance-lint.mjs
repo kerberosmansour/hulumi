@@ -8,7 +8,10 @@ export const WF_SHA_1_RULE_ID = "WF_SHA_1_FULL_LENGTH_SHA_PIN";
 export const WF_PERM_1_RULE_ID = "WF_PERM_1_MINIMUM_GITHUB_TOKEN_PERMISSIONS";
 export const WF_CODEOWNERS_1_RULE_ID = "WF_CODEOWNERS_1_WORKFLOWS_PROTECTED";
 export const WF_ENV_1_RULE_ID = "WF_ENV_1_DISPATCH_PRIVILEGED_JOB_REQUIRES_ENVIRONMENT";
+export const WF_ENV_2_RULE_ID = "WF_ENV_2_LIVE_ENVIRONMENT_EXISTS";
+export const WF_ENV_3_RULE_ID = "WF_ENV_3_LIVE_ENVIRONMENT_REQUIRES_REVIEWERS";
 export const WF_PR_1_RULE_ID = "WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT";
+export const WF_RUNNER_1_RULE_ID = "WF_RUNNER_1_SELF_HOSTED_REQUIRES_APPROVAL";
 
 const SHA_REF = /^[0-9a-f]{40}$/i;
 const USES_LINE = /^\s*-?\s*uses:\s*["']?([^"'\s#]+)["']?/;
@@ -17,7 +20,11 @@ const UNTRUSTED_HEAD_REF =
   /github\.(?:event\.pull_request\.head\.sha|head_ref|event\.workflow_run\.head_sha|event\.workflow_run\.head_branch)/;
 
 function parseArgs(argv) {
-  const options = { repoRoot: process.cwd(), checkSettings: false };
+  const options = {
+    repoRoot: process.cwd(),
+    checkSettings: false,
+    approvedSelfHostedRunnerLabels: [],
+  };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--repo-root") {
       const next = argv[i + 1];
@@ -31,6 +38,11 @@ function parseArgs(argv) {
       // are missing from repo settings OR have zero protection rules.
       // Default off — local lint runs remain offline; CI opts in.
       options.checkSettings = true;
+    } else if (argv[i] === "--allow-self-hosted-runner-label") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--allow-self-hosted-runner-label requires a label");
+      options.approvedSelfHostedRunnerLabels.push(next);
+      i += 1;
     } else {
       throw new Error(`unknown argument: ${argv[i]}`);
     }
@@ -294,6 +306,50 @@ function jobDeclaresEnvironment(job, jobsIndent) {
   return false;
 }
 
+function stripYamlComment(value) {
+  return value.replace(/\s+#.*$/u, "").trim();
+}
+
+function normalizeRunnerLabel(value) {
+  return stripYamlComment(value)
+    .replace(/^["']|["']$/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function parseRunsOnScalar(value) {
+  const clean = stripYamlComment(value);
+  if (clean.startsWith("[") && clean.endsWith("]")) {
+    return clean.slice(1, -1).split(",").map(normalizeRunnerLabel).filter(Boolean);
+  }
+  const normalized = normalizeRunnerLabel(clean);
+  return normalized.length > 0 ? [normalized] : [];
+}
+
+function extractJobRunsOnLabels(job, jobsIndent) {
+  const expected = " ".repeat(jobsIndent + 2);
+  const scalarRe = /^\s+runs-on:\s+(.+?)\s*$/;
+  const bareRe = /^\s+runs-on:\s*(?:#.*)?$/;
+  const listItemRe = /^\s+-\s+(.+?)\s*$/;
+  for (let i = 0; i < job.lines.length; i += 1) {
+    const { text } = job.lines[i];
+    if (!text.startsWith(`${expected}runs-on:`)) continue;
+    const scalar = text.match(scalarRe);
+    if (scalar) return parseRunsOnScalar(scalar[1]);
+    if (!bareRe.test(text)) return [];
+    const labels = [];
+    for (let j = i + 1; j < job.lines.length; j += 1) {
+      const sub = job.lines[j].text;
+      if (sub.trim() === "") continue;
+      if (!sub.startsWith(`${expected}  -`)) break;
+      const match = sub.match(listItemRe);
+      if (match) labels.push(normalizeRunnerLabel(match[1]));
+    }
+    return labels.filter(Boolean);
+  }
+  return [];
+}
+
 function extractJobEnvironmentName(job, jobsIndent) {
   // Extract the environment NAME from a direct job-level `environment:`
   // declaration. Returns null if no env is declared (which is the
@@ -383,7 +439,32 @@ function lintWorkflowDispatchEnvironments(file, lines) {
   return diagnostics;
 }
 
-function lintWorkflowFile(repoRoot, file) {
+function lintSelfHostedRunnerUsage(file, lines, approvedLabels) {
+  const diagnostics = [];
+  const jobsIndent = detectJobsIndent(lines);
+  if (jobsIndent < 0) return diagnostics;
+  const approved = new Set(
+    (approvedLabels ?? []).map((label) => normalizeRunnerLabel(label)).filter(Boolean),
+  );
+  for (const job of extractJobs(lines)) {
+    const labels = extractJobRunsOnLabels(job, jobsIndent);
+    if (!labels.includes("self-hosted")) continue;
+    const nonSelfHostedLabels = labels.filter((label) => label !== "self-hosted");
+    const unapproved = nonSelfHostedLabels.filter((label) => !approved.has(label));
+    if (approved.size > 0 && nonSelfHostedLabels.length > 0 && unapproved.length === 0) continue;
+    diagnostics.push(
+      makeDiagnostic(
+        WF_RUNNER_1_RULE_ID,
+        file,
+        job.startLine + 1,
+        `job '${job.id}' uses self-hosted runners; every non-self-hosted label must be explicitly approved (unapproved: ${unapproved.length > 0 ? unapproved.join(", ") : "none declared"})`,
+      ),
+    );
+  }
+  return diagnostics;
+}
+
+function lintWorkflowFile(repoRoot, file, options = {}) {
   const full = join(repoRoot, file);
   const lines = readFileSync(full, "utf8").split(/\r?\n/);
   const diagnostics = [];
@@ -394,6 +475,9 @@ function lintWorkflowFile(repoRoot, file) {
   diagnostics.push(...lintWorkflowPermissions(file, lines));
   diagnostics.push(...lintPrivilegedUntrustedHeadCheckout(file, lines));
   diagnostics.push(...lintWorkflowDispatchEnvironments(file, lines));
+  diagnostics.push(
+    ...lintSelfHostedRunnerUsage(file, lines, options.approvedSelfHostedRunnerLabels ?? []),
+  );
   return diagnostics;
 }
 
@@ -436,7 +520,7 @@ export function collectWorkflowGovernanceDiagnostics(options = {}) {
   const diagnostics = [];
   for (const file of files) {
     if (!file.startsWith(".github/workflows/")) continue;
-    diagnostics.push(...lintWorkflowFile(repoRoot, file));
+    diagnostics.push(...lintWorkflowFile(repoRoot, file, options));
   }
   diagnostics.push(...lintCodeowners(repoRoot, files));
   return diagnostics;
@@ -465,6 +549,7 @@ export function collectWorkflowGovernanceDiagnostics(options = {}) {
  * @param {object} [options]
  * @param {string} [options.repoRoot]
  * @param {boolean} [options.checkSettings]
+ * @param {string[]} [options.approvedSelfHostedRunnerLabels]
  * @param {(name: string) => Promise<{ name: string; protection_rules: { type: string }[] } | null>} [options.resolveEnvironment]
  * @returns {Promise<Array<{ ruleId: string; file: string; line: number; message: string }>>}
  */
@@ -509,7 +594,7 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
     if (result.error) {
       diagnostics.push(
         makeDiagnostic(
-          WF_ENV_1_RULE_ID,
+          WF_ENV_2_RULE_ID,
           candidate.file,
           candidate.line,
           `environment '${candidate.envName}' resolver error: ${result.error}`,
@@ -520,7 +605,7 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
     if (result.value === null) {
       diagnostics.push(
         makeDiagnostic(
-          WF_ENV_1_RULE_ID,
+          WF_ENV_2_RULE_ID,
           candidate.file,
           candidate.line,
           `environment '${candidate.envName}' declared in workflow but not configured in repo settings`,
@@ -528,19 +613,28 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
       );
       continue;
     }
-    const rules = result.value.protection_rules;
-    if (!Array.isArray(rules) || rules.length === 0) {
+    if (!environmentHasRequiredReviewers(result.value)) {
       diagnostics.push(
         makeDiagnostic(
-          WF_ENV_1_RULE_ID,
+          WF_ENV_3_RULE_ID,
           candidate.file,
           candidate.line,
-          `environment '${candidate.envName}' configured but has zero protection rules`,
+          `environment '${candidate.envName}' configured but lacks required reviewer protection`,
         ),
       );
     }
   }
   return diagnostics;
+}
+
+function environmentHasRequiredReviewers(environment) {
+  if (Array.isArray(environment.reviewers) && environment.reviewers.length > 0) return true;
+  const rules = environment.protection_rules;
+  if (!Array.isArray(rules)) return false;
+  return rules.some((rule) => {
+    if (rule === null || typeof rule !== "object") return false;
+    return rule.type === "required_reviewers" || rule.type === "required_reviewer";
+  });
 }
 
 async function resolveSafely(resolver, name) {

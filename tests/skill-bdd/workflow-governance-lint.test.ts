@@ -17,8 +17,8 @@ function makeFixture(): string {
   return dir;
 }
 
-function runLinter(root: string) {
-  return spawnSync(process.execPath, [scriptPath, "--repo-root", root], {
+function runLinter(root: string, extraArgs: string[] = []) {
+  return spawnSync(process.execPath, [scriptPath, "--repo-root", root, ...extraArgs], {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -320,9 +320,13 @@ describe("workflow-governance linter", () => {
 // allow-list and without an unused `@ts-expect-error` directive.
 type WfgModule = {
   WF_ENV_1_RULE_ID: string;
+  WF_ENV_2_RULE_ID: string;
+  WF_ENV_3_RULE_ID: string;
+  WF_RUNNER_1_RULE_ID: string;
   collectWorkflowGovernanceDiagnosticsAsync: (options: {
     repoRoot?: string;
     checkSettings?: boolean;
+    approvedSelfHostedRunnerLabels?: string[];
     resolveEnvironment?: (
       name: string,
     ) => Promise<{ name: string; protection_rules: Array<{ type: string }> } | null>;
@@ -330,7 +334,13 @@ type WfgModule = {
 };
 // @ts-expect-error TS7016: .mjs has no .d.ts; runtime contract documented in JSDoc on the export
 const wfg = (await import("../../scripts/workflow-governance-lint.mjs")) as unknown as WfgModule;
-const { collectWorkflowGovernanceDiagnosticsAsync, WF_ENV_1_RULE_ID } = wfg;
+const {
+  collectWorkflowGovernanceDiagnosticsAsync,
+  WF_ENV_1_RULE_ID,
+  WF_ENV_2_RULE_ID,
+  WF_ENV_3_RULE_ID,
+  WF_RUNNER_1_RULE_ID,
+} = wfg;
 
 type EnvironmentSettings = {
   name: string;
@@ -394,7 +404,7 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
     );
   });
 
-  it("flags WF_ENV_1 when a YAML-referenced env is NOT configured in repo settings (resolver returns null)", async () => {
+  it("flags WF_ENV_2 when a YAML-referenced env is NOT configured in repo settings (resolver returns null)", async () => {
     const fixture = makeFixture();
     writePrivilegedWorkflow(fixture, "destroy.yml", "missing-env");
     const resolveEnvironment = async (_name: string): Promise<EnvironmentSettings | null> => null;
@@ -403,13 +413,13 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
       checkSettings: true,
       resolveEnvironment,
     });
-    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_2_RULE_ID);
     expect(envDiags).toHaveLength(1);
     expect(envDiags[0].message).toContain("missing-env");
     expect(envDiags[0].message).toMatch(/not configured in repo settings/);
   });
 
-  it("flags WF_ENV_1 when an env is configured but has ZERO protection rules", async () => {
+  it("flags WF_ENV_3 when an env is configured but has ZERO reviewer protection rules", async () => {
     const fixture = makeFixture();
     writePrivilegedWorkflow(fixture, "destroy.yml", "open-env");
     const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => ({
@@ -421,10 +431,10 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
       checkSettings: true,
       resolveEnvironment,
     });
-    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_3_RULE_ID);
     expect(envDiags).toHaveLength(1);
     expect(envDiags[0].message).toContain("open-env");
-    expect(envDiags[0].message).toMatch(/zero protection rules/);
+    expect(envDiags[0].message).toMatch(/reviewer protection/);
   });
 
   it("surfaces resolver errors as diagnostics, not silent passes", async () => {
@@ -438,7 +448,7 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
       checkSettings: true,
       resolveEnvironment,
     });
-    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_1_RULE_ID);
+    const envDiags = diagnostics.filter((d: { ruleId: string }) => d.ruleId === WF_ENV_2_RULE_ID);
     expect(envDiags).toHaveLength(1);
     expect(envDiags[0].message).toContain("broken-resolver");
     expect(envDiags[0].message).toMatch(/gh auth required/);
@@ -471,5 +481,108 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
       resolveEnvironment,
     });
     expect(calls).toBe(1); // memoization — same env queried only once
+  });
+});
+
+describe("M7 runner governance live-environment and runner checks", () => {
+  it("emits WF_ENV_2 when YAML references an environment missing from GitHub settings", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "deploy.yml", "prod");
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment: async () => null,
+    });
+
+    expect(diagnostics.map((d) => d.ruleId)).toContain(WF_ENV_2_RULE_ID);
+    expect(diagnostics.find((d) => d.ruleId === WF_ENV_2_RULE_ID)?.message).toMatch(
+      /not configured in repo settings/,
+    );
+  });
+
+  it("emits WF_ENV_3 when a production environment lacks reviewer protection", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "deploy.yml", "prod");
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment: async (name) => ({
+        name,
+        protection_rules: [{ type: "branch_policy" }],
+      }),
+    });
+
+    expect(diagnostics.map((d) => d.ruleId)).toContain(WF_ENV_3_RULE_ID);
+    expect(diagnostics.find((d) => d.ruleId === WF_ENV_3_RULE_ID)?.message).toMatch(
+      /required reviewer/,
+    );
+  });
+
+  it("flags self-hosted runner usage by default", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "deploy.yml"),
+      [
+        "name: deploy",
+        "on:",
+        "  workflow_dispatch:",
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  deploy:",
+        "    runs-on: [self-hosted, linux, x64, deploy-prod]",
+        "    environment: prod",
+        "    steps:",
+        `      - uses: aws-actions/configure-aws-credentials@${SHA} # v4`,
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain(WF_RUNNER_1_RULE_ID);
+  });
+
+  it("allows self-hosted runner usage only when every label is explicitly approved", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "deploy.yml"),
+      [
+        "name: deploy",
+        "on:",
+        "  workflow_dispatch:",
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  deploy:",
+        "    runs-on:",
+        "      - self-hosted",
+        "      - linux",
+        "      - x64",
+        "      - deploy-prod",
+        "    environment: prod",
+        "    steps:",
+        `      - uses: aws-actions/configure-aws-credentials@${SHA} # v4`,
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture, [
+      "--allow-self-hosted-runner-label",
+      "linux",
+      "--allow-self-hosted-runner-label",
+      "x64",
+      "--allow-self-hosted-runner-label",
+      "deploy-prod",
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("workflow-governance: pass");
   });
 });

@@ -61,6 +61,50 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@20.19.41)
 
+  examples/aws-organization-security-foundation-smoke:
+    dependencies:
+      '@hulumi/baseline':
+        specifier: workspace:*
+        version: link:../../packages/baseline
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
+  examples/aws-secure-primitives-smoke:
+    dependencies:
+      '@hulumi/baseline':
+        specifier: workspace:*
+        version: link:../../packages/baseline
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
   examples/drift-classify-smoke:
     dependencies:
       '@hulumi/drift':
@@ -91,6 +135,81 @@ importers:
       '@hulumi/policies':
         specifier: workspace:*
         version: link:../../packages/policies
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
+      '@pulumi/cloudflare':
+        specifier: 6.15.0
+        version: 6.15.0(typescript@5.9.3)
+      '@pulumi/github':
+        specifier: 6.13.1
+        version: 6.13.1(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
+  examples/eks-cluster-foundation-smoke:
+    dependencies:
+      '@hulumi/k8s-baseline':
+        specifier: workspace:*
+        version: link:../../packages/k8s-baseline
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
+  examples/pulumi-state-backend-foundation-smoke:
+    dependencies:
+      '@hulumi/platform-patterns':
+        specifier: workspace:*
+        version: link:../../packages/platform-patterns
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
+  examples/runner-governance-foundation-smoke:
+    dependencies:
+      '@hulumi/platform-patterns':
+        specifier: workspace:*
+        version: link:../../packages/platform-patterns
       '@pulumi/aws':
         specifier: 7.27.0
         version: 7.27.0(typescript@5.9.3)
@@ -147,6 +266,28 @@ importers:
       '@pulumi/github':
         specifier: 6.13.1
         version: 6.13.1(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: 3.232.0
+        version: 3.232.0(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.41)
+
+  examples/security-detection-foundation-smoke:
+    dependencies:
+      '@hulumi/baseline':
+        specifier: workspace:*
+        version: link:../../packages/baseline
+      '@pulumi/aws':
+        specifier: 7.27.0
+        version: 7.27.0(typescript@5.9.3)
       '@pulumi/pulumi':
         specifier: 3.232.0
         version: 3.232.0(typescript@5.9.3)

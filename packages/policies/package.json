@@ -1,11 +1,11 @@
 {
   "name": "@hulumi/policies",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "description": "Pulumi CrossGuard policy packs for AWS and GitHub: HulumiHardeningPack + CisV5Pack on the AWS side; HulumiGithubHardeningPack (H1+H2+G_OIDC_1) + CisGithubV1Pack (placeholder pending CIS WorkBench) on the GitHub side. SLSA Build L3 attestation on every release.",
+  "description": "Pulumi CrossGuard policy packs for AWS, GitHub, Kubernetes, Cloudflare, and deployment governance. Includes HulumiHardeningPack, HulumiAwsOrgHardeningPack, state/backend/primitive/detection rules, GitHub packs, EKS packs, and platform governance. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -31,6 +31,10 @@
     "./aws/packs/cis-v5": {
       "types": "./dist/aws/packs/cis-v5.d.ts",
       "default": "./dist/aws/packs/cis-v5.js"
+    },
+    "./aws-org/packs/hulumi-aws-org-hardening": {
+      "types": "./dist/aws-org/packs/hulumi-aws-org-hardening.d.ts",
+      "default": "./dist/aws-org/packs/hulumi-aws-org-hardening.js"
     },
     "./github/packs/hulumi-hardening": {
       "types": "./dist/github/packs/hulumi-hardening.d.ts",

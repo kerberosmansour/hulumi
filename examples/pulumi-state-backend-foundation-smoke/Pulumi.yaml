@@ -1,0 +1,3 @@
+name: pulumi-state-backend-foundation-smoke
+runtime: nodejs
+description: Mocked smoke example for PulumiStateBackendFoundation.

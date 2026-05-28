@@ -14,6 +14,11 @@ import {
   h3AdvisoryIacRoleTag,
   h4StartupHardenedRequiresLogging,
   h5SecureBucketExemptionRequiresHardening,
+  state1ApprovedSecretsProvider,
+  primitive1GithubOidcNoWildcard,
+  primitive2SecretPolicyNoBroadAccess,
+  primitive3LaunchTemplateImdsv2Required,
+  primitive4StartupRolePermissionBoundaryRequired,
   H3_ENFORCEMENT_LEVEL,
   hulumiHardeningPackMetadata,
   matchSuppression,
@@ -160,6 +165,129 @@ describe("HulumiHardeningPack H1 — blocks raw aws.s3.BucketV2 (security S5)", 
   });
 });
 
+describe("HulumiHardeningPack primitive backstops", () => {
+  let violations: string[];
+  const report = (msg: string): void => {
+    violations.push(msg);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("flags wildcard GitHub OIDC trust on AWS roles", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::deploy",
+      name: "deploy",
+      props: {
+        assumeRolePolicy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: {
+                Federated:
+                  "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              },
+              Action: "sts:AssumeRoleWithWebIdentity",
+              Condition: {
+                StringLike: {
+                  "token.actions.githubusercontent.com:sub": "repo:org/repo:*",
+                },
+              },
+            },
+          ],
+        }),
+      },
+    });
+
+    (
+      primitive1GithubOidcNoWildcard.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("PRIM-1");
+  });
+
+  it("flags broad Secrets Manager resource policies", () => {
+    const args = makeResourceArgs({
+      type: "aws:secretsmanager/secretPolicy:SecretPolicy",
+      urn: "urn:pulumi:s::p::aws:secretsmanager/secretPolicy:SecretPolicy::secret-policy",
+      name: "secret-policy",
+      props: {
+        policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: "*",
+              Action: "secretsmanager:GetSecretValue",
+              Resource: "*",
+            },
+          ],
+        }),
+      },
+    });
+
+    (
+      primitive2SecretPolicyNoBroadAccess.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("PRIM-2");
+  });
+
+  it("flags launch templates without IMDSv2 required", () => {
+    const args = makeResourceArgs({
+      type: "aws:ec2/launchTemplate:LaunchTemplate",
+      urn: "urn:pulumi:s::p::aws:ec2/launchTemplate:LaunchTemplate::lt",
+      name: "lt",
+      props: { metadataOptions: { httpTokens: "optional" } },
+    });
+
+    (
+      primitive3LaunchTemplateImdsv2Required.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("PRIM-3");
+  });
+
+  it("flags startup-hardened primitive IAM roles without permission boundaries", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::workload",
+      name: "workload",
+      props: {
+        tags: {
+          "hulumi:component": "SecureIamDeploymentRole",
+          "hulumi:tier": "startup-hardened",
+        },
+      },
+    });
+
+    (
+      primitive4StartupRolePermissionBoundaryRequired.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("PRIM-4");
+  });
+});
+
 describe("HulumiHardeningPack H2 — blocks file:// state backend and unencrypted S3 (security S5)", () => {
   let violations: string[];
   const report = (msg: string): void => {
@@ -258,6 +386,47 @@ describe("HulumiHardeningPack H2 — blocks file:// state backend and unencrypte
         r: (m: string) => void,
       ) => void
     )(args, report);
+    expect(violations).toHaveLength(0);
+  });
+});
+
+describe("HulumiHardeningPack STATE-1 — approved Pulumi secrets provider required", () => {
+  let violations: string[];
+  const report = (msg: string): void => {
+    violations.push(msg);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  const runState1 = (config: Record<string, unknown>): void =>
+    (
+      state1ApprovedSecretsProvider.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([], config), report);
+
+  it("reports STATE-1 when the stack config omits the secrets provider", () => {
+    runState1({});
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/STATE-1/);
+    expect(violations[0]).toMatch(/approved Pulumi secrets provider/);
+  });
+
+  it("reports STATE-1 when passphrase is used instead of an approved KMS provider", () => {
+    runState1({ pulumiSecretsProvider: "passphrase" });
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/STATE-1/);
+    expect(violations[0]).toMatch(/awskms:\/\//);
+  });
+
+  it("does NOT report when an AWS KMS secrets provider is configured", () => {
+    runState1({ pulumiSecretsProvider: "awskms://alias/hulumi/state/example" });
+
     expect(violations).toHaveLength(0);
   });
 });
@@ -622,12 +791,39 @@ describe("Suppressions — scope correctly (security, defense in depth)", () => 
 });
 
 describe("PackMetadata — shape is stable per interfaces.md §2", () => {
-  it("declares the five rules with correct IDs and enforcement phasing", () => {
+  it("declares the rules with correct IDs and enforcement phasing", () => {
     const ids = hulumiHardeningPackMetadata.rules.map((r) => r.id);
-    expect(ids).toEqual(["HULUMI-H1", "HULUMI-H2", "HULUMI-H3", "HULUMI-H4", "HULUMI-H5"]);
+    expect(ids).toEqual([
+      "HULUMI-H1",
+      "HULUMI-H2",
+      "STATE-1",
+      "HULUMI-H3",
+      "PRIM-1",
+      "PRIM-2",
+      "PRIM-3",
+      "PRIM-4",
+      "DETECT-1",
+      "DETECT-2",
+      "DETECT-3",
+      "HULUMI-H4",
+      "HULUMI-H5",
+    ]);
     const h3 = hulumiHardeningPackMetadata.rules.find((r) => r.id === "HULUMI-H3")!;
     expect(h3.enforcement).toBe("mandatory");
-    for (const id of ["HULUMI-H1", "HULUMI-H2", "HULUMI-H4", "HULUMI-H5"]) {
+    for (const id of [
+      "HULUMI-H1",
+      "HULUMI-H2",
+      "STATE-1",
+      "PRIM-1",
+      "PRIM-2",
+      "PRIM-3",
+      "PRIM-4",
+      "DETECT-1",
+      "DETECT-2",
+      "DETECT-3",
+      "HULUMI-H4",
+      "HULUMI-H5",
+    ]) {
       const r = hulumiHardeningPackMetadata.rules.find((x) => x.id === id)!;
       expect(r.enforcement).toBe("mandatory");
     }

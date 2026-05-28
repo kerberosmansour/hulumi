@@ -1,0 +1,3 @@
+name: eks-cluster-foundation-smoke
+runtime: nodejs
+description: Mocked smoke example for EksClusterFoundation.

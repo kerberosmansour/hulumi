@@ -18,7 +18,7 @@ pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 pnpm add @pulumi/github
 ```
 
-`@hulumi/baseline@1.4.1` accepts any caret-compatible Pulumi SDK (`@pulumi/aws` in the `7.x` line, `@pulumi/pulumi` in the `3.x` line, `@pulumi/github` in the `6.x` line). The versions Hulumi is **tested against** are listed in this package's `peerDependencies` — that's the floor, not a ceiling. If you already have these SDKs installed at any compatible version, you don't need to change them. The 72h/24h cooling-off CI gate applies inside Hulumi when **we** bump our tested floor — see the project [SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
+`@hulumi/baseline@1.5.0` accepts any caret-compatible Pulumi SDK (`@pulumi/aws` in the `7.x` line, `@pulumi/pulumi` in the `3.x` line, `@pulumi/github` in the `6.x` line). The versions Hulumi is **tested against** are listed in this package's `peerDependencies` — that's the floor, not a ceiling. If you already have these SDKs installed at any compatible version, you don't need to change them. The 72h/24h cooling-off CI gate applies inside Hulumi when **we** bump our tested floor — see the project [SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
 
 ## Quick-start — `SecureBucket`
 
@@ -71,12 +71,12 @@ secret scanning, push protection, dependabot security updates. See
 
 ## What you get
 
-| Surface     | Components                                                                                                                                                                                                                                                      |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AWS         | `SecureBucket`, `AccountFoundation` (and its sub-components — `CloudTrail`, `Config`, `GuardDuty`, `SecurityHub`, `IamBaseline`, `KmsRing`)                                                                                                                     |
-| GitHub      | `SecureRepository`, `OrgFoundation` (with switchable Code Security Configurations backend)                                                                                                                                                                      |
-| Tier matrix | `Tier` enum + `assertValidTier` (`"sandbox" \| "startup-hardened"`)                                                                                                                                                                                             |
-| Mappings    | IDs-only framework citation tables — `mappings/{ccm,cis-aws,nist-800-53-r5,atlas}` (no verbatim CCM / AICM / CAIQ / CIS / NIST control text — see [docs/mappings/licensing.md](https://github.com/kerberosmansour/hulumi/blob/main/docs/mappings/licensing.md)) |
+| Surface     | Components                                                                                                                                                                                                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AWS         | `SecureBucket`, `AccountFoundation` (and its sub-components — `CloudTrail`, `Config`, `GuardDuty`, `SecurityHub`, `IamBaseline`, `KmsRing`), `AwsOrganizationSecurityFoundation`, secure AWS primitives (`SecureIamDeploymentRole`, `SecureWorkloadRole`, `SecureSecret`, `SecureLaunchTemplate`), and `SecurityDetectionFoundation` |
+| GitHub      | `SecureRepository`, `OrgFoundation` (with switchable Code Security Configurations backend)                                                                                                                                                                                                                                           |
+| Tier matrix | `Tier` enum + `assertValidTier` (`"sandbox" \| "startup-hardened"`)                                                                                                                                                                                                                                                                  |
+| Mappings    | IDs-only framework citation tables — `mappings/{ccm,cis-aws,nist-800-53-r5,atlas}` (no verbatim CCM / AICM / CAIQ / CIS / NIST control text — see [docs/mappings/licensing.md](https://github.com/kerberosmansour/hulumi/blob/main/docs/mappings/licensing.md))                                                                      |
 
 Pair with [`@hulumi/policies`](https://github.com/kerberosmansour/hulumi/tree/main/packages/policies)
 (CrossGuard policy packs that catch what the components can't) and
@@ -90,8 +90,8 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/baseline@1.4.0 --pack-destination .
-gh attestation verify ./hulumi-baseline-1.4.0.tgz \
+pnpm pack @hulumi/baseline@1.5.0 --pack-destination .
+gh attestation verify ./hulumi-baseline-1.5.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 

@@ -1,7 +1,12 @@
 // BDD scenarios for M4 deployment-governance policy.
 
 import { describe, it, expect, beforeEach } from "vitest";
-import type { PolicyResource, ResourceValidationArgs, StackValidationArgs } from "@pulumi/policy";
+import type {
+  PolicyResource,
+  ResourceValidationArgs,
+  ResourceValidationPolicy,
+  StackValidationArgs,
+} from "@pulumi/policy";
 
 import {
   DEPLOY_GOV_1_RULE_ID,
@@ -255,6 +260,76 @@ describe("HulumiDeploymentGovernancePack DEPLOY_GOV_1 — protected env required
 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toContain(repo.urn);
+  });
+});
+
+describe("HulumiDeploymentGovernancePack M7 runner governance backstops", () => {
+  let violations: string[];
+  const report = (msg: string): void => {
+    violations.push(msg);
+  };
+
+  beforeEach(() => {
+    violations = [];
+  });
+
+  it("reports DEPLOY_GOV_3 when RunnerGovernanceFoundation allows unapproved self-hosted labels", async () => {
+    const platform = (await import("../../src/platform")) as Record<string, unknown>;
+    expect(platform.DEPLOY_GOV_3_RULE_ID).toBe("DEPLOY_GOV_3_NO_UNAPPROVED_SELF_HOSTED_RUNNERS");
+    const policy = platform.deployGov3NoUnapprovedSelfHostedRunners as ResourceValidationPolicy;
+    const resource = makeResourceArgs({
+      type: "hulumi:platform:RunnerGovernanceFoundation",
+      urn: "urn:pulumi:s::p::hulumi:platform:RunnerGovernanceFoundation::runner-gov",
+      name: "runner-gov",
+      props: {
+        approvedSelfHostedRunnerLabels: ["deploy-prod"],
+        privilegedWorkflows: [
+          {
+            workflowPath: ".github/workflows/deploy.yml",
+            jobName: "deploy",
+            runsOn: ["self-hosted", "linux", "x64", "deploy-prod"],
+          },
+        ],
+      },
+    });
+
+    (policy.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      resource,
+      report,
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("DEPLOY_GOV_3_NO_UNAPPROVED_SELF_HOSTED_RUNNERS");
+  });
+
+  it("reports DEPLOY_GOV_4 when privileged workflow metadata disables OIDC or names cloud secrets", async () => {
+    const platform = (await import("../../src/platform")) as Record<string, unknown>;
+    expect(platform.DEPLOY_GOV_4_RULE_ID).toBe("DEPLOY_GOV_4_PRIVILEGED_WORKFLOWS_REQUIRE_OIDC");
+    const policy = platform.deployGov4PrivilegedWorkflowsRequireOidc as ResourceValidationPolicy;
+    const resource = makeResourceArgs({
+      type: "hulumi:platform:RunnerGovernanceFoundation",
+      urn: "urn:pulumi:s::p::hulumi:platform:RunnerGovernanceFoundation::runner-gov",
+      name: "runner-gov",
+      props: {
+        privilegedWorkflows: [
+          {
+            workflowPath: ".github/workflows/deploy.yml",
+            jobName: "deploy",
+            oidcRequired: false,
+            longLivedCloudSecretNames: ["AWS_SECRET_ACCESS_KEY"],
+          },
+        ],
+      },
+    });
+
+    (policy.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      resource,
+      report,
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("DEPLOY_GOV_4_PRIVILEGED_WORKFLOWS_REQUIRE_OIDC");
+    expect(violations[0]).not.toContain("secret value");
   });
 });
 

@@ -158,6 +158,15 @@ calls `classify()` again to prove the cache prevents a second adapter
 poll. `afterAll` always runs `pulumi destroy`, removes the stack, and
 deletes the local Pulumi work directory.
 
+The `EksClusterFoundation` EKS contract lives in
+`packages/k8s-baseline/tests/integration/eks/eks-cluster-foundation.eks.test.ts`.
+It is gated by `HULUMI_INTEGRATION_EKS=1` and
+`HULUMI_EKS_SANDBOX_CLUSTER`. Without both it records a visible skip. When
+enabled, the intended live checks are endpoint mode, audit log types, Pod
+Identity/add-on metadata, and managed node launch-template IMDSv2 posture.
+The test must not persist kubeconfigs, service-account tokens, or cloud
+credentials.
+
 ## Cost contract
 
 | Resource                           | Per-run cost             | Notes                                            |

@@ -11,10 +11,12 @@ pulumi up --policy-pack node_modules/@hulumi/policies/platform/packs/deployment-
 
 ## Stable Rule IDs
 
-| Rule ID                                      | Enforcement | Purpose                                                                                                                           |
-| -------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT` | mandatory   | Require deployment-capable repositories to have protected GitHub environment evidence and `GitHubAwsOidcDeploymentRole` evidence. |
-| `DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS`     | mandatory   | Reject GitHub secret resources named like long-lived AWS access credentials; violation messages omit secret values.               |
+| Rule ID                                          | Enforcement | Purpose                                                                                                                           |
+| ------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT`     | mandatory   | Require deployment-capable repositories to have protected GitHub environment evidence and `GitHubAwsOidcDeploymentRole` evidence. |
+| `DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS`         | mandatory   | Reject GitHub secret resources named like long-lived AWS access credentials; violation messages omit secret values.               |
+| `DEPLOY_GOV_3_NO_UNAPPROVED_SELF_HOSTED_RUNNERS` | mandatory   | Reject `RunnerGovernanceFoundation` contracts that allow self-hosted runners without finite label approval.                       |
+| `DEPLOY_GOV_4_PRIVILEGED_WORKFLOWS_REQUIRE_OIDC` | mandatory   | Reject privileged workflow metadata that disables OIDC or names long-lived cloud credential secrets.                              |
 
 `DeploymentRepositoryFoundation` positive fixtures pass cleanly when the
 foundation evidence matches the repository under review. A foundation for one
@@ -25,3 +27,7 @@ another deployment-capable repository in the same stack.
 Unscoped role evidence is ignored; this keeps the pack from accepting a generic
 OIDC role as proof that every deployment-capable repo has narrow AWS
 deployment identity.
+
+`RunnerGovernanceFoundation` evidence is checked as its own contract. The pack
+does not create runner settings and does not inspect source code; it validates
+the Pulumi resource metadata that describes privileged workflow posture.

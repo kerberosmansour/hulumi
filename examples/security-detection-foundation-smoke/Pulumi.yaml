@@ -1,0 +1,3 @@
+name: security-detection-foundation-smoke
+runtime: nodejs
+description: Mocked smoke example for @hulumi/baseline SecurityDetectionFoundation.

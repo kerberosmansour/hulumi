@@ -14,9 +14,17 @@ export {
   hulumiHardeningPackMetadata,
   h1BlocksRawBucket,
   h2BlocksUnencryptedStateBackend,
+  state1ApprovedSecretsProvider,
   h3AdvisoryIacRoleTag,
   h4StartupHardenedRequiresLogging,
   h5SecureBucketExemptionRequiresHardening,
+  primitive1GithubOidcNoWildcard,
+  primitive2SecretPolicyNoBroadAccess,
+  primitive3LaunchTemplateImdsv2Required,
+  primitive4StartupRolePermissionBoundaryRequired,
+  detect1CriticalAlarmActionsRequired,
+  detect2SecurityServiceDisablementRequired,
+  detect3NoCatchAllDetectionRules,
   H3_ENFORCEMENT_LEVEL,
   HULUMI_SECURE_BUCKET_TYPE,
   RAW_S3_BUCKET_TYPES,
@@ -86,6 +94,8 @@ export {
   hulumiEksClusterPackMetadata,
   eksCl1NoBroadPublicEndpoint,
   eksCl2AuditLoggingRequired,
+  eksFnd1AuditLoggingRequired,
+  eksFnd2LaunchTemplateImdsV2Required,
 } from "./k8s/eks-cluster-pack";
 
 // Operations hardening — added in runbook hulumi-operations-k8s-security M10.
@@ -96,3 +106,17 @@ export {
   oAudit2CloudTrailLogGroupEncrypted,
   oInspector1FullCoverage,
 } from "./aws/operations-hardening-pack";
+
+// AWS organization hardening — added in runbook hulumi-cloud-platform-hardening-v4 M1.
+// PolicyPack instance lives at:
+//   - @hulumi/policies/aws-org/packs/hulumi-aws-org-hardening
+export * as awsOrg from "./aws-org";
+export {
+  hulumiAwsOrgHardeningPackMetadata,
+  org1DelegatedAdminsRequired,
+  org2RoleSeparationRequired,
+  org3ApprovedScpSetRequired,
+  org4AccountPublicAccessBlockRequired,
+  org5AccountPublicAccessBlockPresent,
+  org6SandboxScpAdvisory,
+} from "./aws-org";

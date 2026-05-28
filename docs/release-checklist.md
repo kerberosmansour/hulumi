@@ -79,7 +79,7 @@ node ~/.claude/skills/hulumi-threat-model/scripts/generate-threat-model.mjs aws-
 test -f docs/threat-model-aws-multi-account-baseline-$(date +%Y%m%d).md
 ```
 
-The scenario list must include the nine IDs from `skills/hulumi-threat-model/SKILL.md`.
+The scenario list must include the 14 IDs from `skills/hulumi-threat-model/SKILL.md`.
 The generated threat model must keep the locked schema: `Scenario`, `Actors`,
 `Assets`, `Threats (STRIDE)`, `Control Citations`,
 `Recommended Hulumi Components`, and `Open Questions`.

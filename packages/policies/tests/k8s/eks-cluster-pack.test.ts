@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ResourceValidationArgs } from "@pulumi/policy";
 
-import { eksCl1NoBroadPublicEndpoint, eksCl2AuditLoggingRequired } from "../../src";
+import {
+  eksCl1NoBroadPublicEndpoint,
+  eksCl2AuditLoggingRequired,
+  eksFnd1AuditLoggingRequired,
+  eksFnd2LaunchTemplateImdsV2Required,
+} from "../../src";
 
 function makeArgs(partial: Partial<ResourceValidationArgs>): ResourceValidationArgs {
   return {
@@ -204,6 +209,70 @@ describe("Scenario: EKS audit logging required (HULUMI-EKS-CL-2)", () => {
     });
     (
       eksCl2AuditLoggingRequired.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(0);
+  });
+});
+
+describe("Scenario: EKS foundation audit logging required (HULUMI-EKS-FND-1)", () => {
+  it("rejects a foundation-tagged EKS cluster missing audit logs", () => {
+    const args = makeArgs({
+      type: "aws:eks/cluster:Cluster",
+      urn: "urn:p::p::aws:eks/cluster:Cluster::foundation-no-audit",
+      name: "foundation-no-audit",
+      props: {
+        tags: { "hulumi:component": "EksClusterFoundation" },
+        vpcConfig: { endpointPublicAccess: false, endpointPrivateAccess: true },
+        enabledClusterLogTypes: ["api"],
+      },
+    });
+    (
+      eksFnd1AuditLoggingRequired.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-EKS-FND-1/);
+  });
+});
+
+describe("Scenario: EKS foundation node IMDSv2 required (HULUMI-EKS-FND-2)", () => {
+  it("rejects a foundation launch template that allows IMDSv1", () => {
+    const args = makeArgs({
+      type: "aws:ec2/launchTemplate:LaunchTemplate",
+      urn: "urn:p::p::aws:ec2/launchTemplate:LaunchTemplate::node-lt",
+      name: "node-lt",
+      props: {
+        tags: { "hulumi:component": "EksClusterFoundation" },
+        metadataOptions: { httpTokens: "optional" },
+      },
+    });
+    (
+      eksFnd2LaunchTemplateImdsV2Required.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-EKS-FND-2/);
+  });
+
+  it("allows a foundation launch template with IMDSv2 required", () => {
+    const args = makeArgs({
+      type: "aws:ec2/launchTemplate:LaunchTemplate",
+      urn: "urn:p::p::aws:ec2/launchTemplate:LaunchTemplate::node-lt",
+      name: "node-lt",
+      props: {
+        tags: { "hulumi:component": "EksClusterFoundation" },
+        metadataOptions: { httpTokens: "required" },
+      },
+    });
+    (
+      eksFnd2LaunchTemplateImdsV2Required.validateResource as (
         a: ResourceValidationArgs,
         r: (m: string) => void,
       ) => void

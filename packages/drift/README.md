@@ -39,6 +39,23 @@ S3 resource-token handling accepts both the current `aws:s3/bucket:Bucket`
 token and the legacy `aws:s3/bucketV2:BucketV2` token so old Pulumi state
 remains classifiable during SecureBucket migration.
 
+## Live posture validator
+
+`@hulumi/drift@1.5.0` also ships the read-only `hulumi validate live` CLI. It turns
+bounded provider adapters into deterministic JSON, Markdown, and SARIF posture
+artifacts for AWS organization guardrails, Pulumi state backend posture, EKS
+foundation posture, and GitHub environment/runner governance.
+
+```bash
+hulumi validate live \
+  --config hulumi-live-validator.json \
+  --format json,markdown,sarif \
+  --out-dir .hulumi-artifacts/live-validator
+```
+
+The CLI is advisory-only: it reads configured posture facts, emits findings, and never
+mutates cloud or GitHub state.
+
 ## Verdict matrix
 
 | #   | Snapshot                                     | Source            | Confidence |

@@ -26,6 +26,33 @@ export {
 } from "./cache";
 export { runProbe, type ProbeFn, type ProbeResult } from "./probe";
 export { validateUrn, isSafeUrn, UnsafeUrnError } from "./urn-sanitize";
+export {
+  LIVE_FORMATS,
+  LIVE_PROVIDERS,
+  LIVE_SEVERITIES,
+  LIVE_STATUSES,
+  LIVE_VALIDATOR_CONFIG_SCHEMA,
+  LIVE_VALIDATOR_REPORT_SCHEMA,
+  renderLiveValidationJson,
+  renderLiveValidationMarkdown,
+  renderLiveValidationSarif,
+  evaluateGitHubRunnerGovernance,
+  runLiveValidation,
+  runLiveValidatorCli,
+  type GitHubRunnerGovernanceArgs,
+  type GitHubRunnerGovernanceEnvironment,
+  type GitHubRunnerGovernanceWorkflowJob,
+  type LiveOutputFormat,
+  type LiveProvider,
+  type LiveProviderAdapter,
+  type LiveSeverity,
+  type LiveStatus,
+  type LiveValidationFinding,
+  type LiveValidationReport,
+  type LiveValidationSummary,
+  type LiveValidatorCliResult,
+  type LiveValidatorFileConfig,
+} from "./live-validator";
 export { DriftClassifier, type DriftClassifierArgs } from "./classifier";
 export {
   OrphanReconciler,

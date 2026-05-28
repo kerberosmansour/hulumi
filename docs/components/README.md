@@ -4,23 +4,28 @@ Per-component documentation. Each component page includes tier matrix references
 
 ## AWS components (`@hulumi/baseline.aws`)
 
-| Component                                 | Milestone | Doc                                                                                               |
-| ----------------------------------------- | --------- | ------------------------------------------------------------------------------------------------- |
-| `hulumi.baseline.aws.SecureBucket`        | v0.2 (M2) | [secure-bucket.md](./secure-bucket.md)                                                            |
-| `hulumi.policies.aws.HulumiHardeningPack` | v0.2 (M2) | see [../tiers.md § HulumiHardeningPack rule matrix](../tiers.md#hulumihardeningpack--rule-matrix) |
-| `hulumi.baseline.aws.AccountFoundation`   | v0.3 (M3) | [account-foundation.md](./account-foundation.md)                                                  |
-| `hulumi.drift.DriftClassifier`            | v0.4 (M4) | [drift-classifier.md](./drift-classifier.md)                                                      |
+| Component                                               | Milestone | Doc                                                                                               |
+| ------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `hulumi.baseline.aws.SecureBucket`                      | v0.2 (M2) | [secure-bucket.md](./secure-bucket.md)                                                            |
+| `hulumi.policies.aws.HulumiHardeningPack`               | v0.2 (M2) | see [../tiers.md § HulumiHardeningPack rule matrix](../tiers.md#hulumihardeningpack--rule-matrix) |
+| `hulumi.baseline.aws.AccountFoundation`                 | v0.3 (M3) | [account-foundation.md](./account-foundation.md)                                                  |
+| `hulumi.baseline.aws.AwsOrganizationSecurityFoundation` | v1.5 (M1) | [aws-organization-security-foundation.md](./aws-organization-security-foundation.md)              |
+| AWS secure primitives                                   | v1.5 (M5) | [aws-secure-primitives.md](./aws-secure-primitives.md)                                            |
+| `hulumi.baseline.aws.SecurityDetectionFoundation`       | v1.5 (M6) | [security-detection-foundation.md](./security-detection-foundation.md)                            |
+| `hulumi.drift.DriftClassifier`                          | v0.4 (M4) | [drift-classifier.md](./drift-classifier.md)                                                      |
+| `hulumi validate live`                                  | v1.5 (M4) | [live-validator.md](./live-validator.md)                                                          |
 
 ## Kubernetes / EKS policy packs (`@hulumi/policies`)
 
 Three CrossGuard PolicyPacks added in runbook `hulumi-operations-k8s-security` Milestone 3. Each pack has its own entry point because `@pulumi/policy` allows only one `PolicyPack` per process. Point your `PulumiPolicy.yaml` at one of:
 
-| Pack                            | Module entry point                                       | Rules                                                                                                                                                                          |
-| ------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `HulumiK8sHardeningPack`        | `@hulumi/policies/k8s/packs/hulumi-k8s-hardening`        | `WL-1` privileged containers · `WL-2` host namespaces · `WL-3` mutable image tags · `WL-4` resources missing (advisory) · `SVC-1` public LoadBalancer                          |
-| `HulumiK8sRbacPack`             | `@hulumi/policies/k8s/packs/hulumi-k8s-rbac`             | `RBAC-1` wildcard verbs · `RBAC-2` `list` / `watch` on Secrets · `RBAC-3` cluster-admin RoleBinding / ClusterRoleBinding                                                       |
-| `HulumiEksClusterPack`          | `@hulumi/policies/k8s/packs/hulumi-eks-cluster`          | `EKS-CL-1` public endpoint with broad CIDR · `EKS-CL-2` audit logging required                                                                                                 |
-| `HulumiOperationsHardeningPack` | `@hulumi/policies/aws/packs/hulumi-operations-hardening` | `O-PATCH-1` Patch:Group enum · `O-AUDIT-1` CloudTrail multi-region + log-file validation · `O-AUDIT-2` CT log group KMS-encrypted · `O-INSPECTOR-1` Inspector v2 full coverage |
+| Pack                            | Module entry point                                        | Rules                                                                                                                                                                          |
+| ------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HulumiK8sHardeningPack`        | `@hulumi/policies/k8s/packs/hulumi-k8s-hardening`         | `WL-1` privileged containers · `WL-2` host namespaces · `WL-3` mutable image tags · `WL-4` resources missing (advisory) · `SVC-1` public LoadBalancer                          |
+| `HulumiK8sRbacPack`             | `@hulumi/policies/k8s/packs/hulumi-k8s-rbac`              | `RBAC-1` wildcard verbs · `RBAC-2` `list` / `watch` on Secrets · `RBAC-3` cluster-admin RoleBinding / ClusterRoleBinding                                                       |
+| `HulumiEksClusterPack`          | `@hulumi/policies/k8s/packs/hulumi-eks-cluster`           | `EKS-CL-1` public endpoint with broad CIDR · `EKS-CL-2` audit logging required                                                                                                 |
+| `HulumiOperationsHardeningPack` | `@hulumi/policies/aws/packs/hulumi-operations-hardening`  | `O-PATCH-1` Patch:Group enum · `O-AUDIT-1` CloudTrail multi-region + log-file validation · `O-AUDIT-2` CT log group KMS-encrypted · `O-INSPECTOR-1` Inspector v2 full coverage |
+| `HulumiAwsOrgHardeningPack`     | `@hulumi/policies/aws-org/packs/hulumi-aws-org-hardening` | `ORG-1` delegated admins · `ORG-2` role separation · `ORG-3` SCP set · `ORG-4` S3 account block switches · `ORG-5` S3 account block present · `ORG-6` sandbox SCP advisory     |
 
 All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored.
 
@@ -43,6 +48,7 @@ Stable in the v1.2+ release trains. Compatibility with tested Helm chart version
 | `hulumi.k8s.EksRuntimeDetectionFoundation`         | [eks-runtime-detection-foundation.md](./eks-runtime-detection-foundation.md) |
 | `hulumi.k8s.EksBackupFoundation`                   | [eks-backup-foundation.md](./eks-backup-foundation.md)                       |
 | `hulumi.k8s.EksAddonFoundation`                    | [eks-addon-foundation.md](./eks-addon-foundation.md)                         |
+| `hulumi.k8s.EksClusterFoundation`                  | [eks-cluster-foundation.md](./eks-cluster-foundation.md)                     |
 | `hulumi.k8s.planUpgrade` (library)                 | [eks-upgrade-planner.md](./eks-upgrade-planner.md)                           |
 
 The tier matrix for every baseline component lives in [../tiers.md](../tiers.md).
@@ -65,6 +71,8 @@ The tier matrix for every baseline component lives in [../tiers.md](../tiers.md)
 | `hulumi.platform.GitHubAwsOidcDeploymentRole`    | [github-aws-oidc-deployment-role.md](./github-aws-oidc-deployment-role.md)   |
 | `hulumi.platform.DeploymentRepositoryFoundation` | [deployment-repository-foundation.md](./deployment-repository-foundation.md) |
 | `hulumi.platform.BuildProvenanceFoundation`      | [build-provenance-foundation.md](./build-provenance-foundation.md)           |
+| `hulumi.platform.PulumiStateBackendFoundation`   | [pulumi-state-backend-foundation.md](./pulumi-state-backend-foundation.md)   |
+| `hulumi.platform.RunnerGovernanceFoundation`     | [runner-governance-foundation.md](./runner-governance-foundation.md)         |
 
 ## Edge policy packs (`@hulumi/policies`)
 

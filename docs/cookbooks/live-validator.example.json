@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "hulumi.live-validator.config.v1",
+  "providers": ["aws-org", "pulumi-state", "eks", "github"],
+  "timeoutMs": 30000,
+  "maxConcurrency": 2,
+  "pageCap": 100,
+  "outputMaxBytes": 1000000,
+  "checks": [
+    {
+      "id": "AWS-ORG-1",
+      "provider": "aws-org",
+      "severity": "info",
+      "status": "pass",
+      "resource": "aws-org:sandbox",
+      "message": "AWS organization delegated-admin posture fixture is clean",
+      "evidence": {
+        "mode": "advisory-fixture"
+      },
+      "observedAt": "2026-05-27T00:00:00.000Z"
+    },
+    {
+      "id": "STATE-1",
+      "provider": "pulumi-state",
+      "severity": "info",
+      "status": "pass",
+      "resource": "pulumi-state:prod",
+      "message": "Pulumi state backend secrets-provider posture fixture is clean",
+      "evidence": {
+        "mode": "advisory-fixture"
+      },
+      "observedAt": "2026-05-27T00:00:00.000Z"
+    },
+    {
+      "id": "EKS-FND-1",
+      "provider": "eks",
+      "severity": "info",
+      "status": "pass",
+      "resource": "eks:prod",
+      "message": "EKS endpoint and audit posture fixture is clean",
+      "evidence": {
+        "mode": "advisory-fixture"
+      },
+      "observedAt": "2026-05-27T00:00:00.000Z"
+    },
+    {
+      "id": "GH-RUNNER-1",
+      "provider": "github",
+      "severity": "info",
+      "status": "pass",
+      "resource": "github:repo/prod",
+      "message": "GitHub environment and runner posture fixture is clean",
+      "evidence": {
+        "mode": "advisory-fixture"
+      },
+      "observedAt": "2026-05-27T00:00:00.000Z"
+    }
+  ]
+}

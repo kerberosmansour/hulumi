@@ -94,6 +94,26 @@ export type {
   EksEndpointAccessConfig,
 } from "./eks-admin-access-path.outputs";
 
+export {
+  EksClusterFoundation,
+  EKS_CLUSTER_FOUNDATION_COMPONENT_TYPE,
+} from "./eks-cluster-foundation";
+export type {
+  EksClusterAddonArgs,
+  EksClusterEndpointArgs,
+  EksClusterEndpointMode,
+  EksClusterFoundationAdoptArgs,
+  EksClusterFoundationArgs,
+  EksClusterFoundationCreateArgs,
+  EksClusterFoundationMode,
+  EksClusterNodePoolArgs,
+  EksClusterPodIdentityAssociationArgs,
+  EksClusterValidationExpectations,
+  EksFoundationTier,
+} from "./eks-cluster-foundation.args";
+export { MAX_EKS_CLUSTER_NODE_POOLS } from "./eks-cluster-foundation.args";
+export type { EksClusterFoundationOutputs } from "./eks-cluster-foundation.outputs";
+
 export { planUpgrade, reportToMarkdown, MAX_UPGRADE_PLANNER_ADDONS } from "./eks-upgrade-planner";
 export type {
   EksSupportStatus,

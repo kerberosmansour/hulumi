@@ -9,6 +9,8 @@ import { isUrnChildOfComponent } from "../urn";
 
 export const DEPLOY_GOV_1_RULE_ID = "DEPLOY_GOV_1_REQUIRE_PROTECTED_ENVIRONMENT";
 export const DEPLOY_GOV_2_RULE_ID = "DEPLOY_GOV_2_NO_LONG_LIVED_AWS_SECRETS";
+export const DEPLOY_GOV_3_RULE_ID = "DEPLOY_GOV_3_NO_UNAPPROVED_SELF_HOSTED_RUNNERS";
+export const DEPLOY_GOV_4_RULE_ID = "DEPLOY_GOV_4_PRIVILEGED_WORKFLOWS_REQUIRE_OIDC";
 
 const GITHUB_REPOSITORY_TYPE = "github:index/repository:Repository";
 const GITHUB_ENVIRONMENT_TYPE = "github:index/repositoryEnvironment:RepositoryEnvironment";
@@ -19,6 +21,7 @@ const GITHUB_SECRET_TYPES = [
 ] as const;
 const DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE = "hulumi:platform:DeploymentRepositoryFoundation";
 const GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE = "hulumi:platform:GitHubAwsOidcDeploymentRole";
+const RUNNER_GOVERNANCE_FOUNDATION_TYPE = "hulumi:platform:RunnerGovernanceFoundation";
 const DOCS_URL =
   "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/deployment-governance-policy-pack.md";
 
@@ -129,6 +132,31 @@ function isLongLivedAwsSecretName(secretName: string): boolean {
   ].includes(secretName.toUpperCase());
 }
 
+function normalizeRunnerLabel(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function workflowArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is Record<string, unknown> => item !== null && typeof item === "object",
+  );
+}
+
+function runnerLabels(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(normalizeRunnerLabel).filter((label): label is string => label !== undefined);
+}
+
+function longLivedCloudSecretNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .filter(isLongLivedAwsSecretName);
+}
+
 export const deployGov1RequireProtectedEnvironment: StackValidationPolicy = {
   name: DEPLOY_GOV_1_RULE_ID,
   description: "Requires deployment-capable repositories to use protected environments.",
@@ -163,6 +191,45 @@ export const deployGov2NoLongLivedAwsSecrets: ResourceValidationPolicy = {
   },
 };
 
+export const deployGov3NoUnapprovedSelfHostedRunners: ResourceValidationPolicy = {
+  name: DEPLOY_GOV_3_RULE_ID,
+  description: "Rejects unapproved self-hosted runner labels in runner-governance contracts.",
+  enforcementLevel: "mandatory",
+  validateResource: (args, reportViolation) => {
+    if (args.type !== RUNNER_GOVERNANCE_FOUNDATION_TYPE) return;
+    const props = args.props as Record<string, unknown>;
+    const approved = new Set(runnerLabels(props.approvedSelfHostedRunnerLabels));
+    for (const workflow of workflowArray(props.privilegedWorkflows)) {
+      const labels = runnerLabels(workflow.runsOn);
+      if (!labels.includes("self-hosted")) continue;
+      const nonSelfHostedLabels = labels.filter((label) => label !== "self-hosted");
+      const unapproved = nonSelfHostedLabels.filter((label) => !approved.has(label));
+      if (approved.size > 0 && nonSelfHostedLabels.length > 0 && unapproved.length === 0) continue;
+      reportViolation(
+        `${DEPLOY_GOV_3_RULE_ID}: RunnerGovernanceFoundation ${args.urn} declares self-hosted runner usage without a finite approval for every label. Docs: ${DOCS_URL}`,
+      );
+    }
+  },
+};
+
+export const deployGov4PrivilegedWorkflowsRequireOidc: ResourceValidationPolicy = {
+  name: DEPLOY_GOV_4_RULE_ID,
+  description: "Requires privileged deployment workflow metadata to use OIDC, not cloud secrets.",
+  enforcementLevel: "mandatory",
+  validateResource: (args, reportViolation) => {
+    if (args.type !== RUNNER_GOVERNANCE_FOUNDATION_TYPE) return;
+    const props = args.props as Record<string, unknown>;
+    for (const workflow of workflowArray(props.privilegedWorkflows)) {
+      const oidcDisabled = workflow.oidcRequired === false;
+      const cloudSecrets = longLivedCloudSecretNames(workflow.longLivedCloudSecretNames);
+      if (!oidcDisabled && cloudSecrets.length === 0) continue;
+      reportViolation(
+        `${DEPLOY_GOV_4_RULE_ID}: RunnerGovernanceFoundation ${args.urn} has privileged workflow metadata that disables OIDC or names long-lived cloud credential secrets (${cloudSecrets.join(", ") || "none named"}). Secret values are intentionally omitted. Docs: ${DOCS_URL}`,
+      );
+    }
+  },
+};
+
 export const hulumiDeploymentGovernancePackMetadata: PackMetadata = {
   id: "hulumi-deployment-governance-pack",
   title: "Hulumi Deployment Governance Pack",
@@ -183,6 +250,24 @@ export const hulumiDeploymentGovernancePackMetadata: PackMetadata = {
       id: DEPLOY_GOV_2_RULE_ID,
       title: "No long-lived AWS deployment secrets",
       description: deployGov2NoLongLivedAwsSecrets.description!,
+      severity: "high",
+      enforcement: "mandatory",
+      frameworkIds: ["NIST-800-218A:PS.2", "NIST-SSDF-v1.1:PS.2"],
+      docsUrl: DOCS_URL,
+    },
+    {
+      id: DEPLOY_GOV_3_RULE_ID,
+      title: "Self-hosted runners require explicit approval",
+      description: deployGov3NoUnapprovedSelfHostedRunners.description!,
+      severity: "critical",
+      enforcement: "mandatory",
+      frameworkIds: ["NIST-800-218A:PO.5", "NIST-SSDF-v1.1:PW.6"],
+      docsUrl: DOCS_URL,
+    },
+    {
+      id: DEPLOY_GOV_4_RULE_ID,
+      title: "Privileged workflows require OIDC",
+      description: deployGov4PrivilegedWorkflowsRequireOidc.description!,
       severity: "high",
       enforcement: "mandatory",
       frameworkIds: ["NIST-800-218A:PS.2", "NIST-SSDF-v1.1:PS.2"],

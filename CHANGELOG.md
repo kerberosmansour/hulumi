@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `@hulumi/baseline.aws.AwsOrganizationSecurityFoundation` adds AWS organization delegated-admin, central Security Hub/AWS Config, account-level S3 Public Access Block, and bounded SCP guardrail composition.
+- `@hulumi/policies/aws-org/packs/hulumi-aws-org-hardening` adds `HULUMI-ORG-1` through `HULUMI-ORG-6` for delegated administrators, bootstrap/steady-state role separation, approved SCPs, S3 account-level Public Access Block posture, and sandbox SCP advisories.
+- `@hulumi/platform-patterns.PulumiStateBackendFoundation` adds a hardened S3/KMS Pulumi state backend foundation with explicit DR posture outputs and optional CI apply-serialization lease metadata.
+- `@hulumi/platform-patterns.RunnerGovernanceFoundation` adds a GitHub runner-governance contract for protected environments, OIDC-only privileged deployments, finite self-hosted runner approvals, and live-validator check descriptors.
+- `@hulumi/k8s-baseline.EksClusterFoundation` adds create/adopt EKS cluster formation with private/restricted endpoint posture, audit logging, Pod Identity association hooks, and IMDSv2 managed node launch templates.
+- `@hulumi/drift` adds the read-only `hulumi validate live` CLI with bounded provider adapters and deterministic JSON, Markdown, and SARIF renderers.
+- `@hulumi/drift` adds `evaluateGitHubRunnerGovernance` for fixtureable GitHub environment, runner, page-cap, OIDC, and long-lived credential-secret findings.
+- `@hulumi/baseline/aws` adds secure AWS primitives for GitHub OIDC deployment roles, workload roles, Secrets Manager secrets, and EC2 launch templates.
+- `@hulumi/baseline/aws` adds `SecurityDetectionFoundation`, a finite alarm-family component for identity, organization guardrail, state backend, EKS control-plane, CloudTrail/KMS/Config, and security-service disablement signals.
+- `@hulumi/policies` adds `STATE-1` to require an approved `awskms://` Pulumi secrets provider alongside the existing unsafe-backend checks.
+- `@hulumi/policies` adds `PRIM-1` through `PRIM-4` for wildcard OIDC trust, broad secret policies, launch-template IMDSv2, and startup-hardened IAM permission-boundary posture.
+- `@hulumi/policies` adds `DETECT-1` through `DETECT-3` for critical detection actions, mandatory security-service disablement coverage, and non-catch-all EventBridge patterns.
+- `@hulumi/policies/platform` adds `DEPLOY_GOV_3` and `DEPLOY_GOV_4` for unapproved self-hosted runner labels and privileged workflow OIDC posture.
+- `workflow-governance-lint` adds `WF_ENV_2`, `WF_ENV_3`, and `WF_RUNNER_1` for live environment existence, required reviewer protection, and self-hosted runner approval checks.
+- `@hulumi/policies/k8s/packs/hulumi-eks-cluster` adds `HULUMI-EKS-FND-1` and `HULUMI-EKS-FND-2` for foundation-tagged audit logging and node IMDSv2 posture.
+
 ### Fixed
 
 - `@hulumi/cloudflare-baseline.ZoneFoundation` now uses Cloudflare's snake_case zone setting IDs (`min_tls_version`, `always_use_https`, `automatic_https_rewrites`) so optional TLS/HTTPS hardening settings route correctly through the Cloudflare v4 API.

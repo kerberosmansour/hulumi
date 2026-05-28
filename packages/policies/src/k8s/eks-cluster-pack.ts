@@ -14,6 +14,8 @@ import { analyzeCidrCoverage } from "./cidr-coverage";
 const DOCS_BASE = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/README.md";
 
 const EKS_CLUSTER_TYPE = "aws:eks/cluster:Cluster";
+const EC2_LAUNCH_TEMPLATE_TYPE = "aws:ec2/launchTemplate:LaunchTemplate";
+const EKS_CLUSTER_FOUNDATION_COMPONENT = "EksClusterFoundation";
 
 interface VpcConfig {
   endpointPublicAccess?: boolean;
@@ -37,6 +39,11 @@ function readSuppressions(config: Record<string, unknown> | undefined): readonly
       typeof o.ruleId === "string" && typeof o.reason === "string" && o.reason.trim().length > 0
     );
   });
+}
+
+function isFoundationTagged(props: Record<string, unknown>): boolean {
+  const tags = props.tags as Record<string, string> | undefined;
+  return tags?.["hulumi:component"] === EKS_CLUSTER_FOUNDATION_COMPONENT;
 }
 
 export const eksCl1NoBroadPublicEndpoint: ResourceValidationPolicy = {
@@ -103,6 +110,50 @@ export const eksCl2AuditLoggingRequired: ResourceValidationPolicy = {
   },
 };
 
+export const eksFnd1AuditLoggingRequired: ResourceValidationPolicy = {
+  name: "HULUMI-EKS-FND-1-foundation-audit-logging-required",
+  description:
+    "EksClusterFoundation-managed clusters must enable audit logs. This foundation-specific backstop keeps create/adopt expectations aligned with the raw EKS cluster policy rule.",
+  enforcementLevel: "mandatory",
+  validateResource: (args, reportViolation) => {
+    if (args.type !== EKS_CLUSTER_TYPE) return;
+    const props = args.props as Record<string, unknown>;
+    if (!isFoundationTagged(props)) return;
+    const suppressions = readSuppressions(
+      (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
+    );
+    if (matchSuppression("HULUMI-EKS-FND-1", args.urn, suppressions).suppressed) return;
+    const enabled = ((props as ClusterLoggingShape).enabledClusterLogTypes ?? []) as string[];
+    if (!enabled.includes(REQUIRED_AUDIT_LOG_TYPE)) {
+      reportViolation(
+        `HULUMI-EKS-FND-1: EksClusterFoundation cluster ${args.urn} does not enable the "audit" control-plane log. Docs: ${DOCS_BASE}`,
+      );
+    }
+  },
+};
+
+export const eksFnd2LaunchTemplateImdsV2Required: ResourceValidationPolicy = {
+  name: "HULUMI-EKS-FND-2-node-launch-template-imdsv2-required",
+  description:
+    "EksClusterFoundation-managed node launch templates must require IMDSv2 via metadataOptions.httpTokens=required.",
+  enforcementLevel: "mandatory",
+  validateResource: (args, reportViolation) => {
+    if (args.type !== EC2_LAUNCH_TEMPLATE_TYPE) return;
+    const props = args.props as Record<string, unknown>;
+    if (!isFoundationTagged(props)) return;
+    const suppressions = readSuppressions(
+      (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
+    );
+    if (matchSuppression("HULUMI-EKS-FND-2", args.urn, suppressions).suppressed) return;
+    const metadataOptions = props.metadataOptions as Record<string, unknown> | undefined;
+    if (metadataOptions?.httpTokens !== "required") {
+      reportViolation(
+        `HULUMI-EKS-FND-2: EksClusterFoundation launch template ${args.urn} does not require IMDSv2 (metadataOptions.httpTokens must be "required"). Docs: ${DOCS_BASE}`,
+      );
+    }
+  },
+};
+
 export const hulumiEksClusterPackMetadata: PackMetadata = {
   id: "hulumi-eks-cluster-pack",
   title: "Hulumi EKS Cluster Pack",
@@ -126,6 +177,24 @@ export const hulumiEksClusterPackMetadata: PackMetadata = {
       severity: "high",
       enforcement: "mandatory",
       frameworkIds: ["CCM:LOG-01", "NIST-800-53-r5:AU-2", "CIS-EKS:2.1.2"],
+      docsUrl: DOCS_BASE,
+    },
+    {
+      id: "HULUMI-EKS-FND-1",
+      title: "EksClusterFoundation audit logging required",
+      description: eksFnd1AuditLoggingRequired.description!,
+      severity: "high",
+      enforcement: "mandatory",
+      frameworkIds: ["CCM:LOG-01", "NIST-800-53-r5:AU-2", "CIS-EKS:2.1.2"],
+      docsUrl: DOCS_BASE,
+    },
+    {
+      id: "HULUMI-EKS-FND-2",
+      title: "EksClusterFoundation node launch template requires IMDSv2",
+      description: eksFnd2LaunchTemplateImdsV2Required.description!,
+      severity: "high",
+      enforcement: "mandatory",
+      frameworkIds: ["CCM:IVS-06", "NIST-800-53-r5:AC-6"],
       docsUrl: DOCS_BASE,
     },
   ],

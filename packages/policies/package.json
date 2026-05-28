@@ -32,6 +32,10 @@
       "types": "./dist/aws/packs/cis-v5.d.ts",
       "default": "./dist/aws/packs/cis-v5.js"
     },
+    "./aws-org/packs/hulumi-aws-org-hardening": {
+      "types": "./dist/aws-org/packs/hulumi-aws-org-hardening.d.ts",
+      "default": "./dist/aws-org/packs/hulumi-aws-org-hardening.js"
+    },
     "./github/packs/hulumi-hardening": {
       "types": "./dist/github/packs/hulumi-hardening.d.ts",
       "default": "./dist/github/packs/hulumi-hardening.js"

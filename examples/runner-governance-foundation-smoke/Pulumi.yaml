@@ -1,0 +1,3 @@
+name: runner-governance-foundation-smoke
+runtime: nodejs
+description: Mocked smoke example for RunnerGovernanceFoundation.

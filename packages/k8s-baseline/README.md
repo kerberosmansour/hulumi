@@ -14,12 +14,13 @@ Apache-2.0. SLSA Build L3 attestation on every published tarball.
 pnpm add @hulumi/k8s-baseline @pulumi/kubernetes @pulumi/aws @pulumi/pulumi
 ```
 
-`@hulumi/k8s-baseline@1.4.1` accepts any caret-compatible Pulumi SDK (`@pulumi/kubernetes` `4.x`, `@pulumi/aws` `7.x`, `@pulumi/pulumi` `3.x`). The versions Hulumi is tested against are listed in this package's `peerDependencies` — that's the floor, not a ceiling.
+`@hulumi/k8s-baseline@1.5.0` accepts any caret-compatible Pulumi SDK (`@pulumi/kubernetes` `4.x`, `@pulumi/aws` `7.x`, `@pulumi/pulumi` `3.x`). The versions Hulumi is tested against are listed in this package's `peerDependencies` — that's the floor, not a ceiling.
 
 ## Components
 
 | Component                               | Purpose                                                                                                                                                                            |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EksClusterFoundation`                  | Create/adopt EKS cluster foundation with private/restricted endpoint posture, audit logging, Pod Identity association hooks, and IMDSv2 managed node launch templates              |
 | `HardenedHelmRelease`                   | Helm release with exact chart-version pinning (no `latest`, no semver ranges), enforced `https://`/`oci://` repository scheme, PSA-baseline labels, default release-name stability |
 | `MetricsServer`                         | Kubernetes Metrics API install for HPA telemetry with secure-by-default APIService TLS                                                                                             |
 | `EksSubnetTagger`                       | Auto-tag EKS-bound subnets with `kubernetes.io/role/{,internal-}elb`                                                                                                               |
@@ -74,8 +75,8 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/k8s-baseline@1.4.0 --pack-destination .
-gh attestation verify ./hulumi-k8s-baseline-1.4.0.tgz \
+pnpm pack @hulumi/k8s-baseline@1.5.0 --pack-destination .
+gh attestation verify ./hulumi-k8s-baseline-1.5.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 

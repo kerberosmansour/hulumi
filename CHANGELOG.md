@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+_No changes yet._
+
+## [1.5.0] — 2026-05-28
+
+The cloud-platform hardening release. Atomic six-package publish:
+`@hulumi/baseline@1.5.0`, `@hulumi/policies@1.5.0`, `@hulumi/drift@1.5.0`,
+`@hulumi/k8s-baseline@1.5.0`, `@hulumi/cloudflare-baseline@1.5.0`, and
+`@hulumi/platform-patterns@1.5.0`. All six packages use the existing SLSA Build L3
+and npm provenance release path.
+
+Scope: turns Hulumi's hardened component set into an organization, state, EKS, live
+posture, detection, primitive, and runner-governance operating model. The release is
+mostly additive, but it does add stricter default-deny guardrails for privileged
+workflow runners, unsafe Pulumi state configuration, insecure EKS foundation posture,
+and broad AWS primitive patterns.
+
+No new consumer-facing GHSA registrations are planned for this release. The security
+work is proactive hardening and policy coverage; the known `pnpm audit --prod`
+findings remain existing transitive Pulumi/tooling advisories tracked outside this
+feature train.
+
 ### Added
 
 - `@hulumi/baseline.aws.AwsOrganizationSecurityFoundation` adds AWS organization delegated-admin, central Security Hub/AWS Config, account-level S3 Public Access Block, and bounded SCP guardrail composition.
@@ -31,6 +52,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `@hulumi/cloudflare-baseline.PublicHostname` now supports `emitDnsRecordTags: false` for Cloudflare zones whose plan/account quota rejects DNS record tags, while keeping Hulumi evidence tags enabled by default.
 - `@hulumi/cloudflare-baseline.EdgeWafBaseline` now accepts `pulumi.Input<string>` custom WAF expressions, including Pulumi secret outputs, without forcing callers to materialize sensitive allowlist expressions as plaintext strings.
 - `@hulumi/platform-patterns.CloudflareOriginIngress` tunnel mode now supports multiple hostname routes on one tunnel plus per-route `httpHostHeader`, covering EKS/Istio service-FQDN origin routing without creating duplicate tunnels.
+
+### Migration
+
+Upgrading from 1.4.1 is normally `pnpm update @hulumi/*` with no code changes for
+existing consumers. New APIs are additive. Teams adopting the new guardrails should
+expect these intentional fail-closed behaviours:
+
+- Privileged GitHub workflows using self-hosted runners now need explicit finite
+  runner-label approval in workflow-governance checks.
+- Startup-hardened EKS and AWS primitive compositions reject broad endpoint, IMDSv1,
+  wildcard OIDC, broad secret-policy, and missing permission-boundary shapes.
+- Secure Pulumi state checks require an approved `awskms://` secrets provider and
+  reject unsafe local or unmanaged backend posture.
+
+Use the new component docs and cookbooks for staged adoption rather than replacing
+existing infrastructure in place.
 
 ## [1.4.1] — 2026-05-20
 

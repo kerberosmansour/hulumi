@@ -5,7 +5,7 @@
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![npm @hulumi/baseline](https://img.shields.io/npm/v/@hulumi/baseline.svg)](https://www.npmjs.com/package/@hulumi/baseline)
 
-> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.4.1.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.5.0.
 
 ## Table of contents
 
@@ -15,7 +15,7 @@
   - [Project goals](#project-goals)
   - [Non-goals](#non-goals)
 - [Quick start](#quick-start)
-- [What's in the box](#whats-in-the-box-v140)
+- [What's in the box](#whats-in-the-box-v150)
 - [Canonical install](#canonical-install)
   - [Pulumi packages (npm)](#pulumi-packages-npm)
   - [Claude Code skill (`/hulumi-threat-model`)](#claude-code-skill-hulumi-threat-model)
@@ -79,7 +79,7 @@ Add the baseline package and Pulumi's provider, then use a hardened component in
 pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 ```
 
-(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.4.1 accepts caret-compatible Pulumi SDKs.)
+(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.5.0 continues the caret-compatible Pulumi SDK peer-dependency posture introduced in 1.4.1.)
 
 ```ts
 import { SecureBucket } from "@hulumi/baseline/aws";
@@ -98,7 +98,7 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 /hulumi-threat-model aws-multi-account-baseline
 ```
 
-## What's in the box (v1.4.1)
+## What's in the box (v1.5.0)
 
 | Package                                  | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,7 +131,7 @@ pnpm add @hulumi/k8s-baseline @pulumi/kubernetes
 pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare @pulumi/github
 ```
 
-Hulumi 1.4.1 accepts any caret-compatible Pulumi SDK (same major version line). The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
+Hulumi 1.5.0 continues to accept caret-compatible Pulumi SDKs (same major version line) where the package peer ranges permit it. The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
 
 ### Claude Code skill (`/hulumi-threat-model`)
 
@@ -166,7 +166,9 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | Need a per-component reference (args, outputs, tags)               | [Component reference](./docs/components/README.md)                               |
 | Are bootstrapping a fresh AWS account                              | [Account bootstrap cookbook](./docs/cookbooks/account-bootstrap.md)              |
 | Need safer IAM, secret, or launch-template defaults                | [AWS secure primitives cookbook](./docs/cookbooks/aws-secure-primitives.md)      |
+| Need hardened Pulumi state backend posture                         | [Secure state backend cookbook](./docs/cookbooks/secure-pulumi-state-backend.md) |
 | Need routed AWS security detection alarm families                  | [Security detection cookbook](./docs/cookbooks/security-detection-foundation.md) |
+| Need GitHub environment and runner governance                      | [Runner governance cookbook](./docs/cookbooks/runner-governance.md)              |
 | Want a controls-aligned threat model before writing IaC            | [Threat-modeling cookbook](./docs/cookbooks/threat-modeling.md)                  |
 | Are wiring drift detection into CI                                 | [Drift detection cookbook](./docs/cookbooks/drift-detection.md)                  |
 | Want scheduled live posture artifacts                              | [Live validator cookbook](./docs/cookbooks/live-validator.md)                    |
@@ -183,6 +185,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | v1.3.2  | 2026-05-15 | Hulumi Edge Platform — `@hulumi/cloudflare-baseline` + `@hulumi/platform-patterns`, edge policy coverage.                                                                                                                                                                                                                                                                                                                                                                    |
 | v1.4.0  | 2026-05-20 | Security-hardening release — closes 19 Codex findings (4 HIGH + 15 MEDIUM) + 5 unreported instances of the same root causes. Adds shared anchored-URN helper (`@hulumi/policies/urn`), function-keyed audit-bucket invariant in `SecureBucket`, drift fail-closed classifier, kubelet-flag + CIDR-union validators, and the `WF_ENV_1` workflow-governance lint. 6 GHSAs — see [`docs/release/v1.4.0-security-advisories.md`](./docs/release/v1.4.0-security-advisories.md). |
 | v1.4.1  | 2026-05-20 | Consumer-friendliness patch. Loosened `@pulumi/*` peer-dep ranges from exact-version pins (`"@pulumi/aws": "7.27.0"`) to caret ranges (`"^7.27.0"`) so projects on slightly newer Pulumi SDKs can install Hulumi without npm ERESOLVE. No API or behaviour change. Hulumi's own internal lockfile + integrity-hash discipline is unchanged.                                                                                                                                  |
+| v1.5.0  | 2026-05-28 | Cloud platform hardening release — `AwsOrganizationSecurityFoundation`, `PulumiStateBackendFoundation`, `EksClusterFoundation`, `hulumi validate live`, AWS secure primitives, `SecurityDetectionFoundation`, `RunnerGovernanceFoundation`, plus the matching policy and workflow-governance checks.                                                                                                                                                                          |
 
 Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md). For what's next, watch the [issue tracker](https://github.com/kerberosmansour/hulumi/issues) and [CHANGELOG.md](./CHANGELOG.md).
 

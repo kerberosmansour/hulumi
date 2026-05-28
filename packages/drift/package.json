@@ -1,11 +1,11 @@
 {
   "name": "@hulumi/drift",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "description": "Local-first drift classifier — distinguishes provider-API churn from console break-glass from genuine IaC drift via 5 pluggable adapters (4 AWS + 1 GitHub webhook fallback). Verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly. v1.1 adds GithubWebhookFallbackAdapter for non-GHEC tiers + tierDegraded / featureNotLicensed verdict fields. Cache schema v2.",
+  "description": "Local-first drift classifier and live posture validator — distinguishes provider-API churn from console break-glass from genuine IaC drift, then renders read-only live posture findings as JSON, Markdown, and SARIF. Verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly. Cache schema v2.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

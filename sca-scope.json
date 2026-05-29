@@ -1,7 +1,7 @@
 {
   "version": 1,
   "conventions": {
-    "actingPaths": ["apps/**", "services/**", "packages/**", "cmd/**"],
+    "actingPaths": ["apps/**", "services/**", "packages/**", "cmd/**", "tools/sca/**"],
     "excludePaths": [
       "**/examples/**",
       "**/example/**",
@@ -26,6 +26,13 @@
       "parser": "pnpm-lock.yaml",
       "track": "cadence",
       "note": "Hulumi's single pnpm workspace lockfile — the real dependency surface. Scanned; routine updates via Track B/Dependabot; emergency (critical/MAL) findings caught by Track A. Human-classified (root path matches no acting convention)."
+    },
+    {
+      "path": "tools/sca/package-lock.json",
+      "ecosystem": "npm",
+      "parser": "package-lock.json",
+      "track": "cadence",
+      "note": "Vendored Track A SCA brain toolchain. Scanned because it can affect remediation authority; routine updates can flow through Dependabot's tools/sca block."
     }
   ]
 }

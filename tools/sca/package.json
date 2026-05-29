@@ -1,0 +1,37 @@
+{
+  "name": "@hulumi/sca-brain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sca": "src/cli/scan.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --types node $(find src -name '*.ts' -print)",
+    "format": "prettier --check package.json package-lock.json sca.config.json eslint.config.mjs 'docs/slo/rulesets/*.json' 'src/**/*.ts'",
+    "format:write": "prettier --write package.json package-lock.json sca.config.json eslint.config.mjs 'docs/slo/rulesets/*.json' 'src/**/*.ts'",
+    "lint": "eslint --max-warnings=0 'src/**/*.ts'",
+    "sca:scan": "tsx src/cli/scan.ts scan --output findings.osv.json",
+    "sca:scan:from-scope": "tsx src/cli/scan.ts scan --output findings.osv.json --from-scope true",
+    "sca:dependency-review": "tsx src/cli/dependency-review.ts",
+    "sca:triage": "tsx src/cli/triage.ts triage --findings findings.osv.json --state .cache/sca-state/findings.json --work-items .cache/sca-work-items.json --events .cache/sca-events.json",
+    "sca:remediate": "tsx src/cli/remediate.ts remediate-emergency --work-items .cache/sca-work-items.json --output .cache/sca-remediation-plan.json",
+    "sca:verify-ruleset": "tsx src/cli/verify-ruleset.ts --ruleset docs/slo/rulesets/sca-main-ruleset.json",
+    "sca:merge": "tsx src/cli/merge.ts merge --plan .cache/sca-remediation-plan.json --ruleset docs/slo/rulesets/sca-main-ruleset.json --output .cache/sca-merge-result.json --audit-dir .cache/audit",
+    "sca:digest": "tsx src/cli/digest.ts digest --audit-dir .cache/audit --output SECURITY-PATCHES.md",
+    "sca:scope-sync": "tsx src/cli/scope-sync.ts scope-sync --scope sca-scope.json --report .cache/sca-scope-drift.json --apply false",
+    "test": "vitest run",
+    "test:bdd": "vitest run test/*.bdd.test.ts",
+    "test:e2e": "vitest run test/e2e_*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.60.0",
+    "vitest": "^4.0.14",
+    "zod": "^4.1.13"
+  }
+}

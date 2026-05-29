@@ -1,0 +1,247 @@
+name: sca-review-loop-drill
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
+  checks: read
+  id-token: write
+
+concurrency:
+  group: sca-review-loop-drill
+  cancel-in-progress: false
+
+jobs:
+  review-loop-drill:
+    name: review-loop-drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+      checks: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/sca/package-lock.json
+
+      - name: Install SCA brain
+        run: npm ci --prefix tools/sca
+
+      - name: Create drill base branch with vulnerable dependency
+        id: branches
+        run: |
+          set -euo pipefail
+          base_branch="sca/drill-base-${GITHUB_RUN_ID}"
+          head_branch="sca/drill-head-${GITHUB_RUN_ID}"
+          git config user.name "sca-drill[bot]"
+          git config user.email "sca-drill[bot]@users.noreply.github.com"
+          git switch -c "$base_branch"
+          mkdir -p dogfood/review-loop
+          printf 'Django==1.2\n' > dogfood/review-loop/requirements.txt
+          cat > osv-scanner.toml <<'EOF'
+          [[sca_lockfile]]
+          ecosystem = "PyPI"
+          path = "dogfood/review-loop/requirements.txt"
+          parser = "requirements.txt"
+          package = "django"
+          badVersion = "1.2"
+          knownAdvisory = "PYSEC-2010-12"
+          fixture = true
+          EOF
+          git add dogfood/review-loop/requirements.txt osv-scanner.toml
+          git commit -m "test: seed SCA review-loop drill dependency"
+          git push --set-upstream origin "$base_branch"
+          {
+            echo "base_branch=${base_branch}"
+            echo "head_branch=${head_branch}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run drill scan and triage on base branch
+        env:
+          SCA_SCANNER_MODE: fixture
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scan.ts scan --output findings.osv.json
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/triage.ts triage \
+            --findings findings.osv.json \
+            --state .cache/sca-state/findings.json \
+            --work-items .cache/sca-work-items.json \
+            --events .cache/sca-events.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+
+          const workItems = JSON.parse(
+            readFileSync(".cache/sca-work-items.json", "utf8"),
+          ).workItems ?? [];
+          const claimed = workItems.some(
+            (item) => item.track === "emergency" && item.state === "in_progress",
+          );
+          if (!claimed) {
+            console.error("drill did not produce a claimable emergency work item");
+            process.exit(1);
+          }
+          NODE
+
+      - name: Open intentionally incomplete drill remediation PR
+        id: open_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git switch -c "${{ steps.branches.outputs.head_branch }}"
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/remediate.ts remediate-emergency \
+            --work-items .cache/sca-work-items.json \
+            --output .cache/sca-remediation-plan.json
+          git add -f .cache/sca-remediation-plan.json
+          git commit -m "test: open incomplete SCA remediation drill PR"
+          git push --set-upstream origin "${{ steps.branches.outputs.head_branch }}"
+          gh pr create \
+            --base "${{ steps.branches.outputs.base_branch }}" \
+            --head "${{ steps.branches.outputs.head_branch }}" \
+            --title "test: SCA review-loop drill ${GITHUB_RUN_ID}" \
+            --body "Disposable SCA reviewer/fixer loop drill. The initial PR intentionally carries the remediation plan but does not apply the dependency bump."
+          pr_number="$(
+            gh pr list \
+              --state open \
+              --head "${{ steps.branches.outputs.head_branch }}" \
+              --json number \
+              --jq '.[0].number'
+          )"
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Claude credential mode
+        id: claude_auth
+        env:
+          HAS_STATIC_CLAUDE_SECRET: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_WIF_CLAUDE_CONFIG: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && vars.ANTHROPIC_ORGANIZATION_ID != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_STATIC_CLAUDE_SECRET" != "true" ] && [ "$HAS_WIF_CLAUDE_CONFIG" != "true" ]; then
+            echo "::error::Configure exactly one Claude credential mode: preferred OIDC/WIF repo variables, or ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN secret."
+            exit 1
+          fi
+          if [ "$HAS_STATIC_CLAUDE_SECRET" = "true" ] && [ "$HAS_WIF_CLAUDE_CONFIG" = "true" ]; then
+            echo "::error::Both static Claude secrets and OIDC/WIF variables are configured. Refusing ambiguous token mode."
+            exit 1
+          fi
+          if [ "$HAS_WIF_CLAUDE_CONFIG" = "true" ]; then
+            echo "credential_mode=wif" >> "$GITHUB_OUTPUT"
+          else
+            echo "credential_mode=static-secret" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Claude drill reviewer must request changes
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            You are the Track A SCA reviewer identity in an authorized Hulumi drill.
+            Review PR #${{ steps.open_pr.outputs.pr_number }}.
+            The PR intentionally includes a remediation plan but has not applied it.
+            You MUST submit a request-changes review unless the PR changes `dogfood/review-loop/requirements.txt` from `Django==1.2` to `Django==1.2.7`.
+            In the request-changes body, tell the fixer to make only that exact dependency-file change and no unrelated edits.
+            Do not approve, merge, push, read secrets, or alter branch protection.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(git push:*),Bash(gh secret:*)"
+
+      - name: Assert reviewer requested changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          decision="$(gh pr view "${{ steps.open_pr.outputs.pr_number }}" --json reviewDecision --jq .reviewDecision)"
+          if [ "$decision" != "CHANGES_REQUESTED" ]; then
+            echo "::error::Drill expected Claude to request changes, got ${decision}."
+            exit 1
+          fi
+
+      - name: Claude drill remediation fixer
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            You are the bounded Track A remediation fixer in an authorized Hulumi drill.
+            Fix reviewer-requested issues on PR #${{ steps.open_pr.outputs.pr_number }}.
+            Make exactly one dependency-file change: update `dogfood/review-loop/requirements.txt` from `Django==1.2` to `Django==1.2.7`.
+            Do not edit tests, workflows, repo settings, unrelated files, secrets, or branch protection.
+            Commit and push the smallest correction to the existing PR branch.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Read,Edit,MultiEdit,Bash(gh pr view:*),Bash(gh pr checkout:*),Bash(git diff:*),Bash(git status:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(osv-scanner fix:*),Bash(gh secret:*)"
+
+      - name: Claude drill reviewer after fixer
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            Re-review PR #${{ steps.open_pr.outputs.pr_number }} after the remediation fixer changes.
+            Approve only if the PR now changes `dogfood/review-loop/requirements.txt` from `Django==1.2` to `Django==1.2.7` and makes no unrelated changes beyond the drill remediation plan.
+            Otherwise request changes with concrete recommendations.
+            Do not merge, push, read secrets, or alter branch protection.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(git push:*),Bash(gh secret:*)"
+
+      - name: Deterministic drill merge gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          decision="$(gh pr view "${{ steps.open_pr.outputs.pr_number }}" --json reviewDecision --jq .reviewDecision)"
+          latest_approval_author="$(
+            gh pr view "${{ steps.open_pr.outputs.pr_number }}" \
+              --json reviews \
+              --jq '[.reviews[] | select(.state == "APPROVED")] | last | .author.login // ""'
+          )"
+          if [ "$decision" != "APPROVED" ]; then
+            echo "::error::Required Claude reviewer approval missing after fixer: ${decision}"
+            exit 1
+          fi
+          if [ "$latest_approval_author" != "claude" ] && [ "$latest_approval_author" != "claude[bot]" ]; then
+            echo "::error::Required Claude reviewer approval missing: latest approval author is ${latest_approval_author:-none}"
+            exit 1
+          fi
+          gh pr checkout "${{ steps.open_pr.outputs.pr_number }}"
+          grep -q 'Django==1.2.7' dogfood/review-loop/requirements.txt
+          gh pr merge "${{ steps.open_pr.outputs.pr_number }}" --merge
+
+      - name: Cleanup drill branches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git push origin --delete "${{ steps.branches.outputs.head_branch }}" || true
+          git push origin --delete "${{ steps.branches.outputs.base_branch }}" || true

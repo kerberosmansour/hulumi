@@ -1,0 +1,22 @@
+{
+  "requiredChecks": [
+    "build",
+    "test",
+    "sast",
+    "fixtures-not-installed",
+    "release-reviewer-verdict",
+    "dependency-review"
+  ],
+  "bypassActors": [],
+  "nativeAutoMerge": false,
+  "dismissStaleReviews": true,
+  "requiredApprovingReviewCount": 1,
+  "identities": {
+    "reviewer": "claude[bot]",
+    "remediator": "sca-remediator[bot]",
+    "merger": "sca-merger[bot]"
+  },
+  "botApprovalProbe": {
+    "passed": true
+  }
+}

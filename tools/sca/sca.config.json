@@ -1,0 +1,32 @@
+{
+  "emergency": {
+    "minCvss": 9,
+    "epssThreshold": 0.5,
+    "treatKevAsEmergency": true,
+    "treatMalAsEmergency": true,
+    "requireFixAvailable": true,
+    "requireLockfilePresence": true
+  },
+  "fixer": {
+    "maxIterations": 3,
+    "allowTestEdits": false,
+    "allowedPaths": [
+      "**/package-lock.json",
+      "**/poetry.lock",
+      "**/packages.lock.json",
+      "**/*.csproj",
+      "**/requirements*.txt",
+      "**/package.json"
+    ]
+  },
+  "serialization": {
+    "concurrencyGroup": "sca-emergency",
+    "cancelInProgress": false,
+    "eventIndependent": true
+  },
+  "stateClaim": {
+    "mode": "git-cas",
+    "branch": "sca-state",
+    "claimBeforeSideEffect": true
+  }
+}

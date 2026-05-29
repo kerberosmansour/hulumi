@@ -11,11 +11,12 @@
 // Scope: runs on the committed pnpm-lock.yaml. Exit 0 if every allow-listed
 // dep's resolution integrity matches; exit 1 on any mismatch.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = join(fileURLToPath(import.meta.url), "..", "..");
+const SCRIPT_FILE = fileURLToPath(import.meta.url);
+const REPO_ROOT = join(SCRIPT_FILE, "..", "..");
 const LOCKFILE = join(REPO_ROOT, "pnpm-lock.yaml");
 
 /** @type {Array<{ name: string, version: string, integrity: string }>} */
@@ -140,8 +141,101 @@ function resolveFromLockfile(lock, name, version) {
   return { present: true, integrity: match ? match[1].trim() : null };
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isExactVersion(spec) {
+  return /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/.test(spec);
+}
+
+function packageJsonPaths(dir = REPO_ROOT) {
+  const skipped = new Set([".git", ".cache", ".release-artifacts", "dist", "node_modules"]);
+  const found = [];
+  for (const entry of readdirSync(dir)) {
+    if (skipped.has(entry)) continue;
+    const path = join(dir, entry);
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      found.push(...packageJsonPaths(path));
+      continue;
+    }
+    if (entry === "package.json") found.push(path);
+  }
+  return found;
+}
+
+function exactManifestVersion(name) {
+  const specs = [];
+  for (const path of packageJsonPaths()) {
+    const pkg = JSON.parse(readFileSync(path, "utf8"));
+    for (const section of ["dependencies", "devDependencies", "optionalDependencies"]) {
+      const spec = pkg[section]?.[name];
+      if (spec === undefined) continue;
+      if (!isExactVersion(spec)) {
+        throw new Error(`${name} in ${path} uses non-exact ${section} spec ${spec}`);
+      }
+      specs.push(spec);
+    }
+  }
+  const unique = [...new Set(specs)];
+  if (unique.length === 0) {
+    throw new Error(`${name} is in ALLOWED but has no exact dependency/devDependency spec`);
+  }
+  if (unique.length > 1) {
+    throw new Error(`${name} has multiple exact specs: ${unique.join(", ")}`);
+  }
+  return unique[0];
+}
+
+function refreshedAllowedFromManifests(lock) {
+  return ALLOWED.map((dep) => {
+    const version = exactManifestVersion(dep.name);
+    const found = resolveFromLockfile(lock, dep.name, version);
+    if (!found.present) {
+      throw new Error(
+        `${dep.name}@${version} is exact-pinned in manifests but missing from pnpm-lock.yaml`,
+      );
+    }
+    if (!found.integrity) {
+      throw new Error(`${dep.name}@${version} is missing a lockfile integrity hash`);
+    }
+    return { ...dep, version, integrity: found.integrity };
+  });
+}
+
+function refreshAllowedTable(source, refreshed) {
+  let next = source;
+  for (const dep of refreshed) {
+    const pattern = new RegExp(
+      `(\\{\\s*\\n\\s*name:\\s*"${escapeRegExp(dep.name)}",\\s*\\n\\s*version:\\s*")([^"]+)(",\\s*\\n\\s*integrity:\\s*\\n\\s*")([^"]+)("\\s*,\\s*\\n\\s*\\})`,
+      "m",
+    );
+    if (!pattern.test(next)) {
+      throw new Error(`Could not find ALLOWED block for ${dep.name}`);
+    }
+    next = next.replace(pattern, `$1${dep.version}$3${dep.integrity}$5`);
+  }
+  return next;
+}
+
+function writeRefreshedAllowedTable(lock) {
+  const source = readFileSync(SCRIPT_FILE, "utf8");
+  const next = refreshAllowedTable(source, refreshedAllowedFromManifests(lock));
+  if (next !== source) {
+    writeFileSync(SCRIPT_FILE, next);
+    console.log("exact-pin-guard: refreshed ALLOWED from package manifests + pnpm-lock.yaml");
+  } else {
+    console.log("exact-pin-guard: ALLOWED already matches package manifests + pnpm-lock.yaml");
+  }
+}
+
 function main() {
   const lock = readFileSync(LOCKFILE, "utf8");
+  if (process.argv.includes("--write")) {
+    writeRefreshedAllowedTable(lock);
+    return;
+  }
   const failures = [];
   for (const dep of ALLOWED) {
     const found = resolveFromLockfile(lock, dep.name, dep.version);

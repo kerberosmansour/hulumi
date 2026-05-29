@@ -1,25 +1,62 @@
 name: sca-scope-drift
 
-# Thin caller — the SCA scope-curation logic lives in AutomoatedSCA (the brain).
-# This keeps Hulumi clean: no SCA toolchain in the product repo. The reusable
-# workflow checks out Hulumi + the brain side-by-side and runs scope-sync against
-# Hulumi's tree, surfacing any manifest that no convention can classify.
-#
-# The reusable-workflow ref AND the brain code ref are SHA-pinned to the same
-# AutomoatedSCA commit (reproducible; satisfies Hulumi's workflow-action-pinning
-# self-test). Dependabot's github-actions ecosystem keeps the pin current.
-
 on:
   schedule:
     - cron: "0 6 * * 1,4"
+  pull_request:
+    paths:
+      - "**/package-lock.json"
+      - "**/pnpm-lock.yaml"
+      - "**/yarn.lock"
+      - "**/requirements*.txt"
+      - "**/poetry.lock"
+      - "**/Pipfile.lock"
+      - "**/packages.lock.json"
+      - "**/go.mod"
+      - "**/Cargo.lock"
+      - "**/Gemfile.lock"
+      - "**/composer.lock"
+      - "sca-scope.json"
   workflow_dispatch:
 
-# Least-privilege: the called reusable workflow is read-only scope-drift.
 permissions:
   contents: read
 
+concurrency:
+  group: sca-scope-drift-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   scope-drift:
-    uses: kerberosmansour/AutomoatedSCA/.github/workflows/_reusable-sca-scope-drift.yml@ea36a8031e1aab3a88c585cd405d9f7cbbeca904 # main
-    with:
-      brain_ref: "ea36a8031e1aab3a88c585cd405d9f7cbbeca904"
+    name: scope-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/sca/package-lock.json
+
+      - name: Install SCA brain
+        run: npm ci --prefix tools/sca
+
+      - name: Run scope-sync (read-only; fails on unclassified drift)
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scope-sync.ts scope-sync \
+            --scope sca-scope.json \
+            --report .cache/sca-scope-drift.json \
+            --apply false
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sca-scope-drift-report
+          path: .cache/sca-scope-drift.json
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,428 @@
+name: sca-emergency
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
+  checks: read
+  id-token: write
+
+concurrency:
+  group: sca-emergency
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: sca-emergency
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+      checks: read
+      id-token: write
+    steps:
+      - name: Mint remediator app token (PR-author identity B)
+        id: remediator_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.SCA_REMEDIATOR_APP_ID }}
+          private-key: ${{ secrets.SCA_REMEDIATOR_PRIVATE_KEY }}
+
+      - name: Mint merger app token (merge-only identity C)
+        id: merger_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.SCA_MERGER_APP_ID }}
+          private-key: ${{ secrets.SCA_MERGER_PRIVATE_KEY }}
+
+      - name: Checkout as remediator
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.remediator_token.outputs.token }}
+          persist-credentials: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/sca/package-lock.json
+
+      - name: Install SCA brain
+        run: npm ci --prefix tools/sca
+
+      - name: Run bounded OSV scan from sca-scope.json
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scan.ts scan \
+            --from-scope true \
+            --output findings.osv.json
+
+      - name: Restore finding-state from the sca-state branch
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.remediator_token.outputs.token }}
+        run: |
+          mkdir -p .cache/sca-state
+          if gh api "repos/${{ github.repository }}/contents/findings.json?ref=sca-state" --jq '.content' 2>/dev/null | base64 -d > .cache/sca-state/findings.json 2>/dev/null && [ -s .cache/sca-state/findings.json ]; then
+            echo "Restored finding-state from the sca-state branch."
+          else
+            echo '{"version":1,"revision":0,"findings":{}}' > .cache/sca-state/findings.json
+            echo "No persisted finding-state; starting from an empty state."
+          fi
+
+      - name: Run deterministic triage
+        id: triage
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/triage.ts triage \
+            --findings findings.osv.json \
+            --state .cache/sca-state/findings.json \
+            --work-items .cache/sca-work-items.json \
+            --events .cache/sca-events.json
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from "node:fs";
+
+          const workItems = JSON.parse(
+            readFileSync(".cache/sca-work-items.json", "utf8"),
+          ).workItems ?? [];
+          const hasEmergency = workItems.some(
+            (item) => item.track === "emergency" && item.state === "in_progress",
+          );
+          appendFileSync(process.env.GITHUB_OUTPUT, `has_emergency=${hasEmergency}\n`);
+          NODE
+
+      - name: Persist finding-state to the sca-state branch
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.remediator_token.outputs.token }}
+        run: |
+          [ -f .cache/sca-state/findings.json ] || { echo "no state file; skipping"; exit 0; }
+          repo="${{ github.repository }}"
+          parent=$(gh api "repos/$repo/git/refs/heads/sca-state" --jq .object.sha)
+          base_tree=$(gh api "repos/$repo/git/commits/$parent" --jq .tree.sha)
+          blob=$(gh api --method POST "repos/$repo/git/blobs" -f content="$(cat .cache/sca-state/findings.json)" -f encoding=utf-8 --jq .sha)
+          tree=$(jq -nc --arg bt "$base_tree" --arg blob "$blob" '{base_tree:$bt,tree:[{path:"findings.json",mode:"100644",type:"blob",sha:$blob}]}' | gh api --method POST "repos/$repo/git/trees" --input - --jq .sha)
+          if [ "$tree" = "$base_tree" ]; then echo "no finding-state change; skipping commit"; exit 0; fi
+          commit=$(jq -nc --arg msg "chore(sca-state): persist finding-state" --arg tree "$tree" --arg parent "$parent" '{message:$msg,tree:$tree,parents:[$parent]}' | gh api --method POST "repos/$repo/git/commits" --input - --jq .sha)
+          gh api --method PATCH "repos/$repo/git/refs/heads/sca-state" -f sha="$commit" --jq .ref
+          echo "Persisted finding-state to the sca-state branch."
+
+      - name: Stop when no emergency finding is claimable
+        if: steps.triage.outputs.has_emergency != 'true'
+        run: echo "No emergency finding claimed; no branch, review, or merge side effects."
+
+      - name: Find existing emergency remediation PR
+        id: existing_pr
+        if: steps.triage.outputs.has_emergency == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr_number="$(
+            gh pr list \
+              --state open \
+              --json number,title,headRefName \
+              --jq '.[] | select(.title == "fix: emergency SCA remediation" and (.headRefName | startswith("sca/emergency-"))) | .number' \
+            | head -n 1 || true
+          )"
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+
+      - name: Create emergency branch
+        if: steps.triage.outputs.has_emergency == 'true' && steps.existing_pr.outputs.pr_number == ''
+        run: |
+          git config user.name "sca-remediator[bot]"
+          git config user.email "sca-remediator[bot]@users.noreply.github.com"
+          git switch -c "sca/emergency-${GITHUB_RUN_ID}"
+
+      - name: Apply emergency remediation patch
+        if: steps.triage.outputs.has_emergency == 'true' && steps.existing_pr.outputs.pr_number == ''
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/remediate.ts remediate-emergency \
+            --work-items .cache/sca-work-items.json \
+            --output .cache/sca-remediation-plan.json \
+            --apply true
+
+      - name: Open emergency remediation PR
+        id: open_pr
+        if: steps.triage.outputs.has_emergency == 'true' && steps.existing_pr.outputs.pr_number == ''
+        env:
+          GH_TOKEN: ${{ steps.remediator_token.outputs.token }}
+        run: |
+          if git diff --quiet; then
+            echo "::error::Emergency work item produced no patch; escalating without PR."
+            exit 1
+          fi
+          git add pnpm-lock.yaml package.json packages/*/package.json tools/sca/package.json tools/sca/package-lock.json || true
+          git add -f .cache/sca-remediation-plan.json
+          # git commit -s writes: Signed-off-by: sca-remediator[bot] <sca-remediator[bot]@users.noreply.github.com>
+          git commit -s -m "fix: remediate emergency dependency finding"
+          git push --set-upstream origin "sca/emergency-${GITHUB_RUN_ID}"
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "sca/emergency-${GITHUB_RUN_ID}" \
+            --title "fix: emergency SCA remediation" \
+            --body "Automated Track A remediation from sca-emergency run ${GITHUB_RUN_ID}."
+          pr_number="$(gh pr view --json number --jq .number)"
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+
+      - name: Select active emergency PR
+        id: active_pr
+        if: steps.triage.outputs.has_emergency == 'true'
+        run: |
+          pr_number="${{ steps.existing_pr.outputs.pr_number || steps.open_pr.outputs.pr_number }}"
+          if [ -z "$pr_number" ]; then
+            echo "::error::Emergency finding exists but no PR was opened or reused."
+            exit 1
+          fi
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Claude credential mode
+        id: claude_auth
+        if: steps.active_pr.outputs.pr_number != ''
+        env:
+          HAS_STATIC_CLAUDE_SECRET: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_WIF_CLAUDE_CONFIG: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && vars.ANTHROPIC_ORGANIZATION_ID != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_STATIC_CLAUDE_SECRET" != "true" ] && [ "$HAS_WIF_CLAUDE_CONFIG" != "true" ]; then
+            echo "::error::Configure exactly one Claude credential mode: preferred OIDC/WIF repo variables, or ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN secret."
+            exit 1
+          fi
+          if [ "$HAS_STATIC_CLAUDE_SECRET" = "true" ] && [ "$HAS_WIF_CLAUDE_CONFIG" = "true" ]; then
+            echo "::error::Both static Claude secrets and OIDC/WIF variables are configured. Refusing ambiguous token mode."
+            exit 1
+          fi
+          if [ "$HAS_WIF_CLAUDE_CONFIG" = "true" ]; then
+            echo "credential_mode=wif" >> "$GITHUB_OUTPUT"
+          else
+            echo "credential_mode=static-secret" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read current reviewer decision
+        id: current_review
+        if: steps.active_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          decision="$(gh pr view "${{ steps.active_pr.outputs.pr_number }}" --json reviewDecision --jq '.reviewDecision // ""')"
+          latest_approval_author="$(
+            gh pr view "${{ steps.active_pr.outputs.pr_number }}" \
+              --json reviews \
+              --jq '[.reviews[] | select(.state == "APPROVED")] | last | .author.login // ""'
+          )"
+          claude_approved=false
+          if [ "$decision" = "APPROVED" ] && { [ "$latest_approval_author" = "claude" ] || [ "$latest_approval_author" = "claude[bot]" ]; }; then
+            claude_approved=true
+          fi
+          {
+            echo "decision=${decision}"
+            echo "latest_approval_author=${latest_approval_author}"
+            echo "claude_approved=${claude_approved}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Claude security reviewer
+        if: steps.active_pr.outputs.pr_number != '' && steps.claude_auth.outputs.credential_mode != '' && steps.current_review.outputs.claude_approved != 'true'
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            You are the Track A SCA reviewer identity for Hulumi.
+            Review PR #${{ steps.active_pr.outputs.pr_number }} for release safety.
+            You may inspect the diff and run dependency checks.
+            If the patch is safe, submit an approving PR review with `gh pr review`.
+            If it is unsafe, submit a request-changes review with concrete remediation steps.
+            Do not merge, push, read secrets, or alter branch protection.
+            Prefer a top-level review body over inline review threads; Hulumi requires all review threads resolved before merge.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(pnpm -r test),Bash(tools/sca/node_modules/.bin/tsx tools/sca/src/cli/dependency-review.ts)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(git push:*),Bash(gh secret:*)"
+
+      - name: Read reviewer decision
+        id: review
+        if: steps.active_pr.outputs.pr_number != '' && steps.claude_auth.outputs.credential_mode != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          decision="$(gh pr view "${{ steps.active_pr.outputs.pr_number }}" --json reviewDecision --jq .reviewDecision)"
+          echo "decision=${decision}" >> "$GITHUB_OUTPUT"
+
+      - name: Claude remediation fixer
+        if: steps.active_pr.outputs.pr_number != '' && steps.claude_auth.outputs.credential_mode != '' && steps.review.outputs.decision != 'APPROVED'
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            You are the bounded Track A remediation fixer for Hulumi.
+            Fix only reviewer-requested issues on PR #${{ steps.active_pr.outputs.pr_number }}.
+            Edit only dependency manifest and lockfile paths in the remediation plan.
+            Commits must be DCO signed off.
+            Do not delete tests, edit unrelated files, run `osv-scanner fix`, merge, read secrets, or alter branch protection.
+            Push the smallest safe correction to the existing PR branch.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr checkout:*),Bash(git diff:*),Bash(git status:*),Bash(git add:*),Bash(git commit -s:*),Bash(git push:*),Edit,MultiEdit"
+            --disallowedTools "Bash(gh pr merge:*),Bash(osv-scanner fix:*),Bash(gh secret:*)"
+
+      - name: Claude security reviewer after fixer
+        if: steps.active_pr.outputs.pr_number != '' && steps.claude_auth.outputs.credential_mode != '' && steps.review.outputs.decision != 'APPROVED'
+        uses: anthropics/claude-code-action@537ffff2eff706bd7e3e1c3daf2d4b39067a9f85 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          prompt: |
+            Re-review PR #${{ steps.active_pr.outputs.pr_number }} after the remediation fixer changes.
+            Approve only if the dependency patch is safe and the checks can pass.
+            Otherwise request changes with concrete recommendations.
+            Do not merge, push, read secrets, or alter branch protection.
+            Prefer a top-level review body over inline review threads; Hulumi requires all review threads resolved before merge.
+          claude_args: |
+            --max-turns 16
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(pnpm -r test),Bash(tools/sca/node_modules/.bin/tsx tools/sca/src/cli/dependency-review.ts)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(git push:*),Bash(gh secret:*)"
+
+      - name: Checkout active emergency PR branch
+        if: steps.active_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr checkout "${{ steps.active_pr.outputs.pr_number }}"
+
+      - name: Merge latest base into emergency PR worktree
+        if: steps.active_pr.outputs.pr_number != ''
+        run: |
+          git config user.name "sca-merge-gate[bot]"
+          git config user.email "sca-merge-gate[bot]@users.noreply.github.com"
+          git fetch origin "${{ github.event.repository.default_branch }}"
+          git merge --no-edit "origin/${{ github.event.repository.default_branch }}"
+
+      - name: Run emergency PR required checks inline
+        if: steps.active_pr.outputs.pr_number != ''
+        run: |
+          npm ci --prefix tools/sca
+          pnpm install --frozen-lockfile
+          pnpm run lint:exact-pin-guard
+          pnpm -r build
+          pnpm -r typecheck
+          pnpm -r test
+          pnpm -r lint
+          pnpm run lint:license-boundary
+          pnpm run lint:workflow-governance
+          pnpm run format:check
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/dependency-review.ts
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scan.ts verify-fixtures-not-installed
+
+      - name: Verify no-bypass SCA ruleset
+        if: steps.active_pr.outputs.pr_number != ''
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/verify-ruleset.ts \
+            --ruleset tools/sca/docs/slo/rulesets/sca-main-ruleset.json
+
+      - name: Deterministic merge gate
+        if: steps.active_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ steps.merger_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          checks_output="$(mktemp)"
+          if ! gh pr checks "${{ steps.active_pr.outputs.pr_number }}" --watch --fail-fast 2>&1 | tee "$checks_output"; then
+            if grep -q "no checks reported" "$checks_output"; then
+              echo "No PR branch checks were reported; continuing because inline emergency PR required checks passed in this job."
+            else
+              exit 1
+            fi
+          fi
+          review_decision="$(gh pr view "${{ steps.active_pr.outputs.pr_number }}" --json reviewDecision --jq .reviewDecision)"
+          if [ "$review_decision" != "APPROVED" ]; then
+            echo "::error::Required Claude reviewer approval missing: ${review_decision}"
+            exit 1
+          fi
+          latest_approval_author="$(
+            gh pr view "${{ steps.active_pr.outputs.pr_number }}" \
+              --json reviews \
+              --jq '[.reviews[] | select(.state == "APPROVED")] | last | .author.login // ""'
+          )"
+          if [ "$latest_approval_author" != "claude" ] && [ "$latest_approval_author" != "claude[bot]" ]; then
+            echo "::error::required reviewer approval is missing: latest approval author is ${latest_approval_author:-none}"
+            exit 1
+          fi
+          unresolved_threads="$(
+            gh api graphql -f query='
+              query($owner:String!, $repo:String!, $number:Int!) {
+                repository(owner:$owner, name:$repo) {
+                  pullRequest(number:$number) {
+                    reviewThreads(first:100) { nodes { isResolved } }
+                  }
+                }
+              }' -f owner="${{ github.repository_owner }}" -f repo="${{ github.event.repository.name }}" -F number="${{ steps.active_pr.outputs.pr_number }}" \
+              --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
+          )"
+          if [ "$unresolved_threads" != "0" ]; then
+            echo "::error::Required review-thread resolution is missing: ${unresolved_threads} unresolved thread(s)."
+            exit 1
+          fi
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/merge.ts merge \
+            --plan .cache/sca-remediation-plan.json \
+            --ruleset tools/sca/docs/slo/rulesets/sca-main-ruleset.json \
+            --output .cache/sca-merge-result.json \
+            --audit-dir .cache/audit
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+
+          const result = JSON.parse(readFileSync(".cache/sca-merge-result.json", "utf8"));
+          if (!result.merged || !result.auditWrittenBeforeMerge) {
+            console.error(result.blockedReason ?? "deterministic merge gate blocked");
+            process.exit(1);
+          }
+          NODE
+          gh pr merge "${{ steps.active_pr.outputs.pr_number }}" --squash --delete-branch
+
+      - name: Render digest
+        continue-on-error: true
+        run: |
+          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/digest.ts digest \
+            --audit-dir .cache/audit \
+            --output SECURITY-PATCHES.md
+
+      - name: Upload findings artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sca-scan-and-triage
+          path: |
+            findings.osv.json
+            .cache/sca-state/findings.json
+            .cache/sca-work-items.json
+            .cache/sca-events.json
+            .cache/sca-remediation-plan.json
+            .cache/sca-merge-result.json
+            .cache/audit/*.json
+            SECURITY-PATCHES.md
+          if-no-files-found: warn
+          retention-days: 7

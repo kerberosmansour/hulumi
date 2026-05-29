@@ -1,0 +1,41 @@
+name: dependabot-automerge
+
+# Track B auto-merge for Hulumi. Aged minor/patch Dependabot PRs merge
+# themselves once all required checks pass (incl. test+typecheck+lint, the
+# @hulumi/* suites, DCO, and pulumi cooling-off). Majors and toolchain bumps
+# are not auto-merged (they're either ignored in dependabot.yml or open as PRs
+# for a human). `--auto --squash` matches the hulumi-main-protection ruleset
+# (squash-only, no review required); the ruleset's required checks gate the merge.
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-automerge:
+    name: dependabot-automerge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for aged minor/patch updates
+        if: ${{ steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Leave a note when a major update needs a human
+        if: ${{ steps.meta.outputs.update-type == 'version-update:semver-major' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: echo "Major update (${{ steps.meta.outputs.dependency-names }}) — not auto-merging; left for human review."

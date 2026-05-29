@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// exact-pin-guard — reject @pulumi/* version drift in pnpm-lock.yaml.
+// exact-pin-guard — reject protected dependency drift in pnpm-lock.yaml.
 //
 // M5's cooling-off policy forbids bumping @pulumi/aws within 72h of upstream
-// release; M2 seeds that discipline by hard-pinning exact versions AND
-// integrity hashes for @pulumi/pulumi, @pulumi/aws, and @pulumi/policy.
-// Any change to either must also update this guard's ALLOWED table — which
-// is deliberately noisy, so a blind `pnpm update` fails CI and forces a
-// conscious review.
+// release; M2 seeds that discipline by hard-pinning exact versions in manifests
+// and integrity hashes in pnpm-lock.yaml for the protected dependency set below.
+// The ALLOWED table is the protected-name set. Default mode derives the current
+// expected version from exact package manifests and the current integrity from
+// pnpm-lock.yaml, so Dependabot Track B can update routine pins without a
+// second CI-triggering commit. `--write` refreshes the table for human-readable
+// audit diffs, but CI does not require it.
 //
 // Scope: runs on the committed pnpm-lock.yaml. Exit 0 if every allow-listed
 // dep's resolution integrity matches; exit 1 on any mismatch.
@@ -237,31 +239,25 @@ function main() {
     return;
   }
   const failures = [];
-  for (const dep of ALLOWED) {
-    const found = resolveFromLockfile(lock, dep.name, dep.version);
-    if (!found.present) {
-      failures.push(
-        `${dep.name}@${dep.version}: not found in pnpm-lock.yaml. Pin drift or lockfile regeneration — update scripts/exact-pin-guard.mjs ALLOWED with a rationale.`,
-      );
-      continue;
-    }
-    if (found.integrity !== dep.integrity) {
-      failures.push(
-        `${dep.name}@${dep.version}: integrity mismatch. expected=${dep.integrity} actual=${found.integrity}`,
-      );
-    }
+  let refreshed = [];
+  try {
+    refreshed = refreshedAllowedFromManifests(lock);
+  } catch (err) {
+    failures.push(err instanceof Error ? err.message : String(err));
   }
   if (failures.length > 0) {
     console.error("exact-pin-guard: FAIL");
     for (const f of failures) console.error(`  - ${f}`);
     console.error("");
     console.error(
-      "Update scripts/exact-pin-guard.mjs ALLOWED and record the rationale in the PR description.",
+      "Protected deps must be exact-pinned in package manifests and present in pnpm-lock.yaml with integrity hashes.",
     );
     process.exit(1);
   }
   console.log(
-    "exact-pin-guard: OK (" + ALLOWED.length + " pinned deps match expected integrity hashes)",
+    "exact-pin-guard: OK (" +
+      refreshed.length +
+      " pinned deps have exact manifest specs + lockfile integrity hashes)",
   );
 }
 

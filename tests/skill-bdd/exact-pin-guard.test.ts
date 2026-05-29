@@ -37,7 +37,7 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
       expect(result.status, `stderr: ${result.stderr}\nstdout: ${result.stdout}`).toBe(0);
       expect(result.stdout).toMatch(/exact-pin-guard: OK/);
       // After M4 the message must reflect the broader scope: not just @pulumi/*.
-      expect(result.stdout).toMatch(/pinned deps match/);
+      expect(result.stdout).toMatch(/pinned deps have exact manifest specs/);
     });
   });
 
@@ -66,19 +66,18 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
     });
   });
 
-  describe("Scenario: pin-guard fails closed on integrity drift", () => {
+  describe("Scenario: pin-guard fails closed on missing integrity or non-exact manifest pins", () => {
     // Tampering scripts/exact-pin-guard.mjs in CI is hostile to other
-    // tests; we verify the failure-mode by inspection instead. The
-    // existing implementation calls process.exit(1) on integrity
-    // mismatch — encoded in the script's `failures.length > 0` branch.
-    it("script source contains the fail-closed integrity-mismatch branch", () => {
-      expect(scriptSource).toMatch(/integrity mismatch/);
+    // tests; we verify the failure-mode by inspection instead.
+    it("script source contains the fail-closed protected-dep branch", () => {
+      expect(scriptSource).toMatch(/isExactVersion/);
+      expect(scriptSource).toMatch(/missing a lockfile integrity hash/);
       expect(scriptSource).toMatch(/process\.exit\(1\)/);
     });
   });
 
-  describe("Scenario: Dependabot can refresh ALLOWED without weakening the guard", () => {
-    it("script source contains a write mode that derives pins from exact manifests + pnpm-lock integrity", () => {
+  describe("Scenario: Dependabot can move protected pins without a second CI-triggering commit", () => {
+    it("script source derives pins from exact manifests + pnpm-lock integrity and keeps --write for audit diffs", () => {
       expect(scriptSource).toMatch(/--write/);
       expect(scriptSource).toMatch(/refreshedAllowedFromManifests/);
       expect(scriptSource).toMatch(/isExactVersion/);

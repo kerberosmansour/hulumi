@@ -43,7 +43,7 @@ The example tests under `examples/` import from `dist/` via the `exports` map. W
 
 ### `@pulumi/*` exact pins block a `pnpm update` inside the Hulumi repo
 
-By design. Inside the Hulumi repo, every `@pulumi/*` dep is exact-pinned in `pnpm-lock.yaml` with an integrity hash; the `scripts/exact-pin-guard.mjs` CI step refuses lockfile drift. Bumps go through the 72h/24h cooling-off gate ([SECURITY.md § Pulumi cooling-off policy](../SECURITY.md)). If a `pnpm update` inside the Hulumi repo fails CI, that's the guard working — open a deliberate PR with the new version + integrity hash + cooling-off justification. This guard does not apply to your project consuming Hulumi from npm — see the entry above.
+By design. Inside the Hulumi repo, every `@pulumi/*` dep is exact-pinned in `pnpm-lock.yaml` with an integrity hash; the `scripts/exact-pin-guard.mjs` CI step refuses lockfile drift. Bumps go through the 72h/24h cooling-off gate ([SECURITY.md § Pulumi cooling-off policy](../SECURITY.md)). If a human `pnpm update` inside the Hulumi repo fails CI, run `node scripts/exact-pin-guard.mjs --write`, review the version + integrity diff, and record the rationale. Dependabot's Track B workflow does that refresh on its own PR branch before enabling auto-merge. This guard does not apply to your project consuming Hulumi from npm — see the entry above.
 
 ### My PR fails the DCO check
 

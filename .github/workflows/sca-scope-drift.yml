@@ -3,20 +3,9 @@ name: sca-scope-drift
 on:
   schedule:
     - cron: "0 6 * * 1,4"
+  # Required by hulumi-main-protection, so it must report on every PR. Keep
+  # filtering inside the SCA command instead of using workflow path filters.
   pull_request:
-    paths:
-      - "**/package-lock.json"
-      - "**/pnpm-lock.yaml"
-      - "**/yarn.lock"
-      - "**/requirements*.txt"
-      - "**/poetry.lock"
-      - "**/Pipfile.lock"
-      - "**/packages.lock.json"
-      - "**/go.mod"
-      - "**/Cargo.lock"
-      - "**/Gemfile.lock"
-      - "**/composer.lock"
-      - "sca-scope.json"
   workflow_dispatch:
 
 permissions:

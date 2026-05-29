@@ -32,10 +32,14 @@ updates:
       pulumi-runtime:
         patterns:
           - "@pulumi/*"
+      aws-sdk-runtime:
+        patterns:
+          - "@aws-sdk/*"
       dev-dependencies:
         dependency-type: "development"
         exclude-patterns:
           - "@pulumi/*"
+          - "@aws-sdk/*"
     ignore:
       # Toolchain majors stay out of auto-PRs. Minor/patch flow normally.
       - dependency-name: "typescript"

@@ -188,7 +188,7 @@ Hulumi takes supply-chain seriously enough that it's a design constraint, not ju
 
 ### Rule 1: `@pulumi/*` is exact-pinned **inside the Hulumi repo**
 
-Inside the Hulumi repo, `pnpm-lock.yaml` is the source of truth and `scripts/exact-pin-guard.mjs` hardcodes the expected integrity hashes for `@pulumi/pulumi`, `@pulumi/aws`, `@pulumi/policy`, `@pulumi/github`, `@pulumi/kubernetes`, and `@pulumi/cloudflare`. The CI step `lint:exact-pin-guard` fails on drift. Bumping a Pulumi pin requires updating the hash _and_ the cooling-off check.
+Inside the Hulumi repo, `pnpm-lock.yaml` is the source of truth and `scripts/exact-pin-guard.mjs` hardcodes the expected integrity hashes for `@pulumi/pulumi`, `@pulumi/aws`, `@pulumi/policy`, `@pulumi/github`, `@pulumi/kubernetes`, and `@pulumi/cloudflare`. The CI step `lint:exact-pin-guard` fails on drift. Bumping a Pulumi pin requires updating the hash _and_ the cooling-off check. Dependabot's Track B workflow may refresh the guard with `node scripts/exact-pin-guard.mjs --write` on its own PR branch after the cooldown window; human PRs should run the same command and review the diff deliberately.
 
 Note: this rule applies to Hulumi's own development lockfile, not to the consumers of `@hulumi/*` packages. From 1.4.1 onward, the **published** `@hulumi/*` packages declare caret-range peer dependencies so downstream consumers can use any caret-compatible Pulumi SDK without npm `ERESOLVE`. The integrity-hash guard remains a defense against tampered SDK re-publishes hitting **our own** build.
 

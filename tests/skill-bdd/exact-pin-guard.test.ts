@@ -77,6 +77,15 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
     });
   });
 
+  describe("Scenario: Dependabot can refresh ALLOWED without weakening the guard", () => {
+    it("script source contains a write mode that derives pins from exact manifests + pnpm-lock integrity", () => {
+      expect(scriptSource).toMatch(/--write/);
+      expect(scriptSource).toMatch(/refreshedAllowedFromManifests/);
+      expect(scriptSource).toMatch(/isExactVersion/);
+      expect(scriptSource).toMatch(/missing a lockfile integrity hash/);
+    });
+  });
+
   describe("Scenario: pin-guard does not check @hulumi/* deps", () => {
     it("ALLOWED contains no @hulumi/* entries (those are publish targets, not transitive deps)", () => {
       const allowedBlock = scriptSource.slice(

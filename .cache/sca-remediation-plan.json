@@ -1,0 +1,61 @@
+{
+  "pr": {
+    "opened": true,
+    "merged": false,
+    "labels": [
+      "security-emergency"
+    ],
+    "changedFiles": [
+      "dogfood/review-loop/requirements.txt"
+    ],
+    "approved": true
+  },
+  "verdict": {
+    "decision": "approve",
+    "rationale": "reference backend emits a schema-only verdict; workflow execution owns the actual Claude Code Action call",
+    "malwareRecheck": "clean",
+    "checkedDependencyClosure": [
+      "django@1.2.7"
+    ]
+  },
+  "checks": {
+    "build": "success",
+    "test": "success",
+    "sast": "success",
+    "fixtures-not-installed": "success",
+    "release-reviewer-verdict": "success",
+    "dependency-review": "success"
+  },
+  "events": [
+    {
+      "name": "sca.emergency.branch_opened"
+    },
+    {
+      "name": "sca.agent.verdict",
+      "decision": "approve"
+    }
+  ],
+  "escalated": false,
+  "agentRequest": {
+    "findingKey": "PyPI:django@1.2:PYSEC-2010-12",
+    "packageName": "django",
+    "fromVersion": "1.2",
+    "toVersion": "1.2.7",
+    "allowedPaths": [
+      "dogfood/review-loop/requirements.txt"
+    ],
+    "dependencyClosure": [
+      "django@1.2.7"
+    ],
+    "untrustedContext": {}
+  },
+  "availableAgentTools": [
+    "read_diff",
+    "submit_structured_verdict"
+  ],
+  "testsIntact": true,
+  "changedPackages": [
+    "django"
+  ],
+  "releasePublished": false
+}

@@ -1,12 +1,7 @@
 {
   "version": 1,
   "conventions": {
-    "actingPaths": [
-      "apps/**",
-      "services/**",
-      "packages/**",
-      "cmd/**"
-    ],
+    "actingPaths": ["apps/**", "services/**", "packages/**", "cmd/**"],
     "excludePaths": [
       "**/examples/**",
       "**/example/**",

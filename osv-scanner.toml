@@ -1,0 +1,8 @@
+[[sca_lockfile]]
+ecosystem = "PyPI"
+path = "dogfood/review-loop/requirements.txt"
+parser = "requirements.txt"
+package = "django"
+badVersion = "1.2"
+knownAdvisory = "PYSEC-2010-12"
+fixture = true

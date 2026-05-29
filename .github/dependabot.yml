@@ -16,6 +16,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Native 72h cooldown (anti-supply-chain): don't even open a PR until a
+    # release is 3 days old. Complements the pulumi-cooling-off CI gate (which
+    # also blocks merge until cooled). Security updates bypass cooldown.
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -52,6 +57,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: "chore(ci)"
     labels:

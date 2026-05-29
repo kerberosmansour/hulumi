@@ -1,5 +1,91 @@
 {
   "version": 1,
-  "revision": 0,
-  "findings": {}
+  "revision": 5,
+  "findings": {
+    "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2": {
+      "findingKey": "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2",
+      "advisoryId": "GHSA-jxxr-4gwj-5jf2",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.5",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-05-29T20:03:42.305Z",
+      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99": {
+      "findingKey": "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99",
+      "advisoryId": "GHSA-67mh-4wv8-2f99",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.21.5",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-05-29T20:03:42.305Z",
+      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "reason": "no fix"
+    },
+    "npm:protobufjs@7.5.6:GHSA-jggg-4jg4-v7c6": {
+      "findingKey": "npm:protobufjs@7.5.6:GHSA-jggg-4jg4-v7c6",
+      "advisoryId": "GHSA-jggg-4jg4-v7c6",
+      "ecosystem": "npm",
+      "package": "protobufjs",
+      "affectedVersion": "7.5.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-05-29T20:03:42.305Z",
+      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "reason": "no fix"
+    },
+    "npm:tmp@0.2.5:GHSA-ph9p-34f9-6g65": {
+      "findingKey": "npm:tmp@0.2.5:GHSA-ph9p-34f9-6g65",
+      "advisoryId": "GHSA-ph9p-34f9-6g65",
+      "ecosystem": "npm",
+      "package": "tmp",
+      "affectedVersion": "0.2.5",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-05-29T20:03:42.305Z",
+      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9": {
+      "findingKey": "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9",
+      "advisoryId": "GHSA-4w7w-66w2-5vf9",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-05-29T20:03:42.305Z",
+      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "reason": "no fix"
+    }
+  }
 }

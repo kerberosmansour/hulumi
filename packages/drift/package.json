@@ -42,7 +42,7 @@
     "@pulumi/pulumi": "^3.232.0"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudtrail": "3.1045.0",
+    "@aws-sdk/client-cloudtrail": "3.1053.0",
     "@aws-sdk/client-cloudwatch-logs": "3.1047.0",
     "@aws-sdk/client-s3": "3.1047.0",
     "@aws-sdk/client-sts": "3.1045.0",

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "conventions": {
+    "actingPaths": ["apps/**", "services/**", "packages/**", "cmd/**"],
+    "excludePaths": [
+      "**/examples/**",
+      "**/example/**",
+      "**/testdata/**",
+      "**/tests/**",
+      "**/test/**",
+      "**/__tests__/**",
+      "**/fixtures/**",
+      "**/*fixture*/**",
+      "**/vendor/**",
+      "**/third_party/**",
+      "**/.archive/**"
+    ],
+    "actingTrack": "cadence",
+    "excludedTrack": "report-only",
+    "unclassifiedTrack": "report-only"
+  },
+  "manifests": [
+    {
+      "path": "pnpm-lock.yaml",
+      "ecosystem": "npm",
+      "parser": "pnpm-lock.yaml",
+      "track": "cadence",
+      "note": "Hulumi's single pnpm workspace lockfile — the real dependency surface. Scanned; routine updates via Track B/Dependabot; emergency (critical/MAL) findings caught by Track A. Human-classified (root path matches no acting convention)."
+    }
+  ]
+}

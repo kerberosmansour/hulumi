@@ -1,0 +1,25 @@
+name: sca-scope-drift
+
+# Thin caller — the SCA scope-curation logic lives in AutomoatedSCA (the brain).
+# This keeps Hulumi clean: no SCA toolchain in the product repo. The reusable
+# workflow checks out Hulumi + the brain side-by-side and runs scope-sync against
+# Hulumi's tree, surfacing any manifest that no convention can classify.
+#
+# The reusable-workflow ref AND the brain code ref are SHA-pinned to the same
+# AutomoatedSCA commit (reproducible; satisfies Hulumi's workflow-action-pinning
+# self-test). Dependabot's github-actions ecosystem keeps the pin current.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1,4"
+  workflow_dispatch:
+
+# Least-privilege: the called reusable workflow is read-only scope-drift.
+permissions:
+  contents: read
+
+jobs:
+  scope-drift:
+    uses: kerberosmansour/AutomoatedSCA/.github/workflows/_reusable-sca-scope-drift.yml@ea36a8031e1aab3a88c585cd405d9f7cbbeca904 # main
+    with:
+      brain_ref: "ea36a8031e1aab3a88c585cd405d9f7cbbeca904"

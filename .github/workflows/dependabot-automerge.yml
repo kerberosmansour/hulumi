@@ -22,33 +22,6 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Checkout Dependabot branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 20
-
-      - name: Refresh exact-pin guard for Dependabot lockfile updates
-        run: node scripts/exact-pin-guard.mjs --write
-
-      - name: Commit refreshed exact-pin guard when needed
-        run: |
-          if git diff --quiet -- scripts/exact-pin-guard.mjs; then
-            echo "exact-pin guard already current"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/exact-pin-guard.mjs
-          git commit -s -m "chore(deps): refresh exact-pin guard for Dependabot"
-          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
-
       - name: Fetch Dependabot metadata
         id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0

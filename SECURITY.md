@@ -147,9 +147,10 @@ controls:
    `@hulumi/k8s-baseline`'s `@aws-sdk/client-secrets-manager`, plus
    `@pulumi/github` and `@pulumi/cloudflare` for the GitHub and edge
    surfaces — 13 pinned packages total at v1.3.2.
-   Dependabot Track B refreshes this table on its own PR branches with
-   `node scripts/exact-pin-guard.mjs --write`, then normal CI verifies the
-   committed version + integrity hash before auto-merge can proceed.
+   The guard derives the expected current version from exact package manifests
+   and the integrity hash from `pnpm-lock.yaml`, so cooled Dependabot Track B
+   bumps can pass without a second CI-triggering commit while still proving
+   exact pins + lockfile integrity.
 2. **72h cooling-off for minor/major bumps + 24h for patches**:
    [`.github/workflows/pulumi-cooling-off.yml`](./.github/workflows/pulumi-cooling-off.yml)
    runs on every PR bumping a `@pulumi/*` pin. The job calls

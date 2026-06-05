@@ -41,8 +41,8 @@
   "devDependencies": {
     "@pulumi/pulumi": "3.243.0",
     "@types/node": "20.19.41",
-    "@typescript-eslint/eslint-plugin": "8.60.0",
-    "@typescript-eslint/parser": "8.60.0",
+    "@typescript-eslint/eslint-plugin": "8.60.1",
+    "@typescript-eslint/parser": "8.60.1",
     "eslint": "9.39.4",
     "prettier": "3.8.3",
     "typescript": "5.9.3",

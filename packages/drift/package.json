@@ -54,7 +54,7 @@
     "@pulumi/aws": "7.31.0",
     "@pulumi/pulumi": "3.243.0",
     "@types/node": "20.19.41",
-    "memfs": "4.57.2",
+    "memfs": "4.57.3",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

@@ -11,7 +11,7 @@
   "dependencies": {
     "@hulumi/baseline": "workspace:*",
     "@pulumi/github": "6.14.0",
-    "@pulumi/pulumi": "3.243.0"
+    "@pulumi/pulumi": "3.244.0"
   },
   "devDependencies": {
     "@types/node": "20.19.41",

@@ -37,11 +37,11 @@
   },
   "peerDependencies": {
     "@pulumi/cloudflare": "6.17.0",
-    "@pulumi/pulumi": "3.243.0"
+    "@pulumi/pulumi": "3.244.0"
   },
   "devDependencies": {
     "@pulumi/cloudflare": "6.17.0",
-    "@pulumi/pulumi": "3.243.0",
+    "@pulumi/pulumi": "3.244.0",
     "@types/node": "20.19.41",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 6,
+  "revision": 9,
   "findings": {
     "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2": {
       "findingKey": "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2",
@@ -102,6 +102,57 @@
       ],
       "firstSeen": "2026-06-01T15:39:24.019Z",
       "lastSeen": "2026-06-01T15:39:24.019Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.21.5:GHSA-gv7w-rqvm-qjhr": {
+      "findingKey": "npm:esbuild@0.21.5:GHSA-gv7w-rqvm-qjhr",
+      "advisoryId": "GHSA-gv7w-rqvm-qjhr",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.21.5",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-06-12T20:17:29.425Z",
+      "lastSeen": "2026-06-12T20:17:29.425Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr": {
+      "findingKey": "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr",
+      "advisoryId": "GHSA-g7r4-m6w7-qqqr",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.28.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-06-12T20:17:29.425Z",
+      "lastSeen": "2026-06-12T20:17:29.425Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.28.0:GHSA-gv7w-rqvm-qjhr": {
+      "findingKey": "npm:esbuild@0.28.0:GHSA-gv7w-rqvm-qjhr",
+      "advisoryId": "GHSA-gv7w-rqvm-qjhr",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.28.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-06-12T20:17:29.425Z",
+      "lastSeen": "2026-06-12T20:17:29.425Z",
       "reason": "no fix"
     }
   }

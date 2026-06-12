@@ -54,7 +54,7 @@
   "devDependencies": {
     "@pulumi/aws": "7.32.0",
     "@pulumi/github": "6.14.0",
-    "@pulumi/pulumi": "3.244.0",
+    "@pulumi/pulumi": "3.245.0",
     "@types/node": "20.19.41",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

@@ -11,7 +11,7 @@
   "dependencies": {
     "@hulumi/platform-patterns": "workspace:*",
     "@pulumi/aws": "7.32.0",
-    "@pulumi/pulumi": "3.244.0"
+    "@pulumi/pulumi": "3.245.0"
   },
   "devDependencies": {
     "@types/node": "20.19.41",

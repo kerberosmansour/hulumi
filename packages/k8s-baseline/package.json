@@ -48,8 +48,8 @@
   "devDependencies": {
     "@aws-sdk/client-secrets-manager": "3.1054.0",
     "@pulumi/aws": "7.32.0",
-    "@pulumi/kubernetes": "4.31.1",
-    "@pulumi/pulumi": "3.244.0",
+    "@pulumi/kubernetes": "4.32.0",
+    "@pulumi/pulumi": "3.245.0",
     "@types/node": "20.19.41",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

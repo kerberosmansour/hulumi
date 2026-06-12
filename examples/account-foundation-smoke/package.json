@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@pulumi/policy": "1.21.0",
-    "@types/node": "20.19.41",
+    "@types/node": "20.19.42",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

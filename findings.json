@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 12,
+  "revision": 13,
   "findings": {
     "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2": {
       "findingKey": "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2",
@@ -204,6 +204,23 @@
       ],
       "firstSeen": "2026-06-15T18:39:08.722Z",
       "lastSeen": "2026-06-15T18:39:08.722Z",
+      "reason": "no fix"
+    },
+    "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
+      "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
+      "advisoryId": "GHSA-8988-4f7v-96qf",
+      "ecosystem": "npm",
+      "package": "@opentelemetry/core",
+      "affectedVersion": "1.30.1",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-06-15T21:08:12.065Z",
+      "lastSeen": "2026-06-15T21:08:12.065Z",
       "reason": "no fix"
     }
   }

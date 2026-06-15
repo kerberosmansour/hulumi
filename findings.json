@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 9,
+  "revision": 12,
   "findings": {
     "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2": {
       "findingKey": "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2",
@@ -153,6 +153,57 @@
       ],
       "firstSeen": "2026-06-12T20:17:29.425Z",
       "lastSeen": "2026-06-12T20:17:29.425Z",
+      "reason": "no fix"
+    },
+    "npm:js-yaml@3.14.2:GHSA-h67p-54hq-rp68": {
+      "findingKey": "npm:js-yaml@3.14.2:GHSA-h67p-54hq-rp68",
+      "advisoryId": "GHSA-h67p-54hq-rp68",
+      "ecosystem": "npm",
+      "package": "js-yaml",
+      "affectedVersion": "3.14.2",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-06-15T18:39:08.722Z",
+      "lastSeen": "2026-06-15T18:39:08.722Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff": {
+      "findingKey": "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff",
+      "advisoryId": "GHSA-fx2h-pf6j-xcff",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-06-15T18:39:08.722Z",
+      "lastSeen": "2026-06-15T18:39:08.722Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3": {
+      "findingKey": "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3",
+      "advisoryId": "GHSA-v6wh-96g9-6wx3",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-06-15T18:39:08.722Z",
+      "lastSeen": "2026-06-15T18:39:08.722Z",
       "reason": "no fix"
     }
   }

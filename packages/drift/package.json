@@ -51,8 +51,8 @@
     "simple-git": "3.36.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.32.0",
-    "@pulumi/pulumi": "3.245.0",
+    "@pulumi/aws": "7.33.0",
+    "@pulumi/pulumi": "3.246.0",
     "@types/node": "20.19.42",
     "memfs": "4.57.6",
     "typescript": "5.9.3",

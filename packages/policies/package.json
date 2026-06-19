@@ -73,9 +73,9 @@
     "@pulumi/pulumi": "^3.232.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.32.0",
+    "@pulumi/aws": "7.33.0",
     "@pulumi/policy": "1.21.0",
-    "@pulumi/pulumi": "3.245.0",
+    "@pulumi/pulumi": "3.246.0",
     "@types/node": "20.19.42",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

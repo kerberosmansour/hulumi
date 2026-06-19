@@ -53,8 +53,8 @@
   "devDependencies": {
     "@pulumi/aws": "7.32.0",
     "@pulumi/pulumi": "3.245.0",
-    "@types/node": "20.19.42",
-    "memfs": "4.57.6",
+    "@types/node": "20.19.43",
+    "memfs": "4.57.7",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

@@ -49,7 +49,7 @@
     "@pulumi/cloudflare": "6.17.0",
     "@pulumi/github": "6.14.0",
     "@pulumi/pulumi": "3.245.0",
-    "@types/node": "20.19.42",
+    "@types/node": "20.19.43",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

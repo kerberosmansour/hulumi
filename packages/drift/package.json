@@ -42,11 +42,11 @@
     "@pulumi/pulumi": "^3.232.0"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudtrail": "3.1064.0",
-    "@aws-sdk/client-cloudwatch-logs": "3.1064.0",
-    "@aws-sdk/client-s3": "3.1064.0",
-    "@aws-sdk/client-sts": "3.1064.0",
-    "@aws-sdk/credential-providers": "3.1064.0",
+    "@aws-sdk/client-cloudtrail": "3.1069.0",
+    "@aws-sdk/client-cloudwatch-logs": "3.1069.0",
+    "@aws-sdk/client-s3": "3.1069.0",
+    "@aws-sdk/client-sts": "3.1069.0",
+    "@aws-sdk/credential-providers": "3.1069.0",
     "p-timeout": "7.0.1",
     "simple-git": "3.36.0"
   },

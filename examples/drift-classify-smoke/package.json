@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hulumi/drift": "workspace:*",
-    "@pulumi/pulumi": "3.248.0"
+    "@pulumi/pulumi": "3.250.0"
   },
   "devDependencies": {
     "@types/node": "20.19.42",

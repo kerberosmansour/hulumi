@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "revision": 13,
+  "revision": 7,
   "findings": {
-    "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2": {
-      "findingKey": "npm:brace-expansion@5.0.5:GHSA-jxxr-4gwj-5jf2",
-      "advisoryId": "GHSA-jxxr-4gwj-5jf2",
+    "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
+      "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
+      "advisoryId": "GHSA-8988-4f7v-96qf",
       "ecosystem": "npm",
-      "package": "brace-expansion",
-      "affectedVersion": "5.0.5",
+      "package": "@opentelemetry/core",
+      "affectedVersion": "1.30.1",
       "class": "critical",
       "track": "dropped",
       "fixedVersion": null,
@@ -15,8 +15,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-05-29T20:03:42.305Z",
-      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     },
     "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99": {
@@ -32,42 +32,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-05-29T20:03:42.305Z",
-      "lastSeen": "2026-05-29T20:03:42.305Z",
-      "reason": "no fix"
-    },
-    "npm:protobufjs@7.5.6:GHSA-jggg-4jg4-v7c6": {
-      "findingKey": "npm:protobufjs@7.5.6:GHSA-jggg-4jg4-v7c6",
-      "advisoryId": "GHSA-jggg-4jg4-v7c6",
-      "ecosystem": "npm",
-      "package": "protobufjs",
-      "affectedVersion": "7.5.6",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-05-29T20:03:42.305Z",
-      "lastSeen": "2026-05-29T20:03:42.305Z",
-      "reason": "no fix"
-    },
-    "npm:tmp@0.2.5:GHSA-ph9p-34f9-6g65": {
-      "findingKey": "npm:tmp@0.2.5:GHSA-ph9p-34f9-6g65",
-      "advisoryId": "GHSA-ph9p-34f9-6g65",
-      "ecosystem": "npm",
-      "package": "tmp",
-      "affectedVersion": "0.2.5",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-05-29T20:03:42.305Z",
-      "lastSeen": "2026-05-29T20:03:42.305Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     },
     "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9": {
@@ -83,93 +49,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-05-29T20:03:42.305Z",
-      "lastSeen": "2026-05-29T20:03:42.305Z",
-      "reason": "no fix"
-    },
-    "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp": {
-      "findingKey": "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp",
-      "advisoryId": "GHSA-5xrq-8626-4rwp",
-      "ecosystem": "npm",
-      "package": "vitest",
-      "affectedVersion": "1.6.1",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-06-01T15:39:24.019Z",
-      "lastSeen": "2026-06-01T15:39:24.019Z",
-      "reason": "no fix"
-    },
-    "npm:esbuild@0.21.5:GHSA-gv7w-rqvm-qjhr": {
-      "findingKey": "npm:esbuild@0.21.5:GHSA-gv7w-rqvm-qjhr",
-      "advisoryId": "GHSA-gv7w-rqvm-qjhr",
-      "ecosystem": "npm",
-      "package": "esbuild",
-      "affectedVersion": "0.21.5",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-06-12T20:17:29.425Z",
-      "lastSeen": "2026-06-12T20:17:29.425Z",
-      "reason": "no fix"
-    },
-    "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr": {
-      "findingKey": "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr",
-      "advisoryId": "GHSA-g7r4-m6w7-qqqr",
-      "ecosystem": "npm",
-      "package": "esbuild",
-      "affectedVersion": "0.28.0",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-06-12T20:17:29.425Z",
-      "lastSeen": "2026-06-12T20:17:29.425Z",
-      "reason": "no fix"
-    },
-    "npm:esbuild@0.28.0:GHSA-gv7w-rqvm-qjhr": {
-      "findingKey": "npm:esbuild@0.28.0:GHSA-gv7w-rqvm-qjhr",
-      "advisoryId": "GHSA-gv7w-rqvm-qjhr",
-      "ecosystem": "npm",
-      "package": "esbuild",
-      "affectedVersion": "0.28.0",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-06-12T20:17:29.425Z",
-      "lastSeen": "2026-06-12T20:17:29.425Z",
-      "reason": "no fix"
-    },
-    "npm:js-yaml@3.14.2:GHSA-h67p-54hq-rp68": {
-      "findingKey": "npm:js-yaml@3.14.2:GHSA-h67p-54hq-rp68",
-      "advisoryId": "GHSA-h67p-54hq-rp68",
-      "ecosystem": "npm",
-      "package": "js-yaml",
-      "affectedVersion": "3.14.2",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-06-15T18:39:08.722Z",
-      "lastSeen": "2026-06-15T18:39:08.722Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     },
     "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff": {
@@ -185,8 +66,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-06-15T18:39:08.722Z",
-      "lastSeen": "2026-06-15T18:39:08.722Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     },
     "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3": {
@@ -202,16 +83,16 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-06-15T18:39:08.722Z",
-      "lastSeen": "2026-06-15T18:39:08.722Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     },
-    "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
-      "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
-      "advisoryId": "GHSA-8988-4f7v-96qf",
+    "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp": {
+      "findingKey": "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp",
+      "advisoryId": "GHSA-5xrq-8626-4rwp",
       "ecosystem": "npm",
-      "package": "@opentelemetry/core",
-      "affectedVersion": "1.30.1",
+      "package": "vitest",
+      "affectedVersion": "1.6.1",
       "class": "critical",
       "track": "dropped",
       "fixedVersion": null,
@@ -219,8 +100,25 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-06-15T21:08:12.065Z",
-      "lastSeen": "2026-06-15T21:08:12.065Z",
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr": {
+      "findingKey": "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr",
+      "advisoryId": "GHSA-g7r4-m6w7-qqqr",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.28.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-07-11T22:04:45.770Z",
+      "lastSeen": "2026-07-11T22:04:45.770Z",
       "reason": "no fix"
     }
   }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 7,
+  "revision": 9,
   "findings": {
     "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
       "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
@@ -119,6 +119,40 @@
       ],
       "firstSeen": "2026-07-11T22:04:45.770Z",
       "lastSeen": "2026-07-11T22:04:45.770Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
+      "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
+      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "1.1.14",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-20T21:27:14.570Z",
+      "lastSeen": "2026-07-20T21:27:14.570Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp": {
+      "findingKey": "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp",
+      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-07-20T21:27:14.570Z",
+      "lastSeen": "2026-07-20T21:27:14.570Z",
       "reason": "no fix"
     }
   }

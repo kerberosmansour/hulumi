@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 9,
+  "revision": 10,
   "findings": {
     "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
       "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
@@ -153,6 +153,23 @@
       ],
       "firstSeen": "2026-07-20T21:27:14.570Z",
       "lastSeen": "2026-07-20T21:27:14.570Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q",
+      "advisoryId": "GHSA-6g55-p6wh-862q",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-23T15:28:53.736Z",
+      "lastSeen": "2026-07-23T15:28:53.736Z",
       "reason": "no fix"
     }
   }

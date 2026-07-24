@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-secrets-manager": "3.1080.0",
-    "@pulumi/aws": "7.36.0",
+    "@pulumi/aws": "7.37.0",
     "@pulumi/kubernetes": "4.33.0",
     "@pulumi/pulumi": "3.253.0",
     "@types/node": "20.19.42",

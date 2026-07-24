@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 13,
+  "revision": 16,
   "findings": {
     "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
       "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
@@ -221,6 +221,57 @@
       ],
       "firstSeen": "2026-07-24T16:40:02.359Z",
       "lastSeen": "2026-07-24T16:40:02.359Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@1.1.14:GHSA-mh99-v99m-4gvg": {
+      "findingKey": "npm:brace-expansion@1.1.14:GHSA-mh99-v99m-4gvg",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "1.1.14",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-24T22:08:48.675Z",
+      "lastSeen": "2026-07-24T22:08:48.675Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg": {
+      "findingKey": "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.7",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-24T22:08:48.675Z",
+      "lastSeen": "2026-07-24T22:08:48.675Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg": {
+      "findingKey": "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-07-24T22:08:48.675Z",
+      "lastSeen": "2026-07-24T22:08:48.675Z",
       "reason": "no fix"
     }
   }

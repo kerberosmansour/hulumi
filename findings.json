@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 10,
+  "revision": 13,
   "findings": {
     "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
       "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
@@ -170,6 +170,57 @@
       ],
       "firstSeen": "2026-07-23T15:28:53.736Z",
       "lastSeen": "2026-07-23T15:28:53.736Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849",
+      "advisoryId": "GHSA-r28c-9q8g-f849",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-24T16:40:02.359Z",
+      "lastSeen": "2026-07-24T16:40:02.359Z",
+      "reason": "no fix"
+    },
+    "npm:tar@7.5.20:GHSA-r292-9mhp-454m": {
+      "findingKey": "npm:tar@7.5.20:GHSA-r292-9mhp-454m",
+      "advisoryId": "GHSA-r292-9mhp-454m",
+      "ecosystem": "npm",
+      "package": "tar",
+      "affectedVersion": "7.5.20",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-07-24T16:40:02.359Z",
+      "lastSeen": "2026-07-24T16:40:02.359Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849": {
+      "findingKey": "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849",
+      "advisoryId": "GHSA-r28c-9q8g-f849",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.15",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-07-24T16:40:02.359Z",
+      "lastSeen": "2026-07-24T16:40:02.359Z",
       "reason": "no fix"
     }
   }

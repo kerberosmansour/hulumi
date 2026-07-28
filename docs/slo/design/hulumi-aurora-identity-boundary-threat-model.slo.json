@@ -1,0 +1,205 @@
+{
+  "slug": "hulumi-aurora-identity-boundary",
+  "sensitivity": "restricted",
+  "base_commit": "f2669f729e8006c71fbf483bc2cd14df10e6e640",
+  "architect_decisions": {
+    "tla_required": true,
+    "kani_required": false,
+    "security_libs_required": true,
+    "ai_component": false
+  },
+  "stride": [
+    {
+      "component": "runtime-serviceaccount-irsa-role",
+      "class": "elevation_of_privilege",
+      "state": "eliminated",
+      "control_or_reason": "No transition exists by which the runtime acquires a DB credential; modelled as RuntimeNeverHoldsCredential, and the hardened spec has no AttemptAssume rule at all."
+    },
+    {
+      "component": "runtime-to-privileged-role",
+      "class": "spoofing",
+      "state": "eliminated",
+      "control_or_reason": "IRSA trust uses StringEquals on exact sub AND aud; no StringLike or wildcard on either axis."
+    },
+    {
+      "component": "runtime-to-aurora-network",
+      "class": "information_disclosure",
+      "state": "eliminated",
+      "control_or_reason": "No network path; proven by a same-run paired probe where runtime fails and migrator connects."
+    },
+    {
+      "component": "deployment-controller",
+      "class": "elevation_of_privilege",
+      "state": "mitigated",
+      "control_or_reason": "Denied serviceaccounts/token, impersonation and privileged-SA template creation. Mitigated not eliminated because the controller must still create its own envelopes."
+    },
+    {
+      "component": "bootstrap-pulumi-state",
+      "class": "information_disclosure",
+      "state": "eliminated",
+      "control_or_reason": "SecureSecret is value-free; #40 RdsCredentialSecret is an anti-exemplar because the master value transits Pulumi state and etcd."
+    },
+    {
+      "component": "iam-role-classification",
+      "class": "tampering",
+      "state": "mitigated",
+      "control_or_reason": "Persisted closed hulumi:role-kind discriminator; H3 requires the IaC tag only for deployment roles and fails closed on missing or unknown kinds."
+    },
+    {
+      "component": "node-imds-pod-identity-agent",
+      "class": "elevation_of_privilege",
+      "state": "mitigated",
+      "control_or_reason": "Unreachable from the runtime pod or yields no role with secret/KMS access. Mitigated because reachability is an environment property, not a code one."
+    },
+    {
+      "component": "rotation-lifecycle",
+      "class": "denial_of_service",
+      "state": "na",
+      "control_or_reason": "Owned by milestone M4. Marked na with the owning milestone named so it cannot be read as coverage."
+    },
+    {
+      "component": "audit-attribution",
+      "class": "repudiation",
+      "state": "mitigated",
+      "control_or_reason": "Value-free identity receipts plus CloudTrail role-kind classification."
+    }
+  ],
+  "abuse_cases": [
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-1",
+      "attacker": "Compromised runtime pod",
+      "step": "Re-reads the Aurora master secret after startup",
+      "outcome": "Full database authority",
+      "control": "Effective-authorization denial on secretsmanager:GetSecretValue and kms:Decrypt, asserted with the evaluating policy named",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-2",
+      "attacker": "Compromised runtime pod",
+      "step": "Assumes the migrator or broker role",
+      "outcome": "Bypasses the bounded application role",
+      "control": "sts:AssumeRole denied, tested transitively at every hop rather than first-hop only",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-3",
+      "attacker": "Any other pod or ServiceAccount",
+      "step": "Mints a token for the migrator ServiceAccount or mounts its token Secret",
+      "outcome": "Assumes a privileged identity",
+      "control": "Pairwise live negatives on serviceaccounts/token, impersonation, projected-volume and secretKeyRef mounts",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-4",
+      "attacker": "Workload with template-create rights",
+      "step": "Creates a Pod or Job naming a privileged ServiceAccount",
+      "outcome": "Privileged execution",
+      "control": "Admission rejects non-owning request identities per exact envelope",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-5",
+      "attacker": "Compromised runtime pod",
+      "step": "Reaches Aurora or RDS Proxy directly",
+      "outcome": "Bypasses the broker entirely",
+      "control": "Security-group and NetworkPolicy negative, with a same-run migrator success proving the endpoint exists",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-6",
+      "attacker": "Compromised runtime pod",
+      "step": "Obtains credentials via Pod Identity association, agent, node profile or IMDS v1/v2",
+      "outcome": "Side-channel to database authority",
+      "control": "Association absent and its creation denied; agent and IMDS unreachable from the runtime pod",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-7",
+      "attacker": "Consumer of this component",
+      "step": "Builds a serving Deployment from partial identity outputs",
+      "outcome": "Serving on an unvalidated boundary",
+      "control": "Structural: no public constructor, no runnable outputs, no serving-output claim; NoServingBeforeValidated holds over the whole aggregate",
+      "classification": "restricted"
+    },
+    {
+      "id": "tm-hulumi-aurora-identity-boundary-abuse-8",
+      "attacker": "Operator adding a capability",
+      "step": "Passes a free-form policy ARN or inline policy",
+      "outcome": "Unbounded privilege extension",
+      "control": "No policyArns or inlinePolicies; closed capability union where a member without both its matrix and its negative twin fails the build",
+      "classification": "restricted"
+    }
+  ],
+  "residual_risks": [
+    {
+      "risk": "Superuser bypass of any PostgreSQL-side control",
+      "accepted_residual": true,
+      "reason": "Unavoidable at the database layer and out of scope for this boundary. The design's answer is that the runtime never holds a database credential at all, not that RLS confines a superuser.",
+      "classification": "restricted"
+    },
+    {
+      "risk": "Break-glass and control-plane exceptions not yet enumerated",
+      "accepted_residual": false,
+      "reason": "Must be named exactly, be unavailable to workloads and be tested separately. Open work, recorded so it cannot be read as accepted.",
+      "classification": "restricted"
+    },
+    {
+      "risk": "Live outcome evidence unavailable without an operator fixture",
+      "accepted_residual": false,
+      "reason": "Operator-gated. An absent fixture is blocked_by_operator, never skipped-as-pass.",
+      "classification": "internal"
+    }
+  ],
+  "compliance": [
+    {
+      "control": "Least privilege / access enforcement",
+      "reference": "NIST-800-53-r5:AC-3, NIST-800-53-r5:AC-6"
+    },
+    {
+      "control": "Identifier management for services",
+      "reference": "NIST-800-53-r5:IA-9"
+    },
+    {
+      "control": "Authenticator management",
+      "reference": "NIST-800-53-r5:IA-5"
+    },
+    {
+      "control": "Baseline configuration",
+      "reference": "NIST-800-53-r5:CM-2"
+    },
+    {
+      "control": "Audit record generation",
+      "reference": "NIST-800-53-r5:AU-12"
+    },
+    {
+      "control": "Logical access controls",
+      "reference": "SOC2:CC6.1, SOC2:CC6.3"
+    },
+    {
+      "control": "Secret storage and handling",
+      "reference": "ASVS-v5:V6"
+    },
+    {
+      "control": "Authorisation architecture",
+      "reference": "ASVS-v5:V4"
+    }
+  ],
+  "provenance": {
+    "producer_skill_sha": "964f406e28177456f2889a198bee32577148de8d",
+    "id_origin": "IDs originate in this artifact pair and are frozen from base_commit. The upstream merged threat model ships no .slo.json and no stable tm-* IDs; its rows are cited by section and verbatim text only. Renumbering is forbidden.",
+    "inputs": [
+      {
+        "path": "docs/threat-model-iam-least-privilege-20260728.md",
+        "sha": "8b8e801b6cafccb62d48fd559aaca3da11b928de"
+      },
+      {
+        "path": "packages/baseline/src/aws/secure-aws-primitives.ts",
+        "sha": "272cb9beb97eaac2e7b03b7e05e5d51175b0e8de"
+      },
+      {
+        "path": "packages/policies/src/aws/hulumi-hardening-pack.ts",
+        "sha": "461ec2dbeba9a5d3332be5cb7385765ecbda9af8"
+      }
+    ]
+  }
+}

@@ -153,6 +153,10 @@ Mock-runtime BDD pattern: `pulumi.runtime.setMocks()` per package; tests use a `
 
 TLA+-alignment meta-test: [`packages/drift/tests/tla-alignment.test.ts`](../packages/drift/tests/tla-alignment.test.ts) enforces lockstep between `packages/drift/src/verdict.ts` and `docs/TLAdocs/hulumi/HulumiDrift.tla`.
 
+Formal specifications live in two places, and the split is deliberate. Drift/reconciler specs stay under `docs/TLAdocs/hulumi/`. Per-feature specs produced by `/slo-architect` + `/slo-tla` live under [`specs/`](../specs) — currently [`specs/HulumiAuroraIdentityBoundary.tla`](../specs/HulumiAuroraIdentityBoundary.tla) for the #255 Aurora identity boundary, with its design artifacts under `docs/slo/design/hulumi-aurora-identity-boundary-*`.
+
+Each per-feature spec ships **two** configs: a hardened one that must pass, and a deliberately naive one that must **fail**. A spec that only ever passes proves nothing about its own power to discriminate between the design under review and the design it replaced, so the naive counterexample is part of the evidence rather than a debugging leftover.
+
 Forbidden-shortcut lints-as-tests:
 
 - `packages/drift/tests/no-shell-exec.test.ts` — bans `child_process` from `packages/*/src/`.

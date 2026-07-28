@@ -16,9 +16,14 @@ substantive attacker/step/outcome/control/classification text, or residual-risk
 decisions. The correction landed on the plan branch as
 `460cc2e932bfca86ab150f04164a31bd9082ed37`. The corrected artifact has SHA-256
 `07f0cf57606df2dfbb6c69f3957d2a4f9309d5ad6fe3fcf5100530b2984a982f`.
-Strict schema `0.1.0`, contiguous abuse IDs 1–8, residual decisions
-`true,false,false`, and all four provenance pins passed before the security
-persona resumed.
+The strict schema version:
+
+~~~text
+0.1.0
+~~~
+
+Contiguous abuse IDs 1–8, residual decisions `true,false,false`, and all four
+provenance pins passed before the security persona resumed.
 
 ## Persona 1 — CEO
 
@@ -89,8 +94,13 @@ persona resumed.
 ### S1 — Workload-accessible break-glass authority remained open
 
 - **Category:** ask
-- **Threat IDs:** `tm-hulumi-aurora-identity-boundary-abuse-3` and
-  `tm-hulumi-aurora-identity-boundary-abuse-4`
+- **Threat IDs:**
+
+  ~~~text
+  tm-hulumi-aurora-identity-boundary-abuse-3
+  tm-hulumi-aurora-identity-boundary-abuse-4
+  ~~~
+
 - **Bug class:** V3 missing function-level authorization; CWE-284.
 - **Class status before resolution:** residual. Ordinary B4/B6 fixtures did not
   enumerate policy suppressions, cluster-admin bindings, impersonation,
@@ -111,7 +121,12 @@ persona resumed.
 ### S2 — B10 did not prohibit the forbidden free-form IAM seam
 
 - **Category:** ask
-- **Threat ID:** `tm-hulumi-aurora-identity-boundary-abuse-8`
+- **Threat ID:**
+
+  ~~~text
+  tm-hulumi-aurora-identity-boundary-abuse-8
+  ~~~
+
 - **Bug class:** V14 overly permissive IAM role; CWE-732.
 - **Class status before resolution:** residual. Requiring a matrix and negative
   twin did not prevent an implementation from also accepting `policyArns` or

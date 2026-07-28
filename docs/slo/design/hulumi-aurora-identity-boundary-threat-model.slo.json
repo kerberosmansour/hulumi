@@ -1,13 +1,8 @@
 {
+  "slo_schema_version": "0.1.0",
   "slug": "hulumi-aurora-identity-boundary",
   "sensitivity": "restricted",
-  "base_commit": "f2669f729e8006c71fbf483bc2cd14df10e6e640",
-  "architect_decisions": {
-    "tla_required": true,
-    "kani_required": false,
-    "security_libs_required": true,
-    "ai_component": false
-  },
+  "otm_compatible": false,
   "stride": [
     {
       "component": "runtime-serviceaccount-irsa-role",
@@ -67,127 +62,181 @@
   "abuse_cases": [
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-1",
+      "surface": "runtime credential retrieval",
       "attacker": "Compromised runtime pod",
-      "step": "Re-reads the Aurora master secret after startup",
-      "outcome": "Full database authority",
+      "attack_step": "Re-reads the Aurora master secret after startup",
+      "attacker_outcome": "Full database authority",
       "control": "Effective-authorization denial on secretsmanager:GetSecretValue and kms:Decrypt, asserted with the evaluating policy named",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-2",
+      "surface": "runtime role assumption",
       "attacker": "Compromised runtime pod",
-      "step": "Assumes the migrator or broker role",
-      "outcome": "Bypasses the bounded application role",
+      "attack_step": "Assumes the migrator or broker role",
+      "attacker_outcome": "Bypasses the bounded application role",
       "control": "sts:AssumeRole denied, tested transitively at every hop rather than first-hop only",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-3",
+      "surface": "Kubernetes privileged ServiceAccount token issuance",
       "attacker": "Any other pod or ServiceAccount",
-      "step": "Mints a token for the migrator ServiceAccount or mounts its token Secret",
-      "outcome": "Assumes a privileged identity",
+      "attack_step": "Mints a token for the migrator ServiceAccount or mounts its token Secret",
+      "attacker_outcome": "Assumes a privileged identity",
       "control": "Pairwise live negatives on serviceaccounts/token, impersonation, projected-volume and secretKeyRef mounts",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-4",
+      "surface": "Kubernetes workload admission",
       "attacker": "Workload with template-create rights",
-      "step": "Creates a Pod or Job naming a privileged ServiceAccount",
-      "outcome": "Privileged execution",
+      "attack_step": "Creates a Pod or Job naming a privileged ServiceAccount",
+      "attacker_outcome": "Privileged execution",
       "control": "Admission rejects non-owning request identities per exact envelope",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-5",
+      "surface": "runtime network path to Aurora or RDS Proxy",
       "attacker": "Compromised runtime pod",
-      "step": "Reaches Aurora or RDS Proxy directly",
-      "outcome": "Bypasses the broker entirely",
+      "attack_step": "Reaches Aurora or RDS Proxy directly",
+      "attacker_outcome": "Bypasses the broker entirely",
       "control": "Security-group and NetworkPolicy negative, with a same-run migrator success proving the endpoint exists",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-6",
+      "surface": "Pod Identity, node profile and instance metadata credential paths",
       "attacker": "Compromised runtime pod",
-      "step": "Obtains credentials via Pod Identity association, agent, node profile or IMDS v1/v2",
-      "outcome": "Side-channel to database authority",
+      "attack_step": "Obtains credentials via Pod Identity association, agent, node profile or IMDS v1/v2",
+      "attacker_outcome": "Side-channel to database authority",
       "control": "Association absent and its creation denied; agent and IMDS unreachable from the runtime pod",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-7",
+      "surface": "component constructor and serving outputs",
       "attacker": "Consumer of this component",
-      "step": "Builds a serving Deployment from partial identity outputs",
-      "outcome": "Serving on an unvalidated boundary",
+      "attack_step": "Builds a serving Deployment from partial identity outputs",
+      "attacker_outcome": "Serving on an unvalidated boundary",
       "control": "Structural: no public constructor, no runnable outputs, no serving-output claim; NoServingBeforeValidated holds over the whole aggregate",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     },
     {
       "id": "tm-hulumi-aurora-identity-boundary-abuse-8",
+      "surface": "closed capability extension",
       "attacker": "Operator adding a capability",
-      "step": "Passes a free-form policy ARN or inline policy",
-      "outcome": "Unbounded privilege extension",
+      "attack_step": "Passes a free-form policy ARN or inline policy",
+      "attacker_outcome": "Unbounded privilege extension",
       "control": "No policyArns or inlinePolicies; closed capability union where a member without both its matrix and its negative twin fails the build",
+      "status": "active",
+      "superseded_by": null,
+      "supersede_reason": null,
       "classification": "restricted"
     }
   ],
   "residual_risks": [
     {
       "risk": "Superuser bypass of any PostgreSQL-side control",
+      "exploit_path": "A PostgreSQL superuser bypasses row-level and object-level controls.",
+      "compensating_control": "The serving runtime holds no database credential and has no direct database network path.",
       "accepted_residual": true,
-      "reason": "Unavoidable at the database layer and out of scope for this boundary. The design's answer is that the runtime never holds a database credential at all, not that RLS confines a superuser.",
+      "owner": "Hulumi maintainer",
+      "review_by": "2026-10-28",
       "classification": "restricted"
     },
     {
       "risk": "Break-glass and control-plane exceptions not yet enumerated",
+      "exploit_path": "An unnamed control-plane exception can mint or assume a privileged workload identity.",
+      "compensating_control": "M1 must enumerate exact exceptions, keep them unavailable to workloads and test each path separately before execution.",
       "accepted_residual": false,
-      "reason": "Must be named exactly, be unavailable to workloads and be tested separately. Open work, recorded so it cannot be read as accepted.",
+      "owner": "Hulumi M1 implementer",
+      "review_by": "2026-07-28",
       "classification": "restricted"
     },
     {
       "risk": "Live outcome evidence unavailable without an operator fixture",
+      "exploit_path": "A run without the non-production fixture cannot demonstrate paired runtime denial and migrator success.",
+      "compensating_control": "An absent fixture is blocked_by_operator and cannot be recorded as skipped or passed.",
       "accepted_residual": false,
-      "reason": "Operator-gated. An absent fixture is blocked_by_operator, never skipped-as-pass.",
+      "owner": "Hulumi operator",
+      "review_by": "2026-07-28",
       "classification": "internal"
     }
   ],
   "compliance": [
     {
       "control": "Least privilege / access enforcement",
-      "reference": "NIST-800-53-r5:AC-3, NIST-800-53-r5:AC-6"
+      "soc2": "N/A — source mapping is NIST 800-53r5 AC-3 and AC-6",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Identifier management for services",
-      "reference": "NIST-800-53-r5:IA-9"
+      "soc2": "N/A — source mapping is NIST 800-53r5 IA-9",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Authenticator management",
-      "reference": "NIST-800-53-r5:IA-5"
+      "soc2": "N/A — source mapping is NIST 800-53r5 IA-5",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Baseline configuration",
-      "reference": "NIST-800-53-r5:CM-2"
+      "soc2": "N/A — source mapping is NIST 800-53r5 CM-2",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Audit record generation",
-      "reference": "NIST-800-53-r5:AU-12"
+      "soc2": "N/A — source mapping is NIST 800-53r5 AU-12",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Logical access controls",
-      "reference": "SOC2:CC6.1, SOC2:CC6.3"
+      "soc2": "CC6.1, CC6.3",
+      "asvs": "N/A — no source mapping declared"
     },
     {
       "control": "Secret storage and handling",
-      "reference": "ASVS-v5:V6"
+      "soc2": "N/A — no source mapping declared",
+      "asvs": "V6"
     },
     {
       "control": "Authorisation architecture",
-      "reference": "ASVS-v5:V4"
+      "soc2": "N/A — no source mapping declared",
+      "asvs": "V4"
     }
   ],
   "provenance": {
-    "producer_skill_sha": "964f406e28177456f2889a198bee32577148de8d",
-    "id_origin": "IDs originate in this artifact pair and are frozen from base_commit. The upstream merged threat model ships no .slo.json and no stable tm-* IDs; its rows are cited by section and verbatim text only. Renumbering is forbidden.",
+    "produced_by": "slo-architect",
+    "producer_skill_sha": "af6de4534ecf4c92a2f0c6ffcfe9dd299b8ab8eb",
+    "generated_at": "2026-07-28",
     "inputs": [
+      {
+        "path": "docs/slo/design/hulumi-aurora-identity-boundary-threat-model.md",
+        "sha": "fcb141d5fef094568185ff2067e2c587a6630067"
+      },
       {
         "path": "docs/threat-model-iam-least-privilege-20260728.md",
         "sha": "8b8e801b6cafccb62d48fd559aaca3da11b928de"

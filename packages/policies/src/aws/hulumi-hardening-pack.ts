@@ -454,11 +454,22 @@ export const h3AdvisoryIacRoleTag: ResourceValidationPolicy = {
     const tags = (args.props as Record<string, unknown>).tags as Record<string, string> | undefined;
     const identityKind = tags?.["hulumi:identity-kind"];
     const workloadKinds = new Set(["runtime", "broker", "migrator", "rotation"]);
+    const isBrokeredBoundaryRole = tags?.["hulumi:component"] === "BrokeredAuroraPostgresBoundary";
+    const hasRecognizedBoundaryKind =
+      typeof identityKind === "string" && workloadKinds.has(identityKind);
+    if (isBrokeredBoundaryRole && !hasRecognizedBoundaryKind) {
+      const suppressions = readSuppressions(
+        (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
+      );
+      if (matchSuppression("HULUMI-H3", args.urn, suppressions).suppressed) return;
+      reportViolation(
+        `HULUMI-H3: BrokeredAuroraPostgresBoundary IAM role ${args.name} must carry a recognized hulumi:identity-kind (runtime, broker, migrator, or rotation); missing or unknown kinds cannot be classified as genuine IaC deployment roles. Docs: ${H3_DOCS}`,
+      );
+      return;
+    }
     const isWorkloadRole =
       tags?.["hulumi:component"] === "SecureWorkloadRole" ||
-      (tags?.["hulumi:component"] === "BrokeredAuroraPostgresBoundary" &&
-        typeof identityKind === "string" &&
-        workloadKinds.has(identityKind));
+      (isBrokeredBoundaryRole && hasRecognizedBoundaryKind);
     if (isWorkloadRole) {
       if (tags?.["hulumi:iac-role"] !== "true") return;
       const suppressions = readSuppressions(

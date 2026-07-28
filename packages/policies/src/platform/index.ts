@@ -15,3 +15,9 @@ export {
   deployGov4PrivilegedWorkflowsRequireOidc,
   hulumiDeploymentGovernancePackMetadata,
 } from "./deployment-governance-pack";
+
+export {
+  BROKERED_PG_1_RULE_ID,
+  brokeredPg1ClosedAuthorityBoundary,
+  hulumiBrokeredPostgresBoundaryPackMetadata,
+} from "./brokered-postgres-boundary-pack";

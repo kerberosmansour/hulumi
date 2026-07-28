@@ -424,6 +424,9 @@ importers:
       '@pulumi/github':
         specifier: 6.14.0
         version: 6.14.0(typescript@5.9.3)
+      '@pulumi/kubernetes':
+        specifier: 4.33.0
+        version: 4.33.0(typescript@5.9.3)
       '@pulumi/pulumi':
         specifier: 3.253.0
         version: 3.253.0(typescript@5.9.3)

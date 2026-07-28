@@ -8,7 +8,7 @@
     "component": {
       "type": "application",
       "name": "hulumi",
-      "version": "1.3.2"
+      "version": "1.5.0"
     }
   },
   "declarations": {
@@ -19,7 +19,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "baseline",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -44,7 +44,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "policies",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -73,6 +73,14 @@
             {
               "name": "cdx:sunlit:capability",
               "value": "deployment-governance-policy"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "brokered-postgres-boundary-policy"
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Structural Pulumi preview policy only; live IAM, Kubernetes, network and PostgreSQL evidence remains required."
             }
           ]
         },
@@ -81,7 +89,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "drift",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -102,7 +110,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "k8s-baseline",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -127,7 +135,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "cloudflare-baseline",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -160,7 +168,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "platform-patterns",
-          "version": "1.3.2",
+          "version": "1.5.0",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -181,6 +189,34 @@
             {
               "name": "cdx:sunlit:capability",
               "value": "build-provenance-foundation"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "brokered-aurora-postgres-boundary-iac"
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "IaC only; does not implement the authorization broker, PostgreSQL bootstrap, authority scan, or rotation executable."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Pulumi mocks and previews are not live-cloud, actual-login, rotation, or tenant-isolation evidence."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Capability verification accepts at most eight keys and 16 KiB of public asymmetric JWKS configuration and creates no JWKS network fetch path."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "The broker executable must claim each jti with a conditional DynamoDB PutItem before use; IAM and the replay table do not implement replay semantics."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Broker activation remains inert until a reviewed operator path has populated both application credentials and records the application-credentials-prepopulated gate; Pulumi never handles their values."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Replay traffic requires an exact DynamoDB interface endpoint id, endpoint URL, security group, and private Kubernetes endpoint CIDR path."
             }
           ]
         }
@@ -216,6 +252,18 @@
         "target": "component:@hulumi/drift",
         "predicate": "Provides drift classification that distinguishes AWS console changes from provider release drift and other out-of-band changes.",
         "reasoning": "Repository README describes the drift classifier verdict matrix and adapters."
+      },
+      {
+        "bom-ref": "claim:hulumi:brokered-aurora-postgres-boundary-iac",
+        "target": "component:@hulumi/platform-patterns",
+        "predicate": "Provides the infrastructure half of a brokered Aurora PostgreSQL authority boundary: four exact IRSA identities, value-free secret containers, closed network paths, immutable restricted workload envelopes, public inline JWKS configuration, admission policy, and encrypted replay state.",
+        "reasoning": "The component is IaC only and requires consumer-supplied broker, migrator and rotation executables, including conditional jti claims, plus live IAM, Kubernetes, PostgreSQL and tenant-isolation evidence."
+      },
+      {
+        "bom-ref": "claim:hulumi:brokered-postgres-boundary-policy",
+        "target": "component:@hulumi/policies",
+        "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary.",
+        "reasoning": "The policy pack rejects structural bypasses but cannot replace live effective-authorization or actual-login verification."
       }
     ]
   }

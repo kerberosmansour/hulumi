@@ -140,6 +140,7 @@ function commonRoleArgs(
   assumeRolePolicy: pulumi.Input<string>,
   tier: Tier,
   component: string,
+  iacDeploymentRole: boolean,
   tags: Record<string, string> | undefined,
   permissionBoundaryArn: pulumi.Input<string> | undefined,
   path: pulumi.Input<string> | undefined,
@@ -152,8 +153,8 @@ function commonRoleArgs(
     tags: {
       "hulumi:component": component,
       "hulumi:tier": tier,
-      "hulumi:iac-role": "true",
       ...(tags ?? {}),
+      ...(iacDeploymentRole ? { "hulumi:iac-role": "true" } : {}),
     },
   };
 }
@@ -211,6 +212,7 @@ export class SecureIamDeploymentRole
         deploymentTrustPolicy(args),
         args.tier,
         "SecureIamDeploymentRole",
+        true,
         {
           "hulumi:github-repository": `${args.owner}/${args.repository}`,
           ...(args.subjectMode.kind === "environment"
@@ -247,6 +249,9 @@ export class SecureIamDeploymentRole
 
 function validateWorkloadArgs(args: SecureWorkloadRoleArgs): void {
   validateTierAndBoundary("SecureWorkloadRole", args.tier, args.permissionBoundaryArn);
+  if (args.tags?.["hulumi:iac-role"] !== undefined) {
+    throw new Error("SecureWorkloadRole: workload roles must not carry the hulumi:iac-role tag");
+  }
   if (args.servicePrincipals.length === 0) {
     throw new Error("SecureWorkloadRole: servicePrincipals must be non-empty");
   }
@@ -292,6 +297,7 @@ export class SecureWorkloadRole
         workloadTrustPolicy(args.servicePrincipals),
         args.tier,
         "SecureWorkloadRole",
+        false,
         args.tags,
         args.permissionBoundaryArn,
         args.path,

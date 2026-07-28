@@ -55,6 +55,10 @@
     "./platform/packs/deployment-governance": {
       "types": "./dist/platform/packs/deployment-governance.d.ts",
       "default": "./dist/platform/packs/deployment-governance.js"
+    },
+    "./platform/packs/brokered-postgres-boundary": {
+      "types": "./dist/platform/packs/brokered-postgres-boundary.d.ts",
+      "default": "./dist/platform/packs/brokered-postgres-boundary.js"
     }
   },
   "files": [

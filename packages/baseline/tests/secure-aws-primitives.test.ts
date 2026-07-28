@@ -5,6 +5,7 @@ import {
   SecureIamDeploymentRole,
   SecureLaunchTemplate,
   SecureSecret,
+  SecureWorkloadRole,
 } from "../src/aws";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
@@ -153,6 +154,43 @@ describe("SecureSecret", () => {
           },
         }),
     ).toThrow(/broad secret/i);
+  });
+});
+
+describe("SecureWorkloadRole", () => {
+  beforeEach(resetRegistrations);
+
+  it("does not mark application workloads as genuine IaC deployment roles", async () => {
+    const role = new SecureWorkloadRole("runtime", {
+      tier: "sandbox",
+      roleName: "hulumi-runtime",
+      servicePrincipals: ["ecs-tasks.amazonaws.com"],
+    });
+
+    await valueOf(role.roleArn);
+    await settlePulumi();
+
+    const roleResource = findRegistration("aws:iam/role:Role");
+    expect(roleResource?.inputs.tags).toEqual(
+      expect.objectContaining({
+        "hulumi:component": "SecureWorkloadRole",
+        "hulumi:tier": "sandbox",
+      }),
+    );
+    expect(roleResource?.inputs.tags).not.toHaveProperty("hulumi:iac-role");
+  });
+
+  it("rejects callers that try to make a workload masquerade as an IaC role", () => {
+    expect(
+      () =>
+        new SecureWorkloadRole("runtime-masquerade", {
+          tier: "sandbox",
+          roleName: "hulumi-runtime",
+          servicePrincipals: ["ecs-tasks.amazonaws.com"],
+          tags: { "hulumi:iac-role": "true" },
+        }),
+    ).toThrow(/workload.*iac-role/i);
+    expect(registrations).toHaveLength(0);
   });
 });
 

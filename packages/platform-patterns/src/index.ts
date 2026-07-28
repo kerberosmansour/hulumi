@@ -17,3 +17,6 @@ export type * from "./pulumi-state-backend-foundation.outputs";
 export * from "./runner-governance-foundation";
 export type * from "./runner-governance-foundation.args";
 export type * from "./runner-governance-foundation.outputs";
+export * from "./brokered-aurora-postgres-boundary";
+export type * from "./brokered-aurora-postgres-boundary.args";
+export type * from "./brokered-aurora-postgres-boundary.outputs";

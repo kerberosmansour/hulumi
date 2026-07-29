@@ -5,7 +5,6 @@
 //   - `name` (kebab-case)
 //   - `description` (non-empty)
 //   - Optional: `allowed-tools` (array of Claude Code tool names)
-//   - Optional: `paths` (array of glob patterns)
 //   - Optional: `arguments` (array of { name, description, required? })
 //   - Optional: `disable-model-invocation`, `hooks`, `context`
 //
@@ -48,9 +47,13 @@ describe("SKILL.md frontmatter matches agentskills.io contract (2026-04-24)", ()
     expect(raw).toMatch(/\narguments:\n[\s\S]*- name: scenario[\s\S]*required: true/);
   });
 
-  it("declares `paths` globs", async () => {
+  it("remains directly user-invocable instead of becoming a path-conditional rule", async () => {
     const raw = await readFile(SKILL_MD, "utf8");
-    expect(raw).toMatch(/\npaths:\n(?: {2}- "[^"\n]+"\n)+/);
+    const frontmatterEnd = raw.indexOf("\n---\n", 4);
+    expect(frontmatterEnd).toBeGreaterThan(0);
+    const frontmatter = raw.slice(0, frontmatterEnd);
+    expect(frontmatter).not.toMatch(/\npaths:/);
+    expect(frontmatter).not.toMatch(/\nuser-invocable:\s*false\b/);
   });
 
   it("frontmatter closes with a bare `---` line before the body", async () => {

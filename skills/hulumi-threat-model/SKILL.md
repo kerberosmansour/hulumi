@@ -25,11 +25,6 @@ arguments:
       github-actions-supply-chain, github-app-token-exposure,
       github-self-hosted-runner). Future versions may accept additional IDs.
     required: true
-paths:
-  - "**/*.ts"
-  - "**/Pulumi.*.yaml"
-  - "**/Pulumi.yaml"
-  - "**/*.pulumi"
 ---
 
 # `/hulumi-threat-model <scenario>`

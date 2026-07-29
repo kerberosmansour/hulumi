@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.4] — 2026-07-29
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.4`, `@hulumi/policies@1.5.4`, `@hulumi/drift@1.5.4`,
+`@hulumi/k8s-baseline@1.5.4`, `@hulumi/cloudflare-baseline@1.5.4`, and
+`@hulumi/platform-patterns@1.5.4`.
+
+### Fixed
+
+- The brokered PostgreSQL mandatory policy pack now compares Kubernetes object
+  structure canonically, so object-key ordering from live provider state cannot
+  create false failures.
+- NetworkPolicy comparison ignores only measured Kubernetes server metadata
+  (`creationTimestamp`, `generation`, `managedFields`, `resourceVersion`, and
+  `uid`) and treats a provider-omitted ingress list as the declared empty list.
+- The typed Kubernetes `SecurityGroupPolicy` resource token emitted by Pulumi is
+  accepted alongside the exact `apiVersion` and `kind` contract.
+
+### Security
+
+- Array ordering, consumer-authored metadata, explicit `null` ingress, wrong
+  typed resources, and incorrect `apiVersion` or `kind` remain fail-closed.
+
 ## [1.5.3] — 2026-07-29
 
 Atomic six-package publish:

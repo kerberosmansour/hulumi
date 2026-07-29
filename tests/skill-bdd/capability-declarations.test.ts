@@ -33,12 +33,12 @@ const DECLARATION = resolve(__dirname, "../../declarations/cyclonedx-1.6-capabil
 describe("CycloneDX capability declaration for the brokered PostgreSQL boundary", () => {
   it("uses current package versions and stable component bom-refs", async () => {
     const bom = JSON.parse(await readFile(DECLARATION, "utf8")) as CapabilityBom;
-    expect(bom.metadata.component.version).toBe("1.5.3");
+    expect(bom.metadata.component.version).toBe("1.5.4");
     const refs = bom.declarations.targets.components.map((component) => component["bom-ref"]);
     expect(refs).toContain("component:@hulumi/platform-patterns");
     expect(refs).toContain("component:@hulumi/policies");
     for (const component of bom.declarations.targets.components) {
-      expect(component.version).toBe("1.5.3");
+      expect(component.version).toBe("1.5.4");
     }
   });
 

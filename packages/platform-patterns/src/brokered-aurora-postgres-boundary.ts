@@ -817,6 +817,7 @@ export class BrokeredAuroraPostgresBoundary
   extends pulumi.ComponentResource
   implements BrokeredAuroraPostgresBoundaryOutputs
 {
+  public readonly policyContract: pulumi.Output<pulumi.Unwrap<BrokeredAuroraPostgresBoundaryArgs>>;
   public readonly roleArns: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;
   public readonly serviceAccountNames: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;
   public readonly securityGroupIds: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;
@@ -835,20 +836,25 @@ export class BrokeredAuroraPostgresBoundary
     opts?: pulumi.ComponentResourceOptions,
   ) {
     const { capabilityJwksJson, dynamodbEndpointUrl } = validateArgs(args);
+    const policyContract = {
+      ...args,
+      capability: {
+        ...args.capability,
+        jwksJson: capabilityJwksJson,
+      },
+      dynamodbEndpointUrl,
+    };
     super(
       BROKERED_AURORA_POSTGRES_BOUNDARY_COMPONENT_TYPE,
       name,
-      {
-        ...args,
-        capability: {
-          ...args.capability,
-          jwksJson: capabilityJwksJson,
-        },
-        dynamodbEndpointUrl,
-      } as pulumi.Inputs,
+      policyContract as pulumi.Inputs,
       opts,
     );
 
+    // Preserve Pulumi's aggregate secret marking for callers. The raw
+    // structure is separately registered below so one unknown/secret leaf
+    // does not erase every known field from CrossGuard serialization.
+    this.policyContract = pulumi.output(policyContract);
     const parent = { parent: this } as const;
     const roles = {} as Record<BrokeredPostgresIdentityKind, aws.iam.Role>;
     const securityGroups = {} as Record<BrokeredPostgresIdentityKind, aws.ec2.SecurityGroup>;
@@ -1712,6 +1718,10 @@ export class BrokeredAuroraPostgresBoundary
     );
 
     this.registerOutputs({
+      // Keep the contract structurally serialized: wrapping the whole object in
+      // one Output makes a single unknown provider leaf hide every known input
+      // from CrossGuard during a first-create preview.
+      policyContract,
       roleArns: this.roleArns,
       serviceAccountNames: this.serviceAccountNames,
       securityGroupIds: this.securityGroupIds,

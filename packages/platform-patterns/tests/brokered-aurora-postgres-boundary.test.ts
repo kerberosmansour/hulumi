@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Buffer } from "node:buffer";
+import * as pulumi from "@pulumi/pulumi";
 
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
@@ -89,6 +90,7 @@ function workload(kind: string) {
 }
 
 interface BoundaryOptions {
+  databaseEndpoint?: pulumi.Input<string>;
   rollout?: {
     phase: "infrastructure" | "migrator" | "broker" | "runtime" | "rotation";
     verifiedGates?: string[];
@@ -130,6 +132,7 @@ async function createBoundary(options: BoundaryOptions = {}) {
     args: Record<string, unknown>,
   ) => {
     identityReceipt: import("@pulumi/pulumi").Output<Record<string, unknown>>;
+    policyContract: import("@pulumi/pulumi").Output<Record<string, unknown>>;
     rotationPosture: import("@pulumi/pulumi").Output<string>;
   };
 
@@ -142,7 +145,7 @@ async function createBoundary(options: BoundaryOptions = {}) {
     permissionBoundaryArn: PERMISSION_BOUNDARY_ARN,
     vpcId: "vpc-12345678",
     database: {
-      endpoint: "orders.cluster-example.eu-west-2.rds.amazonaws.com",
+      endpoint: options.databaseEndpoint ?? "orders.cluster-example.eu-west-2.rds.amazonaws.com",
       port: 5432,
       securityGroupId: "sg-database",
       cidrs: ["10.42.8.0/24"],
@@ -253,6 +256,32 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     await expect(valueOf(boundary.rotationPosture)).resolves.toBe(
       "infrastructure-only-unconfigured",
     );
+  });
+
+  it("exposes the non-secret security contract for stack policy validation", async () => {
+    const boundary = await createBoundary();
+    const contract = await valueOf(boundary.policyContract);
+
+    expect(contract).toMatchObject({
+      awsRegion: "eu-west-2",
+      namespace: "guardian-data",
+      oidcProviderArn: OIDC_PROVIDER_ARN,
+      kmsKeyArn: KMS_KEY_ARN,
+      masterSecretArn: MASTER_SECRET_ARN,
+      applicationSecretNames: ["guardian/orders-a", "guardian/orders-b"],
+    });
+    expect(JSON.stringify(contract)).not.toMatch(
+      /password|secretValue|privateKey|kubeconfig|providerToken/i,
+    );
+    await expect(boundary.policyContract.isSecret).resolves.toBe(false);
+  });
+
+  it("propagates Pulumi secret marking without declassifying a marked contract leaf", async () => {
+    const boundary = await createBoundary({
+      databaseEndpoint: pulumi.secret("orders.cluster-example.eu-west-2.rds.amazonaws.com"),
+    });
+
+    await expect(boundary.policyContract.isSecret).resolves.toBe(true);
   });
 
   it("gives runtime no credential or database authority and keeps broker off the master secret", async () => {

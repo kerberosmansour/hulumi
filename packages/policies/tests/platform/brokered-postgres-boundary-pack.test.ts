@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { PolicyResource, StackValidationArgs } from "@pulumi/policy";
+import {
+  UnknownValueError,
+  unknownCheckingProxy,
+  type PolicyResource,
+  type StackValidationArgs,
+} from "@pulumi/policy";
+
+const PULUMI_UNKNOWN_STRING = "04da6b54-80e4-46f7-96ec-b56ff0331ba9";
 
 function resource(type: string, name: string, props: Record<string, unknown> = {}): PolicyResource {
   return {
@@ -21,6 +28,17 @@ function stack(resources: PolicyResource[]): StackValidationArgs {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function updatePolicyContract(boundary: PolicyResource, updates: Record<string, unknown>): void {
+  const outputs = boundary.props as Record<string, unknown>;
+  boundary.props = {
+    ...outputs,
+    policyContract: {
+      ...(outputs.policyContract as Record<string, unknown>),
+      ...updates,
+    },
+  };
 }
 
 const boundaryTags = (kind: string) => ({
@@ -369,64 +387,56 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
 
 function closedBoundary(): PolicyResource[] {
   const identities = ["runtime", "broker", "migrator", "rotation"];
-  return [
+  const resources = [
     resource("hulumi:platform:BrokeredAuroraPostgresBoundary", "orders", {
-      awsRegion: "eu-west-2",
-      namespace: "guardian-data",
-      oidcProviderArn:
-        "arn:aws:iam::111122223333:oidc-provider/oidc.eks.eu-west-2.amazonaws.com/id/EXAMPLE",
-      oidcIssuer: "https://oidc.eks.eu-west-2.amazonaws.com/id/EXAMPLE",
-      kmsKeyArn: "arn:aws:kms:eu-west-2:111122223333:key/x",
-      masterSecretArn: "arn:aws:secretsmanager:eu-west-2:111122223333:secret:master",
-      applicationSecretNames: ["app-a", "app-b"],
-      database: {
-        endpoint: "orders.cluster-example.eu-west-2.rds.amazonaws.com",
-        securityGroupId: "sg-database",
-        port: 5432,
-        cidrs: ["10.42.8.0/24"],
-      },
-      dnsResolverCidrs: ["10.42.0.2/32"],
-      endpointCidrs: ["10.42.10.0/28"],
-      endpointSecurityGroupIds: {
-        secretsManager: "sg-secrets-endpoint",
-        kms: "sg-kms-endpoint",
-        dynamodb: "sg-dynamodb-endpoint",
-      },
-      dynamodbVpcEndpointId: "vpce-0123456789abcdef0",
-      dynamodbEndpointUrl:
-        "https://vpce-0123456789abcdef0-example.dynamodb.eu-west-2.vpce.amazonaws.com",
-      capability: {
-        issuer: "https://identity.guardian.example",
-        audience: "guardian-db-broker",
-        jwksJson: '{"keys":[{"kid":"key-1"}]}',
-        maxTtlSeconds: 60,
-      },
-      placement,
-      rollout: { phase: "infrastructure" },
-      workloads: {
-        runtime: { image: imageFor("runtime"), command: ["/app/runtime"], port: 8080 },
-        broker: { image: imageFor("broker"), command: ["/app/broker"], port: 7443 },
-        migrator: { image: imageFor("migrator"), command: ["/app/migrator"] },
-        rotation: { image: imageFor("rotation"), command: ["/app/rotation"] },
+      policyContract: {
+        awsRegion: "eu-west-2",
+        namespace: "guardian-data",
+        oidcProviderArn:
+          "arn:aws:iam::111122223333:oidc-provider/oidc.eks.eu-west-2.amazonaws.com/id/EXAMPLE",
+        oidcIssuer: "https://oidc.eks.eu-west-2.amazonaws.com/id/EXAMPLE",
+        kmsKeyArn: "arn:aws:kms:eu-west-2:111122223333:key/x",
+        masterSecretArn: "arn:aws:secretsmanager:eu-west-2:111122223333:secret:master",
+        applicationSecretNames: ["app-a", "app-b"],
+        database: {
+          endpoint: "orders.cluster-example.eu-west-2.rds.amazonaws.com",
+          securityGroupId: "sg-database",
+          port: 5432,
+          cidrs: ["10.42.8.0/24"],
+        },
+        dnsResolverCidrs: ["10.42.0.2/32"],
+        endpointCidrs: ["10.42.10.0/28"],
+        endpointSecurityGroupIds: {
+          secretsManager: "sg-secrets-endpoint",
+          kms: "sg-kms-endpoint",
+          dynamodb: "sg-dynamodb-endpoint",
+        },
+        dynamodbVpcEndpointId: "vpce-0123456789abcdef0",
+        dynamodbEndpointUrl:
+          "https://vpce-0123456789abcdef0-example.dynamodb.eu-west-2.vpce.amazonaws.com",
+        capability: {
+          issuer: "https://identity.guardian.example",
+          audience: "guardian-db-broker",
+          jwksJson: '{"keys":[{"kid":"key-1"}]}',
+          maxTtlSeconds: 60,
+        },
+        placement,
+        rollout: { phase: "infrastructure" },
+        workloads: {
+          runtime: { image: imageFor("runtime"), command: ["/app/runtime"], port: 8080 },
+          broker: { image: imageFor("broker"), command: ["/app/broker"], port: 7443 },
+          migrator: { image: imageFor("migrator"), command: ["/app/migrator"] },
+          rotation: { image: imageFor("rotation"), command: ["/app/rotation"] },
+        },
       },
     }),
     resource("hulumi:baseline:aws:SecureSecret", "orders-application-a", {
-      tier: "startup-hardened",
-      secretName: "app-a",
-      kmsKeyId: "arn:aws:kms:eu-west-2:111122223333:key/x",
-      tags: {
-        "hulumi:boundary": "orders",
-        "hulumi:credential-slot": "a",
-      },
+      secretArn: "arn:aws:secretsmanager:eu-west-2:111122223333:secret:app-a",
+      rotationPosture: "advisory-missing",
     }),
     resource("hulumi:baseline:aws:SecureSecret", "orders-application-b", {
-      tier: "startup-hardened",
-      secretName: "app-b",
-      kmsKeyId: "arn:aws:kms:eu-west-2:111122223333:key/x",
-      tags: {
-        "hulumi:boundary": "orders",
-        "hulumi:credential-slot": "b",
-      },
+      secretArn: "arn:aws:secretsmanager:eu-west-2:111122223333:secret:app-b",
+      rotationPosture: "advisory-missing",
     }),
     resource("aws:secretsmanager/secret:Secret", "orders-application-a-secret", {
       name: "app-a",
@@ -787,6 +797,71 @@ function closedBoundary(): PolicyResource[] {
       },
     ),
   ];
+  const boundary = resources[0];
+  const componentBySlot = new Map(
+    resources
+      .filter((entry) => entry.type === "hulumi:baseline:aws:SecureSecret")
+      .map((entry) => [entry.name.endsWith("-a") ? "a" : "b", entry]),
+  );
+  for (const component of componentBySlot.values()) component.parent = boundary;
+  for (const secret of resources.filter(
+    (entry) => entry.type === "aws:secretsmanager/secret:Secret",
+  )) {
+    const slot = String(
+      (secret.props as Record<string, unknown>).tags &&
+        ((secret.props as Record<string, unknown>).tags as Record<string, unknown>)[
+          "hulumi:credential-slot"
+        ],
+    );
+    const component = componentBySlot.get(slot);
+    if (component !== undefined) secret.parent = component;
+  }
+  return resources;
+}
+
+function firstCreatePreviewBoundary(options: { knownBadKms?: boolean } = {}): PolicyResource[] {
+  const resources = closedBoundary();
+  const boundary = resources.find(
+    (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
+  )!;
+  for (const resource of resources) {
+    if (resource !== boundary && resource.parent === undefined) resource.parent = boundary;
+  }
+
+  for (const resource of resources) {
+    const props = clone(resource.props as Record<string, unknown>);
+    if (resource.type === "hulumi:baseline:aws:SecureSecret") {
+      props.secretArn = PULUMI_UNKNOWN_STRING;
+      resource.props = unknownCheckingProxy(props);
+      continue;
+    }
+    if (resource.type === "aws:secretsmanager/secret:Secret") {
+      props.arn = PULUMI_UNKNOWN_STRING;
+      if (options.knownBadKms === true && resource.name === "orders-application-a-secret") {
+        props.kmsKeyId = "arn:aws:kms:eu-west-2:123456789012:key/wrong";
+      }
+      resource.props = unknownCheckingProxy(props);
+      continue;
+    }
+    if (resource.type === "aws:iam/role:Role") {
+      props.arn = PULUMI_UNKNOWN_STRING;
+      resource.props = unknownCheckingProxy(props);
+      continue;
+    }
+    if (resource.type === "kubernetes:core/v1:ServiceAccount") {
+      const metadata = props.metadata as Record<string, unknown>;
+      const annotations = metadata.annotations as Record<string, unknown>;
+      annotations["eks.amazonaws.com/role-arn"] = PULUMI_UNKNOWN_STRING;
+      resource.props = unknownCheckingProxy(props);
+      continue;
+    }
+    if (resource.type === "aws:iam/rolePolicy:RolePolicy") {
+      props.policy = PULUMI_UNKNOWN_STRING;
+      resource.props = unknownCheckingProxy(props);
+    }
+  }
+
+  return resources;
 }
 
 describe("HulumiBrokeredPostgresBoundaryPack", () => {
@@ -812,6 +887,47 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     );
     await evaluate(resources);
     expect(violations).toEqual([]);
+  });
+
+  it("fails closed with one actionable violation when a legacy component omits policyContract", async () => {
+    const resources = closedBoundary();
+    const boundary = resources.find(
+      (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
+    )!;
+    boundary.props = clone(
+      (boundary.props as Record<string, unknown>).policyContract as Record<string, unknown>,
+    );
+
+    await evaluate(resources);
+    expect(violations).toEqual([
+      expect.stringMatching(/must publish.*policyContract.*update.*together/i),
+    ]);
+  });
+
+  it("emits no mandatory false positive before Pulumi defers first-create provider outputs", async () => {
+    let deferred: unknown;
+    try {
+      await evaluate(firstCreatePreviewBoundary());
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([]);
+  });
+
+  it("rejects known bad KMS input while provider-generated ARNs remain unknown", async () => {
+    let deferred: unknown;
+    try {
+      await evaluate(firstCreatePreviewBoundary({ knownBadKms: true }));
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([
+      expect.stringMatching(/application-secret.*exact boundary KMS key/i),
+    ]);
   });
 
   it("normalizes IAM action casing while requiring a sole exact IRSA trust statement", async () => {
@@ -847,6 +963,59 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     };
     await evaluate(resources);
     expect(violations.join("\n")).toMatch(/sole|exact.*IRSA|IRSA.*exact/i);
+  });
+
+  it("rejects a known role ARN whose provider output omits the trust policy", async () => {
+    const resources = closedBoundary();
+    const runtimeRole = resources.find((entry) => entry.name === "orders-runtime-role")!;
+    const roleProps = runtimeRole.props as Record<string, unknown>;
+    delete roleProps.assumeRolePolicy;
+
+    await evaluate(resources);
+    expect(violations.join("\n")).toMatch(/runtime role.*IRSA trust/i);
+  });
+
+  it("rejects an omitted trust policy before an unknown role ARN is deferred", async () => {
+    const resources = closedBoundary();
+    const runtimeRole = resources.find((entry) => entry.name === "orders-runtime-role")!;
+    const roleProps = { ...(runtimeRole.props as Record<string, unknown>) };
+    delete roleProps.assumeRolePolicy;
+    roleProps.arn = PULUMI_UNKNOWN_STRING;
+    runtimeRole.props = unknownCheckingProxy(roleProps);
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([expect.stringMatching(/runtime role.*IRSA trust/i)]);
+  });
+
+  it("checks every known trust policy before an earlier ServiceAccount ARN is deferred", async () => {
+    const resources = closedBoundary();
+    const runtimeAccount = resources.find((entry) => entry.name === "orders-runtime-sa")!;
+    const runtimeProps = clone(runtimeAccount.props as Record<string, unknown>);
+    const runtimeMetadata = runtimeProps.metadata as Record<string, unknown>;
+    const runtimeAnnotations = runtimeMetadata.annotations as Record<string, unknown>;
+    runtimeAnnotations["eks.amazonaws.com/role-arn"] = PULUMI_UNKNOWN_STRING;
+    runtimeAccount.props = unknownCheckingProxy(runtimeProps);
+    const brokerRole = resources.find((entry) => entry.name === "orders-broker-role")!;
+    const brokerProps = clone(brokerRole.props as Record<string, unknown>);
+    delete brokerProps.assumeRolePolicy;
+    brokerRole.props = brokerProps;
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([expect.stringMatching(/broker role.*IRSA trust/i)]);
   });
 
   it("rejects every managed-policy grant path for the four boundary roles", async () => {
@@ -1113,10 +1282,9 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     const boundary = resources.find(
       (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
     )!;
-    boundary.props = {
-      ...(boundary.props as Record<string, unknown>),
+    updatePolicyContract(boundary, {
       rollout: { phase: "infrastructure", verifiedGates: [] },
-    };
+    });
     const runtime = resources.find((entry) => entry.name === "runtime")!;
     const rotation = resources.find((entry) => entry.name === "rotation")!;
     (runtime.props as { spec: { replicas: number } }).spec.replicas = 2;
@@ -1131,8 +1299,7 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     const boundary = resources.find(
       (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
     )!;
-    boundary.props = {
-      ...(boundary.props as Record<string, unknown>),
+    updatePolicyContract(boundary, {
       rollout: {
         phase: "runtime",
         verifiedGates: [
@@ -1141,7 +1308,7 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
           "broker-health",
         ],
       },
-    };
+    });
     const runtime = resources.find((entry) => entry.name === "runtime")!;
     const broker = resources.find((entry) => entry.name === "broker")!;
     (runtime.props as { spec: { replicas: number } }).spec.replicas = 2;
@@ -1156,8 +1323,7 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     const boundary = resources.find(
       (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
     )!;
-    boundary.props = {
-      ...(boundary.props as Record<string, unknown>),
+    updatePolicyContract(boundary, {
       placement: {
         runtime: {
           runtimeClassName: "runc",
@@ -1188,7 +1354,7 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
           priorityClassName: "guardian-runtime",
         },
       },
-    };
+    });
 
     await evaluate(resources);
     expect(violations.join("\n")).toMatch(/disjoint|placement|node pool/i);
@@ -1263,20 +1429,38 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     expect(violations.join("\n")).toMatch(/GenerateDataKey.*boundary KMS key/i);
   });
 
-  it("rejects either application-secret layer bound to a different KMS key", async () => {
+  it("rejects a mismatched SecureSecret output or child KMS binding", async () => {
     const componentResources = closedBoundary();
     for (const secret of componentResources.filter(
       (entry) => entry.type === "hulumi:baseline:aws:SecureSecret",
     )) {
       secret.props = {
         ...(secret.props as Record<string, unknown>),
-        kmsKeyId: "arn:aws:kms:eu-west-2:111122223333:key/unrelated",
+        secretArn: "arn:aws:secretsmanager:eu-west-2:111122223333:secret:unrelated",
       };
     }
 
     await evaluate(componentResources);
     expect(violations.join("\n")).toMatch(
-      /application-secret.*SecureSecret.*child.*exact boundary KMS key/i,
+      /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
+    );
+
+    violations = [];
+    const missingArns = closedBoundary();
+    for (const secret of missingArns.filter(
+      (entry) => entry.type === "hulumi:baseline:aws:SecureSecret",
+    )) {
+      delete (secret.props as Record<string, unknown>).secretArn;
+    }
+    for (const secret of missingArns.filter(
+      (entry) => entry.type === "aws:secretsmanager/secret:Secret",
+    )) {
+      delete (secret.props as Record<string, unknown>).arn;
+    }
+
+    await evaluate(missingArns);
+    expect(violations.join("\n")).toMatch(
+      /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
     );
 
     violations = [];
@@ -1292,8 +1476,46 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
 
     await evaluate(childResources);
     expect(violations.join("\n")).toMatch(
-      /application-secret.*SecureSecret.*child.*exact boundary KMS key/i,
+      /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
     );
+
+    violations = [];
+    const missingChildKmsResources = closedBoundary();
+    for (const secret of missingChildKmsResources.filter(
+      (entry) => entry.type === "aws:secretsmanager/secret:Secret",
+    )) {
+      delete (secret.props as Record<string, unknown>).kmsKeyId;
+    }
+
+    await evaluate(missingChildKmsResources);
+    expect(violations.join("\n")).toMatch(
+      /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
+    );
+  });
+
+  it("rejects two unknown-ARN secret children attached to the same SecureSecret", async () => {
+    const resources = firstCreatePreviewBoundary();
+    const components = resources.filter(
+      (entry) => entry.type === "hulumi:baseline:aws:SecureSecret",
+    );
+    const children = resources.filter((entry) => entry.type === "aws:secretsmanager/secret:Secret");
+    expect(components).toHaveLength(2);
+    expect(children).toHaveLength(2);
+    children[1].parent = components[0];
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([
+      expect.stringMatching(
+        /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
+      ),
+    ]);
   });
 
   it("rejects replay SSE bound to a different non-empty KMS key", async () => {
@@ -1417,10 +1639,9 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     const boundary = resources.find(
       (entry) => entry.type === "hulumi:platform:BrokeredAuroraPostgresBoundary",
     )!;
-    boundary.props = {
-      ...(boundary.props as Record<string, unknown>),
+    updatePolicyContract(boundary, {
       dnsResolverCidrs: ["10.0.0.0/8"],
-    };
+    });
     for (const network of resources.filter(
       (entry) => entry.type === "kubernetes:networking.k8s.io/v1:NetworkPolicy",
     )) {

@@ -1,4 +1,4 @@
-import type { PolicyResource, StackValidationPolicy } from "@pulumi/policy";
+import { UnknownValueError, type PolicyResource, type StackValidationPolicy } from "@pulumi/policy";
 
 import type { PackMetadata } from "../metadata";
 
@@ -103,6 +103,25 @@ function stringProp(record: Record<string, unknown> | undefined, key: string): s
   return typeof value === "string" && value !== "" ? value : undefined;
 }
 
+interface PreviewString {
+  readonly value: string | undefined;
+  readonly unknown: boolean;
+}
+
+function previewStringProp(
+  record: Record<string, unknown> | undefined,
+  key: string,
+): PreviewString {
+  try {
+    return { value: stringProp(record, key), unknown: false };
+  } catch (error) {
+    if (error instanceof UnknownValueError) {
+      return { value: undefined, unknown: true };
+    }
+    throw error;
+  }
+}
+
 function placementProfile(value: unknown): PlacementProfile | undefined {
   const profile = asRecord(value);
   const nodePool = asRecord(profile?.nodePool);
@@ -197,8 +216,13 @@ function hasExactIrsaTrust(
   serviceAccount: string,
   oidcProviderArn: string,
   oidcIssuer: string,
-): boolean {
-  const trustStatements = statements(asRecord(role.props)?.assumeRolePolicy);
+): boolean | undefined {
+  const roleProps = asRecord(role.props);
+  const trustPolicy = roleProps?.assumeRolePolicy;
+  if (trustPolicy === undefined) {
+    return stringProp(roleProps, "arn") === undefined ? undefined : false;
+  }
+  const trustStatements = statements(trustPolicy);
   if (trustStatements.length !== 1) return false;
   const statement = trustStatements[0];
   if (statement.Effect !== "Allow") return false;
@@ -726,7 +750,14 @@ function validateBoundary(
   reportViolation: (message: string) => void,
 ): void {
   const name = boundary.name;
-  const props = asRecord(boundary.props);
+  const componentOutputs = asRecord(boundary.props);
+  const props = asRecord(componentOutputs?.policyContract);
+  if (props === undefined) {
+    reportViolation(
+      `${BROKERED_PG_1_RULE_ID}: ${name} must publish the BrokeredAuroraPostgresBoundary policyContract; update @hulumi/platform-patterns and @hulumi/policies together. Docs: ${DOCS_URL}`,
+    );
+    return;
+  }
   const namespace = typeof props?.namespace === "string" ? props.namespace : "";
   const oidcProviderArn = typeof props?.oidcProviderArn === "string" ? props.oidcProviderArn : "";
   const oidcIssuer = typeof props?.oidcIssuer === "string" ? props.oidcIssuer : "";
@@ -767,42 +798,79 @@ function validateBoundary(
     (resource) => resource.type === SECRETS_MANAGER_SECRET_TYPE,
   );
   const applicationSecretArns: string[] = [];
-  const exactApplicationSecretChildren =
+  const componentContracts = secureSecretComponents.map((resource) => {
+    const componentProps = asRecord(resource.props);
+    return {
+      resource,
+      secretArn: previewStringProp(componentProps, "secretArn"),
+    };
+  });
+  const childContracts = applicationSecrets.map((resource) => {
+    const secretProps = asRecord(resource.props);
+    return {
+      resource,
+      name: stringProp(secretProps, "name"),
+      kmsKeyId: stringProp(secretProps, "kmsKeyId"),
+      arn: previewStringProp(secretProps, "arn"),
+    };
+  });
+  let exactApplicationSecretChildren =
     applicationSecretNames.length === 2 &&
     secureSecretComponents.length === 2 &&
-    applicationSecrets.length === 2 &&
-    applicationSecretNames.every((secretName) => {
-      const matchingComponents = secureSecretComponents.filter(
-        (resource) => stringProp(asRecord(resource.props), "secretName") === secretName,
-      );
-      const matchingSecrets = applicationSecrets.filter(
-        (resource) => stringProp(asRecord(resource.props), "name") === secretName,
-      );
-      if (matchingComponents.length !== 1 || matchingSecrets.length !== 1) return false;
-      const componentProps = asRecord(matchingComponents[0].props);
-      const secretProps = asRecord(matchingSecrets[0].props);
-      const arn = stringProp(secretProps, "arn");
-      const parsed = parseArn(arn);
-      const escapedName = secretName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-      const exactKmsBinding =
-        kmsKeyArn !== undefined &&
-        stringProp(componentProps, "kmsKeyId") === kmsKeyArn &&
-        stringProp(secretProps, "kmsKeyId") === kmsKeyArn;
-      const exactContext =
-        exactKmsBinding &&
-        arn !== undefined &&
-        parsed?.service === "secretsmanager" &&
-        parsed.partition === oidcArn?.partition &&
-        parsed.region === awsRegion &&
-        parsed.account === oidcArn?.account &&
-        (parsed.resource === `secret:${secretName}` ||
-          new RegExp(`^secret:${escapedName}-[A-Za-z0-9]{6}$`, "u").test(parsed.resource));
-      if (exactContext) applicationSecretArns.push(arn);
-      return exactContext;
-    });
+    applicationSecrets.length === 2;
+  for (const secretName of applicationSecretNames) {
+    const matchingSecrets = childContracts.filter((contract) => contract.name === secretName);
+    if (matchingSecrets.length !== 1) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
+    const secret = matchingSecrets[0];
+    const matchingComponents = componentContracts.filter(
+      (contract) => secret.resource.parent?.urn === contract.resource.urn,
+    );
+    if (matchingComponents.length !== 1 || secret.kmsKeyId !== kmsKeyArn) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
+    const component = matchingComponents[0];
+    const componentArn = component.secretArn;
+    const arn = secret.arn;
+    // Both ARNs are provider-generated and may be unknown (or absent) together
+    // on the first create preview. Contain that deferral to ARN correlation so
+    // known child-parent and KMS inputs remain mandatory on the same preview.
+    if (componentArn.unknown !== arn.unknown) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
+    if (componentArn.unknown && arn.unknown) continue;
+    if ((componentArn.value === undefined) !== (arn.value === undefined)) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
+    if (componentArn.value === undefined || arn.value === undefined) continue;
+    if (componentArn.value !== arn.value) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
+    const parsed = parseArn(arn.value);
+    const escapedName = secretName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const exactContext =
+      kmsKeyArn !== undefined &&
+      parsed?.service === "secretsmanager" &&
+      parsed.partition === oidcArn?.partition &&
+      parsed.region === awsRegion &&
+      parsed.account === oidcArn?.account &&
+      (parsed.resource === `secret:${secretName}` ||
+        new RegExp(`^secret:${escapedName}-[A-Za-z0-9]{6}$`, "u").test(parsed.resource));
+    if (exactContext) {
+      applicationSecretArns.push(arn.value);
+    } else {
+      exactApplicationSecretChildren = false;
+    }
+  }
   if (!exactApplicationSecretChildren) {
     reportViolation(
-      `${BROKERED_PG_1_RULE_ID}: ${name} requires each application-secret SecureSecret component and Secrets Manager child to use the exact boundary KMS key, with exact full ARNs in the boundary partition, region, and account. Docs: ${DOCS_URL}`,
+      `${BROKERED_PG_1_RULE_ID}: ${name} requires each application-secret SecureSecret output to correlate to exactly one direct Secrets Manager child using the exact boundary KMS key and the same full ARN in the boundary partition, region, and account. Docs: ${DOCS_URL}`,
     );
   }
 
@@ -826,7 +894,13 @@ function validateBoundary(
       );
     }
     if (
-      !hasExactIrsaTrust(role, namespace, serviceAccountName(account), oidcProviderArn, oidcIssuer)
+      hasExactIrsaTrust(
+        role,
+        namespace,
+        serviceAccountName(account),
+        oidcProviderArn,
+        oidcIssuer,
+      ) === false
     ) {
       reportViolation(
         `${BROKERED_PG_1_RULE_ID}: ${kind} role ${role.urn} lacks the sole exact provider+audience+subject IRSA trust statement for its ServiceAccount. Docs: ${DOCS_URL}`,

@@ -1,6 +1,9 @@
 import type * as pulumi from "@pulumi/pulumi";
 
-import type { BrokeredPostgresIdentityKind } from "./brokered-aurora-postgres-boundary.args";
+import type {
+  BrokeredAuroraPostgresBoundaryArgs,
+  BrokeredPostgresIdentityKind,
+} from "./brokered-aurora-postgres-boundary.args";
 
 export type BrokeredPostgresRotationPosture = "infrastructure-only-unconfigured";
 
@@ -24,6 +27,13 @@ export interface BrokeredPostgresIdentityReceipt {
 }
 
 export interface BrokeredAuroraPostgresBoundaryOutputs {
+  /**
+   * Deeply resolved security-configuration contract consumed by CrossGuard
+   * stack policies. Callers must not place credential values in this contract.
+   * Pulumi secret markings propagate through this Output, while the registered
+   * raw structure preserves per-leaf known/unknown and secret metadata.
+   */
+  readonly policyContract: pulumi.Output<pulumi.Unwrap<BrokeredAuroraPostgresBoundaryArgs>>;
   readonly roleArns: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;
   readonly serviceAccountNames: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;
   readonly securityGroupIds: pulumi.Output<Record<BrokeredPostgresIdentityKind, string>>;

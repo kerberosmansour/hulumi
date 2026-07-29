@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/policies",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "publishConfig": {
     "access": "public",
     "provenance": true

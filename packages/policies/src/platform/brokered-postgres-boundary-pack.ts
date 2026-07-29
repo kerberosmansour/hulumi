@@ -822,6 +822,7 @@ function validateBoundary(
     applicationSecretNames.length === 2 &&
     secureSecretComponents.length === 2 &&
     applicationSecrets.length === 2;
+  const matchedComponentUrns = new Set<string>();
   for (const secretName of applicationSecretNames) {
     const matchingSecrets = childContracts.filter((contract) => contract.name === secretName);
     if (matchingSecrets.length !== 1) {
@@ -832,11 +833,16 @@ function validateBoundary(
     const matchingComponents = componentContracts.filter(
       (contract) => secret.resource.parent?.urn === contract.resource.urn,
     );
-    if (matchingComponents.length !== 1 || secret.kmsKeyId !== kmsKeyArn) {
+    if (
+      matchingComponents.length !== 1 ||
+      matchedComponentUrns.has(matchingComponents[0]?.resource.urn ?? "") ||
+      secret.kmsKeyId !== kmsKeyArn
+    ) {
       exactApplicationSecretChildren = false;
       continue;
     }
     const component = matchingComponents[0];
+    matchedComponentUrns.add(component.resource.urn);
     const componentArn = component.secretArn;
     const arn = secret.arn;
     // Both ARNs are provider-generated and may be unknown (or absent) together
@@ -881,6 +887,30 @@ function validateBoundary(
     );
   }
 
+  // Validate every known trust policy before reading any provider-generated
+  // role ARN. A first-create unknown on an earlier ServiceAccount must not
+  // suppress a known trust violation on a later identity.
+  for (const kind of IDENTITY_KINDS) {
+    const matchingRoles = roles.filter((resource) => identityKind(resource) === kind);
+    const matchingAccounts = serviceAccounts.filter((resource) => identityKind(resource) === kind);
+    if (matchingRoles.length !== 1 || matchingAccounts.length !== 1) continue;
+    const role = matchingRoles[0];
+    const account = matchingAccounts[0];
+    if (
+      hasExactIrsaTrust(
+        role,
+        namespace,
+        serviceAccountName(account),
+        oidcProviderArn,
+        oidcIssuer,
+      ) === false
+    ) {
+      reportViolation(
+        `${BROKERED_PG_1_RULE_ID}: ${kind} role ${role.urn} lacks the sole exact provider+audience+subject IRSA trust statement for its ServiceAccount. Docs: ${DOCS_URL}`,
+      );
+    }
+  }
+
   for (const kind of IDENTITY_KINDS) {
     const matchingRoles = roles.filter((resource) => identityKind(resource) === kind);
     const matchingAccounts = serviceAccounts.filter((resource) => identityKind(resource) === kind);
@@ -898,19 +928,6 @@ function validateBoundary(
     if (tagsOf(role)?.["hulumi:iac-role"] !== undefined) {
       reportViolation(
         `${BROKERED_PG_1_RULE_ID}: ${kind} workload role ${role.urn} must not carry hulumi:iac-role. Docs: ${DOCS_URL}`,
-      );
-    }
-    if (
-      hasExactIrsaTrust(
-        role,
-        namespace,
-        serviceAccountName(account),
-        oidcProviderArn,
-        oidcIssuer,
-      ) === false
-    ) {
-      reportViolation(
-        `${BROKERED_PG_1_RULE_ID}: ${kind} role ${role.urn} lacks the sole exact provider+audience+subject IRSA trust statement for its ServiceAccount. Docs: ${DOCS_URL}`,
       );
     }
     const annotatedRoleArn = accountAnnotations?.["eks.amazonaws.com/role-arn"];

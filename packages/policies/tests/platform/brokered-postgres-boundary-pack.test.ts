@@ -994,6 +994,30 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     expect(violations).toEqual([expect.stringMatching(/runtime role.*IRSA trust/i)]);
   });
 
+  it("checks every known trust policy before an earlier ServiceAccount ARN is deferred", async () => {
+    const resources = closedBoundary();
+    const runtimeAccount = resources.find((entry) => entry.name === "orders-runtime-sa")!;
+    const runtimeProps = clone(runtimeAccount.props as Record<string, unknown>);
+    const runtimeMetadata = runtimeProps.metadata as Record<string, unknown>;
+    const runtimeAnnotations = runtimeMetadata.annotations as Record<string, unknown>;
+    runtimeAnnotations["eks.amazonaws.com/role-arn"] = PULUMI_UNKNOWN_STRING;
+    runtimeAccount.props = unknownCheckingProxy(runtimeProps);
+    const brokerRole = resources.find((entry) => entry.name === "orders-broker-role")!;
+    const brokerProps = clone(brokerRole.props as Record<string, unknown>);
+    delete brokerProps.assumeRolePolicy;
+    brokerRole.props = brokerProps;
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([expect.stringMatching(/broker role.*IRSA trust/i)]);
+  });
+
   it("rejects every managed-policy grant path for the four boundary roles", async () => {
     const resources = closedBoundary();
     const runtimeRole = resources.find((entry) => entry.name === "orders-runtime-role")!;
@@ -1467,6 +1491,31 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     expect(violations.join("\n")).toMatch(
       /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
     );
+  });
+
+  it("rejects two unknown-ARN secret children attached to the same SecureSecret", async () => {
+    const resources = firstCreatePreviewBoundary();
+    const components = resources.filter(
+      (entry) => entry.type === "hulumi:baseline:aws:SecureSecret",
+    );
+    const children = resources.filter((entry) => entry.type === "aws:secretsmanager/secret:Secret");
+    expect(components).toHaveLength(2);
+    expect(children).toHaveLength(2);
+    children[1].parent = components[0];
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([
+      expect.stringMatching(
+        /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
+      ),
+    ]);
   });
 
   it("rejects replay SSE bound to a different non-empty KMS key", async () => {

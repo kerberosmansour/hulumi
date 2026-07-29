@@ -29,9 +29,9 @@ Atomic six-package publish:
 
 ### Security
 
-- First-create deferral is limited to provider-generated ARN/echo fields. Known
-  malformed trust, KMS, secret, identity, workload, network, and replay-state
-  contract fields remain mandatory failures.
+- Before provider-output deferral, known IRSA trust plus secret parent and KMS
+  relationships remain mandatory failures. The remaining structural checks run
+  after their required provider outputs resolve.
 - A provider-generated ServiceAccount role annotation can remain an advisory unknown
   during the first preview; post-apply previews must resolve and validate it.
 

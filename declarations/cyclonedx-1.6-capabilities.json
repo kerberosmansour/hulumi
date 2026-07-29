@@ -84,7 +84,7 @@
             },
             {
               "name": "cdx:sunlit:limit",
-              "value": "On first-create preview, only provider-generated ARN and echo fields may defer as advisories; every known contract field remains fail-closed."
+              "value": "Before provider-output deferral, known IRSA trust plus secret parent and KMS relationships remain fail-closed; remaining structural checks require their provider outputs to resolve."
             }
           ]
         },
@@ -270,8 +270,8 @@
       {
         "bom-ref": "claim:hulumi:brokered-postgres-boundary-policy",
         "target": "component:@hulumi/policies",
-        "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary, preserving fail-closed validation of known contract fields while provider-generated unknown fields defer as advisories.",
-        "reasoning": "The policy pack rejects structural bypasses and pre-validates known trust and secret relationships before provider-output deferral, but cannot replace live effective-authorization or actual-login verification."
+        "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary, with fail-closed pre-validation of known IRSA trust plus secret parent and KMS relationships before provider-output deferral.",
+        "reasoning": "The remaining structural checks require their provider outputs to resolve, and the policy pack cannot replace live effective-authorization or actual-login verification."
       }
     ]
   }

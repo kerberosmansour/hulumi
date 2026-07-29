@@ -1434,6 +1434,14 @@ export class BrokeredAuroraPostgresBoundary
           name: `${name}-migrator`,
           namespace: args.namespace,
           labels: podLabels(name, "migrator"),
+          // The migrator ships suspended: no pod is created, and status stays
+          // type=Suspended with active/succeeded/failed all zero. Awaiting
+          // readiness on it therefore cannot succeed — not slowly, but never —
+          // so the provider is told to skip the await rather than block until
+          // its timeout. Inertness is the point; this makes the deployment
+          // honest about it instead of waiting for an activation that only an
+          // operator may perform.
+          annotations: { "pulumi.com/skipAwait": "true" },
         },
         spec: {
           backoffLimit: 1,

@@ -551,6 +551,28 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     expect(registrations).toEqual([]);
   });
 
+  it("does not ask Pulumi to await a suspended migrator Job that can never become ready", async () => {
+    await createBoundary();
+    await settlePulumi();
+
+    const migrator = workload("migrator");
+    const spec = migrator?.inputs.spec as { suspend: boolean };
+    const annotations = (
+      migrator?.inputs.metadata as { annotations?: Record<string, string> } | undefined
+    )?.annotations;
+
+    // The Job is suspended by design, so no pod is ever created and its status
+    // stays type=Suspended with active/succeeded/failed all zero. Awaiting
+    // readiness on it cannot succeed — not slowly, but never — and on a cluster
+    // whose node groups are deliberately sized to zero there is nothing that
+    // could change that. The provider must therefore be told to skip the await.
+    expect(spec.suspend, "migrator Job must stay suspended").toBe(true);
+    expect(
+      annotations?.["pulumi.com/skipAwait"],
+      "suspended migrator Job must carry the provider skip-await contract",
+    ).toBe("true");
+  });
+
   it("keeps every executable workload inert and does not activate from caller gate strings", async () => {
     await createBoundary();
     await settlePulumi();

@@ -16,6 +16,7 @@ const LEGACY_SG_RULE_TYPE = "aws:ec2/securityGroupRule:SecurityGroupRule";
 const SERVICE_ACCOUNT_TYPE = "kubernetes:core/v1:ServiceAccount";
 const NETWORK_POLICY_TYPE = "kubernetes:networking.k8s.io/v1:NetworkPolicy";
 const CUSTOM_RESOURCE_TYPE = "kubernetes:apiextensions.k8s.io:CustomResource";
+const SECURITY_GROUP_POLICY_TYPE = "kubernetes:vpcresources.k8s.aws/v1beta1:SecurityGroupPolicy";
 const SECURE_SECRET_TYPE = "hulumi:baseline:aws:SecureSecret";
 const SECRETS_MANAGER_SECRET_TYPE = "aws:secretsmanager/secret:Secret";
 const SECRET_VERSION_TYPE = "aws:secretsmanager/secretVersion:SecretVersion";
@@ -65,6 +66,45 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object"
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  const record = asRecord(value);
+  if (record === undefined) return value;
+  return Object.fromEntries(
+    Object.keys(record)
+      .sort()
+      .map((key) => [key, canonicalValue(record[key])]),
+  );
+}
+
+function sameStructure(actual: unknown, expected: unknown): boolean {
+  return JSON.stringify(canonicalValue(actual)) === JSON.stringify(canonicalValue(expected));
+}
+
+const KUBERNETES_SERVER_METADATA_FIELDS = new Set([
+  "creationTimestamp",
+  "generation",
+  "managedFields",
+  "resourceVersion",
+  "uid",
+]);
+
+function comparableNetworkPolicyProps(props: unknown): Record<string, unknown> {
+  const record = asRecord(props);
+  const metadata = asRecord(record?.metadata);
+  const spec = asRecord(record?.spec);
+  const comparableMetadata =
+    metadata === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(metadata).filter(([key]) => !KUBERNETES_SERVER_METADATA_FIELDS.has(key)),
+        );
+  return {
+    metadata: comparableMetadata,
+    spec: spec === undefined ? undefined : { ...spec, ingress: spec.ingress ?? [] },
+  };
 }
 
 function strings(value: unknown): string[] {
@@ -371,37 +411,52 @@ function podSpecHasExactPlacement(
   if (placement === undefined) return false;
   return (
     spec.runtimeClassName === placement.runtimeClassName &&
-    JSON.stringify(asRecord(spec.nodeSelector)) ===
-      JSON.stringify({ [placement.nodePoolKey]: placement.nodePoolValue }) &&
-    JSON.stringify(asRecord(spec.affinity)) ===
-      JSON.stringify({
-        nodeAffinity: {
-          requiredDuringSchedulingIgnoredDuringExecution: {
-            nodeSelectorTerms: [
-              {
-                matchExpressions: [
-                  {
-                    key: placement.nodePoolKey,
-                    operator: "In",
-                    values: [placement.nodePoolValue],
-                  },
-                ],
-              },
-            ],
-          },
+    sameStructure(asRecord(spec.nodeSelector), {
+      [placement.nodePoolKey]: placement.nodePoolValue,
+    }) &&
+    sameStructure(asRecord(spec.affinity), {
+      nodeAffinity: {
+        requiredDuringSchedulingIgnoredDuringExecution: {
+          nodeSelectorTerms: [
+            {
+              matchExpressions: [
+                {
+                  key: placement.nodePoolKey,
+                  operator: "In",
+                  values: [placement.nodePoolValue],
+                },
+              ],
+            },
+          ],
         },
-      }) &&
-    JSON.stringify(spec.tolerations) ===
-      JSON.stringify([
-        {
-          key: placement.tolerationKey,
-          operator: "Equal",
-          value: placement.tolerationValue,
-          effect: placement.tolerationEffect,
-        },
-      ]) &&
+      },
+    }) &&
+    sameStructure(spec.tolerations, [
+      {
+        key: placement.tolerationKey,
+        operator: "Equal",
+        value: placement.tolerationValue,
+        effect: placement.tolerationEffect,
+      },
+    ]) &&
     spec.schedulerName === placement.schedulerName &&
     spec.priorityClassName === placement.priorityClassName
+  );
+}
+
+function isSecurityGroupPolicy(resource: PolicyResource): boolean {
+  const resourceProps = asRecord(resource.props);
+  if (resource.type === CUSTOM_RESOURCE_TYPE) {
+    return (
+      resourceProps?.apiVersion === "vpcresources.k8s.aws/v1beta1" &&
+      resourceProps.kind === "SecurityGroupPolicy"
+    );
+  }
+  if (resource.type !== SECURITY_GROUP_POLICY_TYPE) return false;
+  return (
+    (resourceProps?.apiVersion === undefined ||
+      resourceProps.apiVersion === "vpcresources.k8s.aws/v1beta1") &&
+    (resourceProps?.kind === undefined || resourceProps.kind === "SecurityGroupPolicy")
   );
 }
 
@@ -1475,23 +1530,17 @@ function validateBoundary(
     const expectedNetwork = expectedNetworkPolicyProps(name, namespace, kind, props);
     if (
       networkPolicies.length !== 1 ||
-      JSON.stringify({
-        metadata: asRecord(networkPolicies[0]?.props)?.metadata,
-        spec: asRecord(networkPolicies[0]?.props)?.spec,
-      }) !== JSON.stringify(expectedNetwork)
+      !sameStructure(
+        comparableNetworkPolicyProps(networkPolicies[0]?.props),
+        comparableNetworkPolicyProps(expectedNetwork),
+      )
     ) {
       reportViolation(
         `${BROKERED_PG_1_RULE_ID}: ${kind} requires exactly one closed NetworkPolicy; untagged or additive policies selecting the protected workload are forbidden. Docs: ${DOCS_URL}`,
       );
     }
     const securityGroupPolicies = scoped.filter((resource) => {
-      const resourceProps = asRecord(resource.props);
-      return (
-        resource.type === CUSTOM_RESOURCE_TYPE &&
-        resourceProps?.apiVersion === "vpcresources.k8s.aws/v1beta1" &&
-        resourceProps.kind === "SecurityGroupPolicy" &&
-        identityKind(resource) === kind
-      );
+      return isSecurityGroupPolicy(resource) && identityKind(resource) === kind;
     });
     const securityGroup = securityGroupByKind.get(kind);
     const policyProps = asRecord(securityGroupPolicies[0]?.props);
@@ -1510,7 +1559,7 @@ function validateBoundary(
       securityGroupPolicies.length !== 1 ||
       securityGroup === undefined ||
       policyMetadata?.namespace !== namespace ||
-      JSON.stringify(asRecord(podSelector?.matchLabels)) !== JSON.stringify(expectedLabels) ||
+      !sameStructure(asRecord(podSelector?.matchLabels), expectedLabels) ||
       groupIds.length !== 1 ||
       !candidateIds(securityGroup).has(groupIds[0])
     ) {

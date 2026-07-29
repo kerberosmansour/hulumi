@@ -5,7 +5,7 @@
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![npm @hulumi/baseline](https://img.shields.io/npm/v/@hulumi/baseline.svg)](https://www.npmjs.com/package/@hulumi/baseline)
 
-> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.5.1.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.5.2.
 
 ## Table of contents
 
@@ -15,7 +15,7 @@
   - [Project goals](#project-goals)
   - [Non-goals](#non-goals)
 - [Quick start](#quick-start)
-- [What's in the box](#whats-in-the-box-v151)
+- [What's in the box](#whats-in-the-box-v152)
 - [Canonical install](#canonical-install)
   - [Pulumi packages (npm)](#pulumi-packages-npm)
   - [Claude Code skill (`/hulumi-threat-model`)](#claude-code-skill-hulumi-threat-model)
@@ -79,7 +79,7 @@ Add the baseline package and Pulumi's provider, then use a hardened component in
 pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 ```
 
-(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.5.1 continues the caret-compatible Pulumi SDK peer-dependency posture introduced in 1.4.1.)
+(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.5.2 continues the caret-compatible Pulumi SDK peer-dependency posture introduced in 1.4.1.)
 
 ```ts
 import { SecureBucket } from "@hulumi/baseline/aws";
@@ -98,7 +98,7 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 /hulumi-threat-model aws-multi-account-baseline
 ```
 
-## What's in the box (v1.5.1)
+## What's in the box (v1.5.2)
 
 | Package                                  | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,7 +131,7 @@ pnpm add @hulumi/k8s-baseline @pulumi/kubernetes
 pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare @pulumi/github
 ```
 
-Hulumi 1.5.1 continues to accept caret-compatible Pulumi SDKs (same major version line) where the package peer ranges permit it. The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
+Hulumi 1.5.2 continues to accept caret-compatible Pulumi SDKs (same major version line) where the package peer ranges permit it. The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
 
 ### Claude Code skill (`/hulumi-threat-model`)
 
@@ -187,6 +187,7 @@ The docs are organised by what you're trying to do. The full index lives at [doc
 | v1.4.1  | 2026-05-20 | Consumer-friendliness patch. Loosened `@pulumi/*` peer-dep ranges from exact-version pins (`"@pulumi/aws": "7.27.0"`) to caret ranges (`"^7.27.0"`) so projects on slightly newer Pulumi SDKs can install Hulumi without npm ERESOLVE. No API or behaviour change. Hulumi's own internal lockfile + integrity-hash discipline is unchanged.                                                                                                                                  |
 | v1.5.0  | 2026-05-28 | Cloud platform hardening release — `AwsOrganizationSecurityFoundation`, `PulumiStateBackendFoundation`, `EksClusterFoundation`, `hulumi validate live`, AWS secure primitives, `SecurityDetectionFoundation`, `RunnerGovernanceFoundation`, plus the matching policy and workflow-governance checks. See [`docs/release/v1.5.0-release-notes.md`](./docs/release/v1.5.0-release-notes.md).                                                                                   |
 | v1.5.1  | 2026-07-29 | Brokered Aurora PostgreSQL authority-boundary infrastructure and CrossGuard policy scaffolding, with explicit non-runtime limits. See [`docs/release/v1.5.1-release-notes.md`](./docs/release/v1.5.1-release-notes.md).                                                                                                                                                                                                                                                      |
+| v1.5.2  | 2026-07-29 | First-create preview hardening for the brokered PostgreSQL boundary: known contract fields remain fail-closed while only provider-generated unknown fields defer as advisories. See [`docs/release/v1.5.2-release-notes.md`](./docs/release/v1.5.2-release-notes.md).                                                                                                                                                                                                        |
 
 Per-milestone specs live in [`docs/slo/runbook-milestones/`](./docs/slo/runbook-milestones/) and lessons-learned in [`docs/slo/lessons/`](./docs/slo/lessons/). The master runbook is [`docs/slo/completed/RUNBOOK-hulumi.md`](./docs/slo/completed/RUNBOOK-hulumi.md). For what's next, watch the [issue tracker](https://github.com/kerberosmansour/hulumi/issues) and [CHANGELOG.md](./CHANGELOG.md).
 

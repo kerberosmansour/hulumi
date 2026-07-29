@@ -8,7 +8,7 @@
     "component": {
       "type": "application",
       "name": "hulumi",
-      "version": "1.5.1"
+      "version": "1.5.2"
     }
   },
   "declarations": {
@@ -19,7 +19,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "baseline",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -44,7 +44,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "policies",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -81,6 +81,10 @@
             {
               "name": "cdx:sunlit:limit",
               "value": "Structural Pulumi preview policy only; live IAM, Kubernetes, network and PostgreSQL evidence remains required."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "On first-create preview, only provider-generated ARN and echo fields may defer as advisories; every known contract field remains fail-closed."
             }
           ]
         },
@@ -89,7 +93,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "drift",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -110,7 +114,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "k8s-baseline",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -135,7 +139,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "cloudflare-baseline",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -168,7 +172,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "platform-patterns",
-          "version": "1.5.1",
+          "version": "1.5.2",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -217,6 +221,10 @@
             {
               "name": "cdx:sunlit:limit",
               "value": "Replay traffic requires an exact DynamoDB interface endpoint id, endpoint URL, security group, and private Kubernetes endpoint CIDR path."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "A provider-generated ServiceAccount role annotation can remain advisory-unknown during first-create preview; post-apply preview must resolve and validate it."
             }
           ]
         }
@@ -262,8 +270,8 @@
       {
         "bom-ref": "claim:hulumi:brokered-postgres-boundary-policy",
         "target": "component:@hulumi/policies",
-        "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary.",
-        "reasoning": "The policy pack rejects structural bypasses but cannot replace live effective-authorization or actual-login verification."
+        "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary, preserving fail-closed validation of known contract fields while provider-generated unknown fields defer as advisories.",
+        "reasoning": "The policy pack rejects structural bypasses and pre-validates known trust and secret relationships before provider-output deferral, but cannot replace live effective-authorization or actual-login verification."
       }
     ]
   }

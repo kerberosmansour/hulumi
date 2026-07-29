@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.2] — 2026-07-29
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.2`, `@hulumi/policies@1.5.2`, `@hulumi/drift@1.5.2`,
+`@hulumi/k8s-baseline@1.5.2`, `@hulumi/cloudflare-baseline@1.5.2`, and
+`@hulumi/platform-patterns@1.5.2`.
+
+### Fixed
+
+- `BrokeredAuroraPostgresBoundary` now registers the raw structured policy contract
+  alongside its public aggregate output, preserving known fields during first-create
+  previews when provider-generated leaves are still unknown.
+- The brokered PostgreSQL policy pack evaluates all four known IRSA trust policies
+  before it can defer on an unknown provider role ARN.
+- Missing secret ARNs fail closed, and direct-child correlation enforces one distinct
+  `SecureSecret` parent per broker-boundary component even while child ARNs are
+  provider-unknown.
+
+### Security
+
+- First-create deferral is limited to provider-generated ARN/echo fields. Known
+  malformed trust, KMS, secret, identity, workload, network, and replay-state
+  contract fields remain mandatory failures.
+- A provider-generated ServiceAccount role annotation can remain an advisory unknown
+  during the first preview; post-apply previews must resolve and validate it.
+
 ## [1.5.1] — 2026-07-29
 
 Atomic six-package publish:

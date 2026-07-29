@@ -103,7 +103,10 @@ function comparableNetworkPolicyProps(props: unknown): Record<string, unknown> {
         );
   return {
     metadata: comparableMetadata,
-    spec: spec === undefined ? undefined : { ...spec, ingress: spec.ingress ?? [] },
+    spec:
+      spec === undefined
+        ? undefined
+        : { ...spec, ingress: spec.ingress === undefined ? [] : spec.ingress },
   };
 }
 

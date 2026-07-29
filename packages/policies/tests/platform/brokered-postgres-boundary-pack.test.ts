@@ -901,6 +901,20 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     expect(violations).toEqual([]);
   });
 
+  it("rejects explicit null ingress instead of treating it as provider omission", async () => {
+    const resources = closedBoundary();
+    const runtimePolicy = resources.find(
+      (entry) =>
+        entry.type === "kubernetes:networking.k8s.io/v1:NetworkPolicy" &&
+        entry.name === "orders-runtime-network",
+    )!;
+    const spec = runtimePolicy.props.spec as Record<string, unknown>;
+    spec.ingress = null;
+
+    await evaluate(resources);
+    expect(violations.join("\n")).toMatch(/runtime.*NetworkPolicy/i);
+  });
+
   it("fails closed with one actionable violation when a legacy component omits policyContract", async () => {
     const resources = closedBoundary();
     const boundary = resources.find(

@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-_No changes yet._
+### Fixed
+
+- `BrokeredAuroraPostgresBoundary` no longer asks Pulumi to await readiness on its
+  suspended migrator `Job`. The migrator ships with `spec.suspend: true`, so no pod is
+  created and its status stays `type=Suspended` with `active`/`succeeded`/`failed` all
+  zero — a state that can never become ready. Deployments against an accepted fixture
+  whose node groups are sized to zero therefore blocked until the provider timed out
+  (observed: 1680s) on a workload that is inert by design. The migrator `Job` now
+  carries the provider's `pulumi.com/skipAwait` contract. The `Job` stays suspended,
+  the rotation `CronJob` stays suspended, and every `Deployment` stays at
+  `replicas: 0`; activation remains an explicit operator step.
 
 ## [1.5.2] — 2026-07-29
 

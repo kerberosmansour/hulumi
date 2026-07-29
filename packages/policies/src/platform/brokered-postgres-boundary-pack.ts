@@ -218,10 +218,14 @@ function hasExactIrsaTrust(
   oidcIssuer: string,
 ): boolean | undefined {
   const roleProps = asRecord(role.props);
-  const trustPolicy = roleProps?.assumeRolePolicy;
-  if (trustPolicy === undefined) {
-    return stringProp(roleProps, "arn") === undefined ? undefined : false;
+  let trustPolicy: unknown;
+  try {
+    trustPolicy = roleProps?.assumeRolePolicy;
+  } catch (error) {
+    if (error instanceof UnknownValueError) return undefined;
+    throw error;
   }
+  if (trustPolicy === undefined) return false;
   const trustStatements = statements(trustPolicy);
   if (trustStatements.length !== 1) return false;
   const statement = trustStatements[0];
@@ -847,7 +851,10 @@ function validateBoundary(
       exactApplicationSecretChildren = false;
       continue;
     }
-    if (componentArn.value === undefined || arn.value === undefined) continue;
+    if (componentArn.value === undefined || arn.value === undefined) {
+      exactApplicationSecretChildren = false;
+      continue;
+    }
     if (componentArn.value !== arn.value) {
       exactApplicationSecretChildren = false;
       continue;

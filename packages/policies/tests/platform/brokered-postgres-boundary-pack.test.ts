@@ -975,6 +975,25 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     expect(violations.join("\n")).toMatch(/runtime role.*IRSA trust/i);
   });
 
+  it("rejects an omitted trust policy before an unknown role ARN is deferred", async () => {
+    const resources = closedBoundary();
+    const runtimeRole = resources.find((entry) => entry.name === "orders-runtime-role")!;
+    const roleProps = { ...(runtimeRole.props as Record<string, unknown>) };
+    delete roleProps.assumeRolePolicy;
+    roleProps.arn = PULUMI_UNKNOWN_STRING;
+    runtimeRole.props = unknownCheckingProxy(roleProps);
+
+    let deferred: unknown;
+    try {
+      await evaluate(resources);
+    } catch (error) {
+      deferred = error;
+    }
+
+    expect(deferred).toBeInstanceOf(UnknownValueError);
+    expect(violations).toEqual([expect.stringMatching(/runtime role.*IRSA trust/i)]);
+  });
+
   it("rejects every managed-policy grant path for the four boundary roles", async () => {
     const resources = closedBoundary();
     const runtimeRole = resources.find((entry) => entry.name === "orders-runtime-role")!;
@@ -1398,6 +1417,24 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     }
 
     await evaluate(componentResources);
+    expect(violations.join("\n")).toMatch(
+      /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
+    );
+
+    violations = [];
+    const missingArns = closedBoundary();
+    for (const secret of missingArns.filter(
+      (entry) => entry.type === "hulumi:baseline:aws:SecureSecret",
+    )) {
+      delete (secret.props as Record<string, unknown>).secretArn;
+    }
+    for (const secret of missingArns.filter(
+      (entry) => entry.type === "aws:secretsmanager/secret:Secret",
+    )) {
+      delete (secret.props as Record<string, unknown>).arn;
+    }
+
+    await evaluate(missingArns);
     expect(violations.join("\n")).toMatch(
       /application-secret.*SecureSecret.*correlate.*child.*exact boundary KMS key/i,
     );

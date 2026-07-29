@@ -447,11 +447,40 @@ export const detect3NoCatchAllDetectionRules: ResourceValidationPolicy = {
 export const h3AdvisoryIacRoleTag: ResourceValidationPolicy = {
   name: "HULUMI-H3-iac-role-tag",
   description:
-    "IAM roles should carry the hulumi:iac-role=true tag so CloudTrail principal attribution can distinguish tool-driven changes from human console changes. Advisory in M2; mandatory in M5 once the SCP template ships.",
+    "Genuine IaC deployment roles must carry hulumi:iac-role=true; classified workload roles must not carry it, so CloudTrail attribution cannot hide runtime activity as tool-driven change.",
   enforcementLevel: H3_ENFORCEMENT_LEVEL,
   validateResource: (args, reportViolation) => {
     if (args.type !== IAM_ROLE_TYPE) return;
     const tags = (args.props as Record<string, unknown>).tags as Record<string, string> | undefined;
+    const identityKind = tags?.["hulumi:identity-kind"];
+    const workloadKinds = new Set(["runtime", "broker", "migrator", "rotation"]);
+    const isBrokeredBoundaryRole = tags?.["hulumi:component"] === "BrokeredAuroraPostgresBoundary";
+    const hasRecognizedBoundaryKind =
+      typeof identityKind === "string" && workloadKinds.has(identityKind);
+    if (isBrokeredBoundaryRole && !hasRecognizedBoundaryKind) {
+      const suppressions = readSuppressions(
+        (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
+      );
+      if (matchSuppression("HULUMI-H3", args.urn, suppressions).suppressed) return;
+      reportViolation(
+        `HULUMI-H3: BrokeredAuroraPostgresBoundary IAM role ${args.name} must carry a recognized hulumi:identity-kind (runtime, broker, migrator, or rotation); missing or unknown kinds cannot be classified as genuine IaC deployment roles. Docs: ${H3_DOCS}`,
+      );
+      return;
+    }
+    const isWorkloadRole =
+      tags?.["hulumi:component"] === "SecureWorkloadRole" ||
+      (isBrokeredBoundaryRole && hasRecognizedBoundaryKind);
+    if (isWorkloadRole) {
+      if (tags?.["hulumi:iac-role"] !== "true") return;
+      const suppressions = readSuppressions(
+        (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
+      );
+      if (matchSuppression("HULUMI-H3", args.urn, suppressions).suppressed) return;
+      reportViolation(
+        `HULUMI-H3: workload IAM role ${args.name} must not carry hulumi:iac-role=true; that tag is reserved for genuine IaC deployment roles. Docs: ${H3_DOCS}`,
+      );
+      return;
+    }
     if (tags && tags["hulumi:iac-role"] === "true") return;
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
@@ -755,7 +784,7 @@ export const hulumiHardeningPackMetadata: PackMetadata = {
     },
     {
       id: "HULUMI-H3",
-      title: "IAM role missing hulumi:iac-role=true tag",
+      title: "IaC/workload role attribution is misclassified",
       description: h3AdvisoryIacRoleTag.description!,
       severity: "medium",
       enforcement: H3_ENFORCEMENT_LEVEL,

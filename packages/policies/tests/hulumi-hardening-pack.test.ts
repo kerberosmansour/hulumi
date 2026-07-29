@@ -517,6 +517,134 @@ describe("HulumiHardeningPack H3 — MANDATORY (M5 flip) on IAM role missing hul
     )(args, report);
     expect(violations).toHaveLength(0);
   });
+
+  it("reports when a Boundary role with the IaC tag is missing identity-kind", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::boundary-missing-kind",
+      name: "boundary-missing-kind",
+      props: {
+        tags: {
+          "hulumi:component": "BrokeredAuroraPostgresBoundary",
+          "hulumi:iac-role": "true",
+        },
+      },
+    });
+    (
+      h3AdvisoryIacRoleTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H3/);
+    expect(violations[0]).toMatch(/recognized.*identity-kind/i);
+  });
+
+  it("reports when a Boundary role with the IaC tag has unknown identity-kind admin", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::boundary-admin-kind",
+      name: "boundary-admin-kind",
+      props: {
+        tags: {
+          "hulumi:component": "BrokeredAuroraPostgresBoundary",
+          "hulumi:identity-kind": "admin",
+          "hulumi:iac-role": "true",
+        },
+      },
+    });
+    (
+      h3AdvisoryIacRoleTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H3/);
+    expect(violations[0]).toMatch(/recognized.*identity-kind/i);
+  });
+
+  it("does NOT require the IaC attribution tag on a classified workload role", () => {
+    for (const [name, tags] of [
+      [
+        "secure-workload-role",
+        {
+          "hulumi:component": "SecureWorkloadRole",
+          "hulumi:identity-kind": "runtime",
+        },
+      ],
+      [
+        "boundary-runtime-role",
+        {
+          "hulumi:component": "BrokeredAuroraPostgresBoundary",
+          "hulumi:identity-kind": "runtime",
+        },
+      ],
+    ] as const) {
+      violations = [];
+      const args = makeResourceArgs({
+        type: "aws:iam/role:Role",
+        urn: `urn:pulumi:s::p::aws:iam/role:Role::${name}`,
+        name,
+        props: { tags },
+      });
+      (
+        h3AdvisoryIacRoleTag.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
+      expect(violations, name).toHaveLength(0);
+    }
+  });
+
+  it("does not accept an identity-kind-only tag as workload-role classification", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::masquerading-deployment-role",
+      name: "masquerading-deployment-role",
+      props: {
+        tags: {
+          "hulumi:identity-kind": "runtime",
+        },
+      },
+    });
+    (
+      h3AdvisoryIacRoleTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/missing.*hulumi:iac-role=true/i);
+  });
+
+  it("reports when a classified workload role masquerades as an IaC role", () => {
+    for (const kind of ["runtime", "broker", "migrator", "rotation"]) {
+      violations = [];
+      const args = makeResourceArgs({
+        type: "aws:iam/role:Role",
+        urn: `urn:pulumi:s::p::aws:iam/role:Role::${kind}-role`,
+        name: `${kind}-role`,
+        props: {
+          tags: {
+            "hulumi:component": "BrokeredAuroraPostgresBoundary",
+            "hulumi:identity-kind": kind,
+            "hulumi:iac-role": "true",
+          },
+        },
+      });
+      (
+        h3AdvisoryIacRoleTag.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
+      expect(violations, kind).toHaveLength(1);
+      expect(violations[0]).toMatch(/workload.*must not carry.*iac-role/i);
+    }
+  });
 });
 
 describe("HulumiHardeningPack H4 — Startup-Hardened SecureBucket without logging sibling", () => {

@@ -12,6 +12,7 @@ The package currently includes:
 - `BuildProvenanceFoundation`
 - `PulumiStateBackendFoundation`
 - `RunnerGovernanceFoundation`
+- `BrokeredAuroraPostgresBoundary`
 
 ```ts
 import * as pulumi from "@pulumi/pulumi";
@@ -22,6 +23,7 @@ import {
   GitHubAwsOidcDeploymentRole,
   PulumiStateBackendFoundation,
   RunnerGovernanceFoundation,
+  BrokeredAuroraPostgresBoundary,
 } from "@hulumi/platform-patterns";
 
 new CloudflareOriginIngress("edge", {
@@ -94,6 +96,27 @@ new RunnerGovernanceFoundation("runners", {
 });
 ```
 
+`BrokeredAuroraPostgresBoundary` supplies the value-free AWS and Kubernetes
+infrastructure half of a broker-mediated Aurora PostgreSQL design: four exact
+workload identities, closed network paths, two `SecureSecret` containers,
+restricted digest-pinned workload envelopes, admission enforcement, and an
+encrypted TTL replay store. Public capability keys are supplied inline, so the
+pattern creates no JWKS egress; the broker must atomically claim each `jti`
+with a conditional replay-table write through an explicit DynamoDB interface
+endpoint. The default rollout is inert. Broker activation requires migration
+postconditions plus independently observed evidence; caller-supplied gate names
+are never activation authority. Every phase rendered by this IaC-only component
+remains inert. A non-infrastructure handoff may reference an external evidence
+bundle only through an OCI digest and a matching SHA-256, while runtime handoff
+metadata additionally requires an exact Service/namespace/Pod-selector/security-group
+caller contract. Runtime and broker/migrator/rotation use exact disjoint
+NodeRestriction-protected node pools, tolerations, RuntimeClasses, schedulers,
+and priority classes. It does not
+implement the broker,
+PostgreSQL bootstrap/authority scan, rotation logic, replay semantics, or live
+verification. See the
+[component contract](../../docs/components/brokered-aurora-postgres-boundary.md).
+
 Tunnel mode can front multiple public hostnames with one Cloudflare tunnel. Use `httpHostHeader` for service meshes or virtual-hosted origins that need the internal service FQDN at the origin.
 
 Rotate historically exposed origin IPs after Cloudflare onboarding. Tunnel and allowlist+AOP patterns protect the active path, but old DNS and logs may have revealed previous origin addresses.
@@ -101,7 +124,7 @@ Rotate historically exposed origin IPs after Cloudflare onboarding. Tunnel and a
 ## Install And Import Paths
 
 ```bash
-pnpm add @hulumi/platform-patterns @hulumi/baseline @pulumi/aws @pulumi/cloudflare @pulumi/github @pulumi/pulumi
+pnpm add @hulumi/platform-patterns @hulumi/baseline @pulumi/aws @pulumi/cloudflare @pulumi/github @pulumi/kubernetes @pulumi/pulumi
 ```
 
 ```ts
@@ -112,6 +135,7 @@ import {
   GitHubAwsOidcDeploymentRole,
   PulumiStateBackendFoundation,
   RunnerGovernanceFoundation,
+  BrokeredAuroraPostgresBoundary,
 } from "@hulumi/platform-patterns";
 ```
 
@@ -123,6 +147,7 @@ import {
 - Private repository provenance may have visibility caveats for downstream attestation discovery.
 - `PulumiStateBackendFoundation` emits backend posture resources and evidence; it does not migrate existing Pulumi stack state automatically.
 - `RunnerGovernanceFoundation` is a governance contract and validator descriptor; use the workflow linter and live validator to compare workflows and repo settings against it.
+- `BrokeredAuroraPostgresBoundary` is infrastructure only. Its `infrastructure-only-unconfigured` rotation posture must not be treated as live rotation or tenant-isolation evidence.
 - Real provider testing is opt-in: `pnpm --filter @hulumi/platform-patterns test:integration` skips unless the documented GitHub and AWS edge integration env vars are set.
 
 ## Verifying SLSA Attestations

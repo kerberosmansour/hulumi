@@ -50,8 +50,8 @@ const boundaryTags = (kind: string) => ({
 const workloadLabels = (kind: string) => ({
   "app.kubernetes.io/name": `orders-${kind}`,
   "app.kubernetes.io/part-of": "orders",
-  "hulumi.dev/component": "BrokeredAuroraPostgresBoundary",
   "hulumi.dev/boundary": "orders",
+  "hulumi.dev/component": "BrokeredAuroraPostgresBoundary",
   "hulumi.dev/identity-kind": kind,
 });
 
@@ -184,10 +184,10 @@ function workloadProps(kind: string): Record<string, unknown> {
     },
     tolerations: [
       {
+        effect: expectedPlacement.toleration.effect,
         key: expectedPlacement.toleration.key,
         operator: "Equal",
         value: expectedPlacement.toleration.value,
-        effect: expectedPlacement.toleration.effect,
       },
     ],
     schedulerName: expectedPlacement.schedulerName,
@@ -333,9 +333,21 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
   };
   const base = {
     metadata: {
+      creationTimestamp: "2026-07-29T17:10:47Z",
+      generation: 1,
       name: kind === "runtime" ? "orders-runtime-closed-egress" : `orders-${kind}-closed-network`,
       namespace: "guardian-data",
       labels,
+      managedFields: [
+        {
+          apiVersion: "networking.k8s.io/v1",
+          fieldsType: "FieldsV1",
+          manager: "pulumi-kubernetes",
+          operation: "Update",
+        },
+      ],
+      resourceVersion: "50267668",
+      uid: `provider-generated-${kind}`,
     },
   };
   if (kind === "runtime") {
@@ -344,7 +356,6 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
       spec: {
         podSelector: { matchLabels: labels },
         policyTypes: ["Ingress", "Egress"],
-        ingress: [],
         egress: [
           {
             to: [{ podSelector: { matchLabels: workloadLabels("broker") } }],
@@ -371,15 +382,16 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
     spec: {
       podSelector: { matchLabels: labels },
       policyTypes: ["Ingress", "Egress"],
-      ingress:
-        kind === "broker"
-          ? [
+      ...(kind === "broker"
+        ? {
+            ingress: [
               {
                 from: [{ podSelector: { matchLabels: workloadLabels("runtime") } }],
                 ports: [{ protocol: "TCP", port: 7443 }],
               },
-            ]
-          : [],
+            ],
+          }
+        : {}),
       egress,
     },
   };
@@ -498,7 +510,7 @@ function closedBoundary(): PolicyResource[] {
     ),
     ...identities.map((kind) =>
       resource(
-        "kubernetes:apiextensions.k8s.io:CustomResource",
+        "kubernetes:vpcresources.k8s.aws/v1beta1:SecurityGroupPolicy",
         `orders-${kind}-security-group-policy`,
         {
           apiVersion: "vpcresources.k8s.aws/v1beta1",
@@ -880,13 +892,27 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     policy.validateStack(stack(resources), (message) => violations.push(message));
   }
 
-  it("accepts the positive twin with four identities, runtime-to-broker-only, and replay controls", async () => {
+  it("accepts the live provider shape with server metadata and omitted empty ingress", async () => {
     const resources = closedBoundary();
     resources.push(
       resource("aws:secretsmanager/secretVersion:SecretVersion", "unrelated-stack-secret", {}),
     );
     await evaluate(resources);
     expect(violations).toEqual([]);
+  });
+
+  it("rejects explicit null ingress instead of treating it as provider omission", async () => {
+    const resources = closedBoundary();
+    const runtimePolicy = resources.find(
+      (entry) =>
+        entry.type === "kubernetes:networking.k8s.io/v1:NetworkPolicy" &&
+        entry.name === "orders-runtime-network",
+    )!;
+    const spec = runtimePolicy.props.spec as Record<string, unknown>;
+    spec.ingress = null;
+
+    await evaluate(resources);
+    expect(violations.join("\n")).toMatch(/runtime.*NetworkPolicy/i);
   });
 
   it("fails closed with one actionable violation when a legacy component omits policyContract", async () => {

@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.1] — 2026-07-29
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.1`, `@hulumi/policies@1.5.1`, `@hulumi/drift@1.5.1`,
+`@hulumi/k8s-baseline@1.5.1`, `@hulumi/cloudflare-baseline@1.5.1`, and
+`@hulumi/platform-patterns@1.5.1`.
+
+### Added
+
+- `@hulumi/platform-patterns.BrokeredAuroraPostgresBoundary` provides the inert
+  infrastructure half of a brokered Aurora PostgreSQL authority boundary: four
+  disjoint workload identities, closed network paths, immutable workload envelopes,
+  value-free secret containers, public inline JWKS configuration, admission controls,
+  and encrypted replay state.
+- `@hulumi/policies/platform/packs/brokered-postgres-boundary` validates the structural
+  authority boundary during Pulumi previews.
+- The CycloneDX declaration advertises both capabilities and explicitly states that
+  consumer-supplied broker, migrator, rotation, and live PostgreSQL evidence remain
+  required.
+
+### Security
+
+- `HULUMI-H3` now fails closed for broker-boundary IAM roles with missing or unknown
+  workload identity kinds, whether or not the role also carries the IaC attribution
+  tag.
+
 ## [1.5.0] — 2026-05-28
 
 The cloud-platform hardening release. Atomic six-package publish:

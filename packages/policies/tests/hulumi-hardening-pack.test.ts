@@ -565,6 +565,49 @@ describe("HulumiHardeningPack H3 — MANDATORY (M5 flip) on IAM role missing hul
     expect(violations[0]).toMatch(/recognized.*identity-kind/i);
   });
 
+  it("reports when a Boundary role without the IaC tag is missing identity-kind", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::boundary-untagged-missing-kind",
+      name: "boundary-untagged-missing-kind",
+      props: {
+        tags: {
+          "hulumi:component": "BrokeredAuroraPostgresBoundary",
+        },
+      },
+    });
+    (
+      h3AdvisoryIacRoleTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/recognized.*identity-kind/i);
+  });
+
+  it("reports when a Boundary role without the IaC tag has an unknown identity-kind", () => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::boundary-untagged-unknown-kind",
+      name: "boundary-untagged-unknown-kind",
+      props: {
+        tags: {
+          "hulumi:component": "BrokeredAuroraPostgresBoundary",
+          "hulumi:identity-kind": "admin",
+        },
+      },
+    });
+    (
+      h3AdvisoryIacRoleTag.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/recognized.*identity-kind/i);
+  });
+
   it("does NOT require the IaC attribution tag on a classified workload role", () => {
     for (const [name, tags] of [
       [

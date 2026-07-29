@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+_No changes yet._
+
+## [1.5.3] — 2026-07-29
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.3`, `@hulumi/policies@1.5.3`, `@hulumi/drift@1.5.3`,
+`@hulumi/k8s-baseline@1.5.3`, `@hulumi/cloudflare-baseline@1.5.3`, and
+`@hulumi/platform-patterns@1.5.3`.
+
 ### Fixed
 
 - `BrokeredAuroraPostgresBoundary` no longer asks Pulumi to await readiness on its

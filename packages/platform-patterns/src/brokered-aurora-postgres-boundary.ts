@@ -1841,8 +1841,9 @@ export class BrokeredAuroraPostgresBoundary
       "external-broker-rollout",
       "external-runtime-rollout",
     ]);
-    this.identityReceipt = pulumi.all([this.roleArns, this.securityGroupIds]).apply(
-      ([roleArns, securityGroupIds]): BrokeredPostgresIdentityReceipt => ({
+    this.identityReceipt = pulumi
+      .all([this.roleArns, this.securityGroupIds])
+      .apply(([roleArns, securityGroupIds]): BrokeredPostgresIdentityReceipt => ({
         boundary: name,
         namespace: args.namespace,
         identities: {
@@ -1873,8 +1874,7 @@ export class BrokeredAuroraPostgresBoundary
           maxTtlSeconds: args.capability.maxTtlSeconds,
         },
         limits: [...INFRASTRUCTURE_LIMITS],
-      }),
-    );
+      }));
 
     this.registerOutputs({
       // Keep the contract structurally serialized: wrapping the whole object in

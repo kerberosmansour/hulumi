@@ -3,10 +3,7 @@ import type * as pulumi from "@pulumi/pulumi";
 import type { Tier } from "./tier";
 
 export type PulumiStateBackendDrPosture =
-  | "advisory-degraded"
-  | "object-lock"
-  | "replication"
-  | "object-lock-and-replication";
+  "advisory-degraded" | "object-lock" | "replication" | "object-lock-and-replication";
 
 export interface PulumiStateBackendReplicationArgs {
   readonly destinationBucketArn: pulumi.Input<string>;

@@ -51,7 +51,7 @@
     "@pulumi/github": "6.14.0",
     "@pulumi/kubernetes": "4.33.0",
     "@pulumi/pulumi": "3.253.0",
-    "@types/node": "20.19.42",
+    "@types/node": "20.19.43",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

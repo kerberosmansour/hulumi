@@ -175,8 +175,7 @@ export const state1ApprovedSecretsProvider: StackValidationPolicy = {
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const config = (args.getConfig ? args.getConfig() : undefined) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const suppressions = readSuppressions(config);
     if (matchSuppression("STATE-1", "stack", suppressions).suppressed) return;
     const provider = readPulumiSecretsProvider(config);
@@ -377,8 +376,7 @@ export const detect2SecurityServiceDisablementRequired: StackValidationPolicy = 
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const config = (args.getConfig ? args.getConfig() : undefined) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!configRequiresSecurityDetection(config)) return;
     const suppressions = readSuppressions(config);
     if (matchSuppression("DETECT-2", "stack", suppressions).suppressed) return;

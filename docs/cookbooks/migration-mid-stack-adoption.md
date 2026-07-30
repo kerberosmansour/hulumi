@@ -112,13 +112,7 @@ const baseline = new AccountFoundation("baseline", {
   region,
 });
 
-const myService = new MyExistingComponent(
-  "my-service",
-  {
-    /* ... */
-  },
-  { dependsOn: [baseline] },
-);
+const myService = new MyExistingComponent("my-service", {/* ... */}, { dependsOn: [baseline] });
 ```
 
 The `dependsOn` is the documented workaround for the `pulumi.dynamic.Resource` + vitest-pool gotcha (see [FAQ](../faq.md#pulumidynamicresource-doesnt-work-under-vitests-worker-pool)) and is also the right shape for "wait for the baseline before applying my service-specific resources."

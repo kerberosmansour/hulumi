@@ -66,8 +66,7 @@ export interface EksClusterFoundationAdoptArgs extends EksClusterFoundationBaseA
 }
 
 export type EksClusterFoundationArgs =
-  | EksClusterFoundationCreateArgs
-  | EksClusterFoundationAdoptArgs;
+  EksClusterFoundationCreateArgs | EksClusterFoundationAdoptArgs;
 
 export interface EksClusterValidationExpectations {
   readonly endpointMode: EksClusterEndpointMode;

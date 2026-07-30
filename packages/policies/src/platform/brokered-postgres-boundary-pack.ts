@@ -198,8 +198,7 @@ function tagsOf(resource: PolicyResource): Record<string, unknown> | undefined {
     asRecord(props?.tags) ??
     asRecord(asRecord(props?.metadata)?.labels) ??
     (asRecord(asRecord(asRecord(props?.spec)?.template)?.metadata)?.labels as
-      | Record<string, unknown>
-      | undefined)
+      Record<string, unknown> | undefined)
   );
 }
 

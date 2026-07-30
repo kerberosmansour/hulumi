@@ -18,12 +18,7 @@ export const RECONCILER_RESOURCE_STATES = [
 export type ReconcilerResourceState = (typeof RECONCILER_RESOURCE_STATES)[number];
 
 export type ReconcileMode =
-  | "check-only"
-  | "plan"
-  | "state-only"
-  | "adopt-only"
-  | "sweep-only"
-  | "reconcile";
+  "check-only" | "plan" | "state-only" | "adopt-only" | "sweep-only" | "reconcile";
 
 export type ReconcileDecision =
   | "noOp"
@@ -64,11 +59,7 @@ export type ReconcileRisk = "low" | "medium" | "high" | "blocked";
 export type OwnershipSignalKind = "pulumi-state" | "tag" | "name-prefix" | "cloudtrail" | "caller";
 
 export type ResourceRelationship =
-  | "state-owned"
-  | "state-missing"
-  | "cloud-only"
-  | "shared-singleton"
-  | "unknown";
+  "state-owned" | "state-missing" | "cloud-only" | "shared-singleton" | "unknown";
 
 export interface ResourceIdentity {
   provider: "aws" | "github" | "kubernetes" | "pulumi" | "unknown";

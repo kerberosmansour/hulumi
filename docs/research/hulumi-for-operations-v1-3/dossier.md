@@ -49,10 +49,10 @@ A working `InputTransformer` for M4's `ContainerImageRebuildTrigger` would be:
 ```json
 {
   "InputPathsMap": {
-    "cve_id":           "$.detail.findings[0].PackageVulnerabilityDetails.VulnerabilityId",
+    "cve_id": "$.detail.findings[0].PackageVulnerabilityDetails.VulnerabilityId",
     "ecr_image_digest": "$.detail.findings[0].Resources[0].Details.AwsEcrContainerImage.ImageDigest",
-    "severity":         "$.detail.findings[0].Severity.Label",
-    "kev_added_date":   "$.detail.findings[0].PackageVulnerabilityDetails.VendorCreatedAt"
+    "severity": "$.detail.findings[0].Severity.Label",
+    "kev_added_date": "$.detail.findings[0].PackageVulnerabilityDetails.VendorCreatedAt"
   },
   "InputTemplate": "{\"event_type\":\"inspector-kev-finding\",\"client_payload\":{\"cve_id\":\"<cve_id>\",\"ecr_image_digest\":\"<ecr_image_digest>\",\"severity\":\"<severity>\",\"kev_added_date\":\"<kev_added_date>\"}}"
 }
@@ -125,14 +125,14 @@ affordability.
 **EC2 Image Builder itself: $0.00/build-minute.** AWS charges nothing for the pipeline
 orchestration service. Costs are entirely from underlying resources:
 
-| Resource | Unit cost (eu-west-2, 2026) | Monthly cost — daily rebuild 30 min/build |
-|---|---|---|
-| EC2 build instance (m5.large) | $0.096/hr | 30 builds × 0.5 hr × $0.096 = **$1.44** |
-| EC2 build instance (t3.medium, alt) | $0.0416/hr | 30 × 0.5 × $0.0416 = **$0.62** |
-| EBS gp3 root vol during build (30 GB, 30 min/day) | $0.088/GB-month pro-rated | ~**$0.07** |
-| AMI snapshot storage — source region (eu-west-2), 7-day retention, ~20 GB/AMI, incremental after first | $0.05/GB-month | 7 AMIs × ~5 GB avg incremental × $0.05 = **$1.75** |
-| AMI copy to 2 additional distribution targets (×2 regions), same retention | $0.05/GB-month per region | 7 AMIs × 2 regions × 5 GB × $0.05 = **$3.50** |
-| S3 logs (Image Builder output, ~10 MB/build) | $0.023/GB | negligible < **$0.01** |
+| Resource                                                                                               | Unit cost (eu-west-2, 2026) | Monthly cost — daily rebuild 30 min/build          |
+| ------------------------------------------------------------------------------------------------------ | --------------------------- | -------------------------------------------------- |
+| EC2 build instance (m5.large)                                                                          | $0.096/hr                   | 30 builds × 0.5 hr × $0.096 = **$1.44**            |
+| EC2 build instance (t3.medium, alt)                                                                    | $0.0416/hr                  | 30 × 0.5 × $0.0416 = **$0.62**                     |
+| EBS gp3 root vol during build (30 GB, 30 min/day)                                                      | $0.088/GB-month pro-rated   | ~**$0.07**                                         |
+| AMI snapshot storage — source region (eu-west-2), 7-day retention, ~20 GB/AMI, incremental after first | $0.05/GB-month              | 7 AMIs × ~5 GB avg incremental × $0.05 = **$1.75** |
+| AMI copy to 2 additional distribution targets (×2 regions), same retention                             | $0.05/GB-month per region   | 7 AMIs × 2 regions × 5 GB × $0.05 = **$3.50**      |
+| S3 logs (Image Builder output, ~10 MB/build)                                                           | $0.023/GB                   | negligible < **$0.01**                             |
 
 **Total estimated monthly cost (daily rebuild, 3 distribution targets, 7-day retention):**
 
@@ -142,19 +142,19 @@ orchestration service. Costs are entirely from underlying resources:
 
 **Tier assessment:**
 
-| Tier | Cadence | Estimated cost | Affordable? |
-|---|---|---|---|
-| Sandbox | Weekly (1 build/week) | ~$1.50/month | ✓ trivially affordable |
-| StartupHardened | Daily (30/month) | ~$6-7/month | ✓ affordable |
-| StartupHardened worst-case | Daily, large AMI, no lifecycle | ~$35/month | ✓ still < EKS control plane ($73/month) |
+| Tier                       | Cadence                        | Estimated cost | Affordable?                             |
+| -------------------------- | ------------------------------ | -------------- | --------------------------------------- |
+| Sandbox                    | Weekly (1 build/week)          | ~$1.50/month   | ✓ trivially affordable                  |
+| StartupHardened            | Daily (30/month)               | ~$6-7/month    | ✓ affordable                            |
+| StartupHardened worst-case | Daily, large AMI, no lifecycle | ~$35/month     | ✓ still < EKS control plane ($73/month) |
 
 **Comparison with v1.2 cost line items:**
 
-| v1.2 cost item | Monthly | vs Image Builder daily rebuild |
-|---|---|---|
+| v1.2 cost item       | Monthly   | vs Image Builder daily rebuild                 |
+| -------------------- | --------- | ---------------------------------------------- |
 | Inspector v2 per EC2 | $1.26/EC2 | Image Builder ~$0.23/build < Inspector per EC2 |
-| Client VPN endpoint | $73/month | Image Builder 10× cheaper |
-| EKS control plane | $73/month | Image Builder 10× cheaper |
+| Client VPN endpoint  | $73/month | Image Builder 10× cheaper                      |
+| EKS control plane    | $73/month | Image Builder 10× cheaper                      |
 
 Daily AMI rebuild for a startup (StartupHardened, 3 regions) costs roughly the same as
 **5-6 EC2 instances under Inspector v2 coverage** — a fraction of the existing v1.2
@@ -198,10 +198,10 @@ Hulumi-shipped DLQ pattern or whether AWS-native retry is sufficient.
 
 **GitHub `repository_dispatch` rate limits:**
 
-| Auth type | Primary limit | Secondary limit |
-|---|---|---|
-| `GITHUB_TOKEN` / fine-grained PAT | 1,000 req/hr/repo | 900 points/min (REST) |
-| GitHub App installation token | 15,000 req/hr/repo (GHEC) | same |
+| Auth type                         | Primary limit             | Secondary limit       |
+| --------------------------------- | ------------------------- | --------------------- |
+| `GITHUB_TOKEN` / fine-grained PAT | 1,000 req/hr/repo         | 900 points/min (REST) |
+| GitHub App installation token     | 15,000 req/hr/repo (GHEC) | same                  |
 
 `POST /repos/{owner}/{repo}/dispatches` is a standard REST endpoint subject to both
 limits. Inspector v2 KEV findings for a typical startup fleet are low-volume (single
@@ -209,6 +209,7 @@ digits per week at most — CISA KEV adds ~2-3 new entries/week on average). The
 rate limit is not a practical concern for M4.
 
 **Rate limit response codes from GitHub:**
+
 - Primary limit exhausted: **HTTP 403** with `x-ratelimit-remaining: 0` and
   `x-ratelimit-reset: <unix timestamp>`
 - Secondary limit hit: **HTTP 429** or **HTTP 403** with body
@@ -216,6 +217,7 @@ rate limit is not a practical concern for M4.
 - Both include a `retry-after` response header specifying seconds to wait
 
 **EventBridge API destination retry policy:**
+
 - EventBridge retries on **all 4xx and 5xx HTTP responses** (including 403 and 429)
   with exponential backoff + jitter
 - Retry window: **up to 24 hours**, **maximum 185 attempts**
@@ -227,6 +229,7 @@ rate limit is not a practical concern for M4.
   which stays well below GitHub's 1,000 req/hour primary limit.
 
 **DLQ behavior:**
+
 - No DLQ is provisioned by default. Events are silently dropped after retry exhaustion
   unless a DLQ is configured on the EventBridge rule target.
 - DLQ (SQS standard queue only — not FIFO) must be explicitly set on the
@@ -239,13 +242,13 @@ rate limit is not a practical concern for M4.
 
 **Failure scenario analysis for M4:**
 
-| Scenario | Frequency | EventBridge handles it? |
-|---|---|---|
-| GitHub transient 5xx | Rare | ✓ retried automatically |
-| GitHub 429 (secondary rate limit burst) | Very rare for KEV volume | ✓ retried; 185 attempts >> typical 60s cooldown |
-| GitHub PAT expired / wrong permissions | Operational failure | ✗ dropped immediately; DLQ catches it |
-| EventBridge rule missing invoke permissions on API destination | Misconfiguration | ✗ dropped immediately; DLQ catches it |
-| Sustained GitHub outage >24 hours | Incident | ✗ dropped after retry window; DLQ catches it |
+| Scenario                                                       | Frequency                | EventBridge handles it?                         |
+| -------------------------------------------------------------- | ------------------------ | ----------------------------------------------- |
+| GitHub transient 5xx                                           | Rare                     | ✓ retried automatically                         |
+| GitHub 429 (secondary rate limit burst)                        | Very rare for KEV volume | ✓ retried; 185 attempts >> typical 60s cooldown |
+| GitHub PAT expired / wrong permissions                         | Operational failure      | ✗ dropped immediately; DLQ catches it           |
+| EventBridge rule missing invoke permissions on API destination | Misconfiguration         | ✗ dropped immediately; DLQ catches it           |
+| Sustained GitHub outage >24 hours                              | Incident                 | ✗ dropped after retry window; DLQ catches it    |
 
 **Conclusion:** AWS-native retry (24hr, 185 attempts, exponential backoff) is sufficient
 for the primary failure modes at expected KEV event volume. The operational failures
@@ -302,6 +305,7 @@ on a `pulumi up`, Pulumi sees the dependency and marks `AsgInstanceRefresh` as n
 an update, triggering the instance refresh.
 
 **Strengths:**
+
 - Idiomatic Pulumi — the dependency is in the stack graph, visible in `pulumi preview`
 - Type-safe — no additional EventBridge rule resource per pipeline
 - Deterministic ordering: the AMI is guaranteed distributed before the refresh starts
@@ -309,6 +313,7 @@ an update, triggering the instance refresh.
 - No runtime infrastructure beyond what M2 and M3 ship
 
 **Weaknesses:**
+
 - `latestAmiId` in Pulumi state only updates when `pulumi up` runs. Image Builder
   pipelines that run on a schedule (daily cron, or KEV-triggered) run independently of
   Pulumi. After the Image Builder pipeline completes, the ASG will NOT automatically
@@ -324,11 +329,13 @@ when a pipeline run completes with state `AVAILABLE`. An EventBridge rule can ma
 this and invoke a target that calls `StartInstanceRefresh`.
 
 **Strengths:**
+
 - Fully decoupled — refresh happens automatically when Image Builder completes,
   regardless of whether `pulumi up` runs
 - Works for KEV-triggered out-of-cadence rebuilds without any CI involvement
 
 **Weaknesses:**
+
 - The EventBridge rule's _target_ must call the ASG `StartInstanceRefresh` API. This
   requires either: (a) a Lambda, (b) Step Functions Express, or (c) EventBridge → API
   Gateway → ASG API call chain. Options (a) and (b) violate the v1.3 "no Hulumi-shipped
@@ -341,13 +348,13 @@ this and invoke a target that calls `StartInstanceRefresh`.
 
 **Decision matrix:**
 
-| Criterion | `Output<string>` chain | EventBridge rule |
-|---|---|---|
-| No-Lambda constraint | ✓ | ✗ (needs Lambda for ASG lookup) |
-| Automated daily refresh (no pulumi up) | ✗ (needs CI integration) | ✓ |
-| Plan-time visibility in `pulumi preview` | ✓ | ✗ |
-| Resource overhead | Zero (dependency only) | 1 rule + 1 IAM role per pipeline |
-| Consistent with Hulumi component model | ✓ | ✗ (runtime orchestration) |
+| Criterion                                | `Output<string>` chain   | EventBridge rule                 |
+| ---------------------------------------- | ------------------------ | -------------------------------- |
+| No-Lambda constraint                     | ✓                        | ✗ (needs Lambda for ASG lookup)  |
+| Automated daily refresh (no pulumi up)   | ✗ (needs CI integration) | ✓                                |
+| Plan-time visibility in `pulumi preview` | ✓                        | ✗                                |
+| Resource overhead                        | Zero (dependency only)   | 1 rule + 1 IAM role per pipeline |
+| Consistent with Hulumi component model   | ✓                        | ✗ (runtime orchestration)        |
 
 ### Recommendation
 

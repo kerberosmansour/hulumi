@@ -109,7 +109,7 @@ function validatedAuthorityTable(
     context,
     awsRegion,
     "dynamodb",
-    /^table\/[A-Za-z0-9_.-]+$/u,
+    /^table\/[A-Za-z0-9_.-]{3,255}$/u,
   ).apply((arn) => ({
     arn,
     name: arn.slice(arn.lastIndexOf(":table/") + ":table/".length),
@@ -939,9 +939,9 @@ export class WorkloadCapabilityIssuerBoundary
     const labelPath = "object.metadata.labels";
     const protectedPod = `(object.spec.serviceAccountName == ${JSON.stringify(
       args.identity.serviceAccountName,
-    )} || (has(${labelPath}) && (("hulumi.dev/component" in ${labelPath} && ${labelPath}["hulumi.dev/component"] == "WorkloadCapabilityIssuerBoundary") || ("hulumi.dev/boundary" in ${labelPath} && ${labelPath}["hulumi.dev/boundary"] == ${JSON.stringify(
+    )} || (has(${labelPath}) && "hulumi.dev/component" in ${labelPath} && ${labelPath}["hulumi.dev/component"] == "WorkloadCapabilityIssuerBoundary" && "hulumi.dev/boundary" in ${labelPath} && ${labelPath}["hulumi.dev/boundary"] == ${JSON.stringify(
       name,
-    )}) || ("hulumi.dev/identity-kind" in ${labelPath} && ${labelPath}["hulumi.dev/identity-kind"] == "issuer"))))`;
+    )}))`;
     const exactEnvelope = exactEnvironment.apply(
       (environmentExpression) =>
         `object.spec.serviceAccountName == ${JSON.stringify(

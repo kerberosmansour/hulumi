@@ -509,9 +509,9 @@ function expectedAdmissionExpressions(
   if (protectedServiceAccounts.some((account) => account === "")) return undefined;
   const serviceAccountSet = celStringList(protectedServiceAccounts);
   const labels = "object.metadata.labels";
-  const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && (("hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary") || ("hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == ${JSON.stringify(
+  const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && "hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == ${JSON.stringify(
     name,
-  )}) || "hulumi.dev/identity-kind" in ${labels})))`;
+  )}))`;
   const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-iam-token" && m.mountPath == "/var/run/secrets/eks.amazonaws.com/serviceaccount" && (!has(m.subPath) || m.subPath == "") && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
   const workloads = asRecord(boundaryProps?.workloads);
   const database = asRecord(boundaryProps?.database);

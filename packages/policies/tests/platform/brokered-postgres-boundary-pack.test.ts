@@ -91,13 +91,16 @@ const placement = {
 
 function environmentFor(kind: string): Array<{ name: string; value: string }> {
   const environment = [
+    { name: "AWS_REGION", value: "eu-west-2" },
+    { name: "AWS_DEFAULT_REGION", value: "eu-west-2" },
+    { name: "AWS_STS_REGIONAL_ENDPOINTS", value: "regional" },
     {
       name: "AWS_ROLE_ARN",
       value: `arn:aws:iam::111122223333:role/orders-${kind}`,
     },
     {
       name: "AWS_WEB_IDENTITY_TOKEN_FILE",
-      value: "/var/run/secrets/hulumi/identity/token",
+      value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     },
   ];
   if (kind === "runtime") {
@@ -219,9 +222,8 @@ function workloadProps(kind: string): Record<string, unknown> {
         },
         volumeMounts: [
           {
-            name: "aws-web-identity",
-            mountPath: "/var/run/secrets/hulumi/identity/token",
-            subPath: "token",
+            name: "aws-iam-token",
+            mountPath: "/var/run/secrets/eks.amazonaws.com/serviceaccount",
             readOnly: true,
           },
           { name: "tmp", mountPath: "/tmp" },
@@ -273,7 +275,7 @@ function admissionExpressions(): string[] {
     .join(", ")}]`;
   const labels = "object.metadata.labels";
   const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && (("hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary") || ("hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == "orders") || "hulumi.dev/identity-kind" in ${labels})))`;
-  const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-web-identity" && m.mountPath == "/var/run/secrets/hulumi/identity/token" && m.subPath == "token" && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
+  const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-iam-token" && m.mountPath == "/var/run/secrets/eks.amazonaws.com/serviceaccount" && (!has(m.subPath) || m.subPath == "") && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
   const envelopes = identities.map((kind, kindIndex) => {
     const environment = environmentFor(kind);
     const expectedPlacement = kind === "runtime" ? placement.runtime : placement.privileged;
@@ -318,7 +320,7 @@ function admissionExpressions(): string[] {
   return [
     `!${protectedPod} || (${envelopes.join(" || ")})`,
     `!${protectedPod} || ((!has(object.spec.hostNetwork) || object.spec.hostNetwork == false) && (!has(object.spec.hostPID) || object.spec.hostPID == false) && (!has(object.spec.hostIPC) || object.spec.hostIPC == false) && (!has(object.spec.shareProcessNamespace) || object.spec.shareProcessNamespace == false) && (!has(object.spec.hostAliases) || object.spec.hostAliases.size() == 0) && (!has(object.spec.dnsConfig)) && (!has(object.spec.dnsPolicy) || object.spec.dnsPolicy == "ClusterFirst") && (!has(object.spec.initContainers) || object.spec.initContainers.size() == 0) && (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.size() == 0) && object.spec.automountServiceAccountToken == false && object.spec.enableServiceLinks == false && has(object.spec.securityContext) && object.spec.securityContext.runAsNonRoot == true && object.spec.securityContext.seccompProfile.type == "RuntimeDefault" && object.spec.containers.all(c, has(c.securityContext) && (!has(c.securityContext.privileged) || c.securityContext.privileged == false) && c.securityContext.runAsNonRoot == true && c.securityContext.allowPrivilegeEscalation == false && c.securityContext.readOnlyRootFilesystem == true && (!has(c.securityContext.procMount) || c.securityContext.procMount == "Default") && c.securityContext.seccompProfile.type == "RuntimeDefault" && c.securityContext.capabilities.drop.size() == 1 && c.securityContext.capabilities.drop[0] == "ALL" && (!has(c.securityContext.capabilities.add) || c.securityContext.capabilities.add.size() == 0)))`,
-    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-web-identity" && has(v.projected) && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir)))`,
+    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && v.emptyDir.sizeLimit == "64Mi"))`,
   ];
 }
 
@@ -419,6 +421,7 @@ function closedBoundary(): PolicyResource[] {
         dnsResolverCidrs: ["10.42.0.2/32"],
         endpointCidrs: ["10.42.10.0/28"],
         endpointSecurityGroupIds: {
+          sts: "sg-sts-endpoint",
           secretsManager: "sg-secrets-endpoint",
           kms: "sg-kms-endpoint",
           dynamodb: "sg-dynamodb-endpoint",
@@ -503,6 +506,7 @@ function closedBoundary(): PolicyResource[] {
           labels: workloadLabels(kind),
           annotations: {
             "eks.amazonaws.com/role-arn": `arn:aws:iam::111122223333:role/orders-${kind}`,
+            "eks.amazonaws.com/sts-regional-endpoints": "true",
           },
         },
         automountServiceAccountToken: false,

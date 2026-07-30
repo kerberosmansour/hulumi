@@ -11,7 +11,7 @@ const KMS_KEY_ARN = "arn:aws:kms:eu-west-2:111122223333:key/1234abcd";
 const MASTER_SECRET_ARN = "arn:aws:secretsmanager:eu-west-2:111122223333:secret:aurora/master";
 const PERMISSION_BOUNDARY_ARN = "arn:aws:iam::111122223333:policy/hulumi-workload-boundary";
 const CALLER_SECURITY_GROUP_ID = "sg-runtime-caller";
-const WEB_IDENTITY_TOKEN_PATH = "/var/run/secrets/hulumi/identity/token";
+const WEB_IDENTITY_TOKEN_PATH = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token";
 const RSA_2048_MODULUS = Buffer.alloc(256, 0xa5).toString("base64url");
 const PLACEMENT = {
   runtime: {
@@ -91,6 +91,10 @@ function workload(kind: string) {
 
 interface BoundaryOptions {
   databaseEndpoint?: pulumi.Input<string>;
+  transportTls?: {
+    identitySecretArn: string;
+    kmsKeyArn: string;
+  };
   rollout?: {
     phase: "infrastructure" | "migrator" | "broker" | "runtime" | "rotation";
     verifiedGates?: string[];
@@ -153,6 +157,7 @@ async function createBoundary(options: BoundaryOptions = {}) {
     dnsResolverCidrs: options.dnsResolverCidrs ?? ["10.42.0.2/32"],
     endpointCidrs: ["10.42.10.0/28"],
     endpointSecurityGroupIds: {
+      sts: "sg-sts-endpoint",
       secretsManager: "sg-secrets-endpoint",
       kms: "sg-kms-endpoint",
       dynamodb: "sg-dynamodb-endpoint",
@@ -163,6 +168,7 @@ async function createBoundary(options: BoundaryOptions = {}) {
     kmsKeyArn: KMS_KEY_ARN,
     masterSecretArn: MASTER_SECRET_ARN,
     applicationSecretNames: ["guardian/orders-a", "guardian/orders-b"],
+    ...(options.transportTls !== undefined ? { transportTls: options.transportTls } : {}),
     capability: {
       issuer: "https://identity.guardian.example",
       audience: "guardian-db-broker",
@@ -367,11 +373,109 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     expect(
       brokerRules.some(
         (rule) =>
+          rule.inputs.referencedSecurityGroupId === "sg-sts-endpoint" &&
+          rule.inputs.fromPort === 443 &&
+          rule.inputs.toPort === 443,
+      ),
+    ).toBe(true);
+    expect(
+      brokerRules.some(
+        (rule) =>
           rule.inputs.referencedSecurityGroupId === "sg-dynamodb-endpoint" &&
           rule.inputs.fromPort === 443 &&
           rule.inputs.toPort === 443,
       ),
     ).toBe(true);
+  });
+
+  it("optionally grants native transport TLS only to the broker's exact AWSCURRENT identity", async () => {
+    const tlsIdentitySecretArn =
+      "arn:aws:secretsmanager:eu-west-2:111122223333:secret:gpil/broker-transport-tls";
+    const tlsKmsKeyArn =
+      "arn:aws:kms:eu-west-2:111122223333:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    await createBoundary({
+      transportTls: {
+        identitySecretArn: tlsIdentitySecretArn,
+        kmsKeyArn: tlsKmsKeyArn,
+      },
+    });
+    await settlePulumi();
+
+    const brokerPolicy = JSON.stringify(
+      registrations
+        .filter(
+          (registration) =>
+            registration.type === "aws:iam/rolePolicy:RolePolicy" &&
+            registration.name.includes("-broker-"),
+        )
+        .map((registration) => registration.inputs.policy),
+    );
+    expect(brokerPolicy).toContain(tlsIdentitySecretArn);
+    expect(brokerPolicy).toContain(tlsKmsKeyArn);
+    expect(brokerPolicy).toContain("secretsmanager:GetSecretValue");
+    expect(brokerPolicy).toContain("secretsmanager:DescribeSecret");
+    expect(brokerPolicy).toContain("secretsmanager:VersionStage");
+    expect(brokerPolicy).toContain("AWSCURRENT");
+    expect(brokerPolicy).toContain("kms:ViaService");
+    expect(brokerPolicy).toContain("kms:EncryptionContext:SecretARN");
+
+    for (const kind of ["runtime", "migrator", "rotation"]) {
+      expect(JSON.stringify(policyFor(kind)?.inputs.policy ?? "")).not.toContain(
+        tlsIdentitySecretArn,
+      );
+      expect(JSON.stringify(workload(kind)?.inputs)).not.toContain(tlsIdentitySecretArn);
+    }
+    const brokerInputs = JSON.stringify(workload("broker")?.inputs);
+    expect(brokerInputs).toContain("TLS_IDENTITY_SECRET_ARN");
+    expect(brokerInputs).toContain(tlsIdentitySecretArn);
+    expect(brokerInputs).toContain('"name":"GPIL_TLS_MODE","value":"native"');
+    expect(registrations.map((registration) => registration.type)).not.toContain(
+      "kubernetes:core/v1:Secret",
+    );
+  });
+
+  it("rejects wildcard, wrong-service, cross-region, and cross-account broker TLS ARNs", async () => {
+    await expect(
+      createBoundary({
+        transportTls: {
+          identitySecretArn: "*",
+          kmsKeyArn: "arn:aws:kms:eu-west-2:111122223333:key/aaaaaaaa",
+        },
+      }),
+    ).rejects.toThrow(/transportTls|wildcard|exact/i);
+    expect(registrations).toEqual([]);
+
+    await expect(
+      createBoundary({
+        transportTls: {
+          identitySecretArn: "arn:aws:s3:eu-west-2:111122223333:secret:gpil/broker-transport-tls",
+          kmsKeyArn: "arn:aws:kms:eu-west-2:111122223333:key/aaaaaaaa",
+        },
+      }),
+    ).rejects.toThrow(/transportTls|secretsmanager|exact/i);
+    expect(registrations).toEqual([]);
+
+    await expect(
+      createBoundary({
+        transportTls: {
+          identitySecretArn:
+            "arn:aws:secretsmanager:us-east-1:111122223333:secret:gpil/broker-transport-tls",
+          kmsKeyArn: "arn:aws:kms:eu-west-2:111122223333:key/aaaaaaaa",
+        },
+      }),
+    ).rejects.toThrow(/transportTls|region|exact/i);
+    expect(registrations).toEqual([]);
+
+    await expect(
+      createBoundary({
+        transportTls: {
+          identitySecretArn:
+            "arn:aws:secretsmanager:eu-west-2:111122223333:secret:gpil/broker-transport-tls",
+          kmsKeyArn: "arn:aws:kms:eu-west-2:999900001111:key/aaaaaaaa",
+        },
+      }),
+    ).rejects.toThrow(/transportTls|account|exact/i);
+    expect(registrations).toEqual([]);
   });
 
   it("pins every workload image and applies restricted security contexts plus admission", async () => {
@@ -386,6 +490,13 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       expect(JSON.stringify(registration?.inputs)).toContain('"readOnlyRootFilesystem":true');
       expect(JSON.stringify(registration?.inputs)).toContain('"runAsNonRoot":true');
       expect(JSON.stringify(registration?.inputs)).toContain('"drop":["ALL"]');
+      expect(JSON.stringify(registration?.inputs)).toContain(
+        '"name":"AWS_STS_REGIONAL_ENDPOINTS","value":"regional"',
+      );
+      expect(JSON.stringify(registration?.inputs)).toContain(
+        '"mountPath":"/var/run/secrets/eks.amazonaws.com/serviceaccount","name":"aws-iam-token"',
+      );
+      expect(JSON.stringify(registration?.inputs)).toContain('"defaultMode":292');
     }
     expect(
       (workload("runtime")?.inputs.spec as { template: { spec: { restartPolicy: string } } })
@@ -677,6 +788,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
           dnsResolverCidrs: ["10.42.0.2/32"],
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
+            sts: "sg-sts",
             secretsManager: "sg-secret",
             kms: "sg-kms",
             dynamodb: "sg-dynamodb",
@@ -806,6 +918,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
           dnsResolverCidrs: ["10.42.0.2/32"],
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
+            sts: "sg-sts",
             secretsManager: "sg-secret",
             kms: "sg-kms",
             dynamodb: "sg-dynamodb",
@@ -871,6 +984,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       dnsResolverCidrs: ["10.42.0.2/32"],
       endpointCidrs: ["10.42.10.0/28"],
       endpointSecurityGroupIds: {
+        sts: "sg-sts",
         secretsManager: "sg-secret",
         kms: "sg-kms",
         dynamodb: "sg-dynamodb",

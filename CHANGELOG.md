@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.5] — 2026-07-30
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.5`, `@hulumi/policies@1.5.5`, `@hulumi/drift@1.5.5`,
+`@hulumi/k8s-baseline@1.5.5`, `@hulumi/cloudflare-baseline@1.5.5`, and
+`@hulumi/platform-patterns@1.5.5`.
+
+### Added
+
+- `WorkloadCapabilityIssuerBoundary` provides a separately trusted, inert
+  workload-capability issuer with exact KMS signing, DynamoDB authority lookup,
+  native-TLS identity custody, closed network paths, and static public workload
+  JWKS configuration.
+- `BrokeredAuroraPostgresBoundary` can grant only its broker an optional exact
+  native-TLS identity secret and matching encryption-context-bound KMS decrypt.
+
+### Security
+
+- Issuer and broker authority-bearing ARNs are validated against the boundary
+  partition, region, account, AWS service, and resource type before they can
+  enter IAM policies or workload configuration.
+- IRSA workloads use the rotatable EKS projected-token directory contract,
+  non-root-readable token mode, regional STS selection, and an exact private
+  STS endpoint path; admission pins token mode, mount, and bounded scratch
+  storage.
+- The issuer admission deny binding is provisioned before its privileged
+  ServiceAccount or inert Deployment.
+
 ## [1.5.4] — 2026-07-29
 
 Atomic six-package publish:

@@ -30,7 +30,9 @@ const IDENTITY_KINDS: readonly BrokeredPostgresIdentityKind[] = [
   "rotation",
 ];
 const DEFAULT_OIDC_AUDIENCE = "sts.amazonaws.com";
-const WEB_IDENTITY_TOKEN_PATH = "/var/run/secrets/hulumi/identity/token";
+const WEB_IDENTITY_VOLUME_NAME = "aws-iam-token";
+const WEB_IDENTITY_TOKEN_DIR = "/var/run/secrets/eks.amazonaws.com/serviceaccount";
+const WEB_IDENTITY_TOKEN_PATH = `${WEB_IDENTITY_TOKEN_DIR}/token`;
 const IMMUTABLE_IMAGE = /@sha256:[a-f0-9]{64}$/iu;
 const CIDR = /^(?:\d{1,3}\.){3}\d{1,3}\/(?:[0-9]|[12][0-9]|3[0-2])$/u;
 const KUBERNETES_DNS_LABEL = /^[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?$/u;
@@ -69,6 +71,53 @@ function requireExact(value: string, label: string): string {
     throw new Error(`BrokeredAuroraPostgresBoundary: ${label} must not contain a wildcard`);
   }
   return trimmed;
+}
+
+interface AwsArnContext {
+  readonly partition: string;
+  readonly account: string;
+}
+
+function parseOidcProviderArn(value: string): AwsArnContext {
+  const exact = requireExact(value, "oidcProviderArn");
+  const match = /^arn:(aws(?:-cn|-us-gov)?):iam::(\d{12}):oidc-provider\/[A-Za-z0-9./_-]+$/u.exec(
+    exact,
+  );
+  if (match === null) {
+    throw new Error(
+      "BrokeredAuroraPostgresBoundary: oidcProviderArn must be an exact IAM OIDC-provider ARN",
+    );
+  }
+  return { partition: match[1], account: match[2] };
+}
+
+function validatedResourceArn(
+  input: pulumi.Input<string>,
+  label: string,
+  context: AwsArnContext,
+  awsRegion: string,
+  service: "kms" | "secretsmanager",
+  resourcePattern: RegExp,
+): pulumi.Output<string> {
+  const validate = (value: string): string => {
+    const exact = requireExact(value, label);
+    const match = /^arn:(aws(?:-cn|-us-gov)?):([^:]+):([^:]+):(\d{12}):(.+)$/u.exec(exact);
+    if (
+      match === null ||
+      match[1] !== context.partition ||
+      match[2] !== service ||
+      match[3] !== awsRegion ||
+      match[4] !== context.account ||
+      !resourcePattern.test(match[5])
+    ) {
+      throw new Error(
+        `BrokeredAuroraPostgresBoundary: ${label} must be an exact ${service} ARN in the boundary partition, region, and account`,
+      );
+    }
+    return exact;
+  };
+  if (typeof input === "string") validate(input);
+  return pulumi.output(input).apply(validate);
 }
 
 function requireHttpsUrl(value: string, label: string): string {
@@ -316,6 +365,7 @@ function validateIdentity(
 }
 
 interface ValidatedBoundaryArgs {
+  readonly arnContext: AwsArnContext;
   readonly capabilityJwksJson: string;
   readonly dynamodbEndpointUrl: string;
 }
@@ -329,7 +379,7 @@ function validateArgs(args: BrokeredAuroraPostgresBoundaryArgs): ValidatedBounda
   if (!KUBERNETES_DNS_LABEL.test(args.namespace)) {
     throw new Error("BrokeredAuroraPostgresBoundary: namespace must be a Kubernetes DNS label");
   }
-  requireExact(args.oidcProviderArn, "oidcProviderArn");
+  const arnContext = parseOidcProviderArn(args.oidcProviderArn);
   requireHttpsUrl(args.oidcIssuer, "oidcIssuer");
   const audience = requireExact(args.oidcAudience ?? DEFAULT_OIDC_AUDIENCE, "oidcAudience");
   if (audience !== DEFAULT_OIDC_AUDIENCE) {
@@ -515,7 +565,7 @@ function validateArgs(args: BrokeredAuroraPostgresBoundaryArgs): ValidatedBounda
       );
     }
   }
-  return { capabilityJwksJson, dynamodbEndpointUrl };
+  return { arnContext, capabilityJwksJson, dynamodbEndpointUrl };
 }
 
 function issuerConditionPrefix(issuer: string): string {
@@ -607,6 +657,47 @@ function allowStatements(
             },
             "ForAnyValue:StringEquals": {
               "kms:EncryptionContext:SecretARN": secrets,
+            },
+          },
+        },
+      ],
+    }),
+  );
+}
+
+function transportTlsStatements(
+  identitySecretArn: pulumi.Input<string>,
+  kmsKeyArn: pulumi.Input<string>,
+  awsRegion: string,
+): pulumi.Output<string> {
+  return pulumi.all([identitySecretArn, kmsKeyArn]).apply(([secretArn, kmsArn]) =>
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Sid: "ExactCurrentTlsIdentity",
+          Effect: "Allow",
+          Action: ["secretsmanager:GetSecretValue"],
+          Resource: secretArn,
+          Condition: {
+            StringEquals: { "secretsmanager:VersionStage": "AWSCURRENT" },
+          },
+        },
+        {
+          Sid: "ExactTlsIdentityMetadata",
+          Effect: "Allow",
+          Action: ["secretsmanager:DescribeSecret"],
+          Resource: secretArn,
+        },
+        {
+          Sid: "ExactTlsIdentityDecrypt",
+          Effect: "Allow",
+          Action: ["kms:Decrypt"],
+          Resource: kmsArn,
+          Condition: {
+            StringEquals: {
+              "kms:ViaService": `secretsmanager.${awsRegion}.amazonaws.com`,
+              "kms:EncryptionContext:SecretARN": secretArn,
             },
           },
         },
@@ -719,9 +810,8 @@ function restrictedContainer(
     },
     volumeMounts: [
       {
-        name: "aws-web-identity",
-        mountPath: WEB_IDENTITY_TOKEN_PATH,
-        subPath: "token",
+        name: WEB_IDENTITY_VOLUME_NAME,
+        mountPath: WEB_IDENTITY_TOKEN_DIR,
         readOnly: true,
       },
       { name: "tmp", mountPath: "/tmp" },
@@ -776,9 +866,9 @@ function podSpec(
     containers: [container],
     volumes: [
       {
-        name: "aws-web-identity",
+        name: WEB_IDENTITY_VOLUME_NAME,
         projected: {
-          defaultMode: 0o400,
+          defaultMode: 0o444,
           sources: [
             {
               serviceAccountToken: {
@@ -795,8 +885,14 @@ function podSpec(
   };
 }
 
-function awsIdentityEnv(roleArn: pulumi.Input<string>): k8s.types.input.core.v1.EnvVar[] {
+function awsIdentityEnv(
+  roleArn: pulumi.Input<string>,
+  awsRegion: string,
+): k8s.types.input.core.v1.EnvVar[] {
   return [
+    { name: "AWS_REGION", value: awsRegion },
+    { name: "AWS_DEFAULT_REGION", value: awsRegion },
+    { name: "AWS_STS_REGIONAL_ENDPOINTS", value: "regional" },
     { name: "AWS_ROLE_ARN", value: roleArn },
     { name: "AWS_WEB_IDENTITY_TOKEN_FILE", value: WEB_IDENTITY_TOKEN_PATH },
   ];
@@ -835,13 +931,35 @@ export class BrokeredAuroraPostgresBoundary
     args: BrokeredAuroraPostgresBoundaryArgs,
     opts?: pulumi.ComponentResourceOptions,
   ) {
-    const { capabilityJwksJson, dynamodbEndpointUrl } = validateArgs(args);
+    const { arnContext, capabilityJwksJson, dynamodbEndpointUrl } = validateArgs(args);
+    const transportTls =
+      args.transportTls === undefined
+        ? undefined
+        : {
+            identitySecretArn: validatedResourceArn(
+              args.transportTls.identitySecretArn,
+              "transportTls.identitySecretArn",
+              arnContext,
+              args.awsRegion,
+              "secretsmanager",
+              /^secret:[A-Za-z0-9/_+=.@-]+$/u,
+            ),
+            kmsKeyArn: validatedResourceArn(
+              args.transportTls.kmsKeyArn,
+              "transportTls.kmsKeyArn",
+              arnContext,
+              args.awsRegion,
+              "kms",
+              /^key\/[A-Za-z0-9-]+$/u,
+            ),
+          };
     const policyContract = {
       ...args,
       capability: {
         ...args.capability,
         jwksJson: capabilityJwksJson,
       },
+      ...(transportTls === undefined ? {} : { transportTls }),
       dynamodbEndpointUrl,
     };
     super(
@@ -895,7 +1013,10 @@ export class BrokeredAuroraPostgresBoundary
             name: identity.serviceAccountName,
             namespace: args.namespace,
             labels: podLabels(name, kind),
-            annotations: { "eks.amazonaws.com/role-arn": roles[kind].arn },
+            annotations: {
+              "eks.amazonaws.com/role-arn": roles[kind].arn,
+              "eks.amazonaws.com/sts-regional-endpoints": "true",
+            },
           },
           automountServiceAccountToken: false,
         },
@@ -985,6 +1106,20 @@ export class BrokeredAuroraPostgresBoundary
       },
       parent,
     );
+    if (transportTls !== undefined) {
+      new aws.iam.RolePolicy(
+        `${name}-broker-transport-tls-policy`,
+        {
+          role: roles.broker.name,
+          policy: transportTlsStatements(
+            transportTls.identitySecretArn,
+            transportTls.kmsKeyArn,
+            args.awsRegion,
+          ),
+        },
+        parent,
+      );
+    }
     new aws.iam.RolePolicy(
       `${name}-rotation-policy`,
       {
@@ -1087,6 +1222,13 @@ export class BrokeredAuroraPostgresBoundary
       "Application runtime to broker only",
     );
     for (const kind of ["broker", "migrator", "rotation"] as const) {
+      link(
+        `${name}-${kind}-to-sts-endpoint`,
+        securityGroups[kind],
+        args.endpointSecurityGroupIds.sts,
+        443,
+        `${kind} exact STS endpoint path for IRSA credential exchange`,
+      );
       link(
         `${name}-${kind}-to-database`,
         securityGroups[kind],
@@ -1331,7 +1473,7 @@ export class BrokeredAuroraPostgresBoundary
     }
 
     const runtimeEnv = [
-      ...awsIdentityEnv(roles.runtime.arn),
+      ...awsIdentityEnv(roles.runtime.arn, args.awsRegion),
       {
         name: "BROKER_URL",
         value: `https://${name}-broker.${args.namespace}.svc.cluster.local:${args.workloads.broker.port}`,
@@ -1339,7 +1481,7 @@ export class BrokeredAuroraPostgresBoundary
       { name: "CAPABILITY_AUDIENCE", value: args.capability.audience },
     ];
     const brokerEnv = [
-      ...awsIdentityEnv(roles.broker.arn),
+      ...awsIdentityEnv(roles.broker.arn, args.awsRegion),
       { name: "DATABASE_HOST", value: args.database.endpoint },
       { name: "DATABASE_PORT", value: String(args.database.port) },
       { name: "APPLICATION_SECRET_A_ARN", value: applicationSecretA.secretArn },
@@ -1350,9 +1492,18 @@ export class BrokeredAuroraPostgresBoundary
       { name: "CAPABILITY_MAX_TTL_SECONDS", value: String(args.capability.maxTtlSeconds) },
       { name: "CAPABILITY_REPLAY_TABLE", value: replayTable.name },
       { name: "AWS_ENDPOINT_URL_DYNAMODB", value: dynamodbEndpointUrl },
+      ...(transportTls === undefined
+        ? []
+        : [
+            { name: "GPIL_TLS_MODE", value: "native" },
+            {
+              name: "TLS_IDENTITY_SECRET_ARN",
+              value: transportTls.identitySecretArn,
+            },
+          ]),
     ];
     const migratorEnv = [
-      ...awsIdentityEnv(roles.migrator.arn),
+      ...awsIdentityEnv(roles.migrator.arn, args.awsRegion),
       { name: "DATABASE_HOST", value: args.database.endpoint },
       { name: "DATABASE_PORT", value: String(args.database.port) },
       { name: "MASTER_SECRET_ARN", value: args.masterSecretArn },
@@ -1360,7 +1511,7 @@ export class BrokeredAuroraPostgresBoundary
       { name: "APPLICATION_SECRET_B_ARN", value: applicationSecretB.secretArn },
     ];
     const rotationEnv = [
-      ...awsIdentityEnv(roles.rotation.arn),
+      ...awsIdentityEnv(roles.rotation.arn, args.awsRegion),
       { name: "DATABASE_HOST", value: args.database.endpoint },
       { name: "DATABASE_PORT", value: String(args.database.port) },
       { name: "MASTER_SECRET_ARN", value: args.masterSecretArn },
@@ -1537,9 +1688,9 @@ export class BrokeredAuroraPostgresBoundary
       migrator: migratorEnv,
       rotation: rotationEnv,
     };
-    const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-web-identity" && m.mountPath == ${JSON.stringify(
-      WEB_IDENTITY_TOKEN_PATH,
-    )} && m.subPath == "token" && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
+    const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-iam-token" && m.mountPath == ${JSON.stringify(
+      WEB_IDENTITY_TOKEN_DIR,
+    )} && (!has(m.subPath) || m.subPath == "") && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
     const exactPlacement = (placement: BrokeredPostgresPlacementProfileArgs): string => {
       const nodeKey = JSON.stringify(placement.nodePool.key);
       const nodeValue = JSON.stringify(placement.nodePool.value);
@@ -1629,7 +1780,7 @@ export class BrokeredAuroraPostgresBoundary
               reason: "Forbidden",
             },
             {
-              expression: `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-web-identity" && has(v.projected) && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir)))`,
+              expression: `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && v.emptyDir.sizeLimit == "64Mi"))`,
               message:
                 "Protected broker-boundary Pods must use only the exact projected identity token and emptyDir volumes, with no envFrom, secretKeyRef, or Kubernetes Secret source.",
               reason: "Forbidden",

@@ -43,6 +43,16 @@ export interface BrokeredPostgresCapabilityArgs {
   readonly maxTtlSeconds: number;
 }
 
+export interface BrokeredPostgresTransportTlsArgs {
+  /**
+   * Existing Secrets Manager ARN containing the broker's native TLS identity.
+   * Only AWSCURRENT may be read; no secret value enters Pulumi or Kubernetes.
+   */
+  readonly identitySecretArn: pulumi.Input<string>;
+  /** Exact KMS key encrypting the TLS identity secret. */
+  readonly kmsKeyArn: pulumi.Input<string>;
+}
+
 export interface BrokeredPostgresWorkloadArgs {
   /** Immutable OCI reference ending in @sha256:<64 hex>. */
   readonly image: string;
@@ -132,10 +142,12 @@ export interface BrokeredAuroraPostgresBoundaryArgs {
   readonly database: BrokeredPostgresDatabaseArgs;
   /** Exact Route 53 Resolver IPv4 /32s; runtime receives only DNS plus broker egress. */
   readonly dnsResolverCidrs: readonly string[];
-  /** Exact private CIDRs for the Secrets Manager and KMS interface endpoints. */
+  /** Exact private CIDRs for the STS, Secrets Manager, KMS, and DynamoDB interface endpoints. */
   readonly endpointCidrs: readonly string[];
   /** Existing interface-endpoint SGs. No identity receives general internet egress. */
   readonly endpointSecurityGroupIds: {
+    /** Existing regional STS interface endpoint required for IRSA credential exchange. */
+    readonly sts: pulumi.Input<string>;
     readonly secretsManager: pulumi.Input<string>;
     readonly kms: pulumi.Input<string>;
     /** Existing DynamoDB interface endpoint SG used by replay protection. */
@@ -154,6 +166,8 @@ export interface BrokeredAuroraPostgresBoundaryArgs {
   readonly masterSecretArn: pulumi.Input<string>;
   /** Two value-free SecureSecret containers for alternating broker logins. */
   readonly applicationSecretNames: readonly [string, string];
+  /** Optional native in-process TLS identity available only to the broker. */
+  readonly transportTls?: BrokeredPostgresTransportTlsArgs;
 
   readonly capability: BrokeredPostgresCapabilityArgs;
   /** Exact disjoint runtime versus broker/migrator/rotation placement. */

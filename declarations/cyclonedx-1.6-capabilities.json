@@ -8,7 +8,7 @@
     "component": {
       "type": "application",
       "name": "hulumi",
-      "version": "1.5.4"
+      "version": "1.5.5"
     }
   },
   "declarations": {
@@ -19,7 +19,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "baseline",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -44,7 +44,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "policies",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -93,7 +93,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "drift",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -114,7 +114,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "k8s-baseline",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -139,7 +139,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "cloudflare-baseline",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -172,7 +172,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "platform-patterns",
-          "version": "1.5.4",
+          "version": "1.5.5",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -197,6 +197,10 @@
             {
               "name": "cdx:sunlit:capability",
               "value": "brokered-aurora-postgres-boundary-iac"
+            },
+            {
+              "name": "cdx:sunlit:capability",
+              "value": "workload-capability-issuer-boundary-iac"
             },
             {
               "name": "cdx:sunlit:limit",
@@ -225,6 +229,14 @@
             {
               "name": "cdx:sunlit:limit",
               "value": "A provider-generated ServiceAccount role annotation can remain advisory-unknown during first-create preview; post-apply preview must resolve and validate it."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "The workload-capability issuer is inert IaC only; consumer code owns projected-JWT verification, authority semantics, capability signing, native TLS loading, and activation."
+            },
+            {
+              "name": "cdx:sunlit:limit",
+              "value": "Workload identity verification uses bounded inline public RSA/RS256 JWKS configuration and creates no public JWKS fetch path."
             }
           ]
         }
@@ -264,7 +276,7 @@
       {
         "bom-ref": "claim:hulumi:brokered-aurora-postgres-boundary-iac",
         "target": "component:@hulumi/platform-patterns",
-        "predicate": "Provides the infrastructure half of a brokered Aurora PostgreSQL authority boundary: four exact IRSA identities, value-free secret containers, closed network paths, immutable restricted workload envelopes, public inline JWKS configuration, admission policy, and encrypted replay state.",
+        "predicate": "Provides the infrastructure half of a brokered Aurora PostgreSQL authority boundary: four exact IRSA identities with regional STS endpoint paths for credential exchange, value-free secret containers, closed network paths, immutable restricted workload envelopes, public inline JWKS configuration, admission policy, and encrypted replay state.",
         "reasoning": "The component is IaC only and requires consumer-supplied broker, migrator and rotation executables, including conditional jti claims, plus live IAM, Kubernetes, PostgreSQL and tenant-isolation evidence."
       },
       {
@@ -272,6 +284,12 @@
         "target": "component:@hulumi/policies",
         "predicate": "Provides structural Pulumi preview checks for the brokered PostgreSQL identity, secret, network, workload and replay-state boundary, with fail-closed pre-validation of known IRSA trust plus secret parent and KMS relationships before provider-output deferral.",
         "reasoning": "The remaining structural checks require their provider outputs to resolve, and the policy pack cannot replace live effective-authorization or actual-login verification."
+      },
+      {
+        "bom-ref": "claim:hulumi:workload-capability-issuer-boundary-iac",
+        "target": "component:@hulumi/platform-patterns",
+        "predicate": "Provides an inert workload-capability issuer infrastructure boundary with one exact IRSA identity and regional STS endpoint path for credential exchange, KMS signing, endpoint-bound DynamoDB authority reads, exact AWSCURRENT native-TLS secret access, closed caller and endpoint networking, static public workload JWKS, and a fail-closed one-container admission envelope.",
+        "reasoning": "The component supplies value-free AWS and Kubernetes structure only; consumer code and live gates remain responsible for workload-JWT verification, authority semantics, capability signing, TLS loading, and activation."
       }
     ]
   }

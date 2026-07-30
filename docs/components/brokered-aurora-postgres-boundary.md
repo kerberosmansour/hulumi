@@ -43,12 +43,35 @@ those two application-secret encryption contexts; it never includes the master
 secret. Both the `SecureSecret` components and their Secrets Manager children,
 plus replay-table SSE, are bound to that same exact boundary key.
 
+When `transportTls` is supplied, the broker additionally receives only
+`secretsmanager:GetSecretValue` for the exact `AWSCURRENT` transport identity,
+`DescribeSecret` for that same ARN, and `kms:Decrypt` on its exact KMS key
+conditioned on both the regional Secrets Manager service and the exact
+`kms:EncryptionContext:SecretARN`. The broker environment receives
+`GPIL_TLS_MODE=native` and `TLS_IDENTITY_SECRET_ARN`; no TLS value, Kubernetes
+Secret, secret volume, init container, or sidecar is created. Runtime,
+migrator, and rotation authority and environments remain unchanged.
+
+The optional TLS secret and KMS key are resolved and validated as exact ARNs
+in the boundary partition, region, and account before they can enter IAM or the
+broker environment. Wildcards, wrong AWS services, regions, accounts, and
+resource types fail closed.
+
 Capability verification is configured with an inline, public asymmetric JWKS.
 The component accepts only RSA/RS256, P-256/ES256, or Ed25519/EdDSA signing
 keys and rejects private or symmetric fields. The document is capped at eight
 keys and 16 KiB to bound the generated workload configuration. It deliberately
 creates no JWKS network-fetch path. Key rollover therefore requires a reviewed
 IaC update and workload rollout.
+
+Broker, migrator, and rotation use projected IRSA tokens. Each receives an
+exact regional STS interface-endpoint security-group path for that credential
+exchange, and `endpointCidrs` must include the STS endpoint alongside the other
+declared private interface endpoints. No public STS or general internet egress
+is created. Every identity uses the rotatable EKS `aws-iam-token` directory
+mount without `subPath`, mode `0444`, exact `AWS_REGION` and
+`AWS_DEFAULT_REGION`, and `AWS_STS_REGIONAL_ENDPOINTS=regional`; admission pins
+that token projection and its `64Mi` scratch volume.
 
 Only the broker can call `dynamodb:PutItem`, `dynamodb:GetItem`, and
 `dynamodb:DescribeTable` on the exact replay table. That authority is

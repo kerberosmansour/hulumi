@@ -20,3 +20,6 @@ export type * from "./runner-governance-foundation.outputs";
 export * from "./brokered-aurora-postgres-boundary";
 export type * from "./brokered-aurora-postgres-boundary.args";
 export type * from "./brokered-aurora-postgres-boundary.outputs";
+export * from "./workload-capability-issuer-boundary";
+export type * from "./workload-capability-issuer-boundary.args";
+export type * from "./workload-capability-issuer-boundary.outputs";

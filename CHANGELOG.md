@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
-## [1.5.5] — 2026-07-30
+## [1.5.6] — 2026-07-30
 
 Atomic six-package publish:
-`@hulumi/baseline@1.5.5`, `@hulumi/policies@1.5.5`, `@hulumi/drift@1.5.5`,
-`@hulumi/k8s-baseline@1.5.5`, `@hulumi/cloudflare-baseline@1.5.5`, and
-`@hulumi/platform-patterns@1.5.5`.
+`@hulumi/baseline@1.5.6`, `@hulumi/policies@1.5.6`, `@hulumi/drift@1.5.6`,
+`@hulumi/k8s-baseline@1.5.6`, `@hulumi/cloudflare-baseline@1.5.6`, and
+`@hulumi/platform-patterns@1.5.6`.
+
+The `v1.5.5` candidate was halted during pre-flight before npm publication.
 
 ### Added
 
@@ -36,6 +38,11 @@ Atomic six-package publish:
   storage.
 - The issuer admission deny binding is provisioned before its privileged
   ServiceAccount or inert Deployment.
+- Issuer and broker admission guards are scoped to their exact boundary label
+  plus exact ServiceAccounts, so multiple boundaries can coexist without
+  mutually denying each other's Pods.
+- The authority table accepts one exact ARN and derives its bounded DynamoDB
+  table name, eliminating inconsistent ARN/name identities for Pulumi Outputs.
 
 ## [1.5.4] — 2026-07-29
 

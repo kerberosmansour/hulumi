@@ -565,6 +565,13 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;
     expect(admissionExpression).toContain(JSON.stringify(JWKS_JSON));
+    expect(admissionExpression).toContain(
+      '"hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary"',
+    );
+    expect(admissionExpression).not.toContain('|| "hulumi.dev/identity-kind" in');
+    expect(admissionExpression).not.toContain(
+      '"BrokeredAuroraPostgresBoundary") || ("hulumi.dev/boundary"',
+    );
     expect(JSON.stringify(admission?.inputs.spec)).toContain("https://identity.guardian.example");
     expect(JSON.stringify(admission?.inputs.spec)).toContain("guardian-db-broker");
     expect(

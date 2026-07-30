@@ -1648,9 +1648,9 @@ export class BrokeredAuroraPostgresBoundary
     );
     const serviceAccountSet = celStringList(protectedServiceAccounts);
     const labels = "object.metadata.labels";
-    const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && (("hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary") || ("hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == ${JSON.stringify(
+    const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && "hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == ${JSON.stringify(
       name,
-    )}) || "hulumi.dev/identity-kind" in ${labels})))`;
+    )}))`;
     const exactEnvironment = (
       env: readonly k8s.types.input.core.v1.EnvVar[],
     ): pulumi.Output<string> => {

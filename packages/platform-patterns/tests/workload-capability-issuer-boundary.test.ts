@@ -500,6 +500,13 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;
     expect(firstExpression).toContain(JSON.stringify(WORKLOAD_JWKS_JSON));
+    expect(firstExpression).toContain(
+      '"hulumi.dev/component"] == "WorkloadCapabilityIssuerBoundary" && "hulumi.dev/boundary"',
+    );
+    expect(firstExpression).not.toContain('|| ("hulumi.dev/identity-kind" in');
+    expect(firstExpression).not.toContain(
+      '"WorkloadCapabilityIssuerBoundary") || ("hulumi.dev/boundary"',
+    );
   });
 
   it("rejects mutable images, broad egress, remote workload JWKS, and endpoint drift before registration", async () => {
@@ -552,6 +559,15 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
       }),
     ).rejects.toThrow(/authorityTable|dynamodb|exact/i);
     expect(registrations).toEqual([]);
+
+    for (const tableName of ["ab", "a".repeat(256)]) {
+      await expect(
+        createIssuer({
+          authorityTableArn: `arn:aws:dynamodb:eu-west-2:111122223333:table/${tableName}`,
+        }),
+      ).rejects.toThrow(/authorityTable|dynamodb|exact/i);
+      expect(registrations).toEqual([]);
+    }
 
     await expect(
       createIssuer({

@@ -51,7 +51,7 @@ jobs:
       region: ${{ steps.env.outputs.region }}
       min_age_minutes: ${{ steps.env.outputs.min_age_minutes }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Validate plan inputs and mask identifiers
         id: env
@@ -169,7 +169,7 @@ jobs:
     timeout-minutes: 20
     environment: aws-reconciler-execute
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Validate execute configuration and mask identifiers
         env:

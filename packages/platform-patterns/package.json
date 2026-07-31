@@ -39,18 +39,18 @@
     "@hulumi/baseline": "workspace:*"
   },
   "peerDependencies": {
-    "@pulumi/aws": "7.37.0",
+    "@pulumi/aws": "7.39.0",
     "@pulumi/cloudflare": "6.18.0",
-    "@pulumi/github": "6.14.0",
+    "@pulumi/github": "6.14.1",
     "@pulumi/kubernetes": "4.33.0",
-    "@pulumi/pulumi": "3.253.0"
+    "@pulumi/pulumi": "3.254.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.37.0",
+    "@pulumi/aws": "7.39.0",
     "@pulumi/cloudflare": "6.18.0",
-    "@pulumi/github": "6.14.0",
+    "@pulumi/github": "6.14.1",
     "@pulumi/kubernetes": "4.33.0",
-    "@pulumi/pulumi": "3.253.0",
+    "@pulumi/pulumi": "3.254.0",
     "@types/node": "20.19.42",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

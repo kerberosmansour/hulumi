@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.7] — 2026-08-02
+
+Atomic six-package publish:
+`@hulumi/baseline@1.5.7`, `@hulumi/policies@1.5.7`, `@hulumi/drift@1.5.7`,
+`@hulumi/k8s-baseline@1.5.7`, `@hulumi/cloudflare-baseline@1.5.7`, and
+`@hulumi/platform-patterns@1.5.7`.
+
+### Security
+
+- `BrokeredAuroraPostgresBoundary` and `WorkloadCapabilityIssuerBoundary`
+  now require the exact cluster-DNS namespace, Pod selector, and security-group
+  identity. Protected workloads receive only TCP/UDP 53 egress to that DNS
+  identity, with reciprocal security-group ingress and an ANDed Kubernetes
+  namespace-and-Pod peer.
+- Exact Route 53 Resolver `/32` rules remain in place for VPC DNS forwarding;
+  wildcard CIDRs and selectors are rejected.
+- Protected Pod templates explicitly disable Istio sidecar injection so their
+  one-container, zero-init-container admission contract remains enforceable.
+
 ## [1.5.6] — 2026-07-30
 
 Atomic six-package publish:

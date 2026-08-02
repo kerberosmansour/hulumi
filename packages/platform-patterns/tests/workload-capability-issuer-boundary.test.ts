@@ -14,6 +14,11 @@ const TLS_SECRET_ARN =
   "arn:aws:secretsmanager:eu-west-2:111122223333:secret:gpil/issuer-transport-tls";
 const AUTHORITY_TABLE_ARN =
   "arn:aws:dynamodb:eu-west-2:111122223333:table/gpil-capability-authority";
+const CLUSTER_DNS = {
+  namespace: "kube-system",
+  podSelector: { "k8s-app": "kube-dns" },
+  securityGroupId: "sg-cluster-dns",
+};
 const WEB_IDENTITY_TOKEN_PATH = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token";
 const RSA_2048_MODULUS = Buffer.alloc(256, 0xa5).toString("base64url");
 const WORKLOAD_JWKS_JSON = JSON.stringify({
@@ -54,6 +59,11 @@ interface IssuerOptions {
   authorityTableArn?: pulumi.Input<string>;
   tlsIdentitySecretArn?: string;
   tlsKmsKeyArn?: string;
+  clusterDns?: {
+    namespace: string;
+    podSelector: Record<string, string>;
+    securityGroupId: string;
+  };
 }
 
 async function createIssuer(options: IssuerOptions = {}) {
@@ -77,6 +87,7 @@ async function createIssuer(options: IssuerOptions = {}) {
     permissionBoundaryArn: "arn:aws:iam::111122223333:policy/hulumi-workload-boundary",
     vpcId: "vpc-12345678",
     dnsResolverCidrs: ["10.42.0.2/32"],
+    clusterDns: options.clusterDns ?? CLUSTER_DNS,
     endpointCidrs: options.endpointCidrs ?? ["10.42.10.0/28"],
     endpointSecurityGroupIds: {
       sts: "sg-sts-endpoint",
@@ -348,6 +359,94 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
     expect(rendered).not.toContain("0.0.0.0/0");
   });
 
+  it("routes the protected issuer security group through exact cluster DNS", async () => {
+    await createIssuer();
+    await settlePulumi();
+
+    const issuerSg = registrations.find(
+      (registration) =>
+        registration.type === "aws:ec2/securityGroup:SecurityGroup" &&
+        (registration.inputs.tags as Record<string, unknown> | undefined)?.[
+          "hulumi:identity-kind"
+        ] === "issuer",
+    );
+    expect(issuerSg).toBeDefined();
+    const issuerSgId = `${issuerSg?.name}_id`;
+    for (const protocol of ["tcp", "udp"]) {
+      expect(
+        registrations.some(
+          (registration) =>
+            registration.type === "aws:vpc/securityGroupEgressRule:SecurityGroupEgressRule" &&
+            registration.inputs.securityGroupId === issuerSgId &&
+            registration.inputs.referencedSecurityGroupId === CLUSTER_DNS.securityGroupId &&
+            registration.inputs.ipProtocol === protocol &&
+            registration.inputs.fromPort === 53 &&
+            registration.inputs.toPort === 53,
+        ),
+        `issuer ${protocol.toUpperCase()} DNS egress`,
+      ).toBe(true);
+      expect(
+        registrations.some(
+          (registration) =>
+            registration.type === "aws:vpc/securityGroupIngressRule:SecurityGroupIngressRule" &&
+            registration.inputs.securityGroupId === CLUSTER_DNS.securityGroupId &&
+            registration.inputs.referencedSecurityGroupId === issuerSgId &&
+            registration.inputs.ipProtocol === protocol &&
+            registration.inputs.fromPort === 53 &&
+            registration.inputs.toPort === 53,
+        ),
+        `cluster DNS ${protocol.toUpperCase()} ingress from issuer`,
+      ).toBe(true);
+    }
+  });
+
+  it("uses exact namespace and Pod selectors for issuer cluster DNS NetworkPolicy egress", async () => {
+    await createIssuer();
+    await settlePulumi();
+
+    const network = registrations.find(
+      (registration) =>
+        registration.type === "kubernetes:networking.k8s.io/v1:NetworkPolicy" &&
+        registration.name.includes("issuer-network"),
+    );
+    const networkSpec = network?.inputs.spec as {
+      egress: Array<{
+        to?: Array<{
+          namespaceSelector?: { matchLabels?: Record<string, string> };
+          podSelector?: { matchLabels?: Record<string, string> };
+        }>;
+        ports?: Array<{ protocol?: string; port?: number }>;
+      }>;
+    };
+    expect(
+      networkSpec.egress.some(
+        (rule) =>
+          rule.to?.some(
+            (target) =>
+              target.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"] ===
+                CLUSTER_DNS.namespace &&
+              target.podSelector?.matchLabels?.["k8s-app"] === CLUSTER_DNS.podSelector["k8s-app"],
+          ) === true &&
+          rule.ports?.some((port) => port.protocol === "TCP" && port.port === 53) === true &&
+          rule.ports?.some((port) => port.protocol === "UDP" && port.port === 53) === true,
+      ),
+      "issuer selector-based cluster DNS egress",
+    ).toBe(true);
+  });
+
+  it("disables Istio sidecar injection on the protected issuer Pod template", async () => {
+    await createIssuer();
+    await settlePulumi();
+
+    const deployment = issuerDeployment();
+    const templateLabels = (
+      deployment?.inputs.spec as {
+        template: { metadata: { labels: Record<string, string> } };
+      }
+    ).template.metadata.labels;
+    expect(templateLabels).toMatchObject({ "sidecar.istio.io/inject": "false" });
+  });
+
   it("renders one inert digest-pinned native-TLS container with exact GPIL issuer configuration", async () => {
     const boundary = await createIssuer();
     await settlePulumi();
@@ -583,5 +682,30 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
       }),
     ).rejects.toThrow(/transportTls|account|exact/i);
     expect(registrations).toEqual([]);
+  });
+
+  it("rejects empty or wildcard cluster DNS namespaces and selectors before registration", async () => {
+    const invalidClusterDns = [
+      { ...CLUSTER_DNS, namespace: "" },
+      { ...CLUSTER_DNS, namespace: "*" },
+      { ...CLUSTER_DNS, podSelector: {} },
+      { ...CLUSTER_DNS, podSelector: { "k8s-app": "*" } },
+    ];
+
+    for (const clusterDns of invalidClusterDns) {
+      resetRegistrations();
+      let validationError: unknown;
+      try {
+        await createIssuer({ clusterDns });
+      } catch (error) {
+        validationError = error;
+      }
+      expect(
+        validationError,
+        `clusterDns should fail closed: ${JSON.stringify(clusterDns)}`,
+      ).toBeInstanceOf(Error);
+      expect(String(validationError)).toMatch(/clusterDns|namespace|selector|wildcard|non-empty/i);
+      expect(registrations).toEqual([]);
+    }
   });
 });

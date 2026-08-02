@@ -11,6 +11,11 @@ const KMS_KEY_ARN = "arn:aws:kms:eu-west-2:111122223333:key/1234abcd";
 const MASTER_SECRET_ARN = "arn:aws:secretsmanager:eu-west-2:111122223333:secret:aurora/master";
 const PERMISSION_BOUNDARY_ARN = "arn:aws:iam::111122223333:policy/hulumi-workload-boundary";
 const CALLER_SECURITY_GROUP_ID = "sg-runtime-caller";
+const CLUSTER_DNS = {
+  namespace: "kube-system",
+  podSelector: { "k8s-app": "kube-dns" },
+  securityGroupId: "sg-cluster-dns",
+};
 const WEB_IDENTITY_TOKEN_PATH = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token";
 const RSA_2048_MODULUS = Buffer.alloc(256, 0xa5).toString("base64url");
 const PLACEMENT = {
@@ -120,6 +125,11 @@ interface BoundaryOptions {
     };
   };
   dnsResolverCidrs?: string[];
+  clusterDns?: {
+    namespace: string;
+    podSelector: Record<string, string>;
+    securityGroupId: string;
+  };
   runtimeIngress?: {
     serviceName: string;
     callerNamespace: string;
@@ -155,6 +165,7 @@ async function createBoundary(options: BoundaryOptions = {}) {
       cidrs: ["10.42.8.0/24"],
     },
     dnsResolverCidrs: options.dnsResolverCidrs ?? ["10.42.0.2/32"],
+    clusterDns: options.clusterDns ?? CLUSTER_DNS,
     endpointCidrs: ["10.42.10.0/28"],
     endpointSecurityGroupIds: {
       sts: "sg-sts-endpoint",
@@ -386,6 +397,111 @@ describe("BrokeredAuroraPostgresBoundary", () => {
           rule.inputs.toPort === 443,
       ),
     ).toBe(true);
+  });
+
+  it("routes every protected workload security group through exact cluster DNS", async () => {
+    await createBoundary();
+    await settlePulumi();
+
+    for (const kind of ["runtime", "broker", "migrator", "rotation"]) {
+      const securityGroup = registrations.find(
+        (registration) =>
+          registration.type === "aws:ec2/securityGroup:SecurityGroup" &&
+          (registration.inputs.tags as Record<string, unknown> | undefined)?.[
+            "hulumi:identity-kind"
+          ] === kind,
+      );
+      expect(securityGroup, `${kind} security group`).toBeDefined();
+      const securityGroupId = `${securityGroup?.name}_id`;
+
+      for (const protocol of ["tcp", "udp"]) {
+        expect(
+          registrations.some(
+            (registration) =>
+              registration.type === "aws:vpc/securityGroupEgressRule:SecurityGroupEgressRule" &&
+              registration.inputs.securityGroupId === securityGroupId &&
+              registration.inputs.referencedSecurityGroupId === CLUSTER_DNS.securityGroupId &&
+              registration.inputs.ipProtocol === protocol &&
+              registration.inputs.fromPort === 53 &&
+              registration.inputs.toPort === 53,
+          ),
+          `${kind} ${protocol.toUpperCase()} DNS egress`,
+        ).toBe(true);
+        expect(
+          registrations.some(
+            (registration) =>
+              registration.type === "aws:vpc/securityGroupIngressRule:SecurityGroupIngressRule" &&
+              registration.inputs.securityGroupId === CLUSTER_DNS.securityGroupId &&
+              registration.inputs.referencedSecurityGroupId === securityGroupId &&
+              registration.inputs.ipProtocol === protocol &&
+              registration.inputs.fromPort === 53 &&
+              registration.inputs.toPort === 53,
+          ),
+          `cluster DNS ${protocol.toUpperCase()} ingress from ${kind}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("disables Istio sidecar injection on every protected Pod template", async () => {
+    await createBoundary();
+    await settlePulumi();
+
+    for (const kind of ["runtime", "broker", "migrator", "rotation"]) {
+      const registration = workload(kind);
+      const template =
+        kind === "rotation"
+          ? (
+              registration?.inputs.spec as {
+                jobTemplate: {
+                  spec: { template: { metadata: { labels: Record<string, string> } } };
+                };
+              }
+            ).jobTemplate.spec.template
+          : (
+              registration?.inputs.spec as {
+                template: { metadata: { labels: Record<string, string> } };
+              }
+            ).template;
+      expect(template.metadata.labels, `${kind} Pod template labels`).toMatchObject({
+        "sidecar.istio.io/inject": "false",
+      });
+    }
+  });
+
+  it("uses exact namespace and Pod selectors for cluster DNS NetworkPolicy egress", async () => {
+    await createBoundary();
+    await settlePulumi();
+
+    const policies = registrations.filter(
+      (registration) => registration.type === "kubernetes:networking.k8s.io/v1:NetworkPolicy",
+    );
+    expect(policies).toHaveLength(4);
+    for (const policy of policies) {
+      const spec = policy.inputs.spec as {
+        egress: Array<{
+          to?: Array<{
+            namespaceSelector?: { matchLabels?: Record<string, string> };
+            podSelector?: { matchLabels?: Record<string, string> };
+          }>;
+          ports?: Array<{ protocol?: string; port?: number }>;
+        }>;
+      };
+      expect(
+        spec.egress.some(
+          (rule) =>
+            rule.to?.some(
+              (target) =>
+                target.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"] ===
+                  CLUSTER_DNS.namespace &&
+                target.podSelector?.matchLabels?.["k8s-app"] === CLUSTER_DNS.podSelector["k8s-app"],
+            ) === true &&
+            rule.ports?.some((port) => port.protocol === "TCP" && port.port === 53) === true &&
+            rule.ports?.some((port) => port.protocol === "UDP" && port.port === 53) === true,
+        ),
+        `${policy.name} selector-based cluster DNS egress`,
+      ).toBe(true);
+    }
   });
 
   it("optionally grants native transport TLS only to the broker's exact AWSCURRENT identity", async () => {
@@ -793,6 +909,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
             cidrs: ["10.42.8.0/24"],
           },
           dnsResolverCidrs: ["10.42.0.2/32"],
+          clusterDns: CLUSTER_DNS,
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
             sts: "sg-sts",
@@ -923,6 +1040,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
             cidrs: ["0.0.0.0/0"],
           },
           dnsResolverCidrs: ["10.42.0.2/32"],
+          clusterDns: CLUSTER_DNS,
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
             sts: "sg-sts",
@@ -989,6 +1107,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
         cidrs: ["10.42.8.0/24"],
       },
       dnsResolverCidrs: ["10.42.0.2/32"],
+      clusterDns: CLUSTER_DNS,
       endpointCidrs: ["10.42.10.0/28"],
       endpointSecurityGroupIds: {
         sts: "sg-sts",
@@ -1107,5 +1226,31 @@ describe("BrokeredAuroraPostgresBoundary", () => {
         }),
     ).toThrow(/at most 8|16 KiB/i);
     expect(registrations).toEqual([]);
+  });
+
+  it("rejects empty or wildcard cluster DNS namespaces and selectors before registration", async () => {
+    const invalidClusterDns = [
+      { ...CLUSTER_DNS, namespace: "" },
+      { ...CLUSTER_DNS, namespace: "*" },
+      { ...CLUSTER_DNS, podSelector: {} },
+      { ...CLUSTER_DNS, podSelector: { "k8s-app": "*" } },
+      { ...CLUSTER_DNS, securityGroupId: "0.0.0.0/0" },
+    ];
+
+    for (const clusterDns of invalidClusterDns) {
+      resetRegistrations();
+      let validationError: unknown;
+      try {
+        await createBoundary({ clusterDns });
+      } catch (error) {
+        validationError = error;
+      }
+      expect(
+        validationError,
+        `clusterDns should fail closed: ${JSON.stringify(clusterDns)}`,
+      ).toBeInstanceOf(Error);
+      expect(String(validationError)).toMatch(/clusterDns|namespace|selector|wildcard|non-empty/i);
+      expect(registrations).toEqual([]);
+    }
   });
 });

@@ -416,6 +416,28 @@ function validateArgs(args: BrokeredAuroraPostgresBoundaryArgs): ValidatedBounda
       validateCidr(cidr, label, label === "dnsResolverCidrs" ? 32 : undefined),
     );
   }
+  requireExact(args.clusterDns.namespace, "clusterDns.namespace");
+  if (!KUBERNETES_DNS_LABEL.test(args.clusterDns.namespace)) {
+    throw new Error(
+      "BrokeredAuroraPostgresBoundary: clusterDns.namespace must be an exact Kubernetes DNS label",
+    );
+  }
+  const clusterDnsSelectorEntries = Object.entries(args.clusterDns.podSelector);
+  if (clusterDnsSelectorEntries.length === 0) {
+    throw new Error("BrokeredAuroraPostgresBoundary: clusterDns.podSelector must be non-empty");
+  }
+  for (const [key, value] of clusterDnsSelectorEntries) {
+    requireExact(key, "clusterDns.podSelector key");
+    requireExact(value, `clusterDns.podSelector.${key}`);
+  }
+  if (
+    typeof args.clusterDns.securityGroupId === "string" &&
+    !SECURITY_GROUP_ID.test(args.clusterDns.securityGroupId)
+  ) {
+    throw new Error(
+      "BrokeredAuroraPostgresBoundary: clusterDns.securityGroupId must be an exact security-group id",
+    );
+  }
   const dynamodbEndpointUrl = requireHttpsUrl(args.dynamodbEndpointUrl, "dynamodbEndpointUrl");
   const dynamodbEndpoint = new URL(dynamodbEndpointUrl);
   const dynamodbVpcEndpointId = requireExact(args.dynamodbVpcEndpointId, "dynamodbVpcEndpointId");
@@ -780,6 +802,13 @@ function podLabels(name: string, kind: BrokeredPostgresIdentityKind): Record<str
     "hulumi.dev/component": "BrokeredAuroraPostgresBoundary",
     "hulumi.dev/boundary": name,
     "hulumi.dev/identity-kind": kind,
+  };
+}
+
+function podTemplateLabels(labels: Record<string, string>): Record<string, string> {
+  return {
+    ...labels,
+    "sidecar.istio.io/inject": "false",
   };
 }
 
@@ -1213,6 +1242,36 @@ export class BrokeredAuroraPostgresBoundary
         parent,
       );
     };
+    const linkClusterDns = (
+      logicalName: string,
+      source: aws.ec2.SecurityGroup,
+      protocol: "tcp" | "udp",
+    ) => {
+      new aws.vpc.SecurityGroupEgressRule(
+        `${logicalName}-egress`,
+        {
+          securityGroupId: source.id,
+          referencedSecurityGroupId: args.clusterDns.securityGroupId,
+          ipProtocol: protocol,
+          fromPort: 53,
+          toPort: 53,
+          description: `exact cluster DNS ${protocol.toUpperCase()} egress`,
+        },
+        parent,
+      );
+      new aws.vpc.SecurityGroupIngressRule(
+        `${logicalName}-ingress`,
+        {
+          securityGroupId: args.clusterDns.securityGroupId,
+          referencedSecurityGroupId: source.id,
+          ipProtocol: protocol,
+          fromPort: 53,
+          toPort: 53,
+          description: `exact cluster DNS ${protocol.toUpperCase()} ingress`,
+        },
+        parent,
+      );
+    };
 
     link(
       `${name}-runtime-to-broker`,
@@ -1285,6 +1344,9 @@ export class BrokeredAuroraPostgresBoundary
       );
     }
     for (const kind of IDENTITY_KINDS) {
+      for (const protocol of ["tcp", "udp"] as const) {
+        linkClusterDns(`${name}-${kind}-cluster-dns-${protocol}`, securityGroups[kind], protocol);
+      }
       for (const [index, cidr] of args.dnsResolverCidrs.entries()) {
         for (const protocol of ["tcp", "udp"] as const) {
           new aws.vpc.SecurityGroupEgressRule(
@@ -1305,6 +1367,12 @@ export class BrokeredAuroraPostgresBoundary
 
     const brokerLabels = podLabels(name, "broker");
     const runtimeLabels = podLabels(name, "runtime");
+    const clusterDnsPeer = {
+      namespaceSelector: {
+        matchLabels: { "kubernetes.io/metadata.name": args.clusterDns.namespace },
+      },
+      podSelector: { matchLabels: { ...args.clusterDns.podSelector } },
+    };
     new k8s.networking.v1.NetworkPolicy(
       `${name}-runtime-network`,
       {
@@ -1342,6 +1410,10 @@ export class BrokeredAuroraPostgresBoundary
               ports: [networkPolicyPorts("TCP", args.workloads.broker.port)],
             },
             {
+              to: [clusterDnsPeer],
+              ports: [networkPolicyPorts("UDP", 53), networkPolicyPorts("TCP", 53)],
+            },
+            {
               to: args.dnsResolverCidrs.map((cidr) => ({ ipBlock: { cidr } })),
               ports: [networkPolicyPorts("UDP", 53), networkPolicyPorts("TCP", 53)],
             },
@@ -1377,6 +1449,10 @@ export class BrokeredAuroraPostgresBoundary
               ports: [networkPolicyPorts("TCP", 443)],
             },
             {
+              to: [clusterDnsPeer],
+              ports: [networkPolicyPorts("UDP", 53), networkPolicyPorts("TCP", 53)],
+            },
+            {
               to: args.dnsResolverCidrs.map((cidr) => ({ ipBlock: { cidr } })),
               ports: [networkPolicyPorts("UDP", 53), networkPolicyPorts("TCP", 53)],
             },
@@ -1407,6 +1483,10 @@ export class BrokeredAuroraPostgresBoundary
               {
                 to: args.endpointCidrs.map((cidr) => ({ ipBlock: { cidr } })),
                 ports: [networkPolicyPorts("TCP", 443)],
+              },
+              {
+                to: [clusterDnsPeer],
+                ports: [networkPolicyPorts("UDP", 53), networkPolicyPorts("TCP", 53)],
               },
               {
                 to: args.dnsResolverCidrs.map((cidr) => ({ ipBlock: { cidr } })),
@@ -1542,7 +1622,7 @@ export class BrokeredAuroraPostgresBoundary
           replicas: 0,
           selector: { matchLabels: runtimeLabels },
           template: {
-            metadata: { labels: runtimeLabels },
+            metadata: { labels: podTemplateLabels(runtimeLabels) },
             spec: {
               ...podSpec(
                 args.identities.runtime,
@@ -1564,7 +1644,7 @@ export class BrokeredAuroraPostgresBoundary
           replicas: 0,
           selector: { matchLabels: brokerLabels },
           template: {
-            metadata: { labels: brokerLabels },
+            metadata: { labels: podTemplateLabels(brokerLabels) },
             spec: {
               ...podSpec(
                 args.identities.broker,
@@ -1598,7 +1678,7 @@ export class BrokeredAuroraPostgresBoundary
           backoffLimit: 1,
           suspend: true,
           template: {
-            metadata: { labels: podLabels(name, "migrator") },
+            metadata: { labels: podTemplateLabels(podLabels(name, "migrator")) },
             spec: podSpec(
               args.identities.migrator,
               migratorContainer,
@@ -1628,7 +1708,7 @@ export class BrokeredAuroraPostgresBoundary
             spec: {
               backoffLimit: 1,
               template: {
-                metadata: { labels: podLabels(name, "rotation") },
+                metadata: { labels: podTemplateLabels(podLabels(name, "rotation")) },
                 spec: podSpec(
                   args.identities.rotation,
                   rotationContainer,

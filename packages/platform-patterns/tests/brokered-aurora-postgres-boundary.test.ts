@@ -909,6 +909,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
             cidrs: ["10.42.8.0/24"],
           },
           dnsResolverCidrs: ["10.42.0.2/32"],
+          clusterDns: CLUSTER_DNS,
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
             sts: "sg-sts",
@@ -1039,6 +1040,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
             cidrs: ["0.0.0.0/0"],
           },
           dnsResolverCidrs: ["10.42.0.2/32"],
+          clusterDns: CLUSTER_DNS,
           endpointCidrs: ["10.42.10.0/28"],
           endpointSecurityGroupIds: {
             sts: "sg-sts",
@@ -1105,6 +1107,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
         cidrs: ["10.42.8.0/24"],
       },
       dnsResolverCidrs: ["10.42.0.2/32"],
+      clusterDns: CLUSTER_DNS,
       endpointCidrs: ["10.42.10.0/28"],
       endpointSecurityGroupIds: {
         sts: "sg-sts",
@@ -1231,6 +1234,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       { ...CLUSTER_DNS, namespace: "*" },
       { ...CLUSTER_DNS, podSelector: {} },
       { ...CLUSTER_DNS, podSelector: { "k8s-app": "*" } },
+      { ...CLUSTER_DNS, securityGroupId: "0.0.0.0/0" },
     ];
 
     for (const clusterDns of invalidClusterDns) {

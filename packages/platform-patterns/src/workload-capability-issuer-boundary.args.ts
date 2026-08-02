@@ -89,6 +89,15 @@ export interface WorkloadCapabilityIssuerPlacementArgs {
   readonly priorityClassName: string;
 }
 
+export interface WorkloadCapabilityIssuerClusterDnsArgs {
+  /** Exact namespace hosting the cluster DNS Pods. */
+  readonly namespace: string;
+  /** Non-empty exact cluster DNS Pod selector. */
+  readonly podSelector: Readonly<Record<string, string>>;
+  /** Existing security group carried by the cluster DNS Pod ENIs. */
+  readonly securityGroupId: pulumi.Input<string>;
+}
+
 export interface WorkloadCapabilityIssuerBoundaryArgs {
   readonly tier: Tier;
   readonly awsRegion: string;
@@ -103,6 +112,8 @@ export interface WorkloadCapabilityIssuerBoundaryArgs {
   readonly vpcId: pulumi.Input<string>;
   /** Exact Route 53 Resolver IPv4 /32s. */
   readonly dnsResolverCidrs: readonly string[];
+  /** Exact ClusterFirst DNS hop before CoreDNS forwards to Route 53 Resolver. */
+  readonly clusterDns: WorkloadCapabilityIssuerClusterDnsArgs;
   /** Exact private CIDRs containing the declared interface endpoints. */
   readonly endpointCidrs: readonly string[];
   readonly endpointSecurityGroupIds: {

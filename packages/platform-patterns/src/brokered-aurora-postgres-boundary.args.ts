@@ -126,6 +126,15 @@ export interface BrokeredPostgresRuntimeIngressArgs {
   readonly callerSecurityGroupId: pulumi.Input<string>;
 }
 
+export interface BrokeredPostgresClusterDnsArgs {
+  /** Exact namespace hosting the cluster DNS Pods. */
+  readonly namespace: string;
+  /** Non-empty exact cluster DNS Pod selector. */
+  readonly podSelector: Readonly<Record<string, string>>;
+  /** Existing security group carried by the cluster DNS Pod ENIs. */
+  readonly securityGroupId: pulumi.Input<string>;
+}
+
 export interface BrokeredAuroraPostgresBoundaryArgs {
   readonly tier: Tier;
   /** Exact AWS region used to bind Secrets Manager KMS decryption. */
@@ -142,6 +151,8 @@ export interface BrokeredAuroraPostgresBoundaryArgs {
   readonly database: BrokeredPostgresDatabaseArgs;
   /** Exact Route 53 Resolver IPv4 /32s; runtime receives only DNS plus broker egress. */
   readonly dnsResolverCidrs: readonly string[];
+  /** Exact ClusterFirst DNS hop before CoreDNS forwards to Route 53 Resolver. */
+  readonly clusterDns: BrokeredPostgresClusterDnsArgs;
   /** Exact private CIDRs for the STS, Secrets Manager, KMS, and DynamoDB interface endpoints. */
   readonly endpointCidrs: readonly string[];
   /** Existing interface-endpoint SGs. No identity receives general internet egress. */

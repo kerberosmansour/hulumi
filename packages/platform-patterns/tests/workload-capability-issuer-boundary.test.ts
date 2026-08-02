@@ -690,6 +690,7 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
       { ...CLUSTER_DNS, namespace: "*" },
       { ...CLUSTER_DNS, podSelector: {} },
       { ...CLUSTER_DNS, podSelector: { "k8s-app": "*" } },
+      { ...CLUSTER_DNS, securityGroupId: "0.0.0.0/0" },
     ];
 
     for (const clusterDns of invalidClusterDns) {

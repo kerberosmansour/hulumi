@@ -405,6 +405,28 @@ function validateArgs(args: WorkloadCapabilityIssuerBoundaryArgs): ValidatedArgs
       validateCidr(cidr, label, label === "dnsResolverCidrs" ? 32 : undefined),
     );
   }
+  requireExact(args.clusterDns.namespace, "clusterDns.namespace");
+  if (!KUBERNETES_DNS_LABEL.test(args.clusterDns.namespace)) {
+    throw new Error(
+      "WorkloadCapabilityIssuerBoundary: clusterDns.namespace must be an exact Kubernetes DNS label",
+    );
+  }
+  const clusterDnsSelectorEntries = Object.entries(args.clusterDns.podSelector);
+  if (clusterDnsSelectorEntries.length === 0) {
+    throw new Error("WorkloadCapabilityIssuerBoundary: clusterDns.podSelector must be non-empty");
+  }
+  for (const [key, value] of clusterDnsSelectorEntries) {
+    requireExact(key, "clusterDns.podSelector key");
+    requireExact(value, `clusterDns.podSelector.${key}`);
+  }
+  if (
+    typeof args.clusterDns.securityGroupId === "string" &&
+    !SECURITY_GROUP_ID.test(args.clusterDns.securityGroupId)
+  ) {
+    throw new Error(
+      "WorkloadCapabilityIssuerBoundary: clusterDns.securityGroupId must be an exact security-group id",
+    );
+  }
   const dynamodbEndpointUrl = requireHttpsUrl(args.dynamodbEndpointUrl, "dynamodbEndpointUrl");
   const dynamodbEndpoint = new URL(dynamodbEndpointUrl);
   const dynamodbVpcEndpointId = requireExact(args.dynamodbVpcEndpointId, "dynamodbVpcEndpointId");
@@ -462,6 +484,13 @@ function labels(name: string): Record<string, string> {
     "hulumi.dev/component": "WorkloadCapabilityIssuerBoundary",
     "hulumi.dev/boundary": name,
     "hulumi.dev/identity-kind": "issuer",
+  };
+}
+
+function podTemplateLabels(resourceLabels: Record<string, string>): Record<string, string> {
+  return {
+    ...resourceLabels,
+    "sidecar.istio.io/inject": "false",
   };
 }
 
@@ -732,6 +761,32 @@ export class WorkloadCapabilityIssuerBoundary
       },
       parent,
     );
+    for (const protocol of ["tcp", "udp"] as const) {
+      new aws.vpc.SecurityGroupEgressRule(
+        `${name}-issuer-cluster-dns-${protocol}-egress`,
+        {
+          securityGroupId: securityGroup.id,
+          referencedSecurityGroupId: args.clusterDns.securityGroupId,
+          ipProtocol: protocol,
+          fromPort: 53,
+          toPort: 53,
+          description: `issuer exact cluster DNS ${protocol.toUpperCase()} egress`,
+        },
+        parent,
+      );
+      new aws.vpc.SecurityGroupIngressRule(
+        `${name}-issuer-cluster-dns-${protocol}-ingress`,
+        {
+          securityGroupId: args.clusterDns.securityGroupId,
+          referencedSecurityGroupId: securityGroup.id,
+          ipProtocol: protocol,
+          fromPort: 53,
+          toPort: 53,
+          description: `issuer exact cluster DNS ${protocol.toUpperCase()} ingress`,
+        },
+        parent,
+      );
+    }
     for (const [index, cidr] of args.dnsResolverCidrs.entries()) {
       for (const protocol of ["tcp", "udp"] as const) {
         new aws.vpc.SecurityGroupEgressRule(
@@ -777,6 +832,22 @@ export class WorkloadCapabilityIssuerBoundary
             {
               to: args.endpointCidrs.map((cidr) => ({ ipBlock: { cidr } })),
               ports: [{ protocol: "TCP", port: 443 }],
+            },
+            {
+              to: [
+                {
+                  namespaceSelector: {
+                    matchLabels: {
+                      "kubernetes.io/metadata.name": args.clusterDns.namespace,
+                    },
+                  },
+                  podSelector: { matchLabels: { ...args.clusterDns.podSelector } },
+                },
+              ],
+              ports: [
+                { protocol: "UDP", port: 53 },
+                { protocol: "TCP", port: 53 },
+              ],
             },
             {
               to: args.dnsResolverCidrs.map((cidr) => ({ ipBlock: { cidr } })),
@@ -1048,7 +1119,7 @@ export class WorkloadCapabilityIssuerBoundary
           replicas: 0,
           selector: { matchLabels: resourceLabels },
           template: {
-            metadata: { labels: resourceLabels },
+            metadata: { labels: podTemplateLabels(resourceLabels) },
             spec: podSpec,
           },
         },

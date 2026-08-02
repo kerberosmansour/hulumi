@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
-## [1.5.7] — 2026-08-02
+## [1.6.0] — 2026-08-02
 
 Atomic six-package publish:
-`@hulumi/baseline@1.5.7`, `@hulumi/policies@1.5.7`, `@hulumi/drift@1.5.7`,
-`@hulumi/k8s-baseline@1.5.7`, `@hulumi/cloudflare-baseline@1.5.7`, and
-`@hulumi/platform-patterns@1.5.7`.
+`@hulumi/baseline@1.6.0`, `@hulumi/policies@1.6.0`, `@hulumi/drift@1.6.0`,
+`@hulumi/k8s-baseline@1.6.0`, `@hulumi/cloudflare-baseline@1.6.0`, and
+`@hulumi/platform-patterns@1.6.0`.
 
 ### Security
 

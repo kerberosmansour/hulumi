@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
-## [1.6.0] — 2026-08-02
+## [2.0.0] — 2026-08-02
 
 Atomic six-package publish:
-`@hulumi/baseline@1.6.0`, `@hulumi/policies@1.6.0`, `@hulumi/drift@1.6.0`,
-`@hulumi/k8s-baseline@1.6.0`, `@hulumi/cloudflare-baseline@1.6.0`, and
-`@hulumi/platform-patterns@1.6.0`.
+`@hulumi/baseline@2.0.0`, `@hulumi/policies@2.0.0`, `@hulumi/drift@2.0.0`,
+`@hulumi/k8s-baseline@2.0.0`, `@hulumi/cloudflare-baseline@2.0.0`, and
+`@hulumi/platform-patterns@2.0.0`.
 
 ### Security
 
@@ -27,6 +27,12 @@ Atomic six-package publish:
   wildcard CIDRs and selectors are rejected.
 - Protected Pod templates explicitly disable Istio sidecar injection so their
   one-container, zero-init-container admission contract remains enforceable.
+
+### Changed
+
+- This is a major release because both protected-boundary constructors now
+  require `clusterDns`; existing consumers must supply their exact cluster-DNS
+  namespace, Pod selector, and security-group identity before upgrading.
 
 ## [1.5.6] — 2026-07-30
 

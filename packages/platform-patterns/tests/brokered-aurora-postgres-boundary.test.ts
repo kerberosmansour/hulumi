@@ -681,7 +681,7 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;
     expect(admissionExpression).toContain(
-      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3)",
+      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || object.spec.tolerations.size() == 3 || object.spec.tolerations.size() == 4)",
     );
     expect(admissionExpression).toContain('t.key == "node.kubernetes.io/not-ready"');
     expect(admissionExpression).toContain('t.key == "node.kubernetes.io/unreachable"');
@@ -691,6 +691,10 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     expect(admissionExpression).toContain("!has(t.value)");
     expect(admissionExpression).toContain("!has(t.tolerationSeconds)");
     expect(admissionExpression).toContain('t.key == "hulumi.dev/workload-pool"');
+    expect(admissionExpression).toContain('t.key == "vpc.amazonaws.com/pod-eni"');
+    expect(admissionExpression).toContain(
+      't.key == "vpc.amazonaws.com/pod-eni" && t.operator == "Exists" && !has(t.value) && t.effect == "NoSchedule" && !has(t.tolerationSeconds)',
+    );
     expect(admissionExpression).toContain("object.spec.tolerations.all(t,");
     expect(admissionExpression).toContain('dyn(c.resources).requests.cpu == "100m"');
     expect(admissionExpression).toContain('dyn(c.resources).limits.memory == "512Mi"');

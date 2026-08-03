@@ -8,7 +8,7 @@
     "component": {
       "type": "application",
       "name": "hulumi",
-      "version": "2.0.2"
+      "version": "2.0.3"
     }
   },
   "declarations": {
@@ -19,7 +19,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "baseline",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -44,7 +44,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "policies",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -93,7 +93,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "drift",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -114,7 +114,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "k8s-baseline",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -139,7 +139,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "cloudflare-baseline",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",
@@ -172,7 +172,7 @@
           "type": "library",
           "group": "@hulumi",
           "name": "platform-patterns",
-          "version": "2.0.2",
+          "version": "2.0.3",
           "properties": [
             {
               "name": "cdx:sunlit:controls",

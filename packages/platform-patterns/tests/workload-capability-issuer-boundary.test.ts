@@ -596,7 +596,7 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
       expect(rendered).toContain(required);
     }
     expect(rendered).toContain(
-      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3)",
+      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || object.spec.tolerations.size() == 3 || object.spec.tolerations.size() == 4)",
     );
     expect(rendered).toContain('t.key == \\"node.kubernetes.io/not-ready\\"');
     expect(rendered).toContain('t.key == \\"node.kubernetes.io/unreachable\\"');
@@ -606,6 +606,10 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
     expect(rendered).toContain("!has(t.value)");
     expect(rendered).toContain("!has(t.tolerationSeconds)");
     expect(rendered).toContain('t.key == \\"hulumi.dev/workload-pool\\"');
+    expect(rendered).toContain('t.key == \\"vpc.amazonaws.com/pod-eni\\"');
+    expect(rendered).toContain(
+      't.key == \\"vpc.amazonaws.com/pod-eni\\" && t.operator == \\"Exists\\" && !has(t.value) && t.effect == \\"NoSchedule\\" && !has(t.tolerationSeconds)',
+    );
     expect(rendered).toContain("object.spec.tolerations.all(t,");
     const firstExpression = (
       admission?.inputs.spec as { validations: Array<{ expression: string }> }

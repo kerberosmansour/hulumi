@@ -692,6 +692,15 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     expect(admissionExpression).toContain("!has(t.tolerationSeconds)");
     expect(admissionExpression).toContain('t.key == "hulumi.dev/workload-pool"');
     expect(admissionExpression).toContain("object.spec.tolerations.all(t,");
+    expect(admissionExpression).toContain('dyn(c.resources).requests.cpu == "100m"');
+    expect(admissionExpression).toContain('dyn(c.resources).limits.memory == "512Mi"');
+    expect(admissionExpression).not.toContain("c.resources.requests.cpu");
+    expect(admissionExpression).not.toContain("c.resources.limits.memory");
+    const volumeExpression = (
+      admission?.inputs.spec as { validations: Array<{ expression: string }> }
+    ).validations[2].expression;
+    expect(volumeExpression).toContain('dyn(v.emptyDir).sizeLimit == "64Mi"');
+    expect(volumeExpression).not.toContain("v.emptyDir.sizeLimit");
     expect(admissionExpression).toContain(JSON.stringify(JWKS_JSON));
     expect(admissionExpression).toContain(
       '"hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary"',

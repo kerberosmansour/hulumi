@@ -610,6 +610,19 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
     const firstExpression = (
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;
+    expect(firstExpression).toContain(
+      'dyn(object.spec.containers[0].resources).requests.cpu == "100m"',
+    );
+    expect(firstExpression).toContain(
+      'dyn(object.spec.containers[0].resources).limits.memory == "512Mi"',
+    );
+    expect(firstExpression).not.toContain("object.spec.containers[0].resources.requests.cpu");
+    expect(firstExpression).not.toContain("object.spec.containers[0].resources.limits.memory");
+    const volumeExpression = (
+      admission?.inputs.spec as { validations: Array<{ expression: string }> }
+    ).validations[2].expression;
+    expect(volumeExpression).toContain('dyn(v.emptyDir).sizeLimit == "64Mi"');
+    expect(volumeExpression).not.toContain("v.emptyDir.sizeLimit");
     expect(firstExpression).toContain(JSON.stringify(WORKLOAD_JWKS_JSON));
     expect(firstExpression).toContain(
       '"hulumi.dev/component"] == "WorkloadCapabilityIssuerBoundary" && "hulumi.dev/boundary"',

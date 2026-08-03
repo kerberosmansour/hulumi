@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [2.0.2] — 2026-08-03
+
+Atomic six-package publish:
+`@hulumi/baseline@2.0.2`, `@hulumi/policies@2.0.2`, `@hulumi/drift@2.0.2`,
+`@hulumi/k8s-baseline@2.0.2`, `@hulumi/cloudflare-baseline@2.0.2`, and
+`@hulumi/platform-patterns@2.0.2`.
+
+### Fixed
+
+- Protected Pod admission envelopes now cast Kubernetes quantity-bearing
+  structures to CEL's dynamic type before reading exact CPU, memory, and
+  `emptyDir` size values. This preserves the exact-value checks while avoiding
+  API-server type errors for `resource.Quantity` fields.
+
 ## [2.0.1] — 2026-08-03
 
 Atomic six-package publish:

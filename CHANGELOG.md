@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [2.0.1] — 2026-08-03
+
+Atomic six-package publish:
+`@hulumi/baseline@2.0.1`, `@hulumi/policies@2.0.1`, `@hulumi/drift@2.0.1`,
+`@hulumi/k8s-baseline@2.0.1`, `@hulumi/cloudflare-baseline@2.0.1`, and
+`@hulumi/platform-patterns@2.0.1`.
+
+### Fixed
+
+- Protected boundary admission envelopes now accept Kubernetes's exact
+  `not-ready` and `unreachable` `Exists`/`NoExecute`/300-second default
+  tolerations alongside the configured workload-pool toleration. The allowlist
+  still denies unknown tolerations, changed effects, values, operators, or
+  durations.
+
 ## [2.0.0] — 2026-08-02
 
 Atomic six-package publish:

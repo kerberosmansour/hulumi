@@ -998,13 +998,21 @@ export class WorkloadCapabilityIssuerBoundary
     const placement = args.placement;
     const nodeKey = JSON.stringify(placement.nodePool.key);
     const nodeValue = JSON.stringify(placement.nodePool.value);
+    const configuredToleration = `t.key == ${JSON.stringify(
+      placement.toleration.key,
+    )} && t.operator == "Equal" && has(t.value) && t.value == ${JSON.stringify(
+      placement.toleration.value,
+    )} && t.effect == "NoSchedule" && !has(t.tolerationSeconds)`;
+    const kubernetesDefaultToleration = (key: string): string =>
+      `t.key == ${JSON.stringify(
+        key,
+      )} && t.operator == "Exists" && !has(t.value) && t.effect == "NoExecute" && has(t.tolerationSeconds) && t.tolerationSeconds == 300`;
+    const notReadyToleration = kubernetesDefaultToleration("node.kubernetes.io/not-ready");
+    const unreachableToleration = kubernetesDefaultToleration("node.kubernetes.io/unreachable");
+    const exactTolerations = `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3) && object.spec.tolerations.exists(t, ${configuredToleration}) && (object.spec.tolerations.size() == 1 || (object.spec.tolerations.exists(t, ${notReadyToleration}) && object.spec.tolerations.exists(t, ${unreachableToleration}))) && object.spec.tolerations.all(t, (${configuredToleration}) || (${notReadyToleration}) || (${unreachableToleration}))`;
     const exactPlacement = `has(object.spec.runtimeClassName) && object.spec.runtimeClassName == ${JSON.stringify(
       placement.runtimeClassName,
-    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && has(object.spec.tolerations) && object.spec.tolerations.size() == 1 && object.spec.tolerations[0].key == ${JSON.stringify(
-      placement.toleration.key,
-    )} && object.spec.tolerations[0].operator == "Equal" && object.spec.tolerations[0].value == ${JSON.stringify(
-      placement.toleration.value,
-    )} && object.spec.tolerations[0].effect == "NoSchedule" && object.spec.schedulerName == ${JSON.stringify(
+    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && ${exactTolerations} && object.spec.schedulerName == ${JSON.stringify(
       placement.schedulerName,
     )} && object.spec.priorityClassName == ${JSON.stringify(placement.priorityClassName)}`;
     const labelPath = "object.metadata.labels";

@@ -1771,17 +1771,29 @@ export class BrokeredAuroraPostgresBoundary
     const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-iam-token" && m.mountPath == ${JSON.stringify(
       WEB_IDENTITY_TOKEN_DIR,
     )} && (!has(m.subPath) || m.subPath == "") && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
+    const exactTolerations = (placement: BrokeredPostgresPlacementProfileArgs): string => {
+      const configured = `t.key == ${JSON.stringify(
+        placement.toleration.key,
+      )} && t.operator == "Equal" && has(t.value) && t.value == ${JSON.stringify(
+        placement.toleration.value,
+      )} && t.effect == ${JSON.stringify(
+        placement.toleration.effect,
+      )} && !has(t.tolerationSeconds)`;
+      const kubernetesDefault = (key: string): string =>
+        `t.key == ${JSON.stringify(
+          key,
+        )} && t.operator == "Exists" && !has(t.value) && t.effect == "NoExecute" && has(t.tolerationSeconds) && t.tolerationSeconds == 300`;
+      const notReady = kubernetesDefault("node.kubernetes.io/not-ready");
+      const unreachable = kubernetesDefault("node.kubernetes.io/unreachable");
+      return `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3) && object.spec.tolerations.exists(t, ${configured}) && (object.spec.tolerations.size() == 1 || (object.spec.tolerations.exists(t, ${notReady}) && object.spec.tolerations.exists(t, ${unreachable}))) && object.spec.tolerations.all(t, (${configured}) || (${notReady}) || (${unreachable}))`;
+    };
     const exactPlacement = (placement: BrokeredPostgresPlacementProfileArgs): string => {
       const nodeKey = JSON.stringify(placement.nodePool.key);
       const nodeValue = JSON.stringify(placement.nodePool.value);
       return `has(object.spec.runtimeClassName) && object.spec.runtimeClassName == ${JSON.stringify(
         placement.runtimeClassName,
-      )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && has(object.spec.tolerations) && object.spec.tolerations.size() == 1 && object.spec.tolerations[0].key == ${JSON.stringify(
-        placement.toleration.key,
-      )} && object.spec.tolerations[0].operator == "Equal" && object.spec.tolerations[0].value == ${JSON.stringify(
-        placement.toleration.value,
-      )} && object.spec.tolerations[0].effect == ${JSON.stringify(
-        placement.toleration.effect,
+      )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && ${exactTolerations(
+        placement,
       )} && object.spec.schedulerName == ${JSON.stringify(
         placement.schedulerName,
       )} && object.spec.priorityClassName == ${JSON.stringify(placement.priorityClassName)}`;

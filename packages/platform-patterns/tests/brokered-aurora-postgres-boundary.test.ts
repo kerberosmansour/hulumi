@@ -680,6 +680,18 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     const admissionExpression = (
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;
+    expect(admissionExpression).toContain(
+      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3)",
+    );
+    expect(admissionExpression).toContain('t.key == "node.kubernetes.io/not-ready"');
+    expect(admissionExpression).toContain('t.key == "node.kubernetes.io/unreachable"');
+    expect(admissionExpression).toContain('t.operator == "Exists"');
+    expect(admissionExpression).toContain('t.effect == "NoExecute"');
+    expect(admissionExpression).toContain("t.tolerationSeconds == 300");
+    expect(admissionExpression).toContain("!has(t.value)");
+    expect(admissionExpression).toContain("!has(t.tolerationSeconds)");
+    expect(admissionExpression).toContain('t.key == "hulumi.dev/workload-pool"');
+    expect(admissionExpression).toContain("object.spec.tolerations.all(t,");
     expect(admissionExpression).toContain(JSON.stringify(JWKS_JSON));
     expect(admissionExpression).toContain(
       '"hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary"',

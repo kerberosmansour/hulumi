@@ -595,6 +595,18 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
     ]) {
       expect(rendered).toContain(required);
     }
+    expect(rendered).toContain(
+      "(object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3)",
+    );
+    expect(rendered).toContain('t.key == \\"node.kubernetes.io/not-ready\\"');
+    expect(rendered).toContain('t.key == \\"node.kubernetes.io/unreachable\\"');
+    expect(rendered).toContain('t.operator == \\"Exists\\"');
+    expect(rendered).toContain('t.effect == \\"NoExecute\\"');
+    expect(rendered).toContain("t.tolerationSeconds == 300");
+    expect(rendered).toContain("!has(t.value)");
+    expect(rendered).toContain("!has(t.tolerationSeconds)");
+    expect(rendered).toContain('t.key == \\"hulumi.dev/workload-pool\\"');
+    expect(rendered).toContain("object.spec.tolerations.all(t,");
     const firstExpression = (
       admission?.inputs.spec as { validations: Array<{ expression: string }> }
     ).validations[0].expression;

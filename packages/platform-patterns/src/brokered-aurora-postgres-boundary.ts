@@ -1785,7 +1785,9 @@ export class BrokeredAuroraPostgresBoundary
         )} && t.operator == "Exists" && !has(t.value) && t.effect == "NoExecute" && has(t.tolerationSeconds) && t.tolerationSeconds == 300`;
       const notReady = kubernetesDefault("node.kubernetes.io/not-ready");
       const unreachable = kubernetesDefault("node.kubernetes.io/unreachable");
-      return `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3) && object.spec.tolerations.exists(t, ${configured}) && (object.spec.tolerations.size() == 1 || (object.spec.tolerations.exists(t, ${notReady}) && object.spec.tolerations.exists(t, ${unreachable}))) && object.spec.tolerations.all(t, (${configured}) || (${notReady}) || (${unreachable}))`;
+      const awsVpcPodEni =
+        't.key == "vpc.amazonaws.com/pod-eni" && t.operator == "Exists" && !has(t.value) && t.effect == "NoSchedule" && !has(t.tolerationSeconds)';
+      return `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || object.spec.tolerations.size() == 3 || object.spec.tolerations.size() == 4) && object.spec.tolerations.exists(t, ${configured}) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || (object.spec.tolerations.exists(t, ${notReady}) && object.spec.tolerations.exists(t, ${unreachable}))) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3 || object.spec.tolerations.exists(t, ${awsVpcPodEni})) && object.spec.tolerations.all(t, (${configured}) || (${notReady}) || (${unreachable}) || (${awsVpcPodEni}))`;
     };
     const exactPlacement = (placement: BrokeredPostgresPlacementProfileArgs): string => {
       const nodeKey = JSON.stringify(placement.nodePool.key);

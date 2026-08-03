@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [2.0.3] — 2026-08-03
+
+Atomic six-package publish:
+`@hulumi/baseline@2.0.3`, `@hulumi/policies@2.0.3`, `@hulumi/drift@2.0.3`,
+`@hulumi/k8s-baseline@2.0.3`, `@hulumi/cloudflare-baseline@2.0.3`, and
+`@hulumi/platform-patterns@2.0.3`.
+
+### Fixed
+
+- Protected Pod admission envelopes now accept the exact
+  `vpc.amazonaws.com/pod-eni` `Exists`/`NoSchedule` toleration injected by the
+  AWS VPC resource webhook for Pods selected by a `SecurityGroupPolicy`. The
+  allowlist still rejects unknown tolerations and changed keys, operators,
+  values, effects, or durations.
+
 ## [2.0.2] — 2026-08-03
 
 Atomic six-package publish:

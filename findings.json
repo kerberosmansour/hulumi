@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 19,
+  "revision": 21,
   "findings": {
     "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
       "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
@@ -323,6 +323,40 @@
       ],
       "firstSeen": "2026-08-03T17:01:11.311Z",
       "lastSeen": "2026-08-03T17:01:11.311Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp",
+      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-03T17:54:11.299Z",
+      "lastSeen": "2026-08-03T17:54:11.299Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp": {
+      "findingKey": "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp",
+      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.15",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-03T17:54:11.299Z",
+      "lastSeen": "2026-08-03T17:54:11.299Z",
       "reason": "no fix"
     }
   }

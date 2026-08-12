@@ -1,126 +1,7 @@
 {
   "version": 1,
-  "revision": 26,
+  "revision": 23,
   "findings": {
-    "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf": {
-      "findingKey": "npm:@opentelemetry/core@1.30.1:GHSA-8988-4f7v-96qf",
-      "advisoryId": "GHSA-8988-4f7v-96qf",
-      "ecosystem": "npm",
-      "package": "@opentelemetry/core",
-      "affectedVersion": "1.30.1",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99": {
-      "findingKey": "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99",
-      "advisoryId": "GHSA-67mh-4wv8-2f99",
-      "ecosystem": "npm",
-      "package": "esbuild",
-      "affectedVersion": "0.21.5",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9": {
-      "findingKey": "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9",
-      "advisoryId": "GHSA-4w7w-66w2-5vf9",
-      "ecosystem": "npm",
-      "package": "vite",
-      "affectedVersion": "5.4.21",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff": {
-      "findingKey": "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff",
-      "advisoryId": "GHSA-fx2h-pf6j-xcff",
-      "ecosystem": "npm",
-      "package": "vite",
-      "affectedVersion": "5.4.21",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3": {
-      "findingKey": "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3",
-      "advisoryId": "GHSA-v6wh-96g9-6wx3",
-      "ecosystem": "npm",
-      "package": "vite",
-      "affectedVersion": "5.4.21",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp": {
-      "findingKey": "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp",
-      "advisoryId": "GHSA-5xrq-8626-4rwp",
-      "ecosystem": "npm",
-      "package": "vitest",
-      "affectedVersion": "1.6.1",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
-    "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr": {
-      "findingKey": "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr",
-      "advisoryId": "GHSA-g7r4-m6w7-qqqr",
-      "ecosystem": "npm",
-      "package": "esbuild",
-      "affectedVersion": "0.28.0",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-07-11T22:04:45.770Z",
-      "lastSeen": "2026-07-11T22:04:45.770Z",
-      "reason": "no fix"
-    },
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
       "advisoryId": "GHSA-3jxr-9vmj-r5cp",
@@ -134,93 +15,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-07-20T21:27:14.570Z",
-      "lastSeen": "2026-07-20T21:27:14.570Z",
-      "reason": "no fix"
-    },
-    "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp": {
-      "findingKey": "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp",
-      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
-      "ecosystem": "npm",
-      "package": "brace-expansion",
-      "affectedVersion": "5.0.6",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-07-20T21:27:14.570Z",
-      "lastSeen": "2026-07-20T21:27:14.570Z",
-      "reason": "no fix"
-    },
-    "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q": {
-      "findingKey": "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q",
-      "advisoryId": "GHSA-6g55-p6wh-862q",
-      "ecosystem": "npm",
-      "package": "postcss",
-      "affectedVersion": "8.5.10",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-23T15:28:53.736Z",
-      "lastSeen": "2026-07-23T15:28:53.736Z",
-      "reason": "no fix"
-    },
-    "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849": {
-      "findingKey": "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849",
-      "advisoryId": "GHSA-r28c-9q8g-f849",
-      "ecosystem": "npm",
-      "package": "postcss",
-      "affectedVersion": "8.5.10",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-24T16:40:02.359Z",
-      "lastSeen": "2026-07-24T16:40:02.359Z",
-      "reason": "no fix"
-    },
-    "npm:tar@7.5.20:GHSA-r292-9mhp-454m": {
-      "findingKey": "npm:tar@7.5.20:GHSA-r292-9mhp-454m",
-      "advisoryId": "GHSA-r292-9mhp-454m",
-      "ecosystem": "npm",
-      "package": "tar",
-      "affectedVersion": "7.5.20",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-24T16:40:02.359Z",
-      "lastSeen": "2026-07-24T16:40:02.359Z",
-      "reason": "no fix"
-    },
-    "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849": {
-      "findingKey": "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849",
-      "advisoryId": "GHSA-r28c-9q8g-f849",
-      "ecosystem": "npm",
-      "package": "postcss",
-      "affectedVersion": "8.5.15",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-07-24T16:40:02.359Z",
-      "lastSeen": "2026-07-24T16:40:02.359Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:brace-expansion@1.1.14:GHSA-mh99-v99m-4gvg": {
@@ -236,42 +32,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-07-24T22:08:48.675Z",
-      "lastSeen": "2026-07-24T22:08:48.675Z",
-      "reason": "no fix"
-    },
-    "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg": {
-      "findingKey": "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg",
-      "advisoryId": "GHSA-mh99-v99m-4gvg",
-      "ecosystem": "npm",
-      "package": "brace-expansion",
-      "affectedVersion": "5.0.7",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-07-24T22:08:48.675Z",
-      "lastSeen": "2026-07-24T22:08:48.675Z",
-      "reason": "no fix"
-    },
-    "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg": {
-      "findingKey": "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg",
-      "advisoryId": "GHSA-mh99-v99m-4gvg",
-      "ecosystem": "npm",
-      "package": "brace-expansion",
-      "affectedVersion": "5.0.6",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-07-24T22:08:48.675Z",
-      "lastSeen": "2026-07-24T22:08:48.675Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:brace-expansion@1.1.14:GHSA-rgw5-rvv9-x895": {
@@ -287,8 +49,25 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-08-03T17:01:11.311Z",
-      "lastSeen": "2026-08-03T17:01:11.311Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg": {
+      "findingKey": "npm:brace-expansion@5.0.7:GHSA-mh99-v99m-4gvg",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.7",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:brace-expansion@5.0.7:GHSA-rgw5-rvv9-x895": {
@@ -304,33 +83,16 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-08-03T17:01:11.311Z",
-      "lastSeen": "2026-08-03T17:01:11.311Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
-    "npm:brace-expansion@5.0.6:GHSA-rgw5-rvv9-x895": {
-      "findingKey": "npm:brace-expansion@5.0.6:GHSA-rgw5-rvv9-x895",
-      "advisoryId": "GHSA-rgw5-rvv9-x895",
+    "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99": {
+      "findingKey": "npm:esbuild@0.21.5:GHSA-67mh-4wv8-2f99",
+      "advisoryId": "GHSA-67mh-4wv8-2f99",
       "ecosystem": "npm",
-      "package": "brace-expansion",
-      "affectedVersion": "5.0.6",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-08-03T17:01:11.311Z",
-      "lastSeen": "2026-08-03T17:01:11.311Z",
-      "reason": "no fix"
-    },
-    "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp": {
-      "findingKey": "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp",
-      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
-      "ecosystem": "npm",
-      "package": "postcss",
-      "affectedVersion": "8.5.10",
+      "package": "esbuild",
+      "affectedVersion": "0.21.5",
       "class": "critical",
       "track": "dropped",
       "fixedVersion": null,
@@ -338,42 +100,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-08-03T17:54:11.299Z",
-      "lastSeen": "2026-08-03T17:54:11.299Z",
-      "reason": "no fix"
-    },
-    "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp": {
-      "findingKey": "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp",
-      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
-      "ecosystem": "npm",
-      "package": "postcss",
-      "affectedVersion": "8.5.15",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "tools/sca/package-lock.json"
-      ],
-      "firstSeen": "2026-08-03T17:54:11.299Z",
-      "lastSeen": "2026-08-03T17:54:11.299Z",
-      "reason": "no fix"
-    },
-    "npm:js-yaml@4.3.0:GHSA-5p4m-2wfm-xmqj": {
-      "findingKey": "npm:js-yaml@4.3.0:GHSA-5p4m-2wfm-xmqj",
-      "advisoryId": "GHSA-5p4m-2wfm-xmqj",
-      "ecosystem": "npm",
-      "package": "js-yaml",
-      "affectedVersion": "4.3.0",
-      "class": "critical",
-      "track": "dropped",
-      "fixedVersion": null,
-      "state": "dropped",
-      "manifestPaths": [
-        "pnpm-lock.yaml"
-      ],
-      "firstSeen": "2026-08-06T23:44:13.958Z",
-      "lastSeen": "2026-08-06T23:44:13.958Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:nanoid@3.3.11:GHSA-28wg-ghj8-5hjv": {
@@ -389,8 +117,8 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-08-07T21:26:47.695Z",
-      "lastSeen": "2026-08-07T21:26:47.695Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:nanoid@3.3.11:GHSA-2v37-7h3g-55p8": {
@@ -406,8 +134,195 @@
       "manifestPaths": [
         "pnpm-lock.yaml"
       ],
-      "firstSeen": "2026-08-07T21:26:47.695Z",
-      "lastSeen": "2026-08-07T21:26:47.695Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-6g55-p6wh-862q",
+      "advisoryId": "GHSA-6g55-p6wh-862q",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-fxqj-rqcc-2cmp",
+      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849": {
+      "findingKey": "npm:postcss@8.5.10:GHSA-r28c-9q8g-f849",
+      "advisoryId": "GHSA-r28c-9q8g-f849",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.10",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9": {
+      "findingKey": "npm:vite@5.4.21:GHSA-4w7w-66w2-5vf9",
+      "advisoryId": "GHSA-4w7w-66w2-5vf9",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff": {
+      "findingKey": "npm:vite@5.4.21:GHSA-fx2h-pf6j-xcff",
+      "advisoryId": "GHSA-fx2h-pf6j-xcff",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3": {
+      "findingKey": "npm:vite@5.4.21:GHSA-v6wh-96g9-6wx3",
+      "advisoryId": "GHSA-v6wh-96g9-6wx3",
+      "ecosystem": "npm",
+      "package": "vite",
+      "affectedVersion": "5.4.21",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp": {
+      "findingKey": "npm:vitest@1.6.1:GHSA-5xrq-8626-4rwp",
+      "advisoryId": "GHSA-5xrq-8626-4rwp",
+      "ecosystem": "npm",
+      "package": "vitest",
+      "affectedVersion": "1.6.1",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp": {
+      "findingKey": "npm:brace-expansion@5.0.6:GHSA-3jxr-9vmj-r5cp",
+      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg": {
+      "findingKey": "npm:brace-expansion@5.0.6:GHSA-mh99-v99m-4gvg",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:brace-expansion@5.0.6:GHSA-rgw5-rvv9-x895": {
+      "findingKey": "npm:brace-expansion@5.0.6:GHSA-rgw5-rvv9-x895",
+      "advisoryId": "GHSA-rgw5-rvv9-x895",
+      "ecosystem": "npm",
+      "package": "brace-expansion",
+      "affectedVersion": "5.0.6",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr": {
+      "findingKey": "npm:esbuild@0.28.0:GHSA-g7r4-m6w7-qqqr",
+      "advisoryId": "GHSA-g7r4-m6w7-qqqr",
+      "ecosystem": "npm",
+      "package": "esbuild",
+      "affectedVersion": "0.28.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:nanoid@3.3.13:GHSA-28wg-ghj8-5hjv": {
@@ -423,8 +338,8 @@
       "manifestPaths": [
         "tools/sca/package-lock.json"
       ],
-      "firstSeen": "2026-08-07T21:26:47.695Z",
-      "lastSeen": "2026-08-07T21:26:47.695Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     },
     "npm:nanoid@3.3.13:GHSA-2v37-7h3g-55p8": {
@@ -440,8 +355,42 @@
       "manifestPaths": [
         "tools/sca/package-lock.json"
       ],
-      "firstSeen": "2026-08-07T21:26:47.695Z",
-      "lastSeen": "2026-08-07T21:26:47.695Z",
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp": {
+      "findingKey": "npm:postcss@8.5.15:GHSA-fxqj-rqcc-2cmp",
+      "advisoryId": "GHSA-fxqj-rqcc-2cmp",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.15",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849": {
+      "findingKey": "npm:postcss@8.5.15:GHSA-r28c-9q8g-f849",
+      "advisoryId": "GHSA-r28c-9q8g-f849",
+      "ecosystem": "npm",
+      "package": "postcss",
+      "affectedVersion": "8.5.15",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-08-12T11:07:32.413Z",
+      "lastSeen": "2026-08-12T11:07:32.413Z",
       "reason": "no fix"
     }
   }

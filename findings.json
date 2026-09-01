@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 23,
+  "revision": 24,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -391,6 +391,23 @@
       ],
       "firstSeen": "2026-08-12T11:07:32.413Z",
       "lastSeen": "2026-08-12T11:07:32.413Z",
+      "reason": "no fix"
+    },
+    "npm:nanoid@3.3.11:GHSA-xwg4-73v4-xw9w": {
+      "findingKey": "npm:nanoid@3.3.11:GHSA-xwg4-73v4-xw9w",
+      "advisoryId": "GHSA-xwg4-73v4-xw9w",
+      "ecosystem": "npm",
+      "package": "nanoid",
+      "affectedVersion": "3.3.11",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-09-01T19:34:39.476Z",
+      "lastSeen": "2026-09-01T19:34:39.476Z",
       "reason": "no fix"
     }
   }

@@ -25,13 +25,13 @@
     "test:e2e": "vitest run test/e2e_*.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "eslint": "^10.5.0",
-    "prettier": "^3.8.4",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1",
-    "vitest": "^4.1.9",
-    "zod": "^4.1.13"
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11",
+    "zod": "^4.5.4"
   }
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 24,
+  "revision": 26,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -408,6 +408,40 @@
       ],
       "firstSeen": "2026-09-01T19:34:39.476Z",
       "lastSeen": "2026-09-01T19:34:39.476Z",
+      "reason": "no fix"
+    },
+    "npm:@vitest/mocker@4.1.9:GHSA-82fw-gwwq-j7x9": {
+      "findingKey": "npm:@vitest/mocker@4.1.9:GHSA-82fw-gwwq-j7x9",
+      "advisoryId": "GHSA-82fw-gwwq-j7x9",
+      "ecosystem": "npm",
+      "package": "@vitest/mocker",
+      "affectedVersion": "4.1.9",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-09-08T21:09:15.420Z",
+      "lastSeen": "2026-09-08T21:09:15.420Z",
+      "reason": "no fix"
+    },
+    "npm:vitest@4.1.9:GHSA-82fw-gwwq-j7x9": {
+      "findingKey": "npm:vitest@4.1.9:GHSA-82fw-gwwq-j7x9",
+      "advisoryId": "GHSA-82fw-gwwq-j7x9",
+      "ecosystem": "npm",
+      "package": "vitest",
+      "affectedVersion": "4.1.9",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "tools/sca/package-lock.json"
+      ],
+      "firstSeen": "2026-09-08T21:09:15.420Z",
+      "lastSeen": "2026-09-08T21:09:15.420Z",
       "reason": "no fix"
     }
   }

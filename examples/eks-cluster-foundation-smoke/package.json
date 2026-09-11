@@ -12,7 +12,7 @@
     "@hulumi/k8s-baseline": "workspace:*",
     "@pulumi/aws": "7.44.0",
     "@pulumi/kubernetes": "4.34.0",
-    "@pulumi/pulumi": "3.260.0"
+    "@pulumi/pulumi": "3.261.0"
   },
   "devDependencies": {
     "@types/node": "20.19.42",

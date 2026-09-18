@@ -47,7 +47,7 @@
     "@aws-sdk/client-s3": "3.1127.0",
     "@aws-sdk/client-sts": "3.1127.0",
     "@aws-sdk/credential-providers": "3.1127.0",
-    "p-timeout": "7.0.1",
+    "p-timeout": "7.0.2",
     "simple-git": "3.36.0"
   },
   "devDependencies": {

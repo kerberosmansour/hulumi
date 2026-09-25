@@ -10,7 +10,7 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@types/node": "20.19.42",
+    "@types/node": "20.19.43",
     "typescript": "5.9.3",
     "vitest": "1.6.1"
   }

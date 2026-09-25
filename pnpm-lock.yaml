@@ -12,8 +12,8 @@ importers:
   .:
     devDependencies:
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -42,11 +42,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@pulumi/policy':
         specifier: 1.21.0
@@ -67,11 +67,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -89,11 +89,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -111,8 +111,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/drift
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -136,17 +136,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/policies
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/cloudflare':
-        specifier: 6.20.0
-        version: 6.20.0(typescript@5.9.3)
+        specifier: 6.21.0
+        version: 6.21.0(typescript@5.9.3)
       '@pulumi/github':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -164,14 +164,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/k8s-baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/kubernetes':
-        specifier: 4.34.1
-        version: 4.34.1(typescript@5.9.3)
+        specifier: 4.34.2
+        version: 4.34.2(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -189,11 +189,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/platform-patterns
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -211,17 +211,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/platform-patterns
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/cloudflare':
-        specifier: 6.20.0
-        version: 6.20.0(typescript@5.9.3)
+        specifier: 6.21.0
+        version: 6.21.0(typescript@5.9.3)
       '@pulumi/github':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -239,11 +239,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@pulumi/policy':
         specifier: 1.21.0
@@ -267,8 +267,8 @@ importers:
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -286,11 +286,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/baseline
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 20.19.42
@@ -305,14 +305,14 @@ importers:
   packages/baseline:
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/github':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -326,11 +326,11 @@ importers:
   packages/cloudflare-baseline:
     devDependencies:
       '@pulumi/cloudflare':
-        specifier: 6.20.0
-        version: 6.20.0(typescript@5.9.3)
+        specifier: 6.21.0
+        version: 6.21.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -366,11 +366,11 @@ importers:
         version: 3.36.0
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -391,14 +391,14 @@ importers:
         version: 3.1132.0
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/kubernetes':
-        specifier: 4.34.1
-        version: 4.34.1(typescript@5.9.3)
+        specifier: 4.34.2
+        version: 4.34.2(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -416,20 +416,20 @@ importers:
         version: link:../baseline
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/cloudflare':
-        specifier: 6.20.0
-        version: 6.20.0(typescript@5.9.3)
+        specifier: 6.21.0
+        version: 6.21.0(typescript@5.9.3)
       '@pulumi/github':
         specifier: 6.15.0
         version: 6.15.0(typescript@5.9.3)
       '@pulumi/kubernetes':
-        specifier: 4.34.1
-        version: 4.34.1(typescript@5.9.3)
+        specifier: 4.34.2
+        version: 4.34.2(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -443,14 +443,14 @@ importers:
   packages/policies:
     devDependencies:
       '@pulumi/aws':
-        specifier: 7.46.0
-        version: 7.46.0(typescript@5.9.3)
+        specifier: 7.47.0
+        version: 7.47.0(typescript@5.9.3)
       '@pulumi/policy':
         specifier: 1.21.0
         version: 1.21.0(typescript@5.9.3)
       '@pulumi/pulumi':
-        specifier: 3.262.0
-        version: 3.262.0(typescript@5.9.3)
+        specifier: 3.263.0
+        version: 3.263.0(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.42
         version: 20.19.42
@@ -948,8 +948,8 @@ packages:
     resolution: {integrity: sha512-EUEuWAxnL07Sp5/iC/1X6Xj+XThUvnbei9zfRWZdEXa7lss9RTHMhAHBeg+MZ5To9s/gGaSI+UwZTPdYMvKSeg==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  '@npmcli/arborist@9.9.1':
-    resolution: {integrity: sha512-K0mr16xJ/yiTApeGIFbpgZSvJFOvxO2VJnCBhP543t9NTlHzgL+ewpG0kaWv9xkjeESAlRWHG9Q4lbT/LqHbWw==}
+  '@npmcli/arborist@9.9.2':
+    resolution: {integrity: sha512-N8FWFgZPRtkBYUhrEXagY9ADlGylgQgWHw1ywlHRXE8IobqFH+RAK2KL2at5YM33XFFpIDeoDh6nJ+3ZqB/sQQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
     hasBin: true
 
@@ -1149,23 +1149,23 @@ packages:
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
 
-  '@pulumi/aws@7.46.0':
-    resolution: {integrity: sha512-uu8B+NiUoQxZUgqk0UnnrRi0VSeFQISDS6/Kjuw3tdsVi33jYSUKEfcDO2nTwQcbTDmfCjvOwV4RqvSDuDMbLQ==}
+  '@pulumi/aws@7.47.0':
+    resolution: {integrity: sha512-Z9iaSBmS9vdFepWqLnAJ9FdUP4jzDd//jVV/E1TjM+o3uytXGMhkOKZ+FylBvTOjr4gsY7vZ0d1SHk/oxdwB1g==}
 
-  '@pulumi/cloudflare@6.20.0':
-    resolution: {integrity: sha512-VcLlDp3INdSzFUMHXi3nLJte/YoktFHX4hk0DokWygpMm6DGzZq7tfIoUvSP3HAWC9cEI7+59UnBBpNaVNNpgQ==}
+  '@pulumi/cloudflare@6.21.0':
+    resolution: {integrity: sha512-IW8oBur+LcdXt2/Gv29P8TNxI7ILL+ZC2LKo8QtDcmCjQL5KFuR1A9rh0OxGEn08zPWxpMfHT6o1wZ5s0q3DIw==}
 
   '@pulumi/github@6.15.0':
     resolution: {integrity: sha512-U8ZxPQQcOrcTn8y8EZsWmXzMtbw0JnwWCVGmqxBZ/i2SpUlEGMYT9B+EFC/qTALZXkDf7cMiq6fZ3Gy1G23nyQ==}
 
-  '@pulumi/kubernetes@4.34.1':
-    resolution: {integrity: sha512-WU0mxW6MHTVJbCfIi8Pie/V/2LqF7XYyTq7lYn6s07mro1ztewP1Sr7GcrvSYDFfXUIAFQgu9uX3VadvoiXhIA==}
+  '@pulumi/kubernetes@4.34.2':
+    resolution: {integrity: sha512-OcIe8OUwivkEngmjinrmke54INbJ0L6u/CWm8mLh6F7pmIDXyHGTM8PzcZsg5QbSm24HnNUHLl2tEUoOBxDo3w==}
 
   '@pulumi/policy@1.21.0':
     resolution: {integrity: sha512-tLczMS7S2UUpc1qO9xvGY54GumUShTNxm/BY/T1fb0Hp/ILScxXzrmLpkbt4KUGZAcX/EdGLVuMGHyhreqbfvg==}
 
-  '@pulumi/pulumi@3.262.0':
-    resolution: {integrity: sha512-fsYlQ5sr0g5DCxW25LTLwBsSkgkTMxXDfKdZGGvb880zXEQZd509uUSgUTX608fca9FAxjfflPNGYKgB9ps3ow==}
+  '@pulumi/pulumi@3.263.0':
+    resolution: {integrity: sha512-ZIWdlwKCSRFkUxRmISu3FT7db7Ac+Hfjh1ta3cyau+QupneuzZ+OFzezM6Var9PeNRaHNyWtSPg7Qjq8CHNzww==}
     engines: {node: '>=22'}
     peerDependencies:
       ts-node: '>= 7.0.1 < 12'
@@ -1953,8 +1953,8 @@ packages:
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
-  lru-cache@11.5.2:
-    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
+  lru-cache@11.5.3:
+    resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
 
   magic-string@0.30.21:
@@ -2435,8 +2435,8 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
-  undici@6.28.1:
-    resolution: {integrity: sha512-zWpdTVD54H48CIybL0rWQ3ukpb9d23wM7eH5RtfdmeP70cWHNjtfo7P4vZX+5CoDcO53J4Pu5uXp7lNfjc6DRA==}
+  undici@6.29.0:
+    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
     engines: {node: '>=18.17'}
 
   upath@1.2.0:
@@ -3122,12 +3122,12 @@ snapshots:
       agent-base: 7.1.4
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       socks-proxy-agent: 8.0.5
     transitivePeerDependencies:
       - supports-color
 
-  '@npmcli/arborist@9.9.1':
+  '@npmcli/arborist@9.9.2':
     dependencies:
       '@gar/promise-retry': 1.0.3
       '@isaacs/string-locale-compare': 1.1.0
@@ -3146,7 +3146,7 @@ snapshots:
       common-ancestor-path: 2.0.0
       hosted-git-info: 9.0.3
       json-stringify-nice: 1.1.4
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       minimatch: 10.2.6
       nopt: 9.0.0
       npm-install-checks: 8.0.0
@@ -3175,7 +3175,7 @@ snapshots:
       '@gar/promise-retry': 1.0.3
       '@npmcli/promise-spawn': 9.0.1
       ini: 6.0.0
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       npm-pick-manifest: 11.0.3
       proc-log: 6.1.0
       semver: 7.8.5
@@ -3390,18 +3390,18 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@pulumi/aws@7.46.0(typescript@5.9.3)':
+  '@pulumi/aws@7.47.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.262.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.263.0(typescript@5.9.3)
       mime: 2.6.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/cloudflare@6.20.0(typescript@5.9.3)':
+  '@pulumi/cloudflare@6.21.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.262.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.263.0(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - ts-node
@@ -3409,15 +3409,15 @@ snapshots:
 
   '@pulumi/github@6.15.0(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.262.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.263.0(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/kubernetes@4.34.1(typescript@5.9.3)':
+  '@pulumi/kubernetes@4.34.2(typescript@5.9.3)':
     dependencies:
-      '@pulumi/pulumi': 3.262.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.263.0(typescript@5.9.3)
       glob: 12.0.0
       shell-quote: 1.10.0
     transitivePeerDependencies:
@@ -3428,18 +3428,18 @@ snapshots:
   '@pulumi/policy@1.21.0(typescript@5.9.3)':
     dependencies:
       '@grpc/grpc-js': 1.14.4
-      '@pulumi/pulumi': 3.262.0(typescript@5.9.3)
+      '@pulumi/pulumi': 3.263.0(typescript@5.9.3)
       google-protobuf: 3.21.4
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/pulumi@3.262.0(typescript@5.9.3)':
+  '@pulumi/pulumi@3.263.0(typescript@5.9.3)':
     dependencies:
       '@grpc/grpc-js': 1.14.5
       '@logdna/tail-file': 2.2.0
-      '@npmcli/arborist': 9.9.1
+      '@npmcli/arborist': 9.9.2
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.11.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-trace-otlp-grpc': 0.220.0(@opentelemetry/api@1.9.1)
@@ -3819,7 +3819,7 @@ snapshots:
       '@npmcli/fs': 5.0.0
       fs-minipass: 3.0.3
       glob: 13.0.6
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       minipass: 7.1.3
       minipass-collect: 2.0.1
       minipass-flush: 1.0.7
@@ -4111,7 +4111,7 @@ snapshots:
 
   hosted-git-info@9.0.3:
     dependencies:
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
 
   http-cache-semantics@4.2.0: {}
 
@@ -4239,7 +4239,7 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
-  lru-cache@11.5.2: {}
+  lru-cache@11.5.3: {}
 
   magic-string@0.30.21:
     dependencies:
@@ -4364,7 +4364,7 @@ snapshots:
       semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
-      undici: 6.28.1
+      undici: 6.29.0
       which: 6.0.1
 
   nopt@9.0.0:
@@ -4502,7 +4502,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       minipass: 7.1.3
 
   pathe@1.1.2: {}
@@ -4784,7 +4784,7 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@6.28.1: {}
+  undici@6.29.0: {}
 
   upath@1.2.0: {}
 

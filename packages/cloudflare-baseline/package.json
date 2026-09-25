@@ -36,12 +36,12 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/cloudflare": "6.20.0",
-    "@pulumi/pulumi": "3.262.0"
+    "@pulumi/cloudflare": "6.21.0",
+    "@pulumi/pulumi": "3.263.0"
   },
   "devDependencies": {
-    "@pulumi/cloudflare": "6.20.0",
-    "@pulumi/pulumi": "3.262.0",
+    "@pulumi/cloudflare": "6.21.0",
+    "@pulumi/pulumi": "3.263.0",
     "@types/node": "20.19.42",
     "typescript": "5.9.3",
     "vitest": "1.6.1"

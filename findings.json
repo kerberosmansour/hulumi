@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 32,
+  "revision": 34,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -544,6 +544,40 @@
       ],
       "firstSeen": "2026-09-30T00:36:09.182Z",
       "lastSeen": "2026-09-30T00:36:09.182Z",
+      "reason": "no fix"
+    },
+    "npm:@grpc/grpc-js@1.14.4:GHSA-f596-whhp-79r4": {
+      "findingKey": "npm:@grpc/grpc-js@1.14.4:GHSA-f596-whhp-79r4",
+      "advisoryId": "GHSA-f596-whhp-79r4",
+      "ecosystem": "npm",
+      "package": "@grpc/grpc-js",
+      "affectedVersion": "1.14.4",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-09-30T15:52:34.248Z",
+      "lastSeen": "2026-09-30T15:52:34.248Z",
+      "reason": "no fix"
+    },
+    "npm:@grpc/grpc-js@1.14.4:GHSA-m9gg-hp2v-232j": {
+      "findingKey": "npm:@grpc/grpc-js@1.14.4:GHSA-m9gg-hp2v-232j",
+      "advisoryId": "GHSA-m9gg-hp2v-232j",
+      "ecosystem": "npm",
+      "package": "@grpc/grpc-js",
+      "affectedVersion": "1.14.4",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-09-30T15:52:34.248Z",
+      "lastSeen": "2026-09-30T15:52:34.248Z",
       "reason": "no fix"
     }
   }

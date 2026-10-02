@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 34,
+  "revision": 35,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -578,6 +578,23 @@
       ],
       "firstSeen": "2026-09-30T15:52:34.248Z",
       "lastSeen": "2026-09-30T15:52:34.248Z",
+      "reason": "no fix"
+    },
+    "npm:http-cache-semantics@4.2.0:GHSA-ch52-4w7c-c8xp": {
+      "findingKey": "npm:http-cache-semantics@4.2.0:GHSA-ch52-4w7c-c8xp",
+      "advisoryId": "GHSA-ch52-4w7c-c8xp",
+      "ecosystem": "npm",
+      "package": "http-cache-semantics",
+      "affectedVersion": "4.2.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-02T22:49:55.551Z",
+      "lastSeen": "2026-10-02T22:49:55.551Z",
       "reason": "no fix"
     }
   }

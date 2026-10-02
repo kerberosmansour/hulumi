@@ -362,8 +362,8 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
       simple-git:
-        specifier: 3.36.0
-        version: 3.36.0
+        specifier: 4.0.2
+        version: 4.0.2
     devDependencies:
       '@pulumi/aws':
         specifier: 7.48.0
@@ -1325,11 +1325,11 @@ packages:
     resolution: {integrity: sha512-qv7+G3J2cc6wwFj3yKvXOamzqhMwSk1ogPGmhpS8iXllcPrJaIIBA+4HbttlHVu1pqWTdmaCH/WE7UOC51kdoA==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  '@simple-git/args-pathspec@1.0.3':
-    resolution: {integrity: sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA==}
+  '@simple-git/args-pathspec@1.0.4':
+    resolution: {integrity: sha512-EtMX6XjRWSastG2SdkmSQByPtJ9dx/NIjnHbpQPCYt62j4RmSx5rgLTGpw0YCjF5h191gZOmBfheOT23cRSFdw==}
 
-  '@simple-git/argv-parser@1.1.1':
-    resolution: {integrity: sha512-Q9lBcfQ+VQCpQqGJFHe5yooOS5hGdLFFbJ5R+R5aDsnkPCahtn1hSkMcORX65J2Z5lxSkD0lQorMsncuBQxYUw==}
+  '@simple-git/argv-parser@2.0.1':
+    resolution: {integrity: sha512-M++IaVWrN+vYalilOHfwvT2IL3wYZtVEBQpmX6DLSOJLtxbZ+SUeIDE3IiPogzhPACLajwtxfa5rp+ZX1FczzQ==}
 
   '@sinclair/typebox@0.27.10':
     resolution: {integrity: sha512-MTBk/3jGLNB2tVxv6uLlFh1iu64iYOQ2PbdOSK3NW8JZsmlaOh2q6sdtKowBhfw8QFLmYNzTW4/oK4uATIi6ZA==}
@@ -2290,8 +2290,8 @@ packages:
     resolution: {integrity: sha512-endqECJkfhozrXMK5ngu/UAA0xVcVEFdnHJCElGaExypjW+HK5i6zu3NteLoaX/iFbRUbC3+DjttQs0GARr+5w==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  simple-git@3.36.0:
-    resolution: {integrity: sha512-cGQjLjK8bxJw4QuYT7gxHw3/IouVESbhahSsHrX97MzCL1gu2u7oy38W6L2ZIGECEfIBG4BabsWDPjBxJENv9Q==}
+  simple-git@4.0.2:
+    resolution: {integrity: sha512-l0sIsv9VrPwovKELFDBOj/lhmIcbMvxBk2B+hRhsMM4/VL3gKtuZvYnBNixVo+N/0HnqQx2cBdLvxnAbygHpqA==}
 
   smart-buffer@4.2.0:
     resolution: {integrity: sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg==}
@@ -3574,11 +3574,11 @@ snapshots:
       '@sigstore/core': 3.2.1
       '@sigstore/protobuf-specs': 0.5.2
 
-  '@simple-git/args-pathspec@1.0.3': {}
+  '@simple-git/args-pathspec@1.0.4': {}
 
-  '@simple-git/argv-parser@1.1.1':
+  '@simple-git/argv-parser@2.0.1':
     dependencies:
-      '@simple-git/args-pathspec': 1.0.3
+      '@simple-git/args-pathspec': 1.0.4
 
   '@sinclair/typebox@0.27.10': {}
 
@@ -4644,12 +4644,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  simple-git@3.36.0:
+  simple-git@4.0.2:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      '@simple-git/args-pathspec': 1.0.3
-      '@simple-git/argv-parser': 1.1.1
+      '@simple-git/args-pathspec': 1.0.4
+      '@simple-git/argv-parser': 2.0.1
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color

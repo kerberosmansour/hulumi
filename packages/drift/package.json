@@ -48,7 +48,7 @@
     "@aws-sdk/client-sts": "3.1142.0",
     "@aws-sdk/credential-providers": "3.1142.0",
     "p-timeout": "7.0.2",
-    "simple-git": "3.36.0"
+    "simple-git": "4.0.2"
   },
   "devDependencies": {
     "@pulumi/aws": "7.48.0",

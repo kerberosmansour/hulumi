@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 37,
+  "revision": 38,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -629,6 +629,23 @@
       ],
       "firstSeen": "2026-10-05T23:11:33.536Z",
       "lastSeen": "2026-10-05T23:11:33.536Z",
+      "reason": "no fix"
+    },
+    "npm:source-map-js@1.2.1:GHSA-68fv-2mgg-jv7q": {
+      "findingKey": "npm:source-map-js@1.2.1:GHSA-68fv-2mgg-jv7q",
+      "advisoryId": "GHSA-68fv-2mgg-jv7q",
+      "ecosystem": "npm",
+      "package": "source-map-js",
+      "affectedVersion": "1.2.1",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-05T23:48:23.837Z",
+      "lastSeen": "2026-10-05T23:48:23.837Z",
       "reason": "no fix"
     }
   }

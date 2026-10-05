@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 35,
+  "revision": 37,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -595,6 +595,40 @@
       ],
       "firstSeen": "2026-10-02T22:49:55.551Z",
       "lastSeen": "2026-10-02T22:49:55.551Z",
+      "reason": "no fix"
+    },
+    "npm:tinypool@0.8.4:GHSA-5gmw-xhrv-c9v3": {
+      "findingKey": "npm:tinypool@0.8.4:GHSA-5gmw-xhrv-c9v3",
+      "advisoryId": "GHSA-5gmw-xhrv-c9v3",
+      "ecosystem": "npm",
+      "package": "tinypool",
+      "affectedVersion": "0.8.4",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-05T23:11:33.536Z",
+      "lastSeen": "2026-10-05T23:11:33.536Z",
+      "reason": "no fix"
+    },
+    "npm:tinypool@0.8.4:GHSA-85c8-ppgw-ccpr": {
+      "findingKey": "npm:tinypool@0.8.4:GHSA-85c8-ppgw-ccpr",
+      "advisoryId": "GHSA-85c8-ppgw-ccpr",
+      "ecosystem": "npm",
+      "package": "tinypool",
+      "affectedVersion": "0.8.4",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-05T23:11:33.536Z",
+      "lastSeen": "2026-10-05T23:11:33.536Z",
       "reason": "no fix"
     }
   }

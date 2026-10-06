@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 38,
+  "revision": 42,
   "findings": {
     "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp": {
       "findingKey": "npm:brace-expansion@1.1.14:GHSA-3jxr-9vmj-r5cp",
@@ -646,6 +646,74 @@
       ],
       "firstSeen": "2026-10-05T23:48:23.837Z",
       "lastSeen": "2026-10-05T23:48:23.837Z",
+      "reason": "no fix"
+    },
+    "npm:@simple-git/argv-parser@1.1.1:GHSA-v5rq-49vh-5v5c": {
+      "findingKey": "npm:@simple-git/argv-parser@1.1.1:GHSA-v5rq-49vh-5v5c",
+      "advisoryId": "GHSA-v5rq-49vh-5v5c",
+      "ecosystem": "npm",
+      "package": "@simple-git/argv-parser",
+      "affectedVersion": "1.1.1",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-06T00:35:32.447Z",
+      "lastSeen": "2026-10-06T00:35:32.447Z",
+      "reason": "no fix"
+    },
+    "npm:simple-git@3.36.0:GHSA-858h-whjf-mvg5": {
+      "findingKey": "npm:simple-git@3.36.0:GHSA-858h-whjf-mvg5",
+      "advisoryId": "GHSA-858h-whjf-mvg5",
+      "ecosystem": "npm",
+      "package": "simple-git",
+      "affectedVersion": "3.36.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-06T00:35:32.447Z",
+      "lastSeen": "2026-10-06T00:35:32.447Z",
+      "reason": "no fix"
+    },
+    "npm:simple-git@3.36.0:GHSA-g4wm-2vf7-vfgr": {
+      "findingKey": "npm:simple-git@3.36.0:GHSA-g4wm-2vf7-vfgr",
+      "advisoryId": "GHSA-g4wm-2vf7-vfgr",
+      "ecosystem": "npm",
+      "package": "simple-git",
+      "affectedVersion": "3.36.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-06T00:35:32.447Z",
+      "lastSeen": "2026-10-06T00:35:32.447Z",
+      "reason": "no fix"
+    },
+    "npm:simple-git@3.36.0:GHSA-x6jw-m9v5-85vh": {
+      "findingKey": "npm:simple-git@3.36.0:GHSA-x6jw-m9v5-85vh",
+      "advisoryId": "GHSA-x6jw-m9v5-85vh",
+      "ecosystem": "npm",
+      "package": "simple-git",
+      "affectedVersion": "3.36.0",
+      "class": "critical",
+      "track": "dropped",
+      "fixedVersion": null,
+      "state": "dropped",
+      "manifestPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "firstSeen": "2026-10-06T00:35:32.447Z",
+      "lastSeen": "2026-10-06T00:35:32.447Z",
       "reason": "no fix"
     }
   }

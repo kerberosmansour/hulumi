@@ -7,9 +7,18 @@
 // removes an entry without breaking the integrity check (e.g. removing
 // the entry AND the dep from the lockfile in the same PR).
 
-import { existsSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  cpSync,
+  rmSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = resolve(__dirname, "..", "..");
@@ -94,4 +103,36 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
       expect(allowedBlock).not.toMatch(/name:\s*["']@hulumi\//);
     });
   });
+});
+
+it("rejects a protected integrity change even when the manifest remains exact", () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "hulumi-pin-guard-"));
+  try {
+    mkdirSync(join(sandbox, "scripts"));
+    cpSync(script, join(sandbox, "scripts/exact-pin-guard.mjs"));
+    cpSync(join(repoRoot, "package.json"), join(sandbox, "package.json"));
+    cpSync(join(repoRoot, "packages"), join(sandbox, "packages"), {
+      recursive: true,
+      filter: (path) =>
+        !path.includes("node_modules") &&
+        !path.includes("dist") &&
+        !path.includes("tests") &&
+        !path.includes("src"),
+    });
+    const integrity = scriptSource.match(/integrity:\s*\n?\s*"(sha512-[^"]+)"/)![1];
+    const lock = readFileSync(join(repoRoot, "pnpm-lock.yaml"), "utf8");
+    expect(lock).toContain(integrity);
+    writeFileSync(
+      join(sandbox, "pnpm-lock.yaml"),
+      lock.replaceAll(integrity, "sha512-unreviewed-bytes"),
+    );
+    const result = spawnSync(process.execPath, [join(sandbox, "scripts/exact-pin-guard.mjs")], {
+      encoding: "utf8",
+      timeout: 30000,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("reviewed pin");
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
 });

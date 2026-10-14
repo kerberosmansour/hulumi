@@ -198,8 +198,7 @@ function tagsOf(resource: PolicyResource): Record<string, unknown> | undefined {
     asRecord(props?.tags) ??
     asRecord(asRecord(props?.metadata)?.labels) ??
     (asRecord(asRecord(asRecord(props?.spec)?.template)?.metadata)?.labels as
-      | Record<string, unknown>
-      | undefined)
+      Record<string, unknown> | undefined)
   );
 }
 
@@ -492,7 +491,7 @@ function celStringList(values: readonly string[]): string {
   return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
 }
 
-function expectedAdmissionExpressions(
+export function expectedAdmissionExpressions(
   name: string,
   boundaryProps: Record<string, unknown> | undefined,
   serviceAccounts: readonly PolicyResource[],
@@ -536,20 +535,32 @@ function expectedAdmissionExpressions(
   ) {
     return undefined;
   }
-  const exactPlacementExpression = (profile: PlacementProfile): string => {
-    const nodeKey = JSON.stringify(profile.nodePoolKey);
-    const nodeValue = JSON.stringify(profile.nodePoolValue);
+  const exactTolerations = (placement: PlacementProfile): string => {
+    const configured = `t.key == ${JSON.stringify(
+      placement.tolerationKey,
+    )} && t.operator == "Equal" && has(t.value) && t.value == ${JSON.stringify(
+      placement.tolerationValue,
+    )} && t.effect == ${JSON.stringify(placement.tolerationEffect)} && !has(t.tolerationSeconds)`;
+    const kubernetesDefault = (key: string): string =>
+      `t.key == ${JSON.stringify(
+        key,
+      )} && t.operator == "Exists" && !has(t.value) && t.effect == "NoExecute" && has(t.tolerationSeconds) && t.tolerationSeconds == 300`;
+    const notReady = kubernetesDefault("node.kubernetes.io/not-ready");
+    const unreachable = kubernetesDefault("node.kubernetes.io/unreachable");
+    const awsVpcPodEni =
+      't.key == "vpc.amazonaws.com/pod-eni" && t.operator == "Exists" && !has(t.value) && t.effect == "NoSchedule" && !has(t.tolerationSeconds)';
+    return `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || object.spec.tolerations.size() == 3 || object.spec.tolerations.size() == 4) && object.spec.tolerations.exists(t, ${configured}) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || (object.spec.tolerations.exists(t, ${notReady}) && object.spec.tolerations.exists(t, ${unreachable}))) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3 || object.spec.tolerations.exists(t, ${awsVpcPodEni})) && object.spec.tolerations.all(t, (${configured}) || (${notReady}) || (${unreachable}) || (${awsVpcPodEni}))`;
+  };
+  const exactPlacementExpression = (placement: PlacementProfile): string => {
+    const nodeKey = JSON.stringify(placement.nodePoolKey);
+    const nodeValue = JSON.stringify(placement.nodePoolValue);
     return `has(object.spec.runtimeClassName) && object.spec.runtimeClassName == ${JSON.stringify(
-      profile.runtimeClassName,
-    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && has(object.spec.tolerations) && object.spec.tolerations.size() == 1 && object.spec.tolerations[0].key == ${JSON.stringify(
-      profile.tolerationKey,
-    )} && object.spec.tolerations[0].operator == "Equal" && object.spec.tolerations[0].value == ${JSON.stringify(
-      profile.tolerationValue,
-    )} && object.spec.tolerations[0].effect == ${JSON.stringify(
-      profile.tolerationEffect,
+      placement.runtimeClassName,
+    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && ${exactTolerations(
+      placement,
     )} && object.spec.schedulerName == ${JSON.stringify(
-      profile.schedulerName,
-    )} && object.spec.priorityClassName == ${JSON.stringify(profile.priorityClassName)}`;
+      placement.schedulerName,
+    )} && object.spec.priorityClassName == ${JSON.stringify(placement.priorityClassName)}`;
   };
   const envelopes: string[] = [];
   for (const kind of IDENTITY_KINDS) {
@@ -628,7 +639,7 @@ function expectedAdmissionExpressions(
       kind === "runtime" || kind === "broker"
         ? `(has(c.ports) && c.ports.size() == 1 && c.ports[0].name == "https" && c.ports[0].containerPort == ${String(workload?.port)} && (!has(c.ports[0].protocol) || c.ports[0].protocol == "TCP"))`
         : "(!has(c.ports) || c.ports.size() == 0)";
-    const exactContainerControls = `object.spec.containers.all(c, c.imagePullPolicy == "IfNotPresent" && ${expectedArgs} && ${expectedPorts} && (!has(c.lifecycle)) && (!has(c.livenessProbe)) && (!has(c.readinessProbe)) && (!has(c.startupProbe)) && (!has(c.stdin) || c.stdin == false) && (!has(c.stdinOnce) || c.stdinOnce == false) && (!has(c.tty) || c.tty == false) && (!has(c.workingDir) || c.workingDir == "") && has(c.resources) && c.resources.requests.cpu == "100m" && c.resources.requests.memory == "128Mi" && c.resources.limits.cpu == "1" && c.resources.limits.memory == "512Mi")`;
+    const exactContainerControls = `object.spec.containers.all(c, c.imagePullPolicy == "IfNotPresent" && ${expectedArgs} && ${expectedPorts} && (!has(c.lifecycle)) && (!has(c.livenessProbe)) && (!has(c.readinessProbe)) && (!has(c.startupProbe)) && (!has(c.stdin) || c.stdin == false) && (!has(c.stdinOnce) || c.stdinOnce == false) && (!has(c.tty) || c.tty == false) && (!has(c.workingDir) || c.workingDir == "") && has(c.resources) && dyn(c.resources).requests.cpu == "100m" && dyn(c.resources).requests.memory == "128Mi" && dyn(c.resources).limits.cpu == "1" && dyn(c.resources).limits.memory == "512Mi")`;
     const expectedPlacement = kind === "runtime" ? runtimePlacement : privilegedPlacement;
     envelopes.push(
       `(object.spec.serviceAccountName == ${JSON.stringify(
@@ -655,7 +666,8 @@ function expectedAdmissionExpressions(
   return [
     `!${protectedPod} || (${envelopes.join(" || ")})`,
     `!${protectedPod} || ((!has(object.spec.hostNetwork) || object.spec.hostNetwork == false) && (!has(object.spec.hostPID) || object.spec.hostPID == false) && (!has(object.spec.hostIPC) || object.spec.hostIPC == false) && (!has(object.spec.shareProcessNamespace) || object.spec.shareProcessNamespace == false) && (!has(object.spec.hostAliases) || object.spec.hostAliases.size() == 0) && (!has(object.spec.dnsConfig)) && (!has(object.spec.dnsPolicy) || object.spec.dnsPolicy == "ClusterFirst") && (!has(object.spec.initContainers) || object.spec.initContainers.size() == 0) && (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.size() == 0) && object.spec.automountServiceAccountToken == false && object.spec.enableServiceLinks == false && has(object.spec.securityContext) && object.spec.securityContext.runAsNonRoot == true && object.spec.securityContext.seccompProfile.type == "RuntimeDefault" && object.spec.containers.all(c, has(c.securityContext) && (!has(c.securityContext.privileged) || c.securityContext.privileged == false) && c.securityContext.runAsNonRoot == true && c.securityContext.allowPrivilegeEscalation == false && c.securityContext.readOnlyRootFilesystem == true && (!has(c.securityContext.procMount) || c.securityContext.procMount == "Default") && c.securityContext.seccompProfile.type == "RuntimeDefault" && c.securityContext.capabilities.drop.size() == 1 && c.securityContext.capabilities.drop[0] == "ALL" && (!has(c.securityContext.capabilities.add) || c.securityContext.capabilities.add.size() == 0)))`,
-    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && v.emptyDir.sizeLimit == "64Mi"))`,
+    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && dyn(v.emptyDir).sizeLimit == "64Mi"))`,
+    `!${protectedPod}`,
   ];
 }
 
@@ -681,6 +693,21 @@ function expectedNetworkPolicyProps(
   const workloads = asRecord(boundaryProps?.workloads);
   const dnsResolverCidrs = strings(boundaryProps?.dnsResolverCidrs);
   const endpointCidrs = strings(boundaryProps?.endpointCidrs);
+  const clusterDns = asRecord(boundaryProps?.clusterDns);
+  const clusterDnsEgress = {
+    to: [
+      {
+        namespaceSelector: {
+          matchLabels: { "kubernetes.io/metadata.name": clusterDns?.namespace },
+        },
+        podSelector: { matchLabels: asRecord(clusterDns?.podSelector) },
+      },
+    ],
+    ports: [
+      { protocol: "UDP", port: 53 },
+      { protocol: "TCP", port: 53 },
+    ],
+  };
   const dnsEgress = {
     to: dnsResolverCidrs.map((cidr) => ({ ipBlock: { cidr } })),
     ports: [
@@ -734,6 +761,7 @@ function expectedNetworkPolicyProps(
               },
             ],
           },
+          clusterDnsEgress,
           dnsEgress,
         ],
       },
@@ -748,6 +776,7 @@ function expectedNetworkPolicyProps(
       to: endpointCidrs.map((cidr) => ({ ipBlock: { cidr } })),
       ports: [{ protocol: "TCP", port: 443 }],
     },
+    clusterDnsEgress,
     dnsEgress,
   ];
   return {
@@ -829,11 +858,25 @@ function validateBoundary(
     return;
   }
   const namespace = typeof props?.namespace === "string" ? props.namespace : "";
+  const clusterDns = asRecord(props?.clusterDns);
   const oidcProviderArn = typeof props?.oidcProviderArn === "string" ? props.oidcProviderArn : "";
   const oidcIssuer = typeof props?.oidcIssuer === "string" ? props.oidcIssuer : "";
   const scoped = boundaryResources(resources, boundary);
   const roles = scoped.filter((resource) => resource.type === IAM_ROLE_TYPE);
   const serviceAccounts = scoped.filter((resource) => resource.type === SERVICE_ACCOUNT_TYPE);
+  const protectedAccounts = new Set(serviceAccounts.map(serviceAccountName));
+  for (const resource of resources) {
+    const pod = asRecord(resource.props);
+    if (
+      resource.type === "kubernetes:core/v1:Pod" &&
+      asRecord(pod?.metadata)?.namespace === namespace &&
+      protectedAccounts.has(stringProp(asRecord(pod?.spec), "serviceAccountName") ?? "")
+    ) {
+      reportViolation(
+        `${BROKERED_PG_1_RULE_ID}: standalone Pod ${resource.name} cannot use an inert boundary ServiceAccount. Docs: ${DOCS_URL}`,
+      );
+    }
+  }
   const roleByKind = new Map<IdentityKind, PolicyResource>();
   const awsRegion = stringProp(props, "awsRegion");
   const applicationSecretNames = strings(props?.applicationSecretNames);
@@ -1272,8 +1315,8 @@ function validateBoundary(
         (rule?.ipProtocol === "tcp" || rule?.ipProtocol === "udp") &&
         rule.fromPort === 53 &&
         rule.toPort === 53 &&
-        typeof rule.cidrIpv4 === "string" &&
-        rule.cidrIpv4 !== "0.0.0.0/0";
+        ((typeof rule.cidrIpv4 === "string" && rule.cidrIpv4 !== "0.0.0.0/0") ||
+          (typeof target === "string" && target === clusterDns?.securityGroupId));
       return !isBroker && !isDns;
     });
     if (unsafe.length > 0) {
@@ -1352,6 +1395,28 @@ function validateBoundary(
   ) {
     reportViolation(
       `${BROKERED_PG_1_RULE_ID}: DNS resolver egress must use exact private IPv4 /32 entries; broad resolver CIDRs are forbidden. Docs: ${DOCS_URL}`,
+    );
+  }
+
+  const clusterDnsSelector = asRecord(clusterDns?.podSelector);
+  if (
+    typeof clusterDns?.namespace !== "string" ||
+    !/^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$/.test(clusterDns.namespace) ||
+    typeof clusterDns?.securityGroupId !== "string" ||
+    !/^sg-[a-z0-9-]+$/.test(clusterDns.securityGroupId) ||
+    clusterDnsSelector === undefined ||
+    Object.keys(clusterDnsSelector).length === 0 ||
+    Object.entries(clusterDnsSelector).some(
+      ([key, value]) =>
+        key.length === 0 ||
+        key.includes("*") ||
+        typeof value !== "string" ||
+        value.length === 0 ||
+        value.includes("*"),
+    )
+  ) {
+    reportViolation(
+      `${BROKERED_PG_1_RULE_ID}: cluster DNS requires an exact namespace, non-empty pod selector, and security group. Docs: ${DOCS_URL}`,
     );
   }
   const placement = asRecord(props?.placement);
@@ -1448,12 +1513,46 @@ function validateBoundary(
         (protocol === "tcp" || protocol === "udp") &&
         fromPort === 53 &&
         toPort === 53;
-      return databaseAllowed || endpointAllowed || dnsAllowed;
+      const clusterDnsAllowed =
+        typeof target === "string" &&
+        target === clusterDns?.securityGroupId &&
+        (protocol === "tcp" || protocol === "udp") &&
+        fromPort === 53 &&
+        toPort === 53;
+      return databaseAllowed || endpointAllowed || dnsAllowed || clusterDnsAllowed;
     };
     if (egressRules.some((resource) => !allowedTarget(asRecord(resource.props) ?? {}))) {
       reportViolation(
         `${BROKERED_PG_1_RULE_ID}: ${kind} security group has egress outside its exact broker, database, endpoint, and DNS paths. Docs: ${DOCS_URL}`,
       );
+    }
+    for (const protocol of ["tcp", "udp"]) {
+      const dnsEgress = egressRules.filter((resource) => {
+        const rule = asRecord(resource.props);
+        return (
+          rule?.referencedSecurityGroupId === clusterDns?.securityGroupId &&
+          rule?.ipProtocol === protocol &&
+          rule?.fromPort === 53 &&
+          rule?.toPort === 53
+        );
+      });
+      const dnsIngress = resources.filter((resource) => {
+        const rule = asRecord(resource.props);
+        return (
+          resource.type === SG_INGRESS_TYPE &&
+          rule?.securityGroupId === clusterDns?.securityGroupId &&
+          typeof rule?.referencedSecurityGroupId === "string" &&
+          ids.has(rule.referencedSecurityGroupId) &&
+          rule.ipProtocol === protocol &&
+          rule.fromPort === 53 &&
+          rule.toPort === 53
+        );
+      });
+      if (dnsEgress.length !== 1 || dnsIngress.length !== 1) {
+        reportViolation(
+          `${BROKERED_PG_1_RULE_ID}: ${kind} requires exact ${protocol}/53 cluster DNS egress and ingress. Docs: ${DOCS_URL}`,
+        );
+      }
     }
     const ingressRules = resources.filter((resource) => {
       if (resource.type !== SG_INGRESS_TYPE) return false;
@@ -1684,6 +1783,15 @@ function validateBoundary(
     }
   }
 
+  const hasOnlyKeys = (value: unknown, allowed: string[]): boolean => {
+    const record = asRecord(value);
+    return record !== undefined && Object.keys(record).every((key) => allowed.includes(key));
+  };
+  const equivalentMatch = (value: unknown): boolean => {
+    const policy = asRecord(value)?.matchPolicy;
+    return policy === undefined || policy === "Equivalent";
+  };
+
   const admissionPolicies = scoped.filter((resource) => resource.type === ADMISSION_POLICY_TYPE);
   if (admissionPolicies.length !== 1) {
     reportViolation(
@@ -1713,6 +1821,21 @@ function validateBoundary(
     const resourceRule = resourceRules.length === 1 ? asRecord(resourceRules[0]) : undefined;
     if (
       asRecord(admissionSpec)?.failurePolicy !== "Fail" ||
+      asRecord(admissionSpec)?.paramKind !== undefined ||
+      (asRecord(admissionSpec)?.matchConditions !== undefined &&
+        JSON.stringify(asRecord(admissionSpec)?.matchConditions) !== "[]") ||
+      !hasOnlyKeys(asRecord(admissionSpec)?.matchConstraints, ["resourceRules", "matchPolicy"]) ||
+      !equivalentMatch(asRecord(admissionSpec)?.matchConstraints) ||
+      !hasOnlyKeys(resourceRule, [
+        "apiGroups",
+        "apiVersions",
+        "operations",
+        "resources",
+        "scope",
+      ]) ||
+      (resourceRule?.scope !== undefined &&
+        resourceRule.scope !== "Namespaced" &&
+        resourceRule.scope !== "*") ||
       expectedExpressions === undefined ||
       JSON.stringify(validationExpressions) !== JSON.stringify(expectedExpressions) ||
       JSON.stringify(strings(resourceRule?.apiGroups)) !== JSON.stringify([""]) ||
@@ -1739,6 +1862,13 @@ function validateBoundary(
     )?.matchLabels;
     if (
       asRecord(bindingSpec)?.policyName !== metadataName(admissionPolicies[0]) ||
+      asRecord(bindingSpec)?.paramRef !== undefined ||
+      !hasOnlyKeys(asRecord(bindingSpec)?.matchResources, ["namespaceSelector", "matchPolicy"]) ||
+      !equivalentMatch(asRecord(bindingSpec)?.matchResources) ||
+      !hasOnlyKeys(asRecord(asRecord(bindingSpec)?.matchResources)?.namespaceSelector, [
+        "matchLabels",
+      ]) ||
+      !hasOnlyKeys(namespaceLabels, ["kubernetes.io/metadata.name"]) ||
       JSON.stringify(strings(asRecord(bindingSpec)?.validationActions)) !==
         JSON.stringify(["Deny"]) ||
       asRecord(namespaceLabels)?.["kubernetes.io/metadata.name"] !== namespace

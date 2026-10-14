@@ -64,6 +64,27 @@ describe("HulumiOriginBypassPack X_ORIGIN_1 — public AWS origin bypass", () =>
     expect(violations[0]).toContain(record.urn);
   });
 
+  it("classifies PublicHostname children when DNS tags are disabled", () => {
+    const record = makePolicyResource({
+      type: DNS_RECORD_TYPE,
+      urn: `urn:pulumi:s::p::hulumi:cloudflare:PublicHostname$${DNS_RECORD_TYPE}::app-record`,
+      name: "app-record",
+      props: {
+        type: "CNAME",
+        name: "app.example.com",
+        content: "app.us-east-1.elb.amazonaws.com",
+        proxied: true,
+      },
+    });
+    (
+      xOrigin1NoPublicAwsOriginBypass.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs([record]), report);
+    expect(violations).toHaveLength(1);
+  });
+
   it("does NOT report when matching CloudflareOriginIngress evidence is present", () => {
     const record = makePolicyResource({
       type: DNS_RECORD_TYPE,

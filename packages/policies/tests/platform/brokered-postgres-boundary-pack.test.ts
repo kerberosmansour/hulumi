@@ -276,22 +276,38 @@ function admissionExpressions(): string[] {
   const labels = "object.metadata.labels";
   const protectedPod = `(object.spec.serviceAccountName in ${serviceAccountSet} || (has(${labels}) && "hulumi.dev/component" in ${labels} && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && "hulumi.dev/boundary" in ${labels} && ${labels}["hulumi.dev/boundary"] == "orders"))`;
   const exactVolumeMounts = `has(object.spec.containers[0].volumeMounts) && object.spec.containers[0].volumeMounts.size() == 2 && object.spec.containers[0].volumeMounts.exists(m, m.name == "aws-iam-token" && m.mountPath == "/var/run/secrets/eks.amazonaws.com/serviceaccount" && (!has(m.subPath) || m.subPath == "") && m.readOnly == true) && object.spec.containers[0].volumeMounts.exists(m, m.name == "tmp" && m.mountPath == "/tmp" && (!has(m.subPath) || m.subPath == "") && (!has(m.readOnly) || m.readOnly == false))`;
+  type Placement = typeof placement.runtime;
+  const exactTolerations = (placement: Placement): string => {
+    const configured = `t.key == ${JSON.stringify(
+      placement.toleration.key,
+    )} && t.operator == "Equal" && has(t.value) && t.value == ${JSON.stringify(
+      placement.toleration.value,
+    )} && t.effect == ${JSON.stringify(placement.toleration.effect)} && !has(t.tolerationSeconds)`;
+    const kubernetesDefault = (key: string): string =>
+      `t.key == ${JSON.stringify(
+        key,
+      )} && t.operator == "Exists" && !has(t.value) && t.effect == "NoExecute" && has(t.tolerationSeconds) && t.tolerationSeconds == 300`;
+    const notReady = kubernetesDefault("node.kubernetes.io/not-ready");
+    const unreachable = kubernetesDefault("node.kubernetes.io/unreachable");
+    const awsVpcPodEni =
+      't.key == "vpc.amazonaws.com/pod-eni" && t.operator == "Exists" && !has(t.value) && t.effect == "NoSchedule" && !has(t.tolerationSeconds)';
+    return `has(object.spec.tolerations) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || object.spec.tolerations.size() == 3 || object.spec.tolerations.size() == 4) && object.spec.tolerations.exists(t, ${configured}) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 2 || (object.spec.tolerations.exists(t, ${notReady}) && object.spec.tolerations.exists(t, ${unreachable}))) && (object.spec.tolerations.size() == 1 || object.spec.tolerations.size() == 3 || object.spec.tolerations.exists(t, ${awsVpcPodEni})) && object.spec.tolerations.all(t, (${configured}) || (${notReady}) || (${unreachable}) || (${awsVpcPodEni}))`;
+  };
+  const exactPlacement = (placement: Placement): string => {
+    const nodeKey = JSON.stringify(placement.nodePool.key);
+    const nodeValue = JSON.stringify(placement.nodePool.value);
+    return `has(object.spec.runtimeClassName) && object.spec.runtimeClassName == ${JSON.stringify(
+      placement.runtimeClassName,
+    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && ${exactTolerations(
+      placement,
+    )} && object.spec.schedulerName == ${JSON.stringify(
+      placement.schedulerName,
+    )} && object.spec.priorityClassName == ${JSON.stringify(placement.priorityClassName)}`;
+  };
   const envelopes = identities.map((kind, kindIndex) => {
     const environment = environmentFor(kind);
     const expectedPlacement = kind === "runtime" ? placement.runtime : placement.privileged;
-    const nodeKey = JSON.stringify(expectedPlacement.nodePool.key);
-    const nodeValue = JSON.stringify(expectedPlacement.nodePool.value);
-    const exactPlacement = `has(object.spec.runtimeClassName) && object.spec.runtimeClassName == ${JSON.stringify(
-      expectedPlacement.runtimeClassName,
-    )} && has(object.spec.nodeSelector) && object.spec.nodeSelector.size() == 1 && object.spec.nodeSelector[${nodeKey}] == ${nodeValue} && has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) && has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions.size() == 1 && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key == ${nodeKey} && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator == "In" && object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values == [${nodeValue}] && has(object.spec.tolerations) && object.spec.tolerations.size() == 1 && object.spec.tolerations[0].key == ${JSON.stringify(
-      expectedPlacement.toleration.key,
-    )} && object.spec.tolerations[0].operator == "Equal" && object.spec.tolerations[0].value == ${JSON.stringify(
-      expectedPlacement.toleration.value,
-    )} && object.spec.tolerations[0].effect == ${JSON.stringify(
-      expectedPlacement.toleration.effect,
-    )} && object.spec.schedulerName == ${JSON.stringify(
-      expectedPlacement.schedulerName,
-    )} && object.spec.priorityClassName == ${JSON.stringify(expectedPlacement.priorityClassName)}`;
+    const placementExpression = exactPlacement(expectedPlacement);
     const environmentExpression = `has(object.spec.containers[0].env) && object.spec.containers[0].env.size() == ${environment.length} && ${environment
       .map(
         ({ name, value }, index) =>
@@ -302,7 +318,7 @@ function admissionExpressions(): string[] {
       kind === "runtime" || kind === "broker"
         ? `(has(c.ports) && c.ports.size() == 1 && c.ports[0].name == "https" && c.ports[0].containerPort == ${kind === "runtime" ? 8080 : 7443} && (!has(c.ports[0].protocol) || c.ports[0].protocol == "TCP"))`
         : "(!has(c.ports) || c.ports.size() == 0)";
-    const exactContainerControls = `object.spec.containers.all(c, c.imagePullPolicy == "IfNotPresent" && (!has(c.args) || c.args.size() == 0) && ${expectedPorts} && (!has(c.lifecycle)) && (!has(c.livenessProbe)) && (!has(c.readinessProbe)) && (!has(c.startupProbe)) && (!has(c.stdin) || c.stdin == false) && (!has(c.stdinOnce) || c.stdinOnce == false) && (!has(c.tty) || c.tty == false) && (!has(c.workingDir) || c.workingDir == "") && has(c.resources) && c.resources.requests.cpu == "100m" && c.resources.requests.memory == "128Mi" && c.resources.limits.cpu == "1" && c.resources.limits.memory == "512Mi")`;
+    const exactContainerControls = `object.spec.containers.all(c, c.imagePullPolicy == "IfNotPresent" && (!has(c.args) || c.args.size() == 0) && ${expectedPorts} && (!has(c.lifecycle)) && (!has(c.livenessProbe)) && (!has(c.readinessProbe)) && (!has(c.startupProbe)) && (!has(c.stdin) || c.stdin == false) && (!has(c.stdinOnce) || c.stdinOnce == false) && (!has(c.tty) || c.tty == false) && (!has(c.workingDir) || c.workingDir == "") && has(c.resources) && dyn(c.resources).requests.cpu == "100m" && dyn(c.resources).requests.memory == "128Mi" && dyn(c.resources).limits.cpu == "1" && dyn(c.resources).limits.memory == "512Mi")`;
     return `(object.spec.serviceAccountName == ${JSON.stringify(
       serviceAccounts[kindIndex],
     )} && has(${labels}) && ${labels}["hulumi.dev/component"] == "BrokeredAuroraPostgresBoundary" && ${labels}["hulumi.dev/boundary"] == "orders" && ${labels}["hulumi.dev/identity-kind"] == ${JSON.stringify(
@@ -315,17 +331,30 @@ function admissionExpressions(): string[] {
       imageFor(kind),
     )} && has(object.spec.containers[0].command) && object.spec.containers[0].command == [${JSON.stringify(
       `/app/${kind}`,
-    )}] && ${environmentExpression} && ${exactVolumeMounts} && ${exactContainerControls} && ${exactPlacement})`;
+    )}] && ${environmentExpression} && ${exactVolumeMounts} && ${exactContainerControls} && ${placementExpression})`;
   });
   return [
     `!${protectedPod} || (${envelopes.join(" || ")})`,
     `!${protectedPod} || ((!has(object.spec.hostNetwork) || object.spec.hostNetwork == false) && (!has(object.spec.hostPID) || object.spec.hostPID == false) && (!has(object.spec.hostIPC) || object.spec.hostIPC == false) && (!has(object.spec.shareProcessNamespace) || object.spec.shareProcessNamespace == false) && (!has(object.spec.hostAliases) || object.spec.hostAliases.size() == 0) && (!has(object.spec.dnsConfig)) && (!has(object.spec.dnsPolicy) || object.spec.dnsPolicy == "ClusterFirst") && (!has(object.spec.initContainers) || object.spec.initContainers.size() == 0) && (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.size() == 0) && object.spec.automountServiceAccountToken == false && object.spec.enableServiceLinks == false && has(object.spec.securityContext) && object.spec.securityContext.runAsNonRoot == true && object.spec.securityContext.seccompProfile.type == "RuntimeDefault" && object.spec.containers.all(c, has(c.securityContext) && (!has(c.securityContext.privileged) || c.securityContext.privileged == false) && c.securityContext.runAsNonRoot == true && c.securityContext.allowPrivilegeEscalation == false && c.securityContext.readOnlyRootFilesystem == true && (!has(c.securityContext.procMount) || c.securityContext.procMount == "Default") && c.securityContext.seccompProfile.type == "RuntimeDefault" && c.securityContext.capabilities.drop.size() == 1 && c.securityContext.capabilities.drop[0] == "ALL" && (!has(c.securityContext.capabilities.add) || c.securityContext.capabilities.add.size() == 0)))`,
-    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && v.emptyDir.sizeLimit == "64Mi"))`,
+    `!${protectedPod} || (object.spec.containers.all(c, (!has(c.envFrom) || c.envFrom.size() == 0) && (!has(c.env) || c.env.all(e, !has(e.valueFrom) && (!has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))))) && object.spec.volumes.size() == 2 && object.spec.volumes.all(v, !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret)))) && object.spec.volumes.exists(v, v.name == "aws-iam-token" && has(v.projected) && v.projected.defaultMode == 292 && v.projected.sources.size() == 1 && has(v.projected.sources[0].serviceAccountToken) && v.projected.sources[0].serviceAccountToken.audience == "sts.amazonaws.com" && v.projected.sources[0].serviceAccountToken.expirationSeconds == 900 && v.projected.sources[0].serviceAccountToken.path == "token") && object.spec.volumes.exists(v, v.name == "tmp" && has(v.emptyDir) && dyn(v.emptyDir).sizeLimit == "64Mi"))`,
+    `!${protectedPod}`,
   ];
 }
 
 function networkPolicyProps(kind: string): Record<string, unknown> {
   const labels = workloadLabels(kind);
+  const clusterDnsEgress = {
+    to: [
+      {
+        namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } },
+        podSelector: { matchLabels: { "k8s-app": "kube-dns" } },
+      },
+    ],
+    ports: [
+      { protocol: "UDP", port: 53 },
+      { protocol: "TCP", port: 53 },
+    ],
+  };
   const dnsEgress = {
     to: [{ ipBlock: { cidr: "10.42.0.2/32" } }],
     ports: [
@@ -363,6 +392,7 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
             to: [{ podSelector: { matchLabels: workloadLabels("broker") } }],
             ports: [{ protocol: "TCP", port: 7443 }],
           },
+          clusterDnsEgress,
           dnsEgress,
         ],
       },
@@ -377,6 +407,7 @@ function networkPolicyProps(kind: string): Record<string, unknown> {
       to: [{ ipBlock: { cidr: "10.42.10.0/28" } }],
       ports: [{ protocol: "TCP", port: 443 }],
     },
+    clusterDnsEgress,
     dnsEgress,
   ];
   return {
@@ -419,6 +450,11 @@ function closedBoundary(): PolicyResource[] {
           cidrs: ["10.42.8.0/24"],
         },
         dnsResolverCidrs: ["10.42.0.2/32"],
+        clusterDns: {
+          namespace: "kube-system",
+          podSelector: { "k8s-app": "kube-dns" },
+          securityGroupId: "sg-cluster-dns",
+        },
         endpointCidrs: ["10.42.10.0/28"],
         endpointSecurityGroupIds: {
           sts: "sg-sts-endpoint",
@@ -750,6 +786,32 @@ function closedBoundary(): PolicyResource[] {
         toPort: 443,
       },
     ),
+    ...identities.flatMap((kind) =>
+      ["tcp", "udp"].flatMap((ipProtocol) => [
+        resource(
+          "aws:vpc/securityGroupEgressRule:SecurityGroupEgressRule",
+          `${kind}-cluster-dns-${ipProtocol}`,
+          {
+            securityGroupId: `orders-${kind}-sg_id`,
+            referencedSecurityGroupId: "sg-cluster-dns",
+            ipProtocol,
+            fromPort: 53,
+            toPort: 53,
+          },
+        ),
+        resource(
+          "aws:vpc/securityGroupIngressRule:SecurityGroupIngressRule",
+          `dns-from-${kind}-${ipProtocol}`,
+          {
+            securityGroupId: "sg-cluster-dns",
+            referencedSecurityGroupId: `orders-${kind}-sg_id`,
+            ipProtocol,
+            fromPort: 53,
+            toPort: 53,
+          },
+        ),
+      ]),
+    ),
     resource("aws:dynamodb/table:Table", "replay", {
       name: "orders-capability-replay",
       arn: "arn:aws:dynamodb:eu-west-2:111122223333:table/orders-capability-replay",
@@ -895,6 +957,24 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     };
     policy.validateStack(stack(resources), (message) => violations.push(message));
   }
+
+  it("rejects an unlabelled standalone Pod using a protected ServiceAccount", async () => {
+    const resources = closedBoundary();
+    resources.push(
+      resource("kubernetes:core/v1:Pod", "external-raw-pod", {
+        metadata: {
+          namespace: "guardian-data",
+          ownerReferences: [{ kind: "ReplicaSet", name: "forged", uid: "forged" }],
+        },
+        spec: {
+          serviceAccountName: "orders-broker",
+          containers: [{ name: "broker", image: imageFor("broker") }],
+        },
+      }),
+    );
+    await evaluate(resources);
+    expect(violations.join("\n")).toMatch(/standalone Pod|inert.*Pod/i);
+  });
 
   it("accepts the live provider shape with server metadata and omitted empty ingress", async () => {
     const resources = closedBoundary();
@@ -1258,6 +1338,65 @@ describe("HulumiBrokeredPostgresBoundaryPack", () => {
     await evaluate(resources);
     expect(violations.join("\n")).toMatch(/DynamoDB.*path|replay.*network/i);
     expect(violations.join("\n")).toMatch(/admission.*exact|environment.*mount/i);
+  });
+
+  it.each([
+    [
+      "policy condition",
+      "orders-envelope",
+      "matchConditions",
+      [{ name: "skip", expression: "false" }],
+    ],
+    [
+      "policy selector",
+      "orders-envelope",
+      "matchConstraints",
+      {
+        resourceRules: [
+          {
+            apiGroups: [""],
+            apiVersions: ["v1"],
+            operations: ["CREATE", "UPDATE"],
+            resources: ["pods", "pods/ephemeralcontainers"],
+          },
+        ],
+        objectSelector: { matchLabels: { bypass: "true" } },
+      },
+    ],
+    ["policy parameters", "orders-envelope", "paramKind", { apiVersion: "v1", kind: "ConfigMap" }],
+    [
+      "binding selector",
+      "orders-envelope-binding",
+      "matchResources",
+      {
+        namespaceSelector: {
+          matchLabels: { "kubernetes.io/metadata.name": "orders", bypass: "true" },
+        },
+      },
+    ],
+    [
+      "binding exclusions",
+      "orders-envelope-binding",
+      "matchResources",
+      {
+        namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "orders" } },
+        excludeResourceRules: [{ resources: ["*"] }],
+      },
+    ],
+    [
+      "binding parameters",
+      "orders-envelope-binding",
+      "paramRef",
+      { name: "missing", parameterNotFoundAction: "Allow" },
+    ],
+  ])("rejects admission bypass through %s", async (_label, target, field, value) => {
+    const resources = closedBoundary();
+    const admission = resources.find((entry) => entry.name === target)!;
+    const props = clone(admission.props as Record<string, unknown>);
+    (props.spec as Record<string, unknown>)[field as string] = value;
+    admission.props = props;
+    await evaluate(resources);
+    expect(violations.join("\n")).toMatch(/admission/i);
   });
 
   it("rejects vacuous admission CEL and loss of ephemeral-container subresource coverage", async () => {

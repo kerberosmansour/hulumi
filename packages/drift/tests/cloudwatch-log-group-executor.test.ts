@@ -1,5 +1,19 @@
-import { DeleteLogGroupCommand, DescribeLogGroupsCommand } from "@aws-sdk/client-cloudwatch-logs";
-import { describe, expect, it } from "vitest";
+import {
+  CloudWatchLogsClient,
+  DeleteLogGroupCommand,
+  DescribeLogGroupsCommand,
+} from "@aws-sdk/client-cloudwatch-logs";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@aws-sdk/client-sts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@aws-sdk/client-sts")>();
+  return {
+    ...actual,
+    STSClient: class {
+      constructor(readonly config: Record<string, unknown>) {}
+    },
+  };
+});
 
 import { CloudWatchLogGroupExecutor } from "../src/adapters/cloudwatch-log-group";
 import { OrphanReconciler, type ReconcilePlanAction } from "../src/reconciler";
@@ -281,5 +295,40 @@ describe("CloudWatchLogGroupExecutor", () => {
 
     expect(result.status).toBe("blocked");
     expect(client.commands).toHaveLength(0);
+  });
+  it("derives default STS region and credentials from the actual logs client", async () => {
+    const credentials = { accessKeyId: "TEST_ACCESS_KEY", secretAccessKey: "test-only" };
+    const logs = new CloudWatchLogsClient({ region: "us-east-1", credentials });
+    const executor = new CloudWatchLogGroupExecutor({
+      client: logs,
+      expectedPrefix: "af-e2e-abc123",
+    });
+    const sts = (
+      executor as unknown as {
+        stsClient: {
+          config: { credentials: () => Promise<typeof credentials>; region: () => Promise<string> };
+        };
+      }
+    ).stsClient;
+    expect(sts.config.credentials).toBe(logs.config.credentials);
+    expect(sts.config.region).toBe(logs.config.region);
+  });
+
+  it("revalidates account identity when credentials rotate between executions", async () => {
+    const logs = new FakeLogsClient();
+    let calls = 0;
+    const sts = {
+      send: async () => ({ Account: ++calls === 1 ? "123456789012" : "999999999999" }),
+    };
+    const executor = new CloudWatchLogGroupExecutor({
+      client: logs as never,
+      stsClient: sts as never,
+      expectedPrefix: "af-e2e-abc123",
+    });
+    expect((await executor.execute(action())).status).toBe("succeeded");
+    expect((await executor.execute(action())).status).toBe("blocked");
+    expect(
+      logs.commands.filter((command) => command instanceof DeleteLogGroupCommand),
+    ).toHaveLength(1);
   });
 });

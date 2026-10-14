@@ -1,5 +1,7 @@
 # @hulumi/platform-patterns
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Cross-provider Pulumi patterns for Cloudflare edge ingress, AWS deployment identity,
 secure Pulumi state backends, GitHub deployment repositories, build provenance, and
 runner governance.

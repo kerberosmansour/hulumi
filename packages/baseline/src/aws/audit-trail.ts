@@ -7,6 +7,18 @@ import { assertValidTier } from "./tier";
 
 export const AUDIT_TRAIL_COMPONENT_TYPE = "hulumi:baseline:aws:AuditTrail";
 
+function assertDataEventBucket(arn: string, archive: string | undefined): void {
+  if (!/^arn:aws(?:-[a-z]+)*:s3:::[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(arn)) {
+    throw new Error(
+      "AuditTrail: dataEventBucketArns must be exact S3 bucket ARNs without wildcards or object prefixes",
+    );
+  }
+  if (arn === archive)
+    throw new Error(
+      "AuditTrail: the archive cannot be its own data-event target because delivery causes recursive logging",
+    );
+}
+
 export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOutputs {
   public readonly trailArn: pulumi.Output<string>;
   public readonly trailName: pulumi.Output<string>;
@@ -33,6 +45,34 @@ export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOu
       );
     }
     const prefix = args.namePrefix ?? name;
+    if (/[?*]/.test(prefix))
+      throw new Error("AuditTrail: namePrefix must not contain service-trust wildcards");
+    const dataBuckets = args.dataEventBucketArns ?? [];
+    if (dataBuckets.length > 250)
+      throw new Error("AuditTrail: at most 250 data-event bucket ARNs are allowed");
+    for (const arn of dataBuckets) {
+      if (typeof arn === "string")
+        assertDataEventBucket(
+          arn,
+          typeof args.archiveBucketArn === "string" ? args.archiveBucketArn : undefined,
+        );
+    }
+    const dataResources =
+      dataBuckets.length === 0
+        ? []
+        : [
+            {
+              type: "AWS::S3::Object",
+              values: pulumi
+                .all([args.archiveBucketArn, pulumi.all([...dataBuckets])])
+                .apply(([archive, buckets]) =>
+                  buckets.map((arn) => {
+                    assertDataEventBucket(arn, archive);
+                    return `${arn}/`;
+                  }),
+                ),
+            },
+          ];
     const baseTags: Record<string, string> = {
       ...(args.tags ?? {}),
       "hulumi:component": "AuditTrail",
@@ -56,16 +96,26 @@ export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOu
       `${name}-cwlogs-role`,
       {
         name: `${prefix}-cwlogs-role`,
-        assumeRolePolicy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Principal: { Service: "cloudtrail.amazonaws.com" },
-              Action: "sts:AssumeRole",
-            },
-          ],
-        }),
+        assumeRolePolicy: pulumi
+          .all([aws.getCallerIdentityOutput({}), aws.getRegionOutput({})])
+          .apply(([identity, region]) =>
+            JSON.stringify({
+              Version: "2012-10-17",
+              Statement: [
+                {
+                  Effect: "Allow",
+                  Principal: { Service: "cloudtrail.amazonaws.com" },
+                  Action: "sts:AssumeRole",
+                  Condition: {
+                    StringEquals: { "aws:SourceAccount": identity.accountId },
+                    ArnEquals: {
+                      "aws:SourceArn": `arn:${identity.arn.split(":")[1]}:cloudtrail:${region.name}:${identity.accountId}:trail/${prefix}-trail`,
+                    },
+                  },
+                },
+              ],
+            }),
+          ),
         tags: baseTags,
       },
       parent,
@@ -106,7 +156,7 @@ export class AuditTrail extends pulumi.ComponentResource implements AuditTrailOu
           {
             readWriteType: "All",
             includeManagementEvents: true,
-            dataResources: [{ type: "AWS::S3::Object", values: [`${args.archiveBucketArn}/`] }],
+            dataResources,
           },
         ],
         tags: baseTags,

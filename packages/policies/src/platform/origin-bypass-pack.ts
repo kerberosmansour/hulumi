@@ -31,7 +31,12 @@ function isCloudflarePublicAppRecord(resource: PolicyResource): boolean {
   if (!isDnsRecordType(resource.type)) return false;
   const props = resource.props as Record<string, unknown>;
   const recordType = typeof props.type === "string" ? props.type.toUpperCase() : "";
-  return ["A", "AAAA", "CNAME"].includes(recordType) && tagsMarkPublicApp(props.tags);
+  const parentTypes = resource.urn.split("::")[2]?.split("$") ?? [];
+  const publicHostnameChild = parentTypes.slice(0, -1).includes("hulumi:cloudflare:PublicHostname");
+  return (
+    ["A", "AAAA", "CNAME"].includes(recordType) &&
+    (tagsMarkPublicApp(props.tags) || publicHostnameChild)
+  );
 }
 
 function pointsAtPublicAwsLoadBalancer(resource: PolicyResource): boolean {

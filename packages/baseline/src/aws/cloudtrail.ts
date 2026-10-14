@@ -90,16 +90,31 @@ export function createCloudTrail(args: CloudTrailHelperArgs): CloudTrailHelperRe
       `${args.namePrefix}-cloudtrail-cwlogs-role`,
       {
         name: `${args.namePrefix}-cloudtrail-cwlogs-role`,
-        assumeRolePolicy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Principal: { Service: "cloudtrail.amazonaws.com" },
-              Action: "sts:AssumeRole",
-            },
-          ],
-        }),
+        assumeRolePolicy: pulumi
+          .all([aws.getCallerIdentityOutput({}), aws.getRegionOutput({})])
+          .apply(([identity, region]) => {
+            if (/[?*]/.test(args.namePrefix))
+              throw new Error("CloudTrail namePrefix must not contain trust-policy wildcards");
+            const partition = identity.arn.split(":")[1];
+            return JSON.stringify({
+              Version: "2012-10-17",
+              Statement: [
+                {
+                  Effect: "Allow",
+                  Principal: { Service: "cloudtrail.amazonaws.com" },
+                  Action: "sts:AssumeRole",
+                  Condition: {
+                    StringEquals: { "aws:SourceAccount": identity.accountId },
+                    // Pulumi appends a physical-name suffix; bind this logical
+                    // trail prefix without referring to trail.arn and creating a cycle.
+                    ArnLike: {
+                      "aws:SourceArn": `arn:${partition}:cloudtrail:${region.name}:${identity.accountId}:trail/${args.namePrefix}-trail*`,
+                    },
+                  },
+                },
+              ],
+            });
+          }),
         tags: args.tags,
       },
       parent,

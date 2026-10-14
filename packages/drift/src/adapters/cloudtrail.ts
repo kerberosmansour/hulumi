@@ -164,7 +164,13 @@ function normalizeRetry(
 ): Required<Pick<CloudTrailRetryOptions, "attempts" | "backoffMs">> &
   Pick<CloudTrailRetryOptions, "maxElapsedMs" | "wait"> {
   if (retry === undefined) return { attempts: 1, backoffMs: 0 };
-  const attempts = Number.isFinite(retry.attempts) ? Math.floor(retry.attempts) : 1;
+  if (
+    retry.attempts !== undefined &&
+    (!Number.isSafeInteger(retry.attempts) || retry.attempts < 1 || retry.attempts > 10)
+  ) {
+    throw new Error("CloudTrail retry.attempts must be an integer between 1 and 10");
+  }
+  const attempts = retry.attempts ?? 1;
   const backoffMs = Number.isFinite(retry.backoffMs) ? Math.max(0, retry.backoffMs) : 0;
   return {
     attempts: Math.max(1, attempts),

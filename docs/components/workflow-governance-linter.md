@@ -43,3 +43,9 @@ node scripts/workflow-governance-lint.mjs \
 The linter reports file and line only. It does not scan source code and does
 not inspect or print secret values. `--check-settings` reports resolver errors
 as findings instead of treating unknown live posture as clean.
+
+### Maintenance hardening
+
+Privileged checkout detection includes PR head SHA, ref and repository name as well as workflow-run head references. Static environment names may contain spaces or dots, and an object-form name may follow another property. With `--check-settings`, dynamic or unsupported environment declarations fail closed. A required-reviewer rule must contain an actual configured reviewer; timers and empty reviewer rules are insufficient. Environment lookup paths are URL-encoded.
+
+The settings check verifies reviewer protection. Deployment-branch restrictions still need a separate live inspection; an environment-form OIDC subject does not encode the source branch. Use exact protected-main deployment rules as described in the sandbox deployment guide.

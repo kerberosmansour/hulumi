@@ -28,11 +28,14 @@ export interface SecureBucketArgs {
    * Object Lock for the Startup-Hardened tier. Omit for the secure
    * default (GOVERNANCE, 30 days); pass a config to tune mode/days; pass
    * `false` to disable Object Lock entirely. `false` is required for AWS
-   * Config / CloudTrail delivery buckets: AWS Config's PutDeliveryChannel
+   * Config delivery buckets: AWS Config's PutDeliveryChannel
    * validation does a write-then-delete that Object Lock default
    * retention blocks, surfacing as InsufficientDeliveryPolicyException.
    */
   objectLock?: SecureBucketObjectLockConfig | false;
+  /** Keep the default S3 data-event store, or explicitly omit it when
+   * Startup-Hardened COMPLIANCE retention supplies immutable storage. */
+  emitDataEventStore?: boolean;
   lifecycleRules?: pulumi.Input<
     pulumi.Input<aws.types.input.s3.BucketLifecycleConfigurationRule>[]
   >;

@@ -23,7 +23,6 @@ export interface ConfigHelperArgs {
 
 export interface ConfigHelperResult {
   recorderRole: aws.iam.Role;
-  recorderRolePolicy: aws.iam.RolePolicy;
   recorderRolePolicyAttachment: aws.iam.RolePolicyAttachment;
   recorder: aws.cfg.Recorder;
   deliveryChannel: aws.cfg.DeliveryChannel;
@@ -70,45 +69,10 @@ export function createConfigService(args: ConfigHelperArgs): ConfigHelperResult 
     parent,
   );
 
-  const recorderRolePolicy = new aws.iam.RolePolicy(
-    `${args.namePrefix}-config-delivery-policy`,
-    {
-      role: recorderRole.id,
-      policy: pulumi.jsonStringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Sid: "ConfigBucketAclAndLocation",
-            Effect: "Allow",
-            Action: ["s3:GetBucketAcl", "s3:ListBucket"],
-            Resource: args.logBucketArn,
-          },
-          {
-            // The delivery bucket is BucketOwnerEnforced (ACLs disabled,
-            // SecureBucket). AWS Config tries this recorder role BEFORE
-            // the service principal, and on an ACL-disabled bucket it
-            // sends no x-amz-acl — so requiring
-            // s3:x-amz-acl=bucket-owner-full-control here makes the role's
-            // PutObject Allow never match and PutDeliveryChannel fails
-            // with InsufficientDeliveryPolicyException. s3:PutObjectAcl is
-            // likewise meaningless when ACLs are disabled. Mirrors the
-            // bucket-policy fix; ownership is enforced at the bucket level.
-            Sid: "ConfigBucketDelivery",
-            Effect: "Allow",
-            Action: "s3:PutObject",
-            Resource: pulumi.interpolate`${args.logBucketArn}/AWSLogs/${accountId}/Config/*`,
-          },
-          {
-            Sid: "ConfigLogBucketKms",
-            Effect: "Allow",
-            Action: ["kms:Decrypt", "kms:GenerateDataKey"],
-            Resource: args.logKmsKeyArn,
-          },
-        ],
-      }),
-    },
-    parent,
-  );
+  // AWS Config retries delivery as config.amazonaws.com when this
+  // recorder role cannot write to S3/KMS. SecureBucket and the log key
+  // already grant that service principal access for this exact account.
+  // Keep the deployment role free of iam:PutRolePolicy/DeleteRolePolicy.
 
   const recorder = new aws.cfg.Recorder(
     `${args.namePrefix}-config-recorder`,
@@ -121,7 +85,7 @@ export function createConfigService(args: ConfigHelperArgs): ConfigHelperResult 
     },
     {
       parent: args.parent,
-      dependsOn: [recorderRolePolicyAttachment, recorderRolePolicy, ...(args.dependsOn ?? [])],
+      dependsOn: [recorderRolePolicyAttachment, ...(args.dependsOn ?? [])],
     },
   );
 
@@ -143,7 +107,6 @@ export function createConfigService(args: ConfigHelperArgs): ConfigHelperResult 
 
   const result: ConfigHelperResult = {
     recorderRole,
-    recorderRolePolicy,
     recorderRolePolicyAttachment,
     recorder,
     deliveryChannel,

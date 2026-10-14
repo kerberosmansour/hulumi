@@ -17,7 +17,7 @@ const SHA_REF = /^[0-9a-f]{40}$/i;
 const USES_LINE = /^\s*-?\s*uses:\s*["']?([^"'\s#]+)["']?/;
 const CHECKOUT_USES = /^\s*-?\s*uses:\s*["']?actions\/checkout@/i;
 const UNTRUSTED_HEAD_REF =
-  /github\.(?:event\.pull_request\.head\.sha|head_ref|event\.workflow_run\.head_sha|event\.workflow_run\.head_branch)/;
+  /github\.(?:event\.pull_request\.head\.(?:sha|ref|repo\.full_name)|head_ref|event\.workflow_run\.head_sha|event\.workflow_run\.head_branch)/;
 
 function parseArgs(argv) {
   const options = {
@@ -350,39 +350,45 @@ function extractJobRunsOnLabels(job, jobsIndent) {
   return [];
 }
 
+function environmentScalar(value) {
+  let name = value.trim();
+  if (name.startsWith('"')) {
+    const match = /^"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/.exec(name);
+    if (!match) return null;
+    try {
+      name = JSON.parse(`"${match[1]}"`);
+    } catch {
+      return null;
+    }
+  } else if (name.startsWith("'")) {
+    const match = /^'((?:[^']|'')*)'\s*(?:#.*)?$/.exec(name);
+    if (!match) return null;
+    name = match[1].replace(/''/g, "'");
+  } else {
+    name = stripYamlComment(name);
+    if (/^[{[&*!>|]/.test(name) || /:\s/.test(name)) return null;
+  }
+  if (name.length === 0 || name.length > 255 || name.includes("${{") || /[\r\n]/.test(name))
+    return null;
+  return name;
+}
+
 function extractJobEnvironmentName(job, jobsIndent) {
-  // Extract the environment NAME from a direct job-level `environment:`
-  // declaration. Returns null if no env is declared (which is the
-  // structural-WF_ENV_1 case the existing rule already catches) or if
-  // the declaration uses a templated `${{ ... }}` value (templated
-  // names don't lock to a specific env, so the settings-state check
-  // cannot meaningfully apply).
-  //
-  // Supports both YAML forms:
-  //   environment: my-env
-  //   environment: "my-env"
-  //   environment:
-  //     name: my-env
   const expected = " ".repeat(jobsIndent + 2);
-  const scalarRe = /^\s+environment:\s+["']?([A-Za-z][A-Za-z0-9_-]*)["']?\s*(?:#.*)?$/;
-  const bareRe = /^\s+environment:\s*(?:#.*)?$/;
-  const nameRe = /^\s+name:\s+["']?([A-Za-z][A-Za-z0-9_-]*)["']?\s*(?:#.*)?$/;
   for (let i = 0; i < job.lines.length; i += 1) {
     const { text } = job.lines[i];
     if (!text.startsWith(`${expected}environment:`)) continue;
-    const scalar = text.match(scalarRe);
-    if (scalar) return scalar[1];
-    if (bareRe.test(text)) {
-      for (let j = i + 1; j < job.lines.length; j += 1) {
-        const sub = job.lines[j].text;
-        if (sub.trim() === "") continue;
-        const m = sub.match(nameRe);
-        if (m) return m[1];
-        // First non-blank that isn't `name:` means we've exited the
-        // env block; give up rather than walking the whole job body.
-        break;
-      }
+    const value = text.slice(`${expected}environment:`.length);
+    if (stripYamlComment(value) !== "") return environmentScalar(value);
+    for (let j = i + 1; j < job.lines.length; j += 1) {
+      const sub = job.lines[j].text;
+      if (sub.trim() === "" || sub.trimStart().startsWith("#")) continue;
+      if (leadingSpaces(sub) <= expected.length) break;
+      if (leadingSpaces(sub) !== expected.length + 2) continue;
+      const match = /^\s+name:\s*(.*)$/.exec(sub);
+      if (match) return environmentScalar(match[1]);
     }
+    return null;
   }
   return null;
 }
@@ -577,7 +583,18 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
     for (const job of extractJobs(lines)) {
       if (!jobIsPrivileged(job)) continue;
       const envName = extractJobEnvironmentName(job, jobsIndent);
-      if (!envName) continue;
+      if (!envName) {
+        if (jobDeclaresEnvironment(job, jobsIndent))
+          diagnostics.push(
+            makeDiagnostic(
+              WF_ENV_2_RULE_ID,
+              file,
+              job.startLine + 1,
+              `privileged job '${job.id}' must declare a statically resolvable environment name for protection verification`,
+            ),
+          );
+        continue;
+      }
       candidates.push({ envName, file, line: job.startLine + 1 });
     }
   }
@@ -628,13 +645,23 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
 }
 
 function environmentHasRequiredReviewers(environment) {
-  if (Array.isArray(environment.reviewers) && environment.reviewers.length > 0) return true;
   const rules = environment.protection_rules;
   if (!Array.isArray(rules)) return false;
-  return rules.some((rule) => {
-    if (rule === null || typeof rule !== "object") return false;
-    return rule.type === "required_reviewers" || rule.type === "required_reviewer";
-  });
+  return rules.some(
+    (rule) =>
+      rule !== null &&
+      typeof rule === "object" &&
+      rule.type === "required_reviewers" &&
+      Array.isArray(rule.reviewers) &&
+      rule.reviewers.some(
+        (entry) =>
+          entry !== null &&
+          typeof entry === "object" &&
+          (entry.type === "User" || entry.type === "Team") &&
+          Number.isSafeInteger(entry.reviewer?.id) &&
+          entry.reviewer.id > 0,
+      ),
+  );
 }
 
 async function resolveSafely(resolver, name) {
@@ -654,7 +681,7 @@ async function productionResolveEnvironment(name) {
     "gh",
     [
       "api",
-      `/repos/{owner}/{repo}/environments/${name}`,
+      `/repos/{owner}/{repo}/environments/${encodeURIComponent(name)}`,
       "-H",
       "Accept: application/vnd.github+json",
     ],

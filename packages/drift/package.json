@@ -1,11 +1,11 @@
 {
   "name": "@hulumi/drift",
-  "version": "2.0.3",
+  "version": "3.0.0",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "description": "Local-first drift classifier and live posture validator — distinguishes provider-API churn from console break-glass from genuine IaC drift, then renders read-only live posture findings as JSON, Markdown, and SARIF. Verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly. Cache schema v2.",
+  "description": "Local-first drift classifier and live posture validator \u2014 distinguishes provider-API churn from console break-glass from genuine IaC drift, then renders read-only live posture findings as JSON, Markdown, and SARIF. Verdict logic mirrors HulumiDrift.tla HardenedVerdict exactly. Cache schema v2.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -39,23 +39,26 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/pulumi": "^3.232.0"
+    "@pulumi/pulumi": "^3.268.0"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudtrail": "3.1146.0",
-    "@aws-sdk/client-cloudwatch-logs": "3.1146.0",
-    "@aws-sdk/client-s3": "3.1146.0",
-    "@aws-sdk/client-sts": "3.1146.0",
-    "@aws-sdk/credential-providers": "3.1146.0",
+    "@aws-sdk/client-cloudtrail": "3.1149.0",
+    "@aws-sdk/client-cloudwatch-logs": "3.1149.0",
+    "@aws-sdk/client-s3": "3.1149.0",
+    "@aws-sdk/client-sts": "3.1149.0",
+    "@aws-sdk/credential-providers": "3.1149.0",
     "p-timeout": "7.0.2",
-    "simple-git": "3.36.0"
+    "simple-git": "4.0.2"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.48.0",
-    "@pulumi/pulumi": "3.267.0",
-    "@types/node": "20.19.42",
-    "memfs": "4.57.6",
+    "@pulumi/aws": "7.50.0",
+    "@pulumi/pulumi": "3.268.0",
+    "@types/node": "24.19.2",
+    "memfs": "4.80.0",
     "typescript": "5.9.3",
-    "vitest": "1.6.1"
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

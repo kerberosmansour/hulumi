@@ -24,6 +24,7 @@ jobs:
   sign-and-publish:
     name: attest tarballs, publish npm packages, create release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       actions: read
       contents: write
@@ -36,9 +37,9 @@ jobs:
           name: ${{ inputs.artifact-name }}
           path: .release-artifacts
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22.14.0
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
       - name: Use npm CLI with trusted publishing OIDC support
@@ -61,11 +62,11 @@ jobs:
           done
 
       - name: Attest provenance for tarballs
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: ".release-artifacts/*.tgz"
 
-      - name: npm publish (atomic — any failure aborts before subsequent publishes)
+      - name: npm publish (sequential — verify partial publication before retry)
         env:
           PACKAGE_LIST: ${{ inputs.package-list }}
         run: |

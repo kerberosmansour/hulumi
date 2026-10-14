@@ -1,5 +1,7 @@
 # Hulumi
 
+Current coordinated release: **3.0.0**. Requires Node.js >=22.12.0. Read the [security changes and migration](./docs/release/v3.0.0-release-notes.md) before upgrading existing stacks.
+
 [![CI](https://github.com/kerberosmansour/hulumi/actions/workflows/ci.yml/badge.svg)](https://github.com/kerberosmansour/hulumi/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)

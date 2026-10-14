@@ -83,4 +83,18 @@ describe("CloudTrailAdapter retry budget", () => {
     expect(attempts).toBe(1);
     expect(result.data).toMatchObject({ retryAttempts: 1, retryDelayMs: 0 });
   });
+  it("rejects absurd retry budgets before making any AWS request", async () => {
+    let attempts = 0;
+    const adapter = new CloudTrailAdapter({
+      retry: { attempts: Number.MAX_SAFE_INTEGER, backoffMs: 0 },
+      lookup: async () => {
+        attempts += 1;
+        if (attempts <= 10) throw new Error("unavailable");
+        return [event];
+      },
+    });
+    const result = await adapter.signal("stack", "arn:aws:s3:::test");
+    expect(result.ok).toBe(false);
+    expect(attempts).toBe(0);
+  });
 });

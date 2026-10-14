@@ -33,12 +33,19 @@ const DECLARATION = resolve(__dirname, "../../declarations/cyclonedx-1.6-capabil
 describe("CycloneDX capability declaration for the brokered PostgreSQL boundary", () => {
   it("uses current package versions and stable component bom-refs", async () => {
     const bom = JSON.parse(await readFile(DECLARATION, "utf8")) as CapabilityBom;
-    expect(bom.metadata.component.version).toBe("2.0.3");
+    const manifest = JSON.parse(
+      await readFile(resolve(__dirname, "../../packages/platform-patterns/package.json"), "utf8"),
+    ) as { version: string };
+    expect(bom.metadata.component.version).toBe(manifest.version);
     const refs = bom.declarations.targets.components.map((component) => component["bom-ref"]);
     expect(refs).toContain("component:@hulumi/platform-patterns");
     expect(refs).toContain("component:@hulumi/policies");
     for (const component of bom.declarations.targets.components) {
-      expect(component.version).toBe("2.0.3");
+      const pkg = component["bom-ref"].replace("component:@hulumi/", "");
+      const targetManifest = JSON.parse(
+        await readFile(resolve(__dirname, `../../packages/${pkg}/package.json`), "utf8"),
+      ) as { version: string };
+      expect(component.version).toBe(targetManifest.version);
     }
   });
 

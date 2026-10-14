@@ -23,7 +23,6 @@ export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
   private readonly client: CloudWatchLogsClient;
   private readonly stsClient: STSClient;
   private readonly expectedPrefix: string;
-  private resolvedAccountId?: string;
 
   constructor(args: CloudWatchLogGroupExecutorArgs) {
     if (args.expectedPrefix.trim().length < 6 || /[*?]/.test(args.expectedPrefix)) {
@@ -32,9 +31,10 @@ export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
     this.client = args.client ?? new CloudWatchLogsClient(args.clientConfig ?? {});
     this.stsClient =
       args.stsClient ??
-      new STSClient(
-        args.clientConfig?.region !== undefined ? { region: args.clientConfig.region } : {},
-      );
+      new STSClient({
+        region: this.client.config.region,
+        credentials: this.client.config.credentials,
+      });
     this.expectedPrefix = args.expectedPrefix;
   }
 
@@ -137,13 +137,11 @@ export class CloudWatchLogGroupExecutor implements ReconcileActionExecutor {
   }
 
   private async resolveAccountId(): Promise<string> {
-    if (this.resolvedAccountId !== undefined) return this.resolvedAccountId;
     const identity = await this.stsClient.send(new GetCallerIdentityCommand({}));
     if (identity.Account === undefined || identity.Account.length === 0) {
       throw new Error("STS GetCallerIdentity returned no account");
     }
-    this.resolvedAccountId = identity.Account;
-    return this.resolvedAccountId;
+    return identity.Account;
   }
 
   private async logGroupExists(logGroupName: string): Promise<boolean> {

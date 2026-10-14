@@ -10,6 +10,9 @@ export interface AuditTrailArgs {
   archiveBucketName: pulumi.Input<string>;
   /** Pre-existing SecureBucket ARN — used in the bucket policy generated for CloudTrail. */
   archiveBucketArn: pulumi.Input<string>;
+  /** Exact S3 bucket ARNs whose object data events are recorded. Defaults
+   * to none; the destination archive is excluded to prevent recursive logs. */
+  dataEventBucketArns?: readonly pulumi.Input<string>[];
   /** Retention for the encrypted CW Logs group. Default 365 days. */
   cloudWatchLogsRetentionDays?: number;
   /** Optional name prefix. Default: the component instance name. */

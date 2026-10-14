@@ -1,5 +1,7 @@
 # `@hulumi/baseline`
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Hardened-by-default Pulumi component resources for AWS and GitHub. Drop-in
 replacements for raw cloud primitives that ship with public-access
 blocks, SSE-KMS, TLS-only policies, CloudTrail multi-region, GuardDuty,

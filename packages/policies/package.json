@@ -1,6 +1,6 @@
 {
   "name": "@hulumi/policies",
-  "version": "2.0.3",
+  "version": "3.0.0",
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -72,16 +72,19 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@pulumi/aws": "^7.27.0",
-    "@pulumi/policy": "^1.20.0",
-    "@pulumi/pulumi": "^3.232.0"
+    "@pulumi/aws": "^7.50.0",
+    "@pulumi/policy": "^1.21.0",
+    "@pulumi/pulumi": "^3.268.0"
   },
   "devDependencies": {
-    "@pulumi/aws": "7.48.0",
+    "@pulumi/aws": "7.50.0",
     "@pulumi/policy": "1.21.0",
-    "@pulumi/pulumi": "3.267.0",
-    "@types/node": "20.19.42",
+    "@pulumi/pulumi": "3.268.0",
+    "@types/node": "24.19.2",
     "typescript": "5.9.3",
-    "vitest": "1.6.1"
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

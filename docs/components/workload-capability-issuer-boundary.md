@@ -97,3 +97,9 @@ or records, tenant/operation authorization, capability claims, KMS signing
 logic, native TLS loading, key rotation, or activation. Pulumi mocks prove
 rendered structure only; they are not live AWS, Kubernetes, TLS, or
 authorization evidence.
+
+### Protected Pod activation
+
+The infrastructure-only admission policy now denies every protected Pod, including standalone Pods and controller-created Pods, while the rendered controllers remain inert. Workload shape checks continue to describe the reviewed envelope; matching that shape does not authorize execution. Labels or owner references supplied by a Pod creator are not activation evidence.
+
+Activation requires a separately reviewed replacement of the deny gate together with the deployment controller changes and completed live gate evidence. Raising replica counts alone cannot activate these components. Keep the protected ServiceAccount and boundary selectors covered by that replacement; validate negative cases against the real Kubernetes API before rollout. The broker policy pack rejects standalone protected-ServiceAccount Pods and validates current cluster-DNS namespace, pod selector, and matching TCP/UDP 53 security-group paths.

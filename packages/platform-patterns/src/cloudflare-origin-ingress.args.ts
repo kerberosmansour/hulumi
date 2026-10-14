@@ -53,5 +53,4 @@ export interface CloudflareOriginIngressAllowlistAopArgs extends OriginIngressCo
 }
 
 export type CloudflareOriginIngressArgs =
-  | CloudflareOriginIngressTunnelArgs
-  | CloudflareOriginIngressAllowlistAopArgs;
+  CloudflareOriginIngressTunnelArgs | CloudflareOriginIngressAllowlistAopArgs;

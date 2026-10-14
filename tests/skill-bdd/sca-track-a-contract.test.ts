@@ -28,19 +28,15 @@ describe("Feature: Track A emergency SCA automation is vendored into Hulumi", ()
     }
   });
 
-  it("keeps Track A identities separated and merge-gated for a solo-maintainer repo", () => {
+  it("keeps scheduled scans read-only and routes patches through reviewed PR CI", () => {
     const emergency = read(".github/workflows/sca-emergency.yml");
-
-    expect(emergency).toContain("actions/create-github-app-token@");
-    expect(emergency).toContain("SCA_REMEDIATOR_APP_ID");
-    expect(emergency).toContain("SCA_MERGER_APP_ID");
-    expect(emergency).toContain("anthropics/claude-code-action@");
-    expect(emergency).toContain("ANTHROPIC_FEDERATION_RULE_ID");
-    expect(emergency).toContain("Signed-off-by: sca-remediator[bot]");
-    expect(emergency).toContain("gh pr merge");
-    expect(emergency).toContain("--squash");
-    expect(emergency).toContain("required reviewer approval is missing");
-    expect(emergency).not.toContain("github_token: ${{ github.token }}");
-    expect(emergency).not.toContain("gh pr merge --auto");
+    expect(emergency).not.toContain("private-key:");
+    expect(emergency).not.toContain("contents: write");
+    expect(emergency).not.toContain("id-token: write");
+    expect(emergency).not.toContain("gh pr checkout");
+    expect(emergency).not.toContain("gh pr merge");
+    expect(emergency).toContain("persist-credentials: false");
+    expect(emergency).toContain('cron: "23 5 * * *"');
+    expect(emergency).toContain("Upload findings for maintainer review");
   });
 });

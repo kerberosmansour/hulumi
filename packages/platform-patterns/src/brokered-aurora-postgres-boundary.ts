@@ -1879,6 +1879,12 @@ export class BrokeredAuroraPostgresBoundary
                 "Protected broker-boundary Pods must use only the exact projected identity token and emptyDir volumes, with no envFrom, secretKeyRef, or Kubernetes Secret source.",
               reason: "Forbidden",
             },
+            {
+              expression: `!${protectedPod}`,
+              message:
+                "Protected Pods remain inert until a separately reviewed activation policy replaces this infrastructure-only gate.",
+              reason: "Forbidden",
+            },
           ],
         },
       },
@@ -1935,8 +1941,9 @@ export class BrokeredAuroraPostgresBoundary
       "external-broker-rollout",
       "external-runtime-rollout",
     ]);
-    this.identityReceipt = pulumi.all([this.roleArns, this.securityGroupIds]).apply(
-      ([roleArns, securityGroupIds]): BrokeredPostgresIdentityReceipt => ({
+    this.identityReceipt = pulumi
+      .all([this.roleArns, this.securityGroupIds])
+      .apply(([roleArns, securityGroupIds]): BrokeredPostgresIdentityReceipt => ({
         boundary: name,
         namespace: args.namespace,
         identities: {
@@ -1967,8 +1974,7 @@ export class BrokeredAuroraPostgresBoundary
           maxTtlSeconds: args.capability.maxTtlSeconds,
         },
         limits: [...INFRASTRUCTURE_LIMITS],
-      }),
-    );
+      }));
 
     this.registerOutputs({
       // Keep the contract structurally serialized: wrapping the whole object in

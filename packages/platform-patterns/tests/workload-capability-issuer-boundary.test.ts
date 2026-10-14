@@ -544,6 +544,21 @@ describe("WorkloadCapabilityIssuerBoundary", () => {
     await createIssuer();
     await settlePulumi();
 
+    const inertPolicy = registrations.find(
+      (entry) =>
+        entry.type === "kubernetes:admissionregistration.k8s.io/v1:ValidatingAdmissionPolicy",
+    );
+    const inertExpressions = (
+      inertPolicy?.inputs.spec as { validations: Array<{ expression: string }> }
+    ).validations.map((validation) => validation.expression);
+    expect(
+      inertExpressions.some(
+        (expression) =>
+          expression.startsWith("!(object.spec.serviceAccountName") &&
+          (expression.match(/\|\|/g) ?? []).length === 1 &&
+          expression.endsWith("))"),
+      ),
+    ).toBe(true);
     const admission = registrations.find(
       (registration) =>
         registration.type ===

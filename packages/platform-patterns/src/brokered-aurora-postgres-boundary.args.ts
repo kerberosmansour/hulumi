@@ -4,11 +4,7 @@ import type { Tier } from "./tier";
 
 export type BrokeredPostgresIdentityKind = "runtime" | "broker" | "migrator" | "rotation";
 export type BrokeredPostgresRolloutPhase =
-  | "infrastructure"
-  | "migrator"
-  | "broker"
-  | "runtime"
-  | "rotation";
+  "infrastructure" | "migrator" | "broker" | "runtime" | "rotation";
 
 export interface BrokeredPostgresIdentityArgs {
   /** Exact Kubernetes ServiceAccount name. Wildcards are rejected. */

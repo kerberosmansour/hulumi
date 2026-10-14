@@ -65,6 +65,36 @@ function controlsFromTags(tags: Record<string, string>): string[] {
     .flatMap(([, value]) => value.split("+").filter((control) => control.length > 0));
 }
 
+describe("SecureBucket — data-event store opt-out requires immutable storage", () => {
+  beforeEach(resetRegistrations);
+  it("rejects disabling both retention and the data-event store", () => {
+    expect(
+      () =>
+        new SecureBucket("missing-retention", {
+          tier: "startup-hardened",
+          logBucketArn: LOG_BUCKET_ARN,
+          awsServiceLogDelivery: { cloudTrail: true },
+          objectLock: false,
+          emitDataEventStore: false,
+        }),
+    ).toThrow(/COMPLIANCE/);
+  });
+  it("permits an opt-out backed by compliance retention", async () => {
+    const bucket = new SecureBucket("compliance-retained", {
+      tier: "startup-hardened",
+      logBucketArn: LOG_BUCKET_ARN,
+      awsServiceLogDelivery: { cloudTrail: true },
+      objectLock: { mode: "compliance", days: 365 },
+      emitDataEventStore: false,
+    });
+    await valueOf(bucket.arn);
+    await settlePulumi();
+    expect(
+      registrations.some((entry) => entry.type === "aws:cloudtrail/eventDataStore:EventDataStore"),
+    ).toBe(false);
+  });
+});
+
 describe("SecureBucket — Sandbox tier emits baseline sub-resources (happy path)", () => {
   beforeEach(resetRegistrations);
 

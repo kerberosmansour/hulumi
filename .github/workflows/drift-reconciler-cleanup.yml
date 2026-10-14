@@ -34,7 +34,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   plan:
+    needs: dependency-admission
     name: reconciler plan
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -164,7 +171,7 @@ jobs:
   execute:
     name: protected reconciler execute
     if: inputs.mode == 'execute'
-    needs: plan
+    needs: [plan, dependency-admission]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: aws-reconciler-execute

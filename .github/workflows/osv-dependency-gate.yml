@@ -1,0 +1,29 @@
+name: OSV dependency gate
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  scan:
+    name: OSV resolved dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan lockfiles before dependencies can execute
+        run: python3 scripts/osv-dependency-gate.py --output osv-dependencies.json
+      - name: Preserve OSV results even on findings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: osv-dependencies-${{ github.workflow }}
+          path: |
+            osv-dependencies.json
+            osv-dependencies.stderr.txt
+            osv-dependencies.receipt.json
+          if-no-files-found: warn
+          retention-days: 14

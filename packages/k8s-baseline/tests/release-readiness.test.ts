@@ -69,23 +69,21 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
       const yml = readRepoFile(".github/workflows/sign-and-publish.yml");
 
       expect(yml).toContain("node-version: 24");
-      expect(yml).toContain("npm install -g npm@11.5.1");
+      expect(yml).toContain("bundle npm >=11.5.1");
+      expect(yml).not.toContain("npm install -g");
     });
 
     it("release workflow generates a CycloneDX SBOM for every publishable package", () => {
       const yml = readRepoFile(".github/workflows/release.yml");
-      // SBOM output filename per package: post-cdxgen-swap, release.yml
-      // writes `.release-artifacts/sbom-${pkg}.cdx.json` inside a loop
-      // that iterates the publishable package set. cdxgen is the
-      // multi-package-manager CycloneDX generator that reads
-      // pnpm-lock.yaml natively (sidesteps the Corepack interception
-      // that broke the previous @cyclonedx/cyclonedx-npm approach).
-      expect(yml).toContain(
-        "for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns",
-      );
-      expect(yml).toMatch(/@cyclonedx\/cdxgen@11\.10\.0/);
-      // The output-file template uses the loop variable.
-      expect(yml).toMatch(/sbom-\$\{pkg\}\.cdx\.json/);
+      expect(yml).toContain("scripts/generate-release-sboms.py");
+      expect(yml).toContain("osv-dependencies.receipt.json");
+      expect(yml).not.toContain("npx --yes");
+      const generator = readRepoFile("scripts/generate-release-sboms.py");
+      for (const pkg of PUBLISHABLE_PACKAGES) {
+        expect(generator).toContain(`"${pkg}"`);
+      }
+      expect(generator).toContain('f"sbom-{name}.cdx.json"');
+      expect(generator).toContain('"specVersion": "1.6"');
     });
   });
 

@@ -161,6 +161,7 @@ def validate_inventory(report, paths):
     if not isinstance(report, dict) or not isinstance(report.get("results"), list):
         raise ValueError("Scanner did not return a valid dependency inventory")
     inventory = {}
+    requested = {str(path): path for path in paths}
     packages = []
     for entry in report["results"]:
         if not isinstance(entry, dict) or not isinstance(entry.get("source"), dict) or not isinstance(entry.get("packages"), list):
@@ -168,11 +169,16 @@ def validate_inventory(report, paths):
         path = entry["source"].get("path")
         if not isinstance(path, str) or not entry["packages"] or path in inventory:
             raise ValueError("Empty, duplicate or malformed lockfile inventory")
+        if path not in requested:
+            raise ValueError("Scanner returned an unrequested source")
+        expected_ecosystem = "crates.io" if requested[path].name == "Cargo.lock" else "PyPI" if requested[path].name == "requirements.txt" else "npm" if requested[path].name in {"pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json"} else None
         for item in entry["packages"]:
             if not isinstance(item, dict) or not isinstance(item.get("package"), dict):
                 raise ValueError("Malformed resolved package")
             if not all(isinstance(item["package"].get(key), str) and item["package"][key] for key in ("name", "version", "ecosystem")):
                 raise ValueError("Resolved package is missing identity")
+            if expected_ecosystem is None or item["package"]["ecosystem"] != expected_ecosystem:
+                raise ValueError("Scanner ecosystem differs from requested lockfile")
             if not isinstance(item.get("vulnerabilities", []), list):
                 raise ValueError("Malformed advisory list")
         inventory[path] = entry["packages"]
@@ -263,7 +269,7 @@ def unaccepted_findings(packages, exceptions):
             if any(advisory.startswith("MAL-") for advisory in ids):
                 found = True
                 continue
-            accepted = any(item.get("_admission_source") == str(ROOT / "Cargo.lock") and entry.get("advisory") in ids and entry["package"] == package["name"] and entry["version"] == package["version"] for entry in exceptions)
+            accepted = any(package["ecosystem"] == "crates.io" and item.get("_admission_source") == str(ROOT / "Cargo.lock") and entry.get("advisory") in ids and entry["package"] == package["name"] and entry["version"] == package["version"] for entry in exceptions)
             if not accepted:
                 found = True
     return found

@@ -31,6 +31,17 @@ class AdmissionTests(unittest.TestCase):
                 self.run_with_report(root, report)
             self.assertFalse((root / "result.receipt.json").exists())
 
+    def test_cargo_scan_cannot_accept_wrong_ecosystem(self):
+        report = {"results": [{"source": {"path": "/repo/Cargo.lock"}, "packages": [{"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}}]}]}
+        with self.assertRaisesRegex(ValueError, "ecosystem"):
+            gate.validate_inventory(report, [Path("/repo/Cargo.lock")])
+
+    def test_wrong_ecosystem_cannot_inherit_root_advisory_exception(self):
+        item = {"_admission_source": "/repo/Cargo.lock", "package": {"name": "rsa", "version": "0.9.10", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-test"}]}
+        exception = {"package": "rsa", "version": "0.9.10", "advisory": "GHSA-test"}
+        with patch.object(gate, "ROOT", Path("/repo")):
+            self.assertTrue(gate.unaccepted_findings([item], [exception]))
+
     def test_modified_binary_cannot_execute(self):
         with tempfile.TemporaryDirectory() as folder:
             binary = Path(folder) / "scanner"
@@ -87,7 +98,7 @@ class AdmissionTests(unittest.TestCase):
     def test_findings_and_network_error_remain_failures(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
-            report = {"results": [{"source": {"path": str(root / "Cargo.lock")}, "packages": [{"package": {"name": "synthetic", "version": "1.0.0", "ecosystem": "npm"}, "vulnerabilities": [{"id": "MAL-TEST-1"}]}]}]}
+            report = {"results": [{"source": {"path": str(root / "Cargo.lock")}, "packages": [{"package": {"name": "synthetic", "version": "1.0.0", "ecosystem": "crates.io"}, "vulnerabilities": [{"id": "MAL-TEST-1"}]}]}]}
             for code in (0, 1, 2):
                 self.assertEqual(self.run_with_report(root, report, code), code or 1)
 
@@ -102,13 +113,13 @@ class AdmissionTests(unittest.TestCase):
 
     def test_one_empty_nested_lock_cannot_hide_behind_populated_root(self):
         paths = [Path("/repo/Cargo.lock"), Path("/repo/tools/package-lock.json")]
-        package = {"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}}
+        package = {"package": {"name": "synthetic", "version": "1", "ecosystem": "crates.io"}}
         report = {"results": [{"source": {"path": str(paths[0])}, "packages": [package]}, {"source": {"path": str(paths[1])}, "packages": []}]}
         with self.assertRaisesRegex(ValueError, "Empty"):
             gate.validate_inventory(report, paths)
 
     def test_alias_of_malware_cannot_use_legitimate_advisory_exception(self):
-        packages = [{"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-test", "aliases": ["MAL-TEST-1"]}]}]
+        packages = [{"package": {"name": "synthetic", "version": "1", "ecosystem": "crates.io"}, "vulnerabilities": [{"id": "GHSA-test", "aliases": ["MAL-TEST-1"]}]}]
         exceptions = [{"package": "synthetic", "version": "1", "advisory": "GHSA-test"}]
         self.assertTrue(gate.unaccepted_findings(packages, exceptions))
 

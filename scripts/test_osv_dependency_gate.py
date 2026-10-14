@@ -42,6 +42,14 @@ class AdmissionTests(unittest.TestCase):
         with patch.object(gate, "ROOT", Path("/repo")):
             self.assertTrue(gate.unaccepted_findings([item], [exception]))
 
+    def test_scanner_findings_exit_without_represented_advisories_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder).resolve()
+            for extra in ({}, {"vulnerabilities": []}):
+                report={"results":[{"source":{"path":str(root/"Cargo.lock")},"packages":[dict({"package":{"name":"synthetic","version":"1.0.0","ecosystem":"crates.io"}},**extra)]}]}
+                with self.assertRaisesRegex(ValueError,"findings exit"):
+                    self.run_with_report(root,report,1)
+
     def test_modified_binary_cannot_execute(self):
         with tempfile.TemporaryDirectory() as folder:
             binary = Path(folder) / "scanner"

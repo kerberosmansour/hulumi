@@ -137,10 +137,9 @@ def main():
         if actual != expected:
             raise ValueError("Scanner inventory does not match every resolved lockfile package")
     exceptions = reviewed_exceptions(packages)
-    findings = unaccepted_findings(packages, exceptions)
     # OSV exits 1 for findings, including narrowly accepted ones. Tool/network
     # errors (>=2) cannot be converted to success by any exception.
-    code = result.returncode if result.returncode not in (0, 1) else (1 if findings else 0)
+    code = scan_exit_status(result.returncode, packages, exceptions)
     if code == 0 and (ROOT / "Cargo.lock").is_file():
         guard = ROOT / "scripts/check-native-dependencies.py"
         if not guard.is_file() or guard.is_symlink():
@@ -156,6 +155,14 @@ def main():
     args.output.with_suffix(".receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(f"OSV {VERSION}: scanned {len(paths)} resolved lockfiles and {package_count} packages; exit {code}; report: {args.output}")
     return code
+
+
+def scan_exit_status(returncode, packages, exceptions):
+    findings = unaccepted_findings(packages, exceptions)
+    if returncode == 1 and not any(item.get("vulnerabilities") for item in packages):
+        raise ValueError("Scanner findings exit lacks represented advisories")
+    return returncode if returncode not in (0, 1) else (1 if findings else 0)
+
 
 def validate_inventory(report, paths):
     if not isinstance(report, dict) or not isinstance(report.get("results"), list):

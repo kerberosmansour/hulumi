@@ -1,5 +1,5 @@
 name: sca-emergency
-# Read-only daily scan; patches use normal reviewed PR CI.
+# One read-only daily OSV scan. Repairs require normal reviewed PRs.
 on:
   schedule:
     - cron: "23 5 * * *"
@@ -13,33 +13,6 @@ jobs:
   scan:
     name: sca-emergency
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-      - name: Install locked SCA tools without lifecycle scripts
-        run: npm ci --ignore-scripts --prefix tools/sca
-      - name: Scan declared dependency scope
-        run: tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scan.ts scan --from-scope true --output findings.osv.json
-      - name: Triage findings
-        run: |
-          mkdir -p .cache/sca-state
-          printf '%s\n' '{"version":1,"revision":0,"findings":{}}' > .cache/sca-state/findings.json
-          tools/sca/node_modules/.bin/tsx tools/sca/src/cli/triage.ts triage --findings findings.osv.json --state .cache/sca-state/findings.json --work-items .cache/sca-work-items.json --events .cache/sca-events.json
-      - name: Upload findings for maintainer review
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: sca-scan-and-triage
-          path: |
-            findings.osv.json
-            .cache/sca-state/findings.json
-            .cache/sca-work-items.json
-            .cache/sca-events.json
-          if-no-files-found: error
-          retention-days: 14
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read

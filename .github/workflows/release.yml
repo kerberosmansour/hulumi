@@ -28,7 +28,14 @@ permissions:
   contents: read
 
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   preflight:
+    needs: dependency-admission
     name: pre-flight (build + test + lint)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -71,7 +78,7 @@ jobs:
 
   build-release-artifacts:
     name: build release artifacts (no OIDC signing)
-    needs: preflight
+    needs: [preflight, dependency-admission]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -88,9 +95,9 @@ jobs:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      - name: Use npm CLI pinned for release tooling
+      - name: Verify bundled npm CLI without installing new packages
         run: |
-          npm install -g npm@11.5.1
+          node -e 'const v = require("node:child_process").execFileSync("npm", ["--version"], {encoding:"utf8"}).trim(); if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(v)) throw new Error("Invalid bundled npm version"); const n = v.split(".").map(Number); if (n[0] < 11 || (n[0] === 11 && (n[1] < 5 || (n[1] === 5 && n[2] < 1)))) throw new Error("The trusted Node runtime must bundle npm >=11.5.1 for OIDC publishing");'
           node --version
           npm --version
       - run: pnpm install --frozen-lockfile
@@ -111,32 +118,14 @@ jobs:
           sha256sum .release-artifacts/*.tgz > .release-artifacts/tarballs-sha256.txt
           cat .release-artifacts/tarballs-sha256.txt
 
-      - name: Generate SBOMs (CycloneDX, via cdxgen)
-        # cdxgen is the multi-package-manager CycloneDX generator. It reads
-        # `pnpm-lock.yaml` natively, so no transient `package-lock.json`
-        # round-trip is needed. The previous fix (`npm install
-        # --package-lock-only`) was intercepted by Corepack — when the
-        # workspace's `package.json#packageManager` is `pnpm@9.12.0`,
-        # Corepack rejects or rewrites direct npm calls, so the lockfile
-        # never got created and `@cyclonedx/cyclonedx-npm` errored with
-        # "No evidence: no package lock file nor `node_modules` dir".
-        # Switching to cdxgen sidesteps the Corepack interaction
-        # entirely.
-        env:
-          # cdxgen reads `pnpm-lock.yaml` from the workspace root and
-          # the package.json from the per-package directory. Run from
-          # the repo root so pnpm-lock.yaml is discoverable.
-          FETCH_LICENSE: "true"
-        run: |
-          set -euo pipefail
-          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
-            npx --yes @cyclonedx/cdxgen@11.10.0 \
-              --type js \
-              --no-recurse \
-              --spec-version 1.5 \
-              --output ".release-artifacts/sbom-${pkg}.cdx.json" \
-              "packages/$pkg"
-          done
+      - name: Download admitted dependency inventory
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: osv-dependencies-${{ github.workflow }}
+          path: .osv-admission
+
+      - name: Generate CycloneDX 1.6 inventories without new tool dependencies
+        run: python3 scripts/generate-release-sboms.py --report .osv-admission/osv-dependencies.json --receipt .osv-admission/osv-dependencies.receipt.json --artifacts .release-artifacts
 
       - name: Verify release-artifact directory before upload (diagnostic)
         # The v1.4.0 release run regressed at this point — upload-artifact

@@ -8,7 +8,14 @@ concurrency:
   group: sca-review-loop-drill
   cancel-in-progress: false
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   review-loop-drill:
+    needs: dependency-admission
     name: review-loop-drill
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

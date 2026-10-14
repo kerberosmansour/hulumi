@@ -42,9 +42,9 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      - name: Use npm CLI with trusted publishing OIDC support
+      - name: Verify bundled npm CLI supports trusted publishing OIDC
         run: |
-          npm install -g npm@11.5.1
+          node -e 'const v = require("node:child_process").execFileSync("npm", ["--version"], {encoding:"utf8"}).trim(); if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(v)) throw new Error("Invalid bundled npm version"); const n = v.split(".").map(Number); if (n[0] < 11 || (n[0] === 11 && (n[1] < 5 || (n[1] === 5 && n[2] < 1)))) throw new Error("The trusted Node runtime must bundle npm >=11.5.1 for OIDC publishing");'
           node --version
           npm --version
 

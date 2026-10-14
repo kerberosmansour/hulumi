@@ -17,7 +17,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   cleanup:
+    needs: dependency-admission
     name: cleanup AccountFoundation e2e stack
     runs-on: ubuntu-latest
     timeout-minutes: 15

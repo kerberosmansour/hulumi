@@ -94,3 +94,10 @@ Pulumi.*.yaml.bak
 # we ignore the Pulumi state directory there.
 packages/baseline/**/.pulumi/
 packages/baseline/tests/integration/.tmp/
+
+# Verified scanner cache and local JSON evidence
+/.cache/osv-dependency-gate/
+
+# Python test bytecode
+__pycache__/
+*.py[cod]

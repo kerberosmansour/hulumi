@@ -12,6 +12,7 @@ import tomllib
 import os
 from pathlib import Path
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -120,7 +121,9 @@ def main():
     command = [str(binary), "scan", "source", "--format=json", "--all-packages", "--all-vulns", "--no-call-analysis=rust", "--no-call-analysis=go", "--config=" + str(config_path)] + ["--lockfile=" + str(path) for path in paths]
     try:
         with args.output.open("wb") as report, args.output.with_suffix(".stderr.txt").open("wb") as diagnostics:
-            result = subprocess.run(command, cwd=ROOT, stdout=report, stderr=diagnostics, timeout=600)
+            # Executable bytes were checksum-verified; tracked paths are separate
+            # --lockfile= argv values; no shell or Rust/Go call analysis is enabled.
+            result = subprocess.run(command, cwd=ROOT, stdout=report, stderr=diagnostics, timeout=600, shell=False)  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
     finally:
         config_path.unlink(missing_ok=True)
     report = json.loads(args.output.read_text(encoding="utf-8"))
@@ -130,7 +133,7 @@ def main():
     package_count = len(packages)
     for path in paths:
         expected = expected_inventory(path)
-        actual = {(item["package"]["name"], item["package"]["version"]) for item in packages if item["_admission_source"] == str(path)}
+        actual = {(re.sub(r"[-_.]+", "-", item["package"]["name"]).lower() if item["package"]["ecosystem"] == "PyPI" else item["package"]["name"], item["package"]["version"]) for item in packages if item["_admission_source"] == str(path)}
         if actual != expected:
             raise ValueError("Scanner inventory does not match every resolved lockfile package")
     exceptions = reviewed_exceptions(packages)
@@ -191,6 +194,16 @@ def expected_inventory(path):
         if not isinstance(data.get("packages"), dict):
             raise ValueError("npm admission requires the resolved packages lock schema")
         return {(item.get("name") or name.split("node_modules/")[-1], item["version"]) for name, item in data["packages"].items() if name and item.get("version") and not item.get("link")}
+    if path.name == "requirements.txt":
+        pairs = set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            match = re.fullmatch(r"([A-Za-z0-9._-]+)==([^\s;]+) --hash=sha256:[0-9a-f]{64}", line)
+            if not match:
+                raise ValueError("Python tool admission requires exact hash-pinned wheels")
+            pairs.add((re.sub(r"[-_.]+", "-", match[1]).lower(), match[2]))
+        return pairs
     if path.name == "pnpm-lock.yaml":
         # Independently count identity keys in pnpm's packages mapping. This
         # intentionally refuses unsupported lock shapes rather than claiming a

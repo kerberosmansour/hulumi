@@ -13,6 +13,24 @@ gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
 class AdmissionTests(unittest.TestCase):
+    def test_python_inventory_normalizes_names_and_rejects_unpinned_inputs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            lock = Path(folder) / "requirements.txt"
+            lock.write_text("Py_JWT==2.15.1 --hash=sha256:" + "a" * 64 + "\n")
+            self.assertEqual(gate.expected_inventory(lock), {("py-jwt", "2.15.1")})
+            for text in ("package>=1\n", "package==1\n", "--extra-index-url https://example.invalid\n"):
+                lock.write_text(text)
+                with self.assertRaisesRegex(ValueError, "hash-pinned"):
+                    gate.expected_inventory(lock)
+
+    def test_clean_rust_scan_requires_native_guard_before_admission(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            report = {"results": [{"source": {"path": str(root / "Cargo.lock")}, "packages": [{"package": {"name": "synthetic", "version": "1.0.0", "ecosystem": "crates.io"}}]}]}
+            with self.assertRaisesRegex(ValueError, "native dependency guard"):
+                self.run_with_report(root, report)
+            self.assertFalse((root / "result.receipt.json").exists())
+
     def test_modified_binary_cannot_execute(self):
         with tempfile.TemporaryDirectory() as folder:
             binary = Path(folder) / "scanner"
@@ -151,7 +169,7 @@ class AdmissionTests(unittest.TestCase):
             blocks = re.split(r"(?m)^  ([A-Za-z0-9_-]+):\s*$", jobs)
             for index in range(1, len(blocks), 2):
                 name, body = blocks[index:index+2]
-                executes = bool(re.search(r"pnpm install|npm ci|cargo (?:build|test|check|clippy|doc|package|run|kani)", body))
+                executes = bool(re.search(r"pnpm install|npm ci|python -m pip install|cargo (?:build|test|check|clippy|doc|package|run|kani)", body))
                 executes |= path.name == "codeql.yml" and "build-mode:" in body
                 if executes:
                     self.assertRegex(body, r"(?m)^    needs:.*dependency-admission", f"{path.name}:{name} executes dependencies without OSV admission")

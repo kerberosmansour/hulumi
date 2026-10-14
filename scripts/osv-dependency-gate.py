@@ -137,10 +137,9 @@ def main():
         if actual != expected:
             raise ValueError("Scanner inventory does not match every resolved lockfile package")
     exceptions = reviewed_exceptions(packages)
-    findings = unaccepted_findings(packages, exceptions)
     # OSV exits 1 for findings, including narrowly accepted ones. Tool/network
     # errors (>=2) cannot be converted to success by any exception.
-    code = result.returncode if result.returncode not in (0, 1) else (1 if findings else 0)
+    code = scan_exit_status(result.returncode, packages, exceptions)
     if code == 0 and (ROOT / "Cargo.lock").is_file():
         guard = ROOT / "scripts/check-native-dependencies.py"
         if not guard.is_file() or guard.is_symlink():
@@ -157,10 +156,19 @@ def main():
     print(f"OSV {VERSION}: scanned {len(paths)} resolved lockfiles and {package_count} packages; exit {code}; report: {args.output}")
     return code
 
+
+def scan_exit_status(returncode, packages, exceptions):
+    findings = unaccepted_findings(packages, exceptions)
+    if returncode == 1 and not any(item.get("vulnerabilities") for item in packages):
+        raise ValueError("Scanner findings exit lacks represented advisories")
+    return returncode if returncode not in (0, 1) else (1 if findings else 0)
+
+
 def validate_inventory(report, paths):
     if not isinstance(report, dict) or not isinstance(report.get("results"), list):
         raise ValueError("Scanner did not return a valid dependency inventory")
     inventory = {}
+    requested = {str(path): path for path in paths}
     packages = []
     for entry in report["results"]:
         if not isinstance(entry, dict) or not isinstance(entry.get("source"), dict) or not isinstance(entry.get("packages"), list):
@@ -168,11 +176,16 @@ def validate_inventory(report, paths):
         path = entry["source"].get("path")
         if not isinstance(path, str) or not entry["packages"] or path in inventory:
             raise ValueError("Empty, duplicate or malformed lockfile inventory")
+        if path not in requested:
+            raise ValueError("Scanner returned an unrequested source")
+        expected_ecosystem = "crates.io" if requested[path].name == "Cargo.lock" else "PyPI" if requested[path].name == "requirements.txt" else "npm" if requested[path].name in {"pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json"} else None
         for item in entry["packages"]:
             if not isinstance(item, dict) or not isinstance(item.get("package"), dict):
                 raise ValueError("Malformed resolved package")
             if not all(isinstance(item["package"].get(key), str) and item["package"][key] for key in ("name", "version", "ecosystem")):
                 raise ValueError("Resolved package is missing identity")
+            if expected_ecosystem is None or item["package"]["ecosystem"] != expected_ecosystem:
+                raise ValueError("Scanner ecosystem differs from requested lockfile")
             if not isinstance(item.get("vulnerabilities", []), list):
                 raise ValueError("Malformed advisory list")
         inventory[path] = entry["packages"]
@@ -263,7 +276,7 @@ def unaccepted_findings(packages, exceptions):
             if any(advisory.startswith("MAL-") for advisory in ids):
                 found = True
                 continue
-            accepted = any(item.get("_admission_source") == str(ROOT / "Cargo.lock") and entry.get("advisory") in ids and entry["package"] == package["name"] and entry["version"] == package["version"] for entry in exceptions)
+            accepted = any(package["ecosystem"] == "crates.io" and item.get("_admission_source") == str(ROOT / "Cargo.lock") and entry.get("advisory") in ids and entry["package"] == package["name"] and entry["version"] == package["version"] for entry in exceptions)
             if not accepted:
                 found = True
     return found

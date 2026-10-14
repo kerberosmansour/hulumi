@@ -81,7 +81,7 @@ Add the baseline package and Pulumi's provider, then use a hardened component in
 pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 ```
 
-(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 1.5.4 continues the caret-compatible Pulumi SDK peer-dependency posture introduced in 1.4.1.)
+(If you already have `@pulumi/aws` or `@pulumi/pulumi` installed at any version in the same major line — `7.x` and `3.x` respectively — you don't need to change them. Hulumi 3.0.0 continues the caret-compatible Pulumi SDK peer-dependency posture introduced in 1.4.1.)
 
 ```ts
 import { SecureBucket } from "@hulumi/baseline/aws";
@@ -133,7 +133,7 @@ pnpm add @hulumi/k8s-baseline @pulumi/kubernetes
 pnpm add @hulumi/cloudflare-baseline @hulumi/platform-patterns @pulumi/cloudflare @pulumi/github
 ```
 
-Hulumi 1.5.4 continues to accept caret-compatible Pulumi SDKs (same major version line) where the package peer ranges permit it. The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
+Hulumi 3.0.0 continues to accept caret-compatible Pulumi SDKs (same major version line) where the package peer ranges permit it. The Pulumi versions Hulumi is **tested against** are listed in each package's `peerDependencies` — that's the floor, not a ceiling. The 72h/24h cooling-off CI gate still applies to bumps Hulumi makes to its own tested floor — see [development.md § Supply-chain conventions](./docs/development.md#supply-chain-conventions).
 
 ### Claude Code skill (`/hulumi-threat-model`)
 
@@ -258,3 +258,19 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 - The [Cloud Security Alliance](https://cloudsecurityalliance.org/) (CCM, AICM, CAIQ), the [Center for Internet Security](https://www.cisecurity.org/) (CIS Benchmarks), [NIST](https://www.nist.gov/) (SP 800-53 r5, SP 800-218A SSDF), and [MITRE](https://atlas.mitre.org/) (ATLAS) for publishing the framework IDs Hulumi cites in components, policy rules, and threat-model outputs.
 - The [SLSA](https://slsa.dev/) project for the Build L3 attestation model `/hulumi-threat-model` consumers verify against every published tarball.
 - The [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack for the runbook + milestone discipline driving the `docs/slo/` layout.
+
+## Dependency admission
+
+Every dependency update must pass a read-only OSV scan of resolved direct and
+transitive dependencies before builds, tests, merges or releases:
+
+```sh
+python3 scripts/osv-dependency-gate.py
+```
+
+The checksum-pinned scanner covers the workspace and nested SCA toolchain locks.
+Presubmit and release jobs wait for one shared scan per workflow; the daily SCA
+workflow also uses this gate. Scanner failures and partial scans fail closed.
+Known malicious-package reports cannot be waived. OSV reports known advisories;
+provenance, integrity and install-script review remain required to address unknown
+malware. [Agent rules](./AGENTS.md) apply to Codex and Claude.

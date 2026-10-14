@@ -7,7 +7,14 @@ permissions:
   contents: read
 
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   dependency-review:
+    needs: dependency-admission
     name: dependency-review
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -25,7 +32,7 @@ jobs:
           cache-dependency-path: tools/sca/package-lock.json
 
       - name: Install SCA brain
-        run: npm ci --prefix tools/sca
+        run: npm ci --ignore-scripts --prefix tools/sca
 
       - name: Portable dependency review
         run: tools/sca/node_modules/.bin/tsx tools/sca/src/cli/dependency-review.ts

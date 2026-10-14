@@ -17,7 +17,6 @@ describe("Feature: Track A emergency SCA automation is vendored into Hulumi", ()
     const workflows = [
       ".github/workflows/sca-scope-drift.yml",
       ".github/workflows/dependency-review.yml",
-      ".github/workflows/sca-emergency.yml",
       ".github/workflows/sca-review-loop-drill.yml",
     ].map(read);
 
@@ -35,8 +34,14 @@ describe("Feature: Track A emergency SCA automation is vendored into Hulumi", ()
     expect(emergency).not.toContain("id-token: write");
     expect(emergency).not.toContain("gh pr checkout");
     expect(emergency).not.toContain("gh pr merge");
-    expect(emergency).toContain("persist-credentials: false");
+    const gate = read(".github/workflows/osv-dependency-gate.yml");
+    expect(emergency).toContain("uses: ./.github/workflows/osv-dependency-gate.yml");
+    expect(gate).toContain("persist-credentials: false");
+    expect(gate).not.toContain("contents: write");
+    expect(gate).toContain("python3 scripts/osv-dependency-gate.py");
+    expect(gate).toContain("if: always()");
+    expect(gate).toContain("osv-dependencies.json");
     expect(emergency).toContain('cron: "23 5 * * *"');
-    expect(emergency).toContain("Upload findings for maintainer review");
+    expect(gate).toContain("Preserve OSV results even on findings");
   });
 });

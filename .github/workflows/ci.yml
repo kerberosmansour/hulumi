@@ -13,11 +13,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-admission:
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
   test:
+    if: always() && !cancelled()
+    needs: dependency-admission
     name: test + typecheck + lint
     timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
+      - name: Fail the existing required check when dependency admission fails
+        if: needs.dependency-admission.result != 'success'
+        run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
@@ -35,6 +46,8 @@ jobs:
       - run: pnpm run lint:license-boundary
       - run: pnpm run lint:workflow-governance
       - run: python3 scripts/check-maintenance-workflows.py
+      - run: python3 -m unittest discover -s scripts -p "test_*.py"
+      - run: pnpm exec vitest run tests/skill-bdd/sca-track-a-contract.test.ts
       - run: pnpm --filter @hulumi/k8s-baseline run test:integration:kind
       - run: pnpm --filter @hulumi/k8s-baseline run test:integration:eks
       - run: pnpm run format:check
@@ -114,12 +127,16 @@ jobs:
           node scripts/cooling-off-diff.mjs /tmp/base-lock.yaml pnpm-lock.yaml
 
   release-artifacts-dry-run:
+    if: always() && !cancelled()
     name: release artifact dry-run (PR, no OIDC)
-    needs: test
+    needs: [test, dependency-admission]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      - name: Fail the existing required check when dependency admission fails
+        if: needs.dependency-admission.result != 'success'
+        run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:

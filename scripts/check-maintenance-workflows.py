@@ -11,7 +11,9 @@ class WorkflowAuthorityTests(unittest.TestCase):
         source = (ROOT / ".github/workflows/sca-emergency.yml").read_text()
         for forbidden in ("gh pr checkout", "gh pr merge", "private-key:", "id-token: write", "contents: write", "persist-credentials: true"):
             self.assertNotIn(forbidden, source)
-        self.assertIn("persist-credentials: false", source)
+        gate = (ROOT / ".github/workflows/osv-dependency-gate.yml").read_text()
+        self.assertIn("persist-credentials: false", gate)
+        self.assertIn("uses: ./.github/workflows/osv-dependency-gate.yml", source)
 
     def test_dependency_updates_require_maintainer_review(self):
         source = (ROOT / ".github/workflows/dependabot-automerge.yml").read_text()
@@ -34,7 +36,7 @@ class WorkflowAuthorityTests(unittest.TestCase):
         source = (ROOT / ".github/workflows/sca-emergency.yml").read_text()
         self.assertNotIn("*/15", source)
         self.assertRegex(source, r'cron: "[0-9]+ [0-9]+ \* \* \*"')
-        self.assertIn("timeout-minutes:", source)
+        self.assertIn("timeout-minutes:", (ROOT / ".github/workflows/osv-dependency-gate.yml").read_text())
 
 if __name__ == "__main__":
     unittest.main()

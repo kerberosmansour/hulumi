@@ -1080,6 +1080,12 @@ export class WorkloadCapabilityIssuerBoundary
                 "Protected issuer Pods may use only the exact projected identity token and bounded emptyDir; Kubernetes Secret sources are forbidden.",
               reason: "Forbidden",
             },
+            {
+              expression: `!${protectedPod}`,
+              message:
+                "Protected Pods remain inert until a separately reviewed activation policy replaces this infrastructure-only gate.",
+              reason: "Forbidden",
+            },
           ],
         },
       },

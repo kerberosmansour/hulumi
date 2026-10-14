@@ -60,8 +60,7 @@ export function trustPolicyTrustsGithubOidc(assumeRolePolicy: unknown): boolean 
   for (const stmt of stmts) {
     if (typeof stmt !== "object" || stmt === null) continue;
     const principal = (stmt as Record<string, unknown>).Principal as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!principal || principal.Federated === undefined) continue;
     if (federatedIsGithubOidc(principal.Federated)) return true;
   }

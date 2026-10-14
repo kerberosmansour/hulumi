@@ -70,6 +70,16 @@ Emits everything in the Sandbox tier PLUS:
 The full tier matrix lives in
 [../tiers.md § AccountFoundation — tier matrix](../tiers.md#accountfoundation--tier-matrix).
 
+## Audit storage and upgrades
+
+Startup-Hardened uses a separate KMS-encrypted CloudTrail archive with Object Lock COMPLIANCE retention for 365 days. AWS Config keeps the existing delivery bucket without default Object Lock retention, as required by [AWS Config](https://docs.aws.amazon.com/config/latest/developerguide/manage-delivery-channel.html). Both buckets send server-access logs to a real private SSE-S3 destination. S3 server-access-log destinations cannot use Object Lock or SSE-KMS; see [AWS logging requirements](https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshooting-server-access-logging.html).
+
+The upgrade creates the archive and access-log destination and changes CloudTrail's destination. Existing records stay in the original bucket; they do not acquire retrospective Object Lock retention. Review `pulumi preview` before deploying. COMPLIANCE-retained object versions cannot be deleted before expiry, including by an account administrator. Hardened component names must use 1–24 lowercase letters, digits, or hyphens so log delivery can be restricted to the component's physical bucket-name prefixes. Hardened audit storage accepts only omitted or literal `false` force-destroy inputs.
+
+The archive omits the additional CloudTrail Lake S3 data-event store because its COMPLIANCE retention already protects the delivered files. The existing delivery bucket retains its seven-day S3 activity store. That activity store is not a retained copy of the CloudTrail log files.
+
+Config delivery uses the existing account-scoped `config.amazonaws.com` grants in the bucket and KMS key policies. AWS documents this [service-principal retry](https://docs.aws.amazon.com/config/latest/developerguide/s3-kms-key-policy.html) when the recorder role lacks delivery access. New deployments need no Config recorder inline policy. An upgrade that removes an existing `*-config-delivery-policy` needs a deployment operator with permission to delete that existing policy once; the restricted weekly role remains unable to write arbitrary inline policies. These changes have mocked resource and policy regression coverage; live AWS deployment must be validated separately.
+
 ## Args
 
 | Arg                             | Type                              | Required?                  | Default                                                                      |
@@ -232,3 +242,5 @@ auth, cost, and teardown contract.
 - **v1.0 (M5)**: SLSA Build L3 attestation on the published
   `@hulumi/baseline` package; SCP template
   [`docs/deployment/scp.json`](../deployment/) pairs with H3→mandatory.
+
+The default S3 data-event selector covers the existing Config/legacy log delivery bucket, while CloudTrail delivers new files to the separate archive. This prevents CloudTrail's writes from recursively producing more archive writes. Archive access is recorded through its server-access logs; enabling additional CloudTrail data-event coverage of the archive requires a separately configured, supported recursive-delivery suppression setting. Management events remain enabled.

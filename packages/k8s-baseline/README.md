@@ -1,5 +1,7 @@
 # `@hulumi/k8s-baseline`
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Hardened-by-default Pulumi component resources for Kubernetes / EKS /
 Istio / RDS / Secrets-Manager. Drop-in replacements for raw Helm releases,
 EKS subnet tagging, Istio installation, and ALB-meshed entrypoints with

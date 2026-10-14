@@ -1,5 +1,7 @@
 # `@hulumi/drift`
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Local-first drift classifier for Pulumi stacks. Distinguishes
 provider-API churn from console break-glass from genuine IaC drift via
 four pluggable adapters whose composition mirrors `HardenedVerdict` in
@@ -194,3 +196,7 @@ const plan = new OrphanReconciler().plan({
 - [docs/components/drift-classifier.md](../../docs/components/drift-classifier.md)
 - [docs/drift-classifier-deployment.md](../../docs/drift-classifier-deployment.md)
 - [docs/integration-testing.md](../../docs/integration-testing.md)
+
+### Executor maintenance bounds
+
+CloudTrail retry `maxAttempts` must be a safe integer from 1 through 10; invalid budgets fail before any AWS call. CloudWatch log-group deletion verifies the identity using the actual Logs client's credential provider and region, and refreshes caller identity for each deletion. Keep the expected account and region explicit.

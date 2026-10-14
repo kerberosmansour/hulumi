@@ -61,8 +61,15 @@ if [ ! -f "${PEM_PATH}" ]; then
   exit 2
 fi
 
-REPOS_JSON_INPUT="${4:-["*"]}"
-PERMISSIONS_JSON_INPUT="${5:-{}}"
+if ! command -v jq >/dev/null 2>&1; then
+  echo "error: jq not on PATH" >&2
+  exit 2
+fi
+
+REPOS_JSON_INPUT="${4:-}"
+PERMISSIONS_JSON_INPUT="${5:-}"
+if [ -z "${REPOS_JSON_INPUT}" ]; then REPOS_JSON_INPUT='["*"]'; fi
+if [ -z "${PERMISSIONS_JSON_INPUT}" ]; then PERMISSIONS_JSON_INPUT='{}'; fi
 
 if ! printf '%s' "${REPOS_JSON_INPUT}" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null; then
   echo "error: REPOS_JSON must be a non-empty JSON array of strings" >&2
@@ -77,18 +84,11 @@ if ! command -v aws >/dev/null 2>&1; then
   exit 2
 fi
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "error: jq not on PATH" >&2
-  exit 2
-fi
 
 scratch="$(mktemp)"
 chmod 600 "${scratch}"
 
 # Build the JSON payload with jq's -Rs to safely JSON-escape the PEM content.
-jq -nRs --arg app_id "${APP_ID}" \
-  '{app_id: $app_id, private_key: input_filename | ., private_key_path: input_filename}' \
-  </dev/null >/dev/null  # prime jq's input so the next call has a clean state
 
 PRIVATE_KEY_JSON=$(jq -Rs '.' < "${PEM_PATH}")
 PAYLOAD=$(jq -n --arg app_id "${APP_ID}" --argjson private_key "${PRIVATE_KEY_JSON}" \

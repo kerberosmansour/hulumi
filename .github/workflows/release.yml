@@ -1,8 +1,8 @@
-# Release — atomic six-package npm publish with isolated SLSA Build L3
+# Release — coordinated six-package npm publish with isolated
 # provenance + SBOM generation + signed GitHub release.
 #
-# Trigger: tag v*.*.* on main. The release is atomic — any step
-# failure aborts before any `npm publish`. There is NO long-lived
+# Trigger: a tested main commit tagged with the matching package version.
+# Publication is sequential; a later failure can leave a partial release. No long-lived
 # NPM_TOKEN; npm trusted publishing via OIDC is the only auth path.
 #
 # Build, pack, and SBOM generation happen without `id-token: write`.
@@ -31,23 +31,40 @@ jobs:
   preflight:
     name: pre-flight (build + test + lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tagged main commit and coordinated versions
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor HEAD origin/main
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const version = process.env.RELEASE_TAG?.replace(/^v/, '');
+          assert.match(version ?? '', /^\d+\.\d+\.\d+$/);
+          for (const pkg of ['baseline', 'policies', 'drift', 'k8s-baseline', 'cloudflare-baseline', 'platform-patterns']) {
+            assert.equal(JSON.parse(readFileSync(`packages/${pkg}/package.json`)).version, version);
+          }
+          NODE
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 9.12.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint:exact-pin-guard
       - run: pnpm -r build
       - run: pnpm -r typecheck
-      - run: pnpm -r test
+      - run: pnpm -r --workspace-concurrency=1 test
       - run: pnpm -r lint
       - run: pnpm run lint:license-boundary
       - run: pnpm run format:check
@@ -56,16 +73,19 @@ jobs:
     name: build release artifacts (no OIDC signing)
     needs: preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 9.12.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22.14.0
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - name: Use npm CLI pinned for release tooling

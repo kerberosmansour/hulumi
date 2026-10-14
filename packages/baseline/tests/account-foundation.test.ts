@@ -86,7 +86,6 @@ const SANDBOX_TYPES = [
   "aws:kms/key:Key",
   "aws:kms/alias:Alias",
   "aws:iam/role:Role",
-  "aws:iam/rolePolicy:RolePolicy",
   "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
   "aws:iam/accountPasswordPolicy:AccountPasswordPolicy",
   "aws:cloudtrail/trail:Trail",
@@ -369,36 +368,11 @@ describe("AccountFoundation — real provider input compatibility", () => {
       "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole",
     );
 
-    const deliveryPolicy = registrations.find((r) => r.type === "aws:iam/rolePolicy:RolePolicy");
-    expect(deliveryPolicy).toBeDefined();
-    const inline = parsePolicy(deliveryPolicy!.inputs.policy);
-    expect(inline.Statement).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Sid: "ConfigBucketAclAndLocation",
-          Action: ["s3:GetBucketAcl", "s3:ListBucket"],
-          Resource: "arn:aws:s3:::af-config-delivery-logs-bucket-mock",
-        }),
-        // Regression: BucketOwnerEnforced ⇒ no ACLs. The recorder role
-        // (tried before the service principal) must not require
-        // s3:x-amz-acl or claim s3:PutObjectAcl, or PutDeliveryChannel
-        // fails with InsufficientDeliveryPolicyException.
-        expect.objectContaining({
-          Sid: "ConfigBucketDelivery",
-          Action: "s3:PutObject",
-          Resource:
-            "arn:aws:s3:::af-config-delivery-logs-bucket-mock/AWSLogs/111122223333/Config/*",
-        }),
-        expect.objectContaining({
-          Sid: "ConfigLogBucketKms",
-          Action: ["kms:Decrypt", "kms:GenerateDataKey"],
-        }),
-      ]),
+    // Delivery uses the account-scoped Config service grants in S3 and KMS,
+    // so the deployment role never needs inline-policy write authority.
+    expect(registrations.filter((entry) => entry.type === "aws:iam/rolePolicy:RolePolicy")).toEqual(
+      [],
     );
-
-    const configDelivery = inline.Statement.find((s) => s.Sid === "ConfigBucketDelivery");
-    expect(JSON.stringify(configDelivery)).not.toContain("x-amz-acl");
-    expect(JSON.stringify(configDelivery)).not.toContain("PutObjectAcl");
 
     const recorder = registrations.find((r) => r.type === "aws:cfg/recorder:Recorder");
     expect(recorder?.inputs.roleArn).not.toBe(IAC_ROLE_ARN);
@@ -406,6 +380,22 @@ describe("AccountFoundation — real provider input compatibility", () => {
     const bucketPolicy = registrations.find((r) => r.type === "aws:s3/bucketPolicy:BucketPolicy");
     expect(bucketPolicy).toBeDefined();
     const bucketPolicyDoc = parsePolicy(bucketPolicy!.inputs.policy);
+    const configDelivery = bucketPolicyDoc.Statement.find(
+      (statement) => statement.Sid === "AWSConfigBucketDelivery",
+    );
+    expect(configDelivery?.Principal).toEqual({ Service: "config.amazonaws.com" });
+    expect(configDelivery?.Condition).toEqual({
+      StringEquals: { "AWS:SourceAccount": "111122223333" },
+    });
+    const logKey = registrations.find(
+      (entry) => entry.type === "aws:kms/key:Key" && entry.name === "af-config-delivery-kms-logs",
+    );
+    const configKms = parsePolicy(logKey!.inputs.policy).Statement.find(
+      (statement) => statement.Sid === "AllowConfigLogDeliveryKms",
+    );
+    expect(configKms?.Principal).toEqual({ Service: "config.amazonaws.com" });
+    expect(configKms?.Action).toEqual(["kms:Decrypt", "kms:GenerateDataKey"]);
+
     expect(bucketPolicyDoc.Statement).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ Sid: "AWSCloudTrailWrite" }),
@@ -588,6 +578,7 @@ describe("AccountFoundation — real-AWS deploy-blocking regression guards", () 
     }>;
     const values = selectors.flatMap((s) => s.dataResources ?? []).flatMap((d) => d.values);
     expect(values.length).toBeGreaterThan(0);
+    expect(values).toEqual(["arn:aws:s3:::af-evsel-logs-bucket-mock/"]);
     for (const v of values) {
       expect(typeof v).toBe("string");
       expect(v.endsWith("/")).toBe(true);
@@ -649,6 +640,13 @@ describe("AccountFoundation — CloudTrail log group output for downstream alarm
           Effect: "Allow",
           Principal: { Service: "cloudtrail.amazonaws.com" },
           Action: "sts:AssumeRole",
+          Condition: {
+            StringEquals: { "aws:SourceAccount": "111122223333" },
+            ArnLike: {
+              "aws:SourceArn":
+                "arn:aws:cloudtrail:us-east-1:111122223333:trail/af-log-output-trail*",
+            },
+          },
         }),
       ]),
     );
@@ -700,6 +698,61 @@ describe("AccountFoundation — audit-delivery bucket tamper-resistance invarian
     expect(eds!.inputs.retentionPeriod).toBe(7);
   });
 
+  it("separates immutable CloudTrail storage from Config delivery and real server-access logs", async () => {
+    const af = new AccountFoundation("af-immutable", {
+      tier: "startup-hardened",
+      iacRoleArn: IAC_ROLE_ARN,
+    });
+    await valueOf(af.cloudTrailArn);
+    await settlePulumi();
+    const archive = registrations.find(
+      (entry) =>
+        entry.type === "aws:s3/bucket:Bucket" &&
+        entry.name === "af-immutable-cloudtrail-archive-bucket",
+    );
+    const delivery = registrations.find(
+      (entry) => entry.type === "aws:s3/bucket:Bucket" && entry.name === "af-immutable-logs-bucket",
+    );
+    const accessLogs = registrations.find(
+      (entry) =>
+        entry.type === "aws:s3/bucket:Bucket" && entry.name === "af-immutable-logs-self-logging",
+    );
+    expect(archive?.inputs.objectLockEnabled).toBe(true);
+    expect(delivery?.inputs.objectLockEnabled).toBeUndefined();
+    expect(accessLogs).toBeDefined();
+    const retention = registrations.find(
+      (entry) =>
+        entry.type === "aws:s3/bucketObjectLockConfiguration:BucketObjectLockConfiguration" &&
+        entry.inputs.bucket === "af-immutable-cloudtrail-archive-bucket_id",
+    );
+    expect(retention?.inputs.rule).toEqual({ defaultRetention: { mode: "COMPLIANCE", days: 365 } });
+    const trail = registrations.find((entry) => entry.type === "aws:cloudtrail/trail:Trail");
+    const config = registrations.find(
+      (entry) => entry.type === "aws:cfg/deliveryChannel:DeliveryChannel",
+    );
+    expect(trail?.inputs.s3BucketName).toBe("af-immutable-cloudtrail-archive-bucket_id");
+    expect(config?.inputs.s3BucketName).toBe("af-immutable-logs-bucket_id");
+    const logTargets = registrations
+      .filter((entry) => entry.type === "aws:s3/bucketLogging:BucketLogging")
+      .map((entry) => entry.inputs.targetBucket);
+    expect(logTargets).toEqual([
+      "af-immutable-logs-self-logging_id",
+      "af-immutable-logs-self-logging_id",
+    ]);
+    expect(
+      registrations.filter(
+        (entry) => entry.type === "aws:cloudtrail/eventDataStore:EventDataStore",
+      ),
+    ).toHaveLength(1);
+    const encryption = registrations.find(
+      (entry) =>
+        entry.type ===
+          "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration" &&
+        entry.inputs.bucket === "af-immutable-logs-self-logging_id",
+    );
+    expect(JSON.stringify(encryption?.inputs)).toContain("AES256");
+  });
+
   it("startup-hardened internal log bucket carries the deny-audit-tampering invariant, sparing the Config writability-check key", async () => {
     const af = new AccountFoundation("af-hardened-deny", {
       tier: "startup-hardened",
@@ -709,7 +762,11 @@ describe("AccountFoundation — audit-delivery bucket tamper-resistance invarian
     await valueOf(af.cloudTrailArn);
     await settlePulumi();
 
-    const bucketPolicy = registrations.find((r) => r.type === "aws:s3/bucketPolicy:BucketPolicy");
+    const bucketPolicy = registrations.find(
+      (r) =>
+        r.type === "aws:s3/bucketPolicy:BucketPolicy" &&
+        r.name === "af-hardened-deny-logs-tls-only-policy",
+    );
     expect(bucketPolicy).toBeDefined();
     const doc = parsePolicy(bucketPolicy!.inputs.policy);
     const deny = doc.Statement.find((s) => s.Sid === "DenyAuditLogTampering");
@@ -738,6 +795,17 @@ describe("AccountFoundation — audit-delivery bucket tamper-resistance invarian
           logBucketForceDestroy: true,
         }),
     ).toThrowError(/audit.*forceDestroy.*docs\/tiers\.md/i);
+  });
+
+  it("rejects unresolved force-destroy inputs before creating hardened children", () => {
+    expect(
+      () =>
+        new AccountFoundation("af-output-fd", {
+          tier: "startup-hardened",
+          iacRoleArn: IAC_ROLE_ARN,
+          logBucketForceDestroy: pulumi.output(true),
+        }),
+    ).toThrow(/audit.*forceDestroy/i);
   });
 
   it("sandbox AccountFoundation still honors logBucketForceDestroy=true (ephemeral e2e cleanup)", async () => {
@@ -844,5 +912,20 @@ describe("AccountFoundation — tags emitted on every taggable sub-resource", ()
       const controls = controlsFromTags(tags);
       expect(controls.length).toBeGreaterThanOrEqual(5);
     }
+  });
+});
+
+describe("AccountFoundation log-policy name bounds", () => {
+  it("rejects a logical prefix that cannot preserve the archive prefix and autonaming suffix", () => {
+    expect(
+      () =>
+        new AccountFoundation("a".repeat(25), {
+          tier: "startup-hardened",
+          iacRoleArn: IAC_ROLE_ARN,
+        }),
+    ).toThrow(/1–24/);
+    expect(("a".repeat(24) + "-cloudtrail-archive-bucket" + "-1234567").length).toBeLessThanOrEqual(
+      63,
+    );
   });
 });

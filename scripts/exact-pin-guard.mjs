@@ -4,11 +4,10 @@
 // M5's cooling-off policy forbids bumping @pulumi/aws within 72h of upstream
 // release; M2 seeds that discipline by hard-pinning exact versions in manifests
 // and integrity hashes in pnpm-lock.yaml for the protected dependency set below.
-// The ALLOWED table is the protected-name set. Default mode derives the current
-// expected version from exact package manifests and the current integrity from
-// pnpm-lock.yaml, so Dependabot Track B can update routine pins without a
-// second CI-triggering commit. `--write` refreshes the table for human-readable
-// audit diffs, but CI does not require it.
+// The ALLOWED table is the independently reviewed version/integrity baseline.
+// CI compares manifests and lockfile bytes to this committed table. Dependency
+// updates must refresh it explicitly with --write after registry verification;
+// deriving the expected hash from the candidate lockfile is not a trust check.
 //
 // Scope: runs on the committed pnpm-lock.yaml. Exit 0 if every allow-listed
 // dep's resolution integrity matches; exit 1 on any mismatch.
@@ -25,21 +24,21 @@ const LOCKFILE = join(REPO_ROOT, "pnpm-lock.yaml");
 const ALLOWED = [
   {
     name: "@pulumi/pulumi",
-    version: "3.232.0",
+    version: "3.268.0",
     integrity:
-      "sha512-5Pl48cCwOOZEvG7b6w6sErrD1D/QiEwiPqEtHCIzF/alU0yzFjo95uxNteKFlt0LsnzWsZ58DJHgBe9gurjIFg==",
+      "sha512-VtTIr44eC78BX4cAeh2MEqJqVFu5/UfrmsxjLdH73YIPr5igPEo9JB4g5yqncTHcXNxbkxJXndMOEm1CkpJA5Q==",
   },
   {
     name: "@pulumi/aws",
-    version: "7.27.0",
+    version: "7.50.0",
     integrity:
-      "sha512-I3zArWb8F8QVfcWhBBW8h4dB1Omb823G3H2Ej66t0PFyfUHC7t79MDlG0UvoaZqrmXkDG7nFVFB4xdQTZ62R6w==",
+      "sha512-YqnrUfFd5c3mFE8cZeGq5dFM8puX6c+IPBjxUD7ByZUJ1De7z6n4rL3moevkqU8IA4Tn89cEa2H+jUcZ2DzH0w==",
   },
   {
     name: "@pulumi/policy",
-    version: "1.20.0",
+    version: "1.21.0",
     integrity:
-      "sha512-XglLDdJg1CfxuZ0Lvxzm9mo5YInwwwkVWE6z6tjWCCj1c96eNzaQRoVF4+P9ToQ3fSTk+G00iZdgXY9hpg9Qgw==",
+      "sha512-tLczMS7S2UUpc1qO9xvGY54GumUShTNxm/BY/T1fb0Hp/ILScxXzrmLpkbt4KUGZAcX/EdGLVuMGHyhreqbfvg==",
   },
   // Added in Hulumi v1.1.0 M1 (Hulumi-for-GitHub runbook, 2026-04-26).
   // Mandatory baseline for SecureRepository (M1) + OrgFoundation (M2) + the
@@ -47,26 +46,26 @@ const ALLOWED = [
   // gate the same way @pulumi/aws bumps do.
   {
     name: "@pulumi/github",
-    version: "6.13.1",
+    version: "6.15.0",
     integrity:
-      "sha512-dvQtwXvhIqx7HHTe0+PzLooyboiNapDHOnxEbGd0jY6boFFuFJpT5LKapK25cjsc6s4qKduvLo2HZdo9UtH05g==",
+      "sha512-U8ZxPQQcOrcTn8y8EZsWmXzMtbw0JnwWCVGmqxBZ/i2SpUlEGMYT9B+EFC/qTALZXkDf7cMiq6fZ3Gy1G23nyQ==",
   },
   // Added in Hulumi edge-platform M1. Mandatory baseline for
   // @hulumi/cloudflare-baseline ZoneFoundation and PublicHostname resources.
   {
     name: "@pulumi/cloudflare",
-    version: "6.15.0",
+    version: "6.22.0",
     integrity:
-      "sha512-I2C1UA//YbkuGUV5O9skIMUu94StNSE4hiAU57GFtyL7WEqAMJLvV8Vpcu1192rI1/ZwFIJeR4MbAZfiYlPFqA==",
+      "sha512-ljJpS3vhIaTNzTvoNURkUfXnzDlBS0gx2nxvg84JmH6kuYoCmsLiQ1afOdhXly4+G/JIgYqjdxo2QNliVUWYDw==",
   },
   // Added in Hulumi v1.2.0 M1 (Hulumi-for-K8s runbook). Mandatory baseline for
   // HardenedHelmRelease (M1) + IstioFoundation (M2) + every K8s-side component.
   // Bumps subject to the same cooling-off gate as the rest.
   {
     name: "@pulumi/kubernetes",
-    version: "4.30.0",
+    version: "4.34.2",
     integrity:
-      "sha512-ZCS4HwBvcxfdPDw44L1/SCqoIttCVugx/FZzqRFRq+leKRIfigAYt4sILXlqulNtX6XjlWVzZO8zva3Ygk7hGA==",
+      "sha512-OcIe8OUwivkEngmjinrmke54INbJ0L6u/CWm8mLh6F7pmIDXyHGTM8PzcZsg5QbSm24HnNUHLl2tEUoOBxDo3w==",
   },
   // Added in Hulumi v1.2.0 M4 (Hulumi-for-K8s runbook). Runtime dep of
   // KubernetesSecretFromAwsSecretsManager + RdsCredentialSecret. Treated as a
@@ -74,9 +73,9 @@ const ALLOWED = [
   // integrity hash is part of the supply-chain story for the K8s package.
   {
     name: "@aws-sdk/client-secrets-manager",
-    version: "3.1047.0",
+    version: "3.1149.0",
     integrity:
-      "sha512-jKwVKPssSxB8DbMfZ4lUW5Q6fyeJnjvz76GBsb1fUTWcRxGukzkXd5Di5oTUQnYv+BUen97+ZjTz/Azi6hUmzQ==",
+      "sha512-HzMpERTdEuAoKn042iwbkSs4hqW4u3ryLd5LLU/QDcgKZl4hIfZk2hQRrrcQ/P4isWfMDAi+LV/W2JZidiyB5w==",
   },
   // Added in runbook hulumi-pre-public-launch M4 (issue #27). Runtime deps of
   // @hulumi/drift — published to npm alongside @pulumi/* + @hulumi/k8s-baseline,
@@ -85,39 +84,39 @@ const ALLOWED = [
   // tampered bytes will fail this guard at CI.
   {
     name: "@aws-sdk/client-cloudtrail",
-    version: "3.1045.0",
+    version: "3.1149.0",
     integrity:
-      "sha512-FERHosVdC9SD/J9UTNtItGyhnXdMNHrvqkWxCuvHteWLSPWz9GrHNiuVnZ+dBD3yaM49isk6/TNIZlTSdZqJ1w==",
+      "sha512-loUAEGtLNxIBFnEGrITM5QrUsEPf54mQ3BSfxl0XUcqg/vtBU7Je3dgL70b6e/Pb+IPQrBATYeptXIDLxdQctA==",
   },
   {
     name: "@aws-sdk/client-cloudwatch-logs",
-    version: "3.1047.0",
+    version: "3.1149.0",
     integrity:
-      "sha512-e64h4CDfpwvm/vDX7v87Rvo805cO3MDx+icTiwX0R6riXcYAUuj5JKIYOf35O4qFUhYiE+hEuUEWbFFHfJ5OVw==",
+      "sha512-14jbCV0VgGisTQWr7jgtYrJRMTm8i/MiNF90yTuva+LHRbpUcKrlcDESxeLdMqW+4+fHjZXnnqmR40/+02vXbA==",
   },
   {
     name: "@aws-sdk/client-sts",
-    version: "3.1045.0",
+    version: "3.1149.0",
     integrity:
-      "sha512-oDJJ7rM1osvfBdfZuhQ5DM6lHD9iuypL9m2LsEiA/lB8xuE5uPYsftNDcS0J9VRXFSvYTqC14K7Y5vMMKMg0vw==",
+      "sha512-0In5ROb7LuUKsixQIe5YeKrHTScOxpmDhSUBRgZY+wgsd2OotS6IwJfPHhT8IqeNoZtW/qPpX13xUX7YfoUJDA==",
   },
   {
     name: "@aws-sdk/credential-providers",
-    version: "3.1045.0",
+    version: "3.1149.0",
     integrity:
-      "sha512-J+it58HUGyMIAquB6pWtvmO4m0E/gQ/Tz9Xcoogk3Rety13likU5U8HioeIgE+aN1DDOAB//MARoIdLZS1Mpfw==",
+      "sha512-OiABL+ZjZJ9yBjyCG07wKzN81axkVokZOpS+VZeDZx8AiYPgqu1MNDbmtX0c4z+SYxcSOtrxH6rU+Lwqz2Sjaw==",
   },
   {
     name: "p-timeout",
-    version: "7.0.1",
+    version: "7.0.2",
     integrity:
-      "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==",
+      "sha512-prbX4Z3YszrFNgH+MW5Zoeq3baXrMtP/MQnFeET90UB/GtGcGDQ5Usg9OCy6ETjTTntOw1SL2z9fMPUppN3Guw==",
   },
   {
     name: "simple-git",
-    version: "3.36.0",
+    version: "4.0.2",
     integrity:
-      "sha512-cGQjLjK8bxJw4QuYT7gxHw3/IouVESbhahSsHrX97MzCL1gu2u7oy38W6L2ZIGECEfIBG4BabsWDPjBxJENv9Q==",
+      "sha512-l0sIsv9VrPwovKELFDBOj/lhmIcbMvxBk2B+hRhsMM4/VL3gKtuZvYnBNixVo+N/0HnqQx2cBdLvxnAbygHpqA==",
   },
 ];
 
@@ -242,6 +241,14 @@ function main() {
   let refreshed = [];
   try {
     refreshed = refreshedAllowedFromManifests(lock);
+    for (const actual of refreshed) {
+      const expected = ALLOWED.find((entry) => entry.name === actual.name);
+      if (actual.version !== expected.version || actual.integrity !== expected.integrity) {
+        failures.push(
+          `${actual.name}: candidate version/integrity differs from reviewed pin; verify the upstream release before explicitly refreshing ALLOWED`,
+        );
+      }
+    }
   } catch (err) {
     failures.push(err instanceof Error ? err.message : String(err));
   }

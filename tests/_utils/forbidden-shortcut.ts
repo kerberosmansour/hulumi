@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, normalize, relative, sep } from "node:path";
 
 import { expect } from "vitest";
+import * as ts from "typescript";
 
 export interface ForbiddenShortcutPattern {
   label: string;
@@ -16,7 +17,25 @@ export interface ForbiddenShortcutScanOptions {
 }
 
 export function stripSourceComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const file = ts.createSourceFile("scan.ts", source, ts.ScriptTarget.Latest, true);
+  const ranges = new Map<number, number>();
+  const visit = (node: ts.Node): void => {
+    for (const range of [
+      ...(ts.getLeadingCommentRanges(source, node.getFullStart()) ?? []),
+      ...(ts.getTrailingCommentRanges(source, node.end) ?? []),
+    ])
+      ranges.set(range.pos, range.end);
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  let stripped = source;
+  for (const [start, end] of [...ranges].sort((a, b) => b[0] - a[0])) {
+    stripped =
+      stripped.slice(0, start) +
+      source.slice(start, end).replace(/[^\r\n]/g, " ") +
+      stripped.slice(end);
+  }
+  return stripped;
 }
 
 function* walkTypeScriptFiles(

@@ -25,6 +25,42 @@ function logGroups() {
 }
 
 describe("AuditTrail — happy paths", () => {
+  test("does not recursively log its own archive and binds service trust", async () => {
+    new AuditTrail("audit-nonrecursive", baseArgs);
+    await settlePulumi();
+    expect(trails()[0].inputs.eventSelectors).toEqual([
+      { readWriteType: "All", includeManagementEvents: true, dataResources: [] },
+    ]);
+    const role = registrations.find((entry) => entry.type === "aws:iam/role:Role")!;
+    expect(JSON.parse(role.inputs.assumeRolePolicy as string).Statement[0].Condition).toEqual({
+      StringEquals: { "aws:SourceAccount": "111122223333" },
+      ArnEquals: {
+        "aws:SourceArn": "arn:aws:cloudtrail:us-east-1:111122223333:trail/audit-nonrecursive-trail",
+      },
+    });
+  });
+  test("allows exact application data buckets and rejects the archive", async () => {
+    new AuditTrail("audit-data", {
+      ...baseArgs,
+      dataEventBucketArns: ["arn:aws:s3:::application-data"],
+    });
+    await settlePulumi();
+    expect(trails()[0].inputs.eventSelectors).toEqual([
+      {
+        readWriteType: "All",
+        includeManagementEvents: true,
+        dataResources: [{ type: "AWS::S3::Object", values: ["arn:aws:s3:::application-data/"] }],
+      },
+    ]);
+    expect(
+      () =>
+        new AuditTrail("audit-cycle", {
+          ...baseArgs,
+          dataEventBucketArns: [baseArgs.archiveBucketArn],
+        }),
+    ).toThrow(/archive|recursive/i);
+  });
+
   test("emits multi-region trail with log-file validation, KMS-encrypted CW Logs, and CT-to-CWL role", async () => {
     const c = new AuditTrail("audit", baseArgs);
     await settlePulumi();

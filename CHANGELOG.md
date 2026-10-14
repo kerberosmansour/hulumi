@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [3.0.0] — 2026-10-14
+
+### Security and migration
+
+- Startup-Hardened AccountFoundation writes CloudTrail to a new KMS-encrypted, 365-day COMPLIANCE Object Lock archive. Existing Config/log buckets and records remain; historical records do not gain retroactive retention. The new SSE-S3 access-log destination is compatible with S3 server logging. Hardened audit resources reject forceDestroy. AccountFoundation names are now 1–24 lowercase letters, digits or hyphens.
+- AuditTrail defaults to management events only. Opt into data events with exact, non-destination `dataEventBucketArns`. AccountFoundation monitors the distinct Config bucket, avoiding recursive CloudTrail delivery. Existing stacks require preview and migration review; no cloud deployment was performed for this release.
+- CloudTrail CloudWatch roles bind service trust to the account and trail ARN. Config delivery uses scoped S3/KMS service grants instead of an inline recorder policy; removing an existing inline policy can require one-time iam:DeleteRolePolicy permission.
+- Protected issuer and broker Pods are denied while components are inert, including forged labels/owner references. Activation requires separately reviewed admission-policy and controller changes. DNS/security-group and generated CEL policy checks now match the current components.
+- GitHub OIDC trust requires an exact nonempty subject. Workflow governance detects additional PR-head injection forms and fails on dynamic environment configuration. Drift deletion uses the Logs client's credentials and region; CloudTrail retries accept only 1–10 attempts.
+- Security-source scanning preserves literals before removing comments. GitHub App secret defaults produce valid bounded JSON. Kubernetes tests no longer globally ignore unhandled errors.
+
+### Dependencies and CI
+
+- Refresh reviewed SDK/tooling and lockfile dependencies, retain exact development pins and validate independent committed integrity records. Public SDK peers use compatible caret ranges from tested versions. Node.js 22.12 or later is required; CI uses Node.js 24.
+- Daily read-only SCA and a manual offline fixture drill replace privileged auto-remediation/merge loops. Dependency changes require maintainer review. CI builds/tests each workspace once and retains required check names. Release build and signing authority remain separated.
+- Six packages share 3.0.0. Registry publication is sequential: a later failure may leave a partial release, so verify each published version before retrying.
+
 ## [2.0.3] — 2026-08-03
 
 Atomic six-package publish:

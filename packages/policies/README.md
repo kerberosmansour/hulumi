@@ -1,5 +1,7 @@
 # `@hulumi/policies`
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Pulumi CrossGuard policy packs that catch the things the
 [`@hulumi/baseline`](https://github.com/kerberosmansour/hulumi/tree/main/packages/baseline)
 components can't — e.g. a PR that bypasses `SecureBucket` and reaches for

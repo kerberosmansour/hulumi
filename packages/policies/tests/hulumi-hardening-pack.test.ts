@@ -213,6 +213,51 @@ describe("HulumiHardeningPack primitive backstops", () => {
     expect(violations[0]).toContain("PRIM-1");
   });
 
+  it.each([
+    {},
+    { StringEquals: { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" } },
+    { StringEquals: { "token.actions.githubusercontent.com:sub": [] } },
+    { StringEquals: { "token.actions.githubusercontent.com:sub": "" } },
+    {
+      StringEqualsIfExists: {
+        "token.actions.githubusercontent.com:sub": "repo:org/repo:ref:refs/heads/main",
+      },
+    },
+    {
+      "ForAllValues:StringEquals": {
+        "token.actions.githubusercontent.com:sub": "repo:org/repo:ref:refs/heads/main",
+      },
+    },
+  ])("rejects missing or optional subject restrictions: %j", (Condition) => {
+    const args = makeResourceArgs({
+      type: "aws:iam/role:Role",
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::deploy",
+      name: "deploy",
+      props: {
+        assumeRolePolicy: JSON.stringify({
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: {
+                Federated:
+                  "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              },
+              Action: "sts:AssumeRoleWithWebIdentity",
+              Condition,
+            },
+          ],
+        }),
+      },
+    });
+    (
+      primitive1GithubOidcNoWildcard.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
   it("does not treat spoofed GitHub OIDC host substrings as GitHub OIDC trust", () => {
     for (const federated of [
       "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com.evil.com",

@@ -29,9 +29,7 @@ const webhookSecret = cfg.requireSecret("hulumi-github-webhook-secret");
 
 const provider = new github.Provider("github-iac", {
   owner: "your-org",
-  appAuth: {
-    /* GitHub App auth here */
-  },
+  appAuth: {/* GitHub App auth here */},
 });
 
 const foundation = new OrgFoundation("acme-org", {
@@ -120,9 +118,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
 Pulumi program (`SecureRepository`-flavored):
 
 ```typescript
-const fn = new aws.lambda.Function("drift-receiver", {
-  /* ... */
-});
+const fn = new aws.lambda.Function("drift-receiver", {/* ... */});
 const api = new aws.apigatewayv2.Api("drift-api", { protocolType: "HTTP" });
 new aws.apigatewayv2.Integration(/* fn → api */);
 ```

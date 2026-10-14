@@ -68,6 +68,94 @@ function assertValidKmsDenyWithoutTagMode(mode: unknown): asserts mode is KmsDen
   }
 }
 
+function createAccessLogDestination(
+  name: string,
+  parent: pulumi.Resource,
+): {
+  bucket: aws.s3.Bucket;
+  dependencies: pulumi.Resource[];
+} {
+  const opts = { parent };
+  const bucket = new aws.s3.Bucket(
+    `${name}-logs-self-logging`,
+    {
+      forceDestroy: false,
+      tags: {
+        "hulumi:component": "AccountFoundationAccessLogs",
+        "hulumi:purpose": "server-access-logs",
+      },
+    },
+    opts,
+  );
+  const publicAccess = new aws.s3.BucketPublicAccessBlock(
+    `${name}-access-logs-public-access`,
+    {
+      bucket: bucket.id,
+      blockPublicAcls: true,
+      blockPublicPolicy: true,
+      ignorePublicAcls: true,
+      restrictPublicBuckets: true,
+    },
+    opts,
+  );
+  const ownership = new aws.s3.BucketOwnershipControls(
+    `${name}-access-logs-ownership`,
+    {
+      bucket: bucket.id,
+      rule: { objectOwnership: "BucketOwnerEnforced" },
+    },
+    opts,
+  );
+  // S3 server-access-log destinations require SSE-S3 and no Object Lock.
+  const encryption = new aws.s3.BucketServerSideEncryptionConfiguration(
+    `${name}-access-logs-encryption`,
+    {
+      bucket: bucket.id,
+      rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "AES256" } }],
+    },
+    opts,
+  );
+  const policy = new aws.s3.BucketPolicy(
+    `${name}-access-logs-policy`,
+    {
+      bucket: bucket.id,
+      policy: pulumi.all([bucket.arn, aws.getCallerIdentityOutput({})]).apply(([arn, identity]) =>
+        JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Sid: "DenyInsecureTransport",
+              Effect: "Deny",
+              Principal: "*",
+              Action: "s3:*",
+              Resource: [arn, `${arn}/*`],
+              Condition: { Bool: { "aws:SecureTransport": "false" } },
+            },
+            {
+              Sid: "AccountFoundationServerAccessLogs",
+              Effect: "Allow",
+              Principal: { Service: "logging.s3.amazonaws.com" },
+              Action: "s3:PutObject",
+              Resource: [`${arn}/${name}-logs/*`, `${arn}/${name}-cloudtrail-archive/*`],
+              Condition: {
+                StringEquals: { "aws:SourceAccount": identity.accountId },
+                ArnLike: {
+                  "aws:SourceArn": [
+                    `arn:${identity.arn.split(":")[1]}:s3:::${name}-logs-bucket*`,
+                    `arn:${identity.arn.split(":")[1]}:s3:::${name}-cloudtrail-archive-bucket*`,
+                  ],
+                },
+              },
+            },
+          ],
+        }),
+      ),
+    },
+    opts,
+  );
+  return { bucket, dependencies: [publicAccess, ownership, encryption, policy] };
+}
+
 export class AccountFoundation
   extends pulumi.ComponentResource
   implements AccountFoundationOutputs
@@ -95,6 +183,22 @@ export class AccountFoundation
       );
     }
 
+    if (args.tier === "startup-hardened" && !/^[a-z0-9][a-z0-9-]{0,23}$/.test(name)) {
+      throw new Error(
+        "AccountFoundation: hardened names must use 1–24 lowercase letters, digits, or hyphens for exact S3 log-delivery scope",
+      );
+    }
+
+    if (
+      args.tier === "startup-hardened" &&
+      args.logBucketForceDestroy !== undefined &&
+      args.logBucketForceDestroy !== false
+    ) {
+      throw new Error(
+        "Startup-Hardened audit delivery cannot use forceDestroy or unresolved forceDestroy inputs; see docs/tiers.md",
+      );
+    }
+
     const tags = buildTags(args.tier);
     const region = args.region !== undefined ? args.region : aws.getRegionOutput().name;
 
@@ -108,24 +212,19 @@ export class AccountFoundation
       tags,
     });
 
-    // Phase 2 — Log bucket via SecureBucket. The sandbox tier stays sandbox
-    // so the first real-AWS smoke path does not require a pre-existing server
-    // access logging target. Startup-Hardened keeps the historical stricter
-    // shape; its real-AWS lane is still tracked in the integration roadmap.
+    // Phase 2 — preserve Config delivery; harden CloudTrail in a separate
+    // archive. Provision the access-log target before configuring either
+    // source bucket. Sandbox keeps its ephemeral integration shape.
+    const accessLogs =
+      args.tier === "startup-hardened" ? createAccessLogDestination(name, this) : undefined;
     const logBucketArgs =
       args.tier === "startup-hardened"
         ? {
             tier: "startup-hardened" as const,
             kmsKeyArn: kmsRing.keys.logs.arn,
-            logBucketArn: pulumi.interpolate`arn:aws:s3:::${name}-logs-self-logging`,
-            // This bucket is the CloudTrail + AWS Config delivery target.
-            // AWS Config's PutDeliveryChannel write-then-delete validation
-            // is incompatible with Object Lock default retention
-            // (InsufficientDeliveryPolicyException), so the delivery
-            // bucket opts out of WORM. Immutable CloudTrail retention is
-            // still provided by the Startup-Hardened EventDataStore;
-            // SecureBucket keeps Object Lock on by default for every
-            // other consumer.
+            logBucketArn: accessLogs!.bucket.id,
+            // Preserve the existing delivery bucket and its Config records.
+            // Config cannot use default Object Lock retention.
             objectLock: false as const,
             ...(args.logBucketForceDestroy !== undefined
               ? { forceDestroy: args.logBucketForceDestroy }
@@ -140,7 +239,25 @@ export class AccountFoundation
               : {}),
             awsServiceLogDelivery: { cloudTrail: true, config: true },
           };
-    const logBucketSelf = new SecureBucket(`${name}-logs`, logBucketArgs, { parent: this });
+    const logBucketSelf = new SecureBucket(`${name}-logs`, logBucketArgs, {
+      parent: this,
+      ...(accessLogs === undefined ? {} : { dependsOn: accessLogs.dependencies }),
+    });
+    const cloudTrailLogBucket =
+      args.tier === "startup-hardened"
+        ? new SecureBucket(
+            `${name}-cloudtrail-archive`,
+            {
+              tier: "startup-hardened",
+              kmsKeyArn: kmsRing.keys.logs.arn,
+              logBucketArn: accessLogs!.bucket.id,
+              awsServiceLogDelivery: { cloudTrail: true },
+              objectLock: { mode: "compliance", days: 365 },
+              emitDataEventStore: false,
+            },
+            { parent: this, dependsOn: accessLogs!.dependencies },
+          )
+        : logBucketSelf;
 
     // Phase 3 — IAM baseline (password policy + Access Analyzer on hardened).
     const iamBaseline = createIamBaseline({
@@ -156,10 +273,10 @@ export class AccountFoundation
       parent: this,
       namePrefix: name,
       tags,
-      logBucketId: logBucketSelf.bucket.id,
+      logBucketId: cloudTrailLogBucket.bucket.id,
       kmsKeyArn: kmsRing.keys.logs.arn,
       ...(args.tier === "startup-hardened" ? { dataEventBucketArn: logBucketSelf.arn } : {}),
-      dependsOn: [logBucketSelf.bucketPolicy],
+      dependsOn: [cloudTrailLogBucket],
     });
 
     // Phase 5 — Config (depends on log bucket).
@@ -172,7 +289,7 @@ export class AccountFoundation
       logBucketArn: logBucketSelf.arn,
       logKmsKeyArn: kmsRing.keys.logs.arn,
       ...(args.orgAccountIds !== undefined ? { orgAccountIds: args.orgAccountIds } : {}),
-      dependsOn: [logBucketSelf.bucketPolicy],
+      dependsOn: [logBucketSelf],
     });
 
     // Phase 6 — GuardDuty (no upstream deps within AccountFoundation).

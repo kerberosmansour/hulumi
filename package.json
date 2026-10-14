@@ -2,17 +2,13 @@
   "name": "hulumi",
   "version": "0.1.0",
   "private": true,
-  "description": "Hardened Pulumi for the AI-agent era — baseline components, edge patterns, CrossGuard packs, drift classifier, Claude Code skill pack.",
+  "description": "Hardened Pulumi for the AI-agent era \u2014 baseline components, edge patterns, CrossGuard packs, drift classifier, Claude Code skill pack.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.12.0",
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.12.0",
     "pnpm": ">=9.0.0"
   },
-  "workspaces": [
-    "skills/*",
-    "tests/*"
-  ],
   "scripts": {
     "build": "pnpm -r --stream build",
     "test": "pnpm -r --stream test",
@@ -23,7 +19,7 @@
     "test:integration": "HULUMI_INTEGRATION=1 pnpm --filter @hulumi/baseline test -- tests/integration/ && HULUMI_INTEGRATION=1 pnpm --filter @hulumi/drift run test:integration",
     "release:dry": "act -j attestation-dry-run --container-architecture linux/amd64 || echo 'install act for local dry-run; CI runs release-artifacts-dry-run on PRs and attestation-dry-run on main pushes'",
     "release:verify-attestations": "for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do gh attestation verify --repo kerberosmansour/hulumi \"$(npm pack @hulumi/$pkg --pack-destination /tmp --json | jq -r '.[0].filename' | sed 's@^@/tmp/@')\"; done",
-    "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml — see docs/integration-testing.md.' && exit 0",
+    "test:integration:weekly": "echo 'Run via .github/workflows/weekly-integration.yml \u2014 see docs/integration-testing.md.' && exit 0",
     "cleanup:e2e-stack": "node scripts/cleanup-e2e-stack.mjs",
     "lint": "pnpm -r --stream lint && pnpm run lint:license-boundary",
     "lint:license-boundary": "node scripts/license-boundary-lint.mjs",
@@ -35,17 +31,19 @@
   },
   "pnpm": {
     "overrides": {
-      "fast-xml-builder": "1.1.7"
+      "fast-xml-builder": "1.1.7",
+      "vite": "8.3.4"
     }
   },
   "devDependencies": {
-    "@pulumi/pulumi": "3.267.0",
-    "@types/node": "20.19.42",
-    "@typescript-eslint/eslint-plugin": "8.61.0",
-    "@typescript-eslint/parser": "8.61.0",
+    "@pulumi/pulumi": "3.268.0",
+    "@types/node": "24.19.2",
+    "@typescript-eslint/eslint-plugin": "8.71.1",
+    "@typescript-eslint/parser": "8.71.1",
     "eslint": "9.39.4",
-    "prettier": "3.8.4",
+    "prettier": "3.9.10",
     "typescript": "5.9.3",
-    "vitest": "1.6.1"
+    "vitest": "4.1.11",
+    "vite": "8.3.4"
   }
 }

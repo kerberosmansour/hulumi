@@ -105,10 +105,7 @@ IAM → **Roles** → **Create role** → **Custom trust policy**, paste
 }
 ```
 
-The `sub` filter accepts only workflows running against the `main` branch
-of `kerberosmansour/hulumi`. PRs from feature branches and forks cannot
-assume this role. The list-of-strings form matches IAM `StringEquals` "any
-of these values" semantics — no wildcards.
+The branch-form subject permits `main`. Environment-form subjects identify an environment and do not carry the branch. Configure both `e2e-cleanup` and `aws-weekly-integration` with required maintainer review and restrict deployment branches to the exact protected `main` branch. Enable self-review prevention and disable administrator bypass only when an independent approver is available; imposing self-review prevention on a sole-reviewer repository can block every manual run. Without those environment settings, a feature-branch workflow can obtain the same environment-form subject. The subject list uses exact IAM `StringEquals` values, with no wildcards.
 
 The two `environment:*` entries are required because workflow jobs that
 declare a [protected GitHub Environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/managing-environments-for-deployment)
@@ -121,6 +118,8 @@ environment, which today covers `e2e-cleanup` (destructive cleanup) and
 protected environment that assumes this role, add a matching
 `repo:kerberosmansour/hulumi:environment:<new-env>` entry here and
 re-apply the trust policy.
+
+Verify those live environment settings with `node scripts/workflow-governance-lint.mjs --check-settings` before enabling cloud workflows. The checker rejects missing, dynamic, or unprotected environments; a timer alone does not provide reviewer approval. Also inspect each environment's deployment-branch rules: required reviewers and exact subject matching do not themselves restrict branches.
 
 - **Permissions**: attach a customer-managed policy based on
   [`weekly-integration-iam-policy.json`](weekly-integration-iam-policy.json),
@@ -261,9 +260,7 @@ workflow fails closed so state cannot split between two backends.
 
 ## Public-Repo Safety Boundaries
 
-- The OIDC role trust policy must stay scoped to the `main` branch of
-  this repository. Do not broaden it to `pull_request`, wildcard refs,
-  or forks.
+- Keep the branch subject exact and require environment deployment rules restricted to protected `main`. Do not broaden the trust to `pull_request`, wildcard refs, or forks.
 - Keep the sandbox account separate from production and shared
   workloads. The integration should never need a VPC, public ALB, public
   security group, EC2 instance, EKS cluster, or public S3 bucket.

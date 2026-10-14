@@ -124,3 +124,9 @@ Teams can opt into `mandatory` today by bumping the pack metadata's enforcement 
 Critique C2 forced a minimum of two concrete tier deltas per component. One delta reduces "tier" to marketing: a single-boolean toggle. Three deltas puts tier beyond trivial rewrites and forces any relaxation to confront three distinct security properties (retention, attribution, data-plane auditing) at once.
 
 The SecureBucket deltas — object-lock (retention), logging (attribution), CloudTrail Lake (data-plane auditing) — each map to a separate STRIDE row in the skill's `s3-public-bucket-hardening` threat model. Each is independently defensible; dropping any one of them weakens the tier.
+
+### AccountFoundation audit retention update
+
+Startup-Hardened CloudTrail now writes to a separate COMPLIANCE-retained archive (365 days). Config retains its existing delivery bucket, with prefix-scoped tamper protection and no default Object Lock retention. A private SSE-S3 bucket receives server-access logs. Existing records are not retroactively locked. Review the [upgrade and delivery notes](components/account-foundation.md#audit-storage-and-upgrades) before applying. Hardened audit force-destroy inputs must be omitted or literal `false`; asynchronous values are rejected.
+
+`SecureBucket.emitDataEventStore` defaults to `true`. An explicit `false` is allowed only with Startup-Hardened, explicit COMPLIANCE Object Lock retention with a positive whole-day bound. This avoids a duplicate data-event store for the AccountFoundation archive while preserving its immutable-storage requirement.

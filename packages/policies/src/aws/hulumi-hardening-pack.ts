@@ -175,8 +175,7 @@ export const state1ApprovedSecretsProvider: StackValidationPolicy = {
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const config = (args.getConfig ? args.getConfig() : undefined) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const suppressions = readSuppressions(config);
     if (matchSuppression("STATE-1", "stack", suppressions).suppressed) return;
     const provider = readPulumiSecretsProvider(config);
@@ -252,17 +251,29 @@ export const primitive1GithubOidcNoWildcard: ResourceValidationPolicy = {
         );
         return;
       }
+      let exactSubject = false;
       for (const [operator, condition] of Object.entries(conditions)) {
-        const conditionRecord = asRecord(condition);
-        const sub = conditionRecord?.["token.actions.githubusercontent.com:sub"];
+        const sub = asRecord(condition)?.["token.actions.githubusercontent.com:sub"];
         if (sub === undefined) continue;
-        const baseOperator = operator.split(":").pop() ?? operator;
-        if (baseOperator === "StringLike" || valueContainsWildcard(sub)) {
+        const values = Array.isArray(sub) ? sub : [sub];
+        if (
+          operator !== "StringEquals" ||
+          values.length === 0 ||
+          values.some((value) => typeof value !== "string" || value.trim().length === 0) ||
+          valueContainsWildcard(sub)
+        ) {
           reportViolation(
-            `PRIM-1: GitHub OIDC role ${args.urn} uses wildcard or StringLike subject trust. Docs: ${PRIMITIVES_DOCS}`,
+            `PRIM-1: GitHub OIDC role ${args.urn} must use non-empty exact StringEquals subject trust. Docs: ${PRIMITIVES_DOCS}`,
           );
           return;
         }
+        exactSubject = true;
+      }
+      if (!exactSubject) {
+        reportViolation(
+          `PRIM-1: GitHub OIDC role ${args.urn} has no exact subject condition. Docs: ${PRIMITIVES_DOCS}`,
+        );
+        return;
       }
     }
   },
@@ -377,8 +388,7 @@ export const detect2SecurityServiceDisablementRequired: StackValidationPolicy = 
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const config = (args.getConfig ? args.getConfig() : undefined) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!configRequiresSecurityDetection(config)) return;
     const suppressions = readSuppressions(config);
     if (matchSuppression("DETECT-2", "stack", suppressions).suppressed) return;

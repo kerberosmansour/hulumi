@@ -594,6 +594,63 @@ describe("BrokeredAuroraPostgresBoundary", () => {
     expect(registrations).toEqual([]);
   });
 
+  it("renders the exact admission contract accepted by the accompanying policy pack", async () => {
+    const boundary = await createBoundary();
+    const contract = await valueOf(boundary.policyContract);
+    await settlePulumi();
+    const { expectedAdmissionExpressions } =
+      await import("../../policies/src/platform/brokered-postgres-boundary-pack");
+    const resources = registrations.map((entry) => ({
+      type: entry.type,
+      name: entry.name,
+      props: {
+        ...entry.inputs,
+        name: entry.inputs.name ?? entry.name,
+        arn: `arn:mock:${entry.type}:${entry.name}`,
+      },
+      urn: `urn:pulumi:s::p::${entry.type}::${entry.name}`,
+      dependencies: [],
+      propertyDependencies: {},
+    })) as unknown as Parameters<typeof expectedAdmissionExpressions>[2];
+    const kinds = ["runtime", "broker", "migrator", "rotation"] as const;
+    const roles = new Map(
+      kinds.map((kind) => [
+        kind,
+        resources.find(
+          (entry) =>
+            entry.type === "aws:iam/role:Role" &&
+            (entry.props.tags as Record<string, string> | undefined)?.["hulumi:identity-kind"] ===
+              kind,
+        )!,
+      ]),
+    );
+    const brokerEnv = (
+      workload("broker")?.inputs.spec as {
+        template: { spec: { containers: Array<{ env: Array<{ name: string; value: string }> }> } };
+      }
+    ).template.spec.containers[0].env;
+    const secretArns = ["APPLICATION_SECRET_A_ARN", "APPLICATION_SECRET_B_ARN"].map(
+      (name) => brokerEnv.find((entry) => entry.name === name)!.value,
+    );
+    const expected = expectedAdmissionExpressions(
+      "orders",
+      contract,
+      resources.filter((entry) => entry.type === "kubernetes:core/v1:ServiceAccount"),
+      roles,
+      secretArns,
+      resources.find((entry) => entry.type === "aws:dynamodb/table:Table"),
+    );
+    const admission = registrations.find(
+      (entry) =>
+        entry.type === "kubernetes:admissionregistration.k8s.io/v1:ValidatingAdmissionPolicy",
+    )!;
+    expect(
+      (admission.inputs.spec as { validations: Array<{ expression: string }> }).validations.map(
+        (entry) => entry.expression,
+      ),
+    ).toEqual(expected);
+  });
+
   it("pins every workload image and applies restricted security contexts plus admission", async () => {
     await createBoundary();
     await settlePulumi();
@@ -634,6 +691,21 @@ describe("BrokeredAuroraPostgresBoundary", () => {
       ).jobTemplate.spec.template.spec.restartPolicy,
     ).toBe("Never");
 
+    const inertPolicy = registrations.find(
+      (entry) =>
+        entry.type === "kubernetes:admissionregistration.k8s.io/v1:ValidatingAdmissionPolicy",
+    );
+    const inertExpressions = (
+      inertPolicy?.inputs.spec as { validations: Array<{ expression: string }> }
+    ).validations.map((validation) => validation.expression);
+    expect(
+      inertExpressions.some(
+        (expression) =>
+          expression.startsWith("!(object.spec.serviceAccountName") &&
+          (expression.match(/\|\|/g) ?? []).length === 1 &&
+          expression.endsWith("))"),
+      ),
+    ).toBe(true);
     const admission = registrations.find(
       (registration) =>
         registration.type ===

@@ -73,7 +73,12 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     // trail must never be silently tear-down-able. forceDestroy stays fully
     // usable for non-audit buckets and for sandbox-tier ephemeral e2e
     // stacks (which legitimately `pulumi destroy`).
-    if (backsAuditDelivery && args.forceDestroy === true && args.tier === "startup-hardened") {
+    if (
+      backsAuditDelivery &&
+      args.forceDestroy !== undefined &&
+      args.forceDestroy !== false &&
+      args.tier === "startup-hardened"
+    ) {
       throw new Error(
         "Startup-Hardened audit-delivery bucket (CloudTrail/Config) must not set " +
           "forceDestroy: destroying it would erase tamper-evident audit records; " +
@@ -86,6 +91,19 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     // delivery bucket, whose delivery validation is incompatible with
     // Object Lock default retention.
     const objectLockEnabled = args.tier === "startup-hardened" && args.objectLock !== false;
+
+    if (
+      args.emitDataEventStore === false &&
+      (!objectLockEnabled ||
+        args.objectLock === false ||
+        args.objectLock?.mode !== "compliance" ||
+        !Number.isSafeInteger(args.objectLock.days) ||
+        args.objectLock.days < 1)
+    ) {
+      throw new Error(
+        "SecureBucket: omitting the data-event store requires explicit Startup-Hardened COMPLIANCE retention",
+      );
+    }
 
     const tags = buildTags(args.tier);
     const childOptions = (...legacyTypes: string[]): pulumi.CustomResourceOptions => ({
@@ -336,7 +354,10 @@ export class SecureBucket extends pulumi.ComponentResource implements SecureBuck
     // AccountFoundation internal log bucket. Startup-Hardened with a
     // logBucketArn but no audit-delivery role keeps the historical
     // behaviour (EventDataStore emitted) for back-compat.
-    if (backsAuditDelivery || args.tier === "startup-hardened") {
+    if (
+      args.emitDataEventStore !== false &&
+      (backsAuditDelivery || args.tier === "startup-hardened")
+    ) {
       new aws.cloudtrail.EventDataStore(
         `${name}-data-events`,
         {

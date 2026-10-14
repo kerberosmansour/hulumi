@@ -72,8 +72,9 @@ throwaway directory because `generate-threat-model.mjs` writes into the current
 working directory.
 
 ```bash
-mkdir -p /tmp/hulumi-skill-smoke
-cd /tmp/hulumi-skill-smoke
+SMOKE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hulumi-skill-smoke.XXXXXX")
+trap 'rm -rf -- "$SMOKE_DIR"' EXIT
+cd "$SMOKE_DIR"
 node ~/.claude/skills/hulumi-threat-model/scripts/list-scenarios.mjs
 node ~/.claude/skills/hulumi-threat-model/scripts/generate-threat-model.mjs aws-multi-account-baseline
 test -f docs/threat-model-aws-multi-account-baseline-$(date +%Y%m%d).md

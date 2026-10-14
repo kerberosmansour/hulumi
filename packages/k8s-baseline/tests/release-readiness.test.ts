@@ -68,7 +68,7 @@ describe("Feature: K8s package release readiness (Runbook M1)", () => {
     it("signing workflow uses npm trusted-publishing-compatible Node/npm versions", () => {
       const yml = readRepoFile(".github/workflows/sign-and-publish.yml");
 
-      expect(yml).toContain("node-version: 22.14.0");
+      expect(yml).toContain("node-version: 24");
       expect(yml).toContain("npm install -g npm@11.5.1");
     });
 

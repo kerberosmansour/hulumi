@@ -1,7 +1,7 @@
 {
   "name": "@hulumi/k8s-baseline",
-  "version": "2.0.3",
-  "description": "Hardened Pulumi K8s / EKS / Istio / RDS / Secrets-Manager baseline components — EksClusterFoundation, HardenedHelmRelease, EksSubnetTagger, IstioFoundation, AlbMeshedHttpEntrypoint, KubernetesSecretFromAwsSecretsManager, RdsCredentialSecret, GitHubAppCredential. SLSA Build L3 attestation on every release.",
+  "version": "3.0.0",
+  "description": "Hardened Pulumi K8s / EKS / Istio / RDS / Secrets-Manager baseline components \u2014 EksClusterFoundation, HardenedHelmRelease, EksSubnetTagger, IstioFoundation, AlbMeshedHttpEntrypoint, KubernetesSecretFromAwsSecretsManager, RdsCredentialSecret, GitHubAppCredential. SLSA Build L3 attestation on every release.",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
@@ -38,20 +38,23 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1146.0"
+    "@aws-sdk/client-secrets-manager": "3.1149.0"
   },
   "peerDependencies": {
-    "@pulumi/aws": "^7.27.0",
-    "@pulumi/kubernetes": "^4.30.0",
-    "@pulumi/pulumi": "^3.232.0"
+    "@pulumi/aws": "^7.50.0",
+    "@pulumi/kubernetes": "^4.34.2",
+    "@pulumi/pulumi": "^3.268.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-secrets-manager": "3.1146.0",
-    "@pulumi/aws": "7.48.0",
+    "@aws-sdk/client-secrets-manager": "3.1149.0",
+    "@pulumi/aws": "7.50.0",
     "@pulumi/kubernetes": "4.34.2",
-    "@pulumi/pulumi": "3.267.0",
-    "@types/node": "20.19.42",
+    "@pulumi/pulumi": "3.268.0",
+    "@types/node": "24.19.2",
     "typescript": "5.9.3",
-    "vitest": "1.6.1"
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

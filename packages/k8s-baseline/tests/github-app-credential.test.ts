@@ -171,6 +171,54 @@ describe("GitHubAppCredential — abuse cases", () => {
     expect(resource).toMatch(/^arn:aws:secretsmanager:/);
   });
 
+  test.each([
+    { args: [], repos: ["*"], permissions: {} },
+    {
+      args: ['["example/repo"]', '{"contents":"read"}'],
+      repos: ["example/repo"],
+      permissions: { contents: "read" },
+    },
+  ])("populate.sh accepts default and explicit scope: %j", async ({ args, repos, permissions }) => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const os = await import("node:os");
+    const { spawnSync } = await import("node:child_process");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hulumi-populate-test-"));
+    try {
+      const pem = path.join(dir, "fixture.pem");
+      const resultFile = path.join(dir, "scope.json");
+      fs.writeFileSync(pem, "PUBLIC TEST FIXTURE ONLY", { mode: 0o600 });
+      fs.writeFileSync(
+        path.join(dir, "aws"),
+        '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do\n  if [ "$1" = "--secret-string" ]; then shift; jq \'{repos, permissions}\' "${1#file://}" > "$SCOPE_RESULT"; exit $?; fi\n  shift\ndone\nexit 3\n',
+        { mode: 0o700 },
+      );
+      const result = spawnSync(
+        "bash",
+        [
+          path.resolve(__dirname, "../scripts/populate-github-app-secret.sh"),
+          "fixture-secret",
+          "123",
+          pem,
+          ...args,
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${dir}${path.delimiter}${process.env.PATH}`,
+            SCOPE_RESULT: resultFile,
+          },
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(fs.readFileSync(resultFile, "utf8"))).toEqual({ repos, permissions });
+      expect(result.stdout + result.stderr).not.toContain("PUBLIC TEST FIXTURE ONLY");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("populate.sh is set -euo pipefail with PEM-scrubbing trap", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");

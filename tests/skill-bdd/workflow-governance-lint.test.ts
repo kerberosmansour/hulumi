@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -344,7 +344,7 @@ const {
 
 type EnvironmentSettings = {
   name: string;
-  protection_rules: Array<{ type: string }>;
+  protection_rules: Array<{ type: string; reviewers?: Array<unknown> }>;
 };
 
 function writePrivilegedWorkflow(fixture: string, filename: string, envName: string): void {
@@ -372,6 +372,67 @@ function writePrivilegedWorkflow(fixture: string, filename: string, envName: str
 }
 
 describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
+  it.each([
+    '"production.eu west"',
+    '\n      url: https://example.com\n      name: "production.eu west"',
+  ])("checks valid environment names in either YAML form: %s", async (declaration) => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", declaration);
+    const names: string[] = [];
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment: async (name) => {
+        names.push(name);
+        return null;
+      },
+    });
+    expect(names).toEqual(["production.eu west"]);
+    expect(diagnostics.map((diagnostic) => diagnostic.ruleId)).toContain(WF_ENV_2_RULE_ID);
+  });
+
+  it("fails closed on a dynamic environment name", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "${{ inputs.environment }}");
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment: async () => null,
+    });
+    expect(diagnostics.map((diagnostic) => diagnostic.ruleId)).toContain(WF_ENV_2_RULE_ID);
+  });
+
+  it.each([
+    "ref: ${{ github.event.pull_request.head.ref }}",
+    "repository: ${{ github.event.pull_request.head.repo.full_name }}",
+  ])("rejects untrusted head checkout through %s", (checkoutInput) => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "prod");
+    const file = join(fixture, ".github", "workflows", "destroy.yml");
+    const yaml = readFileSync(file, "utf8").replace("workflow_dispatch:", "pull_request_target:");
+    writeFileSync(
+      file,
+      yaml + `      - uses: actions/checkout@${SHA}\n        with:\n          ${checkoutInput}\n`,
+    );
+    const result = runLinter(fixture);
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT");
+  });
+
+  it("rejects an empty required-reviewer rule", async () => {
+    const fixture = makeFixture();
+    writePrivilegedWorkflow(fixture, "destroy.yml", "prod");
+    const diagnostics = await collectWorkflowGovernanceDiagnosticsAsync({
+      repoRoot: fixture,
+      checkSettings: true,
+      resolveEnvironment: async (name) => ({
+        name,
+        protection_rules: [{ type: "required_reviewers", reviewers: [] }],
+      }),
+    });
+    expect(diagnostics.map((diagnostic) => diagnostic.ruleId)).toContain(WF_ENV_3_RULE_ID);
+  });
+
   it("does NOT change behavior when checkSettings is unset (default-off)", async () => {
     const fixture = makeFixture();
     writePrivilegedWorkflow(fixture, "destroy.yml", "good-env");
@@ -390,7 +451,12 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
     writePrivilegedWorkflow(fixture, "destroy.yml", "good-env");
     const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => {
       if (name === "good-env") {
-        return { name, protection_rules: [{ type: "required_reviewers" }] };
+        return {
+          name,
+          protection_rules: [
+            { type: "required_reviewers", reviewers: [{ type: "User", reviewer: { id: 1 } }] },
+          ],
+        };
       }
       return null;
     };
@@ -473,7 +539,12 @@ describe("WF_ENV_1 settings-state verification (--check-settings)", () => {
     let calls = 0;
     const resolveEnvironment = async (name: string): Promise<EnvironmentSettings | null> => {
       calls += 1;
-      return { name, protection_rules: [{ type: "required_reviewers" }] };
+      return {
+        name,
+        protection_rules: [
+          { type: "required_reviewers", reviewers: [{ type: "User", reviewer: { id: 1 } }] },
+        ],
+      };
     };
     await collectWorkflowGovernanceDiagnosticsAsync({
       repoRoot: fixture,

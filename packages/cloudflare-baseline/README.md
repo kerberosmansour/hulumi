@@ -1,5 +1,7 @@
 # @hulumi/cloudflare-baseline
 
+Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](../../docs/release/v3.0.0-release-notes.md).
+
 Hardened Pulumi components for Cloudflare edge posture.
 
 M1 introduces two primitives:

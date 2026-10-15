@@ -66,8 +66,16 @@ new ProtectedAdminHostname("admin", {
   accountId: "acct_123",
   hostname: "admin.example.com",
   allowedEmailDomains: ["example.com"],
+  // Optional authentication routing. Provider IDs never authorize users.
+  allowedIdentityProviderIds: ["idp_123"],
 });
 ```
+
+`allowedIdentityProviderIds` limits which configured identity providers users may choose at
+login. Cloudflare Access policy Include entries are OR alternatives, so the component never
+emits provider IDs as `loginMethod` authorization selectors. Always declare at least one
+`allowedEmails`, `allowedEmailDomains`, or `allowedAccessGroupIds` entry; provider-only
+configurations fail before Cloudflare resources are registered.
 
 Custom WAF rule expressions can be `pulumi.Input<string>` values, including Pulumi secret outputs, for private IP allowlists and other sensitive predicates.
 

@@ -106,14 +106,9 @@ function buildIdentitySelectors(args: ProtectedAdminHostnameArgs): IdentitySelec
     "allowedIdentityProviderIds",
   );
 
-  if (
-    emails.length === 0 &&
-    domains.length === 0 &&
-    groupIds.length === 0 &&
-    identityProviderIds.length === 0
-  ) {
+  if (emails.length === 0 && domains.length === 0 && groupIds.length === 0) {
     throw new Error(
-      "ProtectedAdminHostname: an identity allow-list policy is required for admin hostnames",
+      "ProtectedAdminHostname: an email, email domain, or Access group authorization allow-list policy is required for admin hostnames; identity-provider selection alone does not authorize users",
     );
   }
 
@@ -145,12 +140,6 @@ function buildIdentitySelectors(args: ProtectedAdminHostnameArgs): IdentitySelec
     appIncludes.push({ group: { id } });
     policyIncludes.push({ group: { id } });
     labels.push(`access_group:${id}`);
-  }
-
-  for (const id of identityProviderIds) {
-    appIncludes.push({ loginMethod: { id } });
-    policyIncludes.push({ loginMethod: { id } });
-    labels.push(`identity_provider:${id}`);
   }
 
   return {

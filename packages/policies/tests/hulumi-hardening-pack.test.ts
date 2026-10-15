@@ -1191,7 +1191,12 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
   it("honors a HULUMI-H5 suppression scoped to the bucket URN", () => {
     runH5([exemptedBucket()], {
       suppressions: [
-        { ruleId: "HULUMI-H5", reason: "test", urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket` },
+        {
+          ruleId: "HULUMI-H5",
+          reason: "test",
+          urnScope: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
+          expiresAt: "2999-01-01T00:00:00Z",
+        },
       ],
     });
     expect(violations).toHaveLength(0);
@@ -1217,6 +1222,7 @@ describe("Suppressions — scope correctly (security, defense in depth)", () => 
         ruleId: "HULUMI-H1",
         reason: "Legacy bucket being migrated under ticket SEC-123",
         urnScope: "urn:pulumi:s::p::aws:s3/bucketV2:BucketV2::legacy-bucket",
+        expiresAt: "2999-01-01T00:00:00Z",
       },
     ];
     const match = matchSuppression(
@@ -1241,10 +1247,15 @@ describe("Suppressions — scope correctly (security, defense in depth)", () => 
       {
         ruleId: "HULUMI-H3",
         reason: "Temporary opt-out for legacy role pending SCP rollout",
+        urnScope: "urn:pulumi:s::p::aws:iam/role:Role::legacy-role",
         expiresAt: "2020-01-01T00:00:00Z",
       },
     ];
-    const match = matchSuppression("HULUMI-H3", "any-urn", suppressions);
+    const match = matchSuppression(
+      "HULUMI-H3",
+      "urn:pulumi:s::p::aws:iam/role:Role::legacy-role",
+      suppressions,
+    );
     expect(match.suppressed).toBe(false);
   });
 
@@ -1254,6 +1265,7 @@ describe("Suppressions — scope correctly (security, defense in depth)", () => 
         ruleId: "HULUMI-H3",
         reason: "All legacy-namespace roles are migrating",
         urnScope: "urn:pulumi:s::p::aws:iam/role:Role::legacy-*",
+        expiresAt: "2999-01-01T00:00:00Z",
       },
     ];
     const match = matchSuppression(

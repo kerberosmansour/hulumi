@@ -56,10 +56,10 @@ import type { Suppression } from "@hulumi/policies";
 
 const suppressions: Suppression[] = [
   {
-    ruleId: "HULUMI-H1-no-raw-bucket",
+    ruleId: "HULUMI-H1",
     urnScope: "urn:pulumi:prod::your-stack::aws:s3/bucket:Bucket::legacy-bucket",
     reason: "Imported pre-Hulumi; migration tracked in #JIRA-1234.",
-    expiresAt: "2026-09-30",
+    expiresAt: "2027-01-31",
   },
 ];
 
@@ -112,7 +112,7 @@ Three additional CrossGuard packs ship in `@hulumi/policies` for K8s/EKS Pulumi 
 ### Phased rollout pattern
 
 1. **Day 0** — point `PulumiPolicy.yaml` at `hulumi-k8s-hardening`. The four mandatory rules (WL-1, WL-2, WL-3, SVC-1) catch the highest-blast-radius shapes; `WL-4` is advisory by default and surfaces as a warning rather than a deploy-blocker.
-2. **Day 7** — add `hulumi-k8s-rbac`. RBAC violations often shake out platform-team tooling on the first preview; expect to add 1-3 suppressions for legitimate cluster operators (external-secrets, metrics-server) — each requires a written `reason` on the suppression entry.
+2. **Day 7** — add `hulumi-k8s-rbac`. RBAC violations often shake out platform-team tooling on the first preview; expect to add 1-3 suppressions for legitimate cluster operators (external-secrets, metrics-server) — each requires an exact or bounded URN scope, written `reason`, and future `expiresAt`.
 3. **Day 14** — add `hulumi-eks-cluster`. `EKS-CL-1` typically catches "we set `endpointPublicAccess: true` but forgot to restrict `publicAccessCidrs`"; `EKS-CL-2` catches "audit logs got disabled in a quick test and never re-enabled".
 
 Before promoting the RBAC pack, replace application `bind`, `escalate`, and
@@ -139,7 +139,11 @@ pulumi preview \
 
 ### Suppressions
 
-Each rule respects the existing `Suppression` API — a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored (M3 invariant). Trailing-`*` glob in `urnScope` matches by URN prefix; an exact URN matches that one resource.
+Each rule respects the shared `Suppression` API. A suppression requires the
+exact public `ruleId`, a nonblank `reason`, an explicit exact or non-global
+trailing-prefix `urnScope`, and a canonical future `expiresAt`. Stack-level
+rules use the exact scope `stack`. Missing, global, malformed, noncanonical, or
+expired entries are ignored and the rule remains active.
 
 ```ts
 // PulumiPolicy.yaml or stack config
@@ -147,6 +151,7 @@ suppressions:
   - ruleId: HULUMI-K8S-RBAC-2
     urnScope: "urn:pulumi:prod::p::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::external-secrets"
     reason: "external-secrets operator needs cluster-wide secret list/watch."
+    expiresAt: "2027-01-31"
 ```
 
 ## See also

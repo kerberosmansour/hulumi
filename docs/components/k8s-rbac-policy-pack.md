@@ -58,11 +58,12 @@ suppressions:
   - ruleId: HULUMI-K8S-RBAC-2
     urnScope: "urn:pulumi:prod::platform::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::external-secrets"
     reason: "External Secrets controller reconciles Secret objects; owner: platform-security; review: 2027-01-15."
+    expiresAt: "2027-01-15"
 ```
 
-A suppression needs a nonempty reason and follows the pack's existing exact or
-trailing-wildcard URN scope behavior. Keep the exception narrow and record an
-owner and review date in the reason.
+A suppression needs a nonempty reason, an explicit exact or non-global
+trailing-prefix URN scope, and a canonical future expiry. Keep the exception
+narrow and record an owner and review reference in the reason.
 
 ## Rollout checks
 

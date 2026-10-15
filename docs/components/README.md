@@ -27,7 +27,11 @@ Three CrossGuard PolicyPacks added in runbook `hulumi-operations-k8s-security` M
 | `HulumiOperationsHardeningPack` | `@hulumi/policies/aws/packs/hulumi-operations-hardening`  | `O-PATCH-1` Patch:Group enum · `O-AUDIT-1` CloudTrail multi-region + log-file validation · `O-AUDIT-2` CT log group KMS-encrypted · `O-INSPECTOR-1` Inspector v2 full coverage |
 | `HulumiAwsOrgHardeningPack`     | `@hulumi/policies/aws-org/packs/hulumi-aws-org-hardening` | `ORG-1` delegated admins · `ORG-2` role separation · `ORG-3` SCP set · `ORG-4` S3 account block switches · `ORG-5` S3 account block present · `ORG-6` sandbox SCP advisory     |
 
-All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored.
+All rules support the shared `Suppression` API. Each entry requires an exact
+public `ruleId`, a nonblank `reason`, an explicit exact or non-global
+trailing-prefix `urnScope` (or exact `stack` for stack rules), and a canonical
+future `expiresAt`. Malformed or expired entries are ignored and the rule
+remains active.
 
 WL-1 through WL-4 inspect CronJobs at the Kubernetes-native
 `spec.jobTemplate.spec.template.spec` path, including application and init

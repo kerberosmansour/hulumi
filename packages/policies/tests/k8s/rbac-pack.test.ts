@@ -236,6 +236,7 @@ describe("Scenario: Secret list/watch rejected (HULUMI-K8S-RBAC-2)", () => {
             urnScope:
               "urn:p::p::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::external-secrets",
             reason: "external-secrets operator needs cluster-wide secret list/watch.",
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],

@@ -78,16 +78,19 @@ in the source repo. Its stable rule IDs are documented in
 import { Suppression } from "@hulumi/policies";
 
 const sup: Suppression = {
-  pack: "hulumi-hardening",
-  rule: "H3",
-  scope: { resourceUrn: "urn:pulumi:dev::project::aws:s3/bucket:Bucket::legacy" },
-  expires: "2026-12-31",
+  ruleId: "HULUMI-H1",
+  urnScope: "urn:pulumi:dev::project::aws:s3/bucket:Bucket::legacy",
+  expiresAt: "2027-01-31",
   reason: "legacy bucket migrating to SecureBucket in Q1; tracked in #ISSUE-42",
 };
 ```
 
-Suppressions are reviewed at policy-evaluation time and surface as
-metadata on the verdict; they do not silently mute findings.
+Every suppression requires the exact public rule ID, a nonblank reason, an
+exact resource URN or non-global trailing-prefix scope, and a canonical future
+date or UTC timestamp. Stack-level rules use `urnScope: "stack"`. Missing,
+global, malformed, noncanonical, or expired entries fail closed and leave the
+rule active. The matcher returns the reason for callers that maintain separate
+exception evidence; the built-in pack does not claim an external audit sink.
 
 ## One pack per process
 

@@ -26,12 +26,13 @@ The pack uses the existing Hulumi suppression shape:
   ruleId: "CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD",
   reason: "Legacy cutover window tracked in EDGE-12.",
   urnScope: "urn:pulumi:prod::edge::*",
-  expiresAt: "2026-06-30"
+  expiresAt: "2027-01-31"
 }
 ```
 
-Empty reasons are ignored. Suppressions are intended for migrations, not for
-normal operation.
+Missing or empty reasons, global/missing scopes, and missing, malformed,
+noncanonical, current, or expired dates are ignored. Suppressions are intended
+for migrations, not for normal operation.
 
 ## Evidence Matching
 

@@ -601,7 +601,14 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
       propertyDependencies: { principalArn: [ghRole] },
     });
     const config = {
-      suppressions: [{ ruleId: "HULUMI-H4", reason: "documented break-glass" }],
+      suppressions: [
+        {
+          ruleId: "HULUMI-H4",
+          reason: "documented break-glass",
+          urnScope: "stack",
+          expiresAt: "2999-01-01T00:00:00Z",
+        },
+      ],
     };
     expect(run(makeStackArgs([ghRole, assoc], config))).toHaveLength(0);
   });

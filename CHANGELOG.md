@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Require every policy suppression to name an exact rule, carry a nonblank
+  reason, use an explicit exact resource URN, non-global trailing-prefix scope,
+  or exact `stack`, and expire at a canonical future date or UTC timestamp.
+  Missing, global, malformed, noncanonical, and expired entries now fail closed.
+
 - Require SecureBucket HULUMI-H5 TLS evidence to be the complete public
   all-S3 deny bound to the exact bucket and object ARNs. Reject complement
   operators, specific principals or actions, extra conditions, and unknown

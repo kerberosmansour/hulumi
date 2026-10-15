@@ -25,10 +25,10 @@ import type { Suppression } from "@hulumi/policies";
 
 const suppressions: Suppression[] = [
   {
-    ruleId: "HULUMI-H1-no-raw-bucket",
+    ruleId: "HULUMI-H1",
     urnScope: "urn:pulumi:prod::your-stack::aws:s3/bucketV2:BucketV2::legacy-bucket",
     reason: "Imported pre-Hulumi; migration tracked in #JIRA-1234.",
-    expiresAt: "2026-09-30",
+    expiresAt: "2027-01-31",
   },
 ];
 
@@ -37,12 +37,12 @@ export { hulumiHardeningPack, suppressions };
 
 `Suppression` shape (from [packages/policies/src/aws/suppressions.ts](../../packages/policies/src/aws/suppressions.ts)):
 
-| Field       | Required                   | Notes                                                                                  |
-| ----------- | -------------------------- | -------------------------------------------------------------------------------------- |
-| `ruleId`    | yes                        | Exact rule ID, e.g. `HULUMI-H1-no-raw-bucket`.                                         |
-| `reason`    | yes                        | Human-readable explanation. Show up in evidence packets and audit reviews.             |
-| `urnScope`  | recommended                | Exact URN or a `urn-prefix*` glob. Omit to silence the rule globally — discouraged.    |
-| `expiresAt` | required for high-severity | ISO 8601 date. After this, the suppression no longer matches and the rule fires again. |
+| Field       | Required | Notes                                                                                                         |
+| ----------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `ruleId`    | yes      | Exact public rule ID, e.g. `HULUMI-H1`.                                                                       |
+| `reason`    | yes      | Nonblank human-readable explanation and tracking reference.                                                   |
+| `urnScope`  | yes      | Exact Pulumi URN, a non-global URN prefix ending in one `*`, or exact `stack` for a stack-level rule.         |
+| `expiresAt` | yes      | Canonical future `YYYY-MM-DD` or UTC timestamp. Invalid, noncanonical, current, and past values do not match. |
 
 ### 2. Run the preview
 
@@ -50,7 +50,9 @@ export { hulumiHardeningPack, suppressions };
 pulumi preview --policy-pack ./policies
 ```
 
-If the suppression matches, the violation is silenced and the policy log notes `suppressed: <reason>`. Other resources still fail the same rule normally.
+If the suppression matches, the built-in rule does not emit that violation.
+Other resources still fail the same rule normally. The shared matcher returns
+the reason to callers that record separate exception evidence.
 
 ### 3. Set yourself a calendar reminder
 
@@ -64,11 +66,14 @@ A suppression is a debt. The expiry date is its repayment plan — once it lapse
 - A `pulumi preview` run shows the suppressed violation as **suppressed**, not silently absent.
 - A second resource that doesn't match the `urnScope` still fails the same rule.
 - After the `expiresAt` date passes, the suppression no longer matches (the matcher rejects expired entries — see `matchSuppression` in `packages/policies/src/aws/suppressions.ts`).
-- The reason text appears in audit / CI logs alongside the matched rule ID.
+- Your exception review records the same rule, scope, reason, and expiry as the
+  configuration. The built-in pack does not claim an external audit sink.
 
 ## Anti-patterns
 
-**Suppressing a whole rule with no `urnScope` and no `expiresAt`.** That's a global, permanent disable wearing a `Suppression` costume. Just don't ship the rule if you genuinely never want it to fire.
+**Suppressing a whole rule with no `urnScope` or `expiresAt`.** The matcher
+ignores this malformed entry and keeps the rule active. Use an exact bounded
+scope and future expiry instead of trying to create a global disable.
 
 **Suppressing without a JIRA / GitHub issue link in `reason`.** The whole point of `reason` is that the next person reading the diff understands why. "needed for legacy" is not a reason; "imported pre-Hulumi; migration tracked in #JIRA-1234" is.
 
@@ -76,9 +81,11 @@ A suppression is a debt. The expiry date is its repayment plan — once it lapse
 
 ## Troubleshooting
 
-**Suppression doesn't match.** Print the URN with `pulumi stack --show-urns | grep <name>`. URNs are exact — typos in the project name, stack name, or resource name break the match. For globs, `urnScope: "urn:pulumi:prod::*"` matches every resource in the prod stack; trailing `*` is the only glob form supported.
+**Suppression doesn't match.** Print the URN with `pulumi stack --show-urns | grep <name>`. URNs are exact — typos in the project name, stack name, or resource name break the match. For prefixes, `urnScope: "urn:pulumi:prod::*"` matches resources beneath that non-global prefix; one trailing `*` is the only wildcard form supported. Stack-level rules require `urnScope: "stack"`.
 
-**Suppression matches but rule still fires.** The expiry has passed. Check `expiresAt` against today's date.
+**Suppression matches but rule still fires.** Check that `reason` is nonblank,
+the scope is explicit, and `expiresAt` is a canonical future date or UTC
+timestamp. Offset timestamps and invalid calendar dates fail closed.
 
 **`Suppression` type doesn't import.** It's exported from `@hulumi/policies` (root). If you only imported `hulumiHardeningPack` from `@hulumi/policies/aws/packs/hulumi-hardening`, also `import type { Suppression } from "@hulumi/policies"`.
 

@@ -153,6 +153,7 @@ describe("Scenario: Host namespace rejected (HULUMI-K8S-WL-2)", () => {
             ruleId: "HULUMI-K8S-WL-2",
             urnScope: "urn:pulumi:s::p::kubernetes:core/v1:Pod::node-agent",
             reason: "Node-level metrics agent — needs host network for /proc scraping.",
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],
@@ -178,6 +179,7 @@ describe("Scenario: Host namespace rejected (HULUMI-K8S-WL-2)", () => {
             ruleId: "HULUMI-K8S-WL-2",
             urnScope: "urn:p::p::kubernetes:core/v1:Pod::no-reason",
             reason: "   ", // whitespace-only
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],

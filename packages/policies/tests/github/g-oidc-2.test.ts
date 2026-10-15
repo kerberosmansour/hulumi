@@ -72,6 +72,11 @@ const ghRole = res({
   props: { assumeRolePolicy: GH_OIDC_TRUST, arn: "arn:aws:iam::1:role/gh-deploy" },
 });
 
+const FULL_ADMIN_POLICY = JSON.stringify({
+  Version: "2012-10-17",
+  Statement: { Effect: "Allow", Action: "*", Resource: "*" },
+});
+
 describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () => {
   let violations: string[];
   beforeEach(() => {
@@ -121,6 +126,145 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
     violations = run(makeStackArgs([ghRole, attach]));
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/AdministratorAccess/);
+  });
+
+  it("classifies a GitHub OIDC role whose trust policy has a singleton Statement", () => {
+    const singletonRole = res({
+      ...ghRole,
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::singleton-gh-deploy",
+      name: "singleton-gh-deploy",
+      props: {
+        ...ghRole.props,
+        name: "singleton-gh-deploy",
+        arn: "arn:aws:iam::1:role/singleton-gh-deploy",
+        assumeRolePolicy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: {
+            Effect: "Allow",
+            Principal: {
+              Federated: "arn:aws:iam::1:oidc-provider/token.actions.githubusercontent.com",
+            },
+            Action: "sts:AssumeRoleWithWebIdentity",
+          },
+        }),
+      },
+    });
+    const attach = res({
+      type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::singleton-admin",
+      props: { policyArn: "arn:aws:iam::aws:policy/AdministratorAccess" },
+      propertyDependencies: { role: [singletonRole] },
+    });
+    expect(run(makeStackArgs([singletonRole, attach]))).toHaveLength(1);
+  });
+
+  it("flags AdministratorAccess in a GitHub OIDC role managedPolicyArns property", () => {
+    const role = res({
+      ...ghRole,
+      props: {
+        ...ghRole.props,
+        managedPolicyArns: ["arn:aws:iam::aws:policy/AdministratorAccess"],
+      },
+    });
+    expect(run(makeStackArgs([role]))).toHaveLength(1);
+  });
+
+  it("flags a full-admin GitHub OIDC role inlinePolicies document", () => {
+    const role = res({
+      ...ghRole,
+      props: { ...ghRole.props, inlinePolicies: [{ name: "admin", policy: FULL_ADMIN_POLICY }] },
+    });
+    expect(run(makeStackArgs([role]))).toHaveLength(1);
+  });
+
+  it("flags a full-admin RolePolicy linked to a GitHub OIDC role", () => {
+    const inline = res({
+      type: "aws:iam/rolePolicy:RolePolicy",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicy:RolePolicy::admin-inline",
+      props: { policy: FULL_ADMIN_POLICY },
+      propertyDependencies: { role: [ghRole] },
+    });
+    expect(run(makeStackArgs([ghRole, inline]))).toHaveLength(1);
+  });
+
+  it("flags AdministratorAccess through RolePolicyAttachmentsExclusive", () => {
+    const exclusive = res({
+      type: "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive::admin",
+      props: {
+        roleName: "gh-deploy",
+        policyArns: ["arn:aws:iam::aws:policy/AdministratorAccess"],
+      },
+    });
+    expect(run(makeStackArgs([ghRole, exclusive]))).toHaveLength(1);
+  });
+
+  it("flags AdministratorAccess through generic PolicyAttachment roles", () => {
+    const generic = res({
+      type: "aws:iam/policyAttachment:PolicyAttachment",
+      urn: "urn:pulumi:s::p::aws:iam/policyAttachment:PolicyAttachment::admin",
+      props: {
+        roles: ["gh-deploy"],
+        policyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
+      },
+    });
+    expect(run(makeStackArgs([ghRole, generic]))).toHaveLength(1);
+  });
+
+  it("flags an attached customer-managed exact full-admin equivalent", () => {
+    const policy = res({
+      type: "aws:iam/policy:Policy",
+      urn: "urn:pulumi:s::p::aws:iam/policy:Policy::customer-admin",
+      name: "customer-admin",
+      props: {
+        arn: "arn:aws:iam::1:policy/customer-admin",
+        policy: FULL_ADMIN_POLICY,
+      },
+    });
+    const attach = res({
+      type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::customer-admin",
+      props: { policyArn: "arn:aws:iam::1:policy/customer-admin" },
+      propertyDependencies: { role: [ghRole], policyArn: [policy] },
+    });
+    expect(run(makeStackArgs([ghRole, policy, attach]))).toHaveLength(1);
+  });
+
+  it("flags a customer-managed full-admin policy in role managedPolicyArns dependencies", () => {
+    const policy = res({
+      type: "aws:iam/policy:Policy",
+      urn: "urn:pulumi:s::p::aws:iam/policy:Policy::direct-customer-admin",
+      props: { arn: "arn:aws:iam::1:policy/direct-customer-admin", policy: FULL_ADMIN_POLICY },
+    });
+    const role = res({
+      ...ghRole,
+      props: {
+        ...ghRole.props,
+        managedPolicyArns: ["arn:aws:iam::1:policy/direct-customer-admin"],
+      },
+      propertyDependencies: { managedPolicyArns: [policy] },
+    });
+    expect(run(makeStackArgs([policy, role]))).toHaveLength(1);
+  });
+
+  it("does NOT flag a scoped customer-managed policy attached to a GitHub OIDC role", () => {
+    const policy = res({
+      type: "aws:iam/policy:Policy",
+      urn: "urn:pulumi:s::p::aws:iam/policy:Policy::scoped",
+      props: {
+        arn: "arn:aws:iam::1:policy/scoped",
+        policy: JSON.stringify({
+          Statement: { Effect: "Allow", Action: "s3:GetObject", Resource: "arn:aws:s3:::bucket/*" },
+        }),
+      },
+    });
+    const attach = res({
+      type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::scoped",
+      props: { policyArn: "arn:aws:iam::1:policy/scoped" },
+      propertyDependencies: { role: [ghRole], policyArn: [policy] },
+    });
+    expect(run(makeStackArgs([ghRole, policy, attach]))).toHaveLength(0);
   });
 
   it("flags AdministratorAccess on a role whose Principal.Federated is an array (GitHub + another) (#170)", () => {

@@ -14,6 +14,7 @@
 
 import type { ResourceValidationPolicy } from "@pulumi/policy";
 
+import { iamPolicyStatements } from "../aws/iam-policy";
 import { federatedIsGithubOidc } from "./github-oidc-issuer";
 import { matchSuppression, type Suppression } from "./suppressions";
 
@@ -48,70 +49,80 @@ export function subClaimIsUnsafe(claim: string): boolean {
   return false;
 }
 
-function conditionOperatorBase(operator: string): string {
-  const base = operator.split(":").pop() ?? operator;
-  return base.endsWith("IfExists") ? base.slice(0, -"IfExists".length) : base;
-}
+const SUPPORTED_STRING_EQUALS_OPERATORS = new Set([
+  "StringEquals",
+  "ForAnyValue:StringEquals",
+  "ForAllValues:StringEquals",
+  "StringEqualsIfExists",
+]);
 
 /**
- * Walk an AWS IAM trust-policy JSON-string-or-object and check every
- * `Condition.*StringEquals*` / `*StringLike*` block for the GitHub OIDC
- * `sub` axis, including AWS set-qualified operators such as
- * `ForAnyValue:StringLike`. Reports a violation if `StringLike` is used at
- * all (UNC6426 pattern) or if any equality value contains a wildcard.
+ * Normalize a JSON-string-or-object AWS trust policy. Every statement for the
+ * exact GitHub OIDC issuer must carry one supported StringEquals-family `sub`
+ * restriction whose values are nonempty, strings, and wildcard-free. A policy
+ * whose structure cannot be inspected fails closed.
  */
 function inspectAwsIamTrustPolicy(
   args: { type: string; urn: string; props: Record<string, unknown> },
   reportViolation: (msg: string) => void,
 ): void {
   const policy = args.props.assumeRolePolicy;
-  let parsed: Record<string, unknown> | undefined;
-  if (typeof policy === "string") {
-    try {
-      parsed = JSON.parse(policy) as Record<string, unknown>;
-    } catch {
-      return; // unparseable trust policy — skip silently
-    }
-  } else if (policy !== null && typeof policy === "object") {
-    parsed = policy as Record<string, unknown>;
-  } else {
+  const statements = iamPolicyStatements(policy);
+  if (!statements) {
+    reportViolation(
+      `G_OIDC_1: AWS IAM role ${args.urn} has an uninspectable assumeRolePolicy; mandatory GitHub OIDC trust validation failed closed. Docs: ${DOCS_URL}`,
+    );
     return;
   }
-  const stmts = (parsed as { Statement?: unknown }).Statement;
-  if (!Array.isArray(stmts)) return;
-  for (const stmt of stmts) {
-    if (typeof stmt !== "object" || stmt === null) continue;
-    const s = stmt as Record<string, unknown>;
+  for (const s of statements) {
     const principal = s.Principal as Record<string, unknown> | undefined;
     if (!principal || principal.Federated === undefined) continue;
     if (!federatedIsGithubOidc(principal.Federated)) continue;
-    const conds = s.Condition as Record<string, unknown> | undefined;
-    if (!conds || typeof conds !== "object") continue;
+
+    const conds =
+      s.Condition !== null && typeof s.Condition === "object" && !Array.isArray(s.Condition)
+        ? (s.Condition as Record<string, unknown>)
+        : undefined;
+    if (!conds) {
+      reportViolation(
+        `G_OIDC_1: AWS IAM role ${args.urn} trusts GitHub OIDC without an inspectable Condition containing one exact \`${GITHUB_OIDC_SUB_CLAIM}\` equality restriction. Docs: ${DOCS_URL}`,
+      );
+      return;
+    }
+
+    const restrictions: Array<{ operator: string; value: unknown }> = [];
     for (const [operator, rawCondition] of Object.entries(conds)) {
-      if (rawCondition === null || typeof rawCondition !== "object") continue;
+      if (rawCondition === null || typeof rawCondition !== "object" || Array.isArray(rawCondition))
+        continue;
       const condition = rawCondition as Record<string, unknown>;
       if (condition[GITHUB_OIDC_SUB_CLAIM] === undefined) continue;
+      restrictions.push({ operator, value: condition[GITHUB_OIDC_SUB_CLAIM] });
+    }
 
-      const baseOperator = conditionOperatorBase(operator);
-      if (baseOperator === "StringLike") {
-        reportViolation(
-          `G_OIDC_1: AWS IAM role ${args.urn} uses ${operator} on \`${GITHUB_OIDC_SUB_CLAIM}\` — UNC6426 (March 2026) weaponized this shape; use StringEquals with the three-axis sub claim. Docs: ${DOCS_URL}`,
-        );
-        return;
-      }
-      if (baseOperator !== "StringEquals") continue;
+    if (restrictions.length !== 1) {
+      reportViolation(
+        `G_OIDC_1: AWS IAM role ${args.urn} GitHub OIDC statement must contain exactly one supported equality restriction for \`${GITHUB_OIDC_SUB_CLAIM}\`; found ${restrictions.length}. Docs: ${DOCS_URL}`,
+      );
+      return;
+    }
 
-      const v = condition[GITHUB_OIDC_SUB_CLAIM];
-      const claims = Array.isArray(v) ? v : [v];
-      for (const c of claims) {
-        if (typeof c !== "string") continue;
-        if (subClaimIsUnsafe(c)) {
-          reportViolation(
-            `G_OIDC_1: AWS IAM role ${args.urn} ${operator} \`${GITHUB_OIDC_SUB_CLAIM}\` value "${c}" contains a wildcard; UNC6426 (March 2026) shape; use the three-axis sub claim. Docs: ${DOCS_URL}`,
-          );
-          return;
-        }
-      }
+    const [{ operator, value }] = restrictions;
+    if (!SUPPORTED_STRING_EQUALS_OPERATORS.has(operator)) {
+      reportViolation(
+        `G_OIDC_1: AWS IAM role ${args.urn} uses unsupported ${operator} on \`${GITHUB_OIDC_SUB_CLAIM}\` — use StringEquals with the three-axis sub claim. Docs: ${DOCS_URL}`,
+      );
+      return;
+    }
+
+    const claims = Array.isArray(value) ? value : [value];
+    if (
+      claims.length === 0 ||
+      claims.some((claim) => typeof claim !== "string" || subClaimIsUnsafe(claim))
+    ) {
+      reportViolation(
+        `G_OIDC_1: AWS IAM role ${args.urn} ${operator} \`${GITHUB_OIDC_SUB_CLAIM}\` must contain only nonempty, non-wildcard strings; UNC6426 (March 2026) weaponized broader subjects. Docs: ${DOCS_URL}`,
+      );
+      return;
     }
   }
 }
@@ -151,7 +162,7 @@ function inspectGcpWifProvider(
 export const G_OIDC_1: ResourceValidationPolicy = {
   name: "G_OIDC_1",
   description:
-    "Reject wildcard / StringLike `sub` conditions on AWS / Azure / GCP IAM trust policies for GitHub Actions OIDC. UNC6426 (March 2026) weaponized this shape; require the three-axis safe `sub` shape (`repo` + `job_workflow_ref` + `environment`).",
+    "Reject uninspectable, missing, multiple, unsupported, or wildcard GitHub Actions OIDC subject restrictions in AWS trust policies, plus wildcard subjects in Azure and GCP federation. Use the three-axis safe subject shape (`repo` + `job_workflow_ref` + `environment`).",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     const suppressions = readSuppressions(

@@ -42,10 +42,15 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 
 ### GitHub
 
-| Pack                            | Coverage                                                                                                  |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `github/packs/hulumi-hardening` | `HulumiGithubHardeningPack` — H1 (no admin-bypass), H2 (signed commits required), `G_OIDC_1` (OIDC trust) |
-| `github/packs/cis-v1`           | `CisGithubV1Pack` — placeholder pending CIS WorkBench access (IDs-only structure ready to fill)           |
+| Pack                            | Coverage                                                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `github/packs/hulumi-hardening` | `HulumiGithubHardeningPack` — H1 (no admin-bypass), H2 (signed commits required), `G_OIDC_1` (fail-closed OIDC trust), `G_OIDC_2` (cluster/full-admin authority correlation) |
+
+`CisV5Pack` section 1.16 accepts both singleton and array IAM `Statement`
+representations. It rejects exact full-administrator documents and the AWS
+managed `AdministratorAccess` policy across direct, role-managed, exclusive,
+and generic Pulumi attachment shapes.
+| `github/packs/cis-v1` | `CisGithubV1Pack` — placeholder pending CIS WorkBench access (IDs-only structure ready to fill) |
 
 ### Cloudflare And Platform
 

@@ -19,6 +19,7 @@ import type { PolicyResource, StackValidationPolicy } from "@pulumi/policy";
 import {
   containsAdministratorAccessArn,
   iamPolicyHasFullAdmin,
+  iamPolicyHasUnsafeAllowComplement,
   iamPolicyStatements,
 } from "../aws/iam-policy";
 import { federatedIsGithubOidc } from "./github-oidc-issuer";
@@ -92,19 +93,23 @@ function linkedGithubOidcRole(
   return undefined;
 }
 
-function policyReferenceIsFullAdmin(
+function iamPolicyHasUnsafeOidcAuthority(policy: unknown): boolean {
+  return iamPolicyHasFullAdmin(policy) || iamPolicyHasUnsafeAllowComplement(policy);
+}
+
+function policyReferenceHasUnsafeAuthority(
   resource: PolicyResource,
   propName: string,
-  fullAdminPolicyUrns: Set<string>,
-  fullAdminPolicyValues: Set<string>,
+  unsafePolicyUrns: Set<string>,
+  unsafePolicyValues: Set<string>,
 ): boolean {
   for (const dep of resource.propertyDependencies?.[propName] ?? []) {
-    if (dep && fullAdminPolicyUrns.has(dep.urn)) return true;
+    if (dep && unsafePolicyUrns.has(dep.urn)) return true;
   }
   const raw = (resource.props as Record<string, unknown>)[propName];
   if (containsAdministratorAccessArn(raw)) return true;
   const values = Array.isArray(raw) ? raw : [raw];
-  return values.some((value) => typeof value === "string" && fullAdminPolicyValues.has(value));
+  return values.some((value) => typeof value === "string" && unsafePolicyValues.has(value));
 }
 
 /**
@@ -114,7 +119,7 @@ function policyReferenceIsFullAdmin(
 export const G_OIDC_2: StackValidationPolicy = {
   name: "G_OIDC_2",
   description:
-    "Reject cluster-scoped EKS admin, AWS AdministratorAccess, or an in-stack exact full-admin equivalent on an IAM role assumable via GitHub Actions OIDC. The blast radius of an OIDC role is set by what it can do, not only by who can assume it.",
+    "Reject cluster-scoped EKS admin, AWS AdministratorAccess, or an in-stack exact/complement effective-admin equivalent on an IAM role assumable via GitHub Actions OIDC. The blast radius of an OIDC role is set by what it can do, not only by who can assume it.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const suppressions = readSuppressions(
@@ -142,15 +147,18 @@ export const G_OIDC_2: StackValidationPolicy = {
     }
     if (ghOidcRoleUrns.size === 0) return;
 
-    const fullAdminPolicyUrns = new Set<string>();
-    const fullAdminPolicyValues = new Set<string>();
+    const unsafePolicyUrns = new Set<string>();
+    const unsafePolicyValues = new Set<string>();
     for (const resource of args.resources) {
-      if (resource.type !== IAM_POLICY_TYPE || !iamPolicyHasFullAdmin(resource.props.policy))
+      if (
+        resource.type !== IAM_POLICY_TYPE ||
+        !iamPolicyHasUnsafeOidcAuthority(resource.props.policy)
+      )
         continue;
-      fullAdminPolicyUrns.add(resource.urn);
+      unsafePolicyUrns.add(resource.urn);
       for (const key of ["arn", "id"]) {
         const value = resource.props[key];
-        if (typeof value === "string" && value.length > 0) fullAdminPolicyValues.add(value);
+        if (typeof value === "string" && value.length > 0) unsafePolicyValues.add(value);
       }
     }
 
@@ -166,14 +174,18 @@ export const G_OIDC_2: StackValidationPolicy = {
 
     for (const [roleUrn, role] of ghOidcRoles) {
       if (
-        policyReferenceIsFullAdmin(
+        policyReferenceHasUnsafeAuthority(
           role,
           "managedPolicyArns",
-          fullAdminPolicyUrns,
-          fullAdminPolicyValues,
+          unsafePolicyUrns,
+          unsafePolicyValues,
         )
       ) {
-        reportAdmin(role, roleUrn, "AdministratorAccess or an exact full-admin managed policy");
+        reportAdmin(
+          role,
+          roleUrn,
+          "AdministratorAccess, an exact full-administrator policy, or an unsafe allow-complement managed policy",
+        );
       }
       const inlinePolicies = role.props.inlinePolicies;
       if (
@@ -183,10 +195,14 @@ export const G_OIDC_2: StackValidationPolicy = {
             entry !== null &&
             typeof entry === "object" &&
             !Array.isArray(entry) &&
-            iamPolicyHasFullAdmin((entry as Record<string, unknown>).policy),
+            iamPolicyHasUnsafeOidcAuthority((entry as Record<string, unknown>).policy),
         )
       ) {
-        reportAdmin(role, roleUrn, "an exact full-admin inline policy");
+        reportAdmin(
+          role,
+          roleUrn,
+          "an exact full-administrator or unsafe allow-complement inline policy",
+        );
       }
     }
 
@@ -210,30 +226,50 @@ export const G_OIDC_2: StackValidationPolicy = {
           }
         }
       } else if (r.type === IAM_ROLE_POLICY_TYPE) {
-        if (iamPolicyHasFullAdmin(props.policy)) {
+        if (iamPolicyHasUnsafeOidcAuthority(props.policy)) {
           const roleUrn = linkedGithubOidcRole(r, ["role"], ghOidcRoleUrns, ghOidcRolesByValue);
-          if (roleUrn) reportAdmin(r, roleUrn, "an exact full-admin inline policy");
+          if (roleUrn)
+            reportAdmin(
+              r,
+              roleUrn,
+              "an exact full-administrator or unsafe allow-complement inline policy",
+            );
         }
       } else if (r.type === IAM_ROLE_POLICY_ATTACHMENT_TYPE) {
         if (
-          policyReferenceIsFullAdmin(r, "policyArn", fullAdminPolicyUrns, fullAdminPolicyValues)
+          policyReferenceHasUnsafeAuthority(r, "policyArn", unsafePolicyUrns, unsafePolicyValues)
         ) {
           const roleUrn = linkedGithubOidcRole(r, ["role"], ghOidcRoleUrns, ghOidcRolesByValue);
-          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
+          if (roleUrn)
+            reportAdmin(
+              r,
+              roleUrn,
+              "AdministratorAccess, an exact full-administrator policy, or an unsafe allow-complement policy",
+            );
         }
       } else if (r.type === IAM_ROLE_POLICY_ATTACHMENTS_EXCLUSIVE_TYPE) {
         if (
-          policyReferenceIsFullAdmin(r, "policyArns", fullAdminPolicyUrns, fullAdminPolicyValues)
+          policyReferenceHasUnsafeAuthority(r, "policyArns", unsafePolicyUrns, unsafePolicyValues)
         ) {
           const roleUrn = linkedGithubOidcRole(r, ["roleName"], ghOidcRoleUrns, ghOidcRolesByValue);
-          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
+          if (roleUrn)
+            reportAdmin(
+              r,
+              roleUrn,
+              "AdministratorAccess, an exact full-administrator policy, or an unsafe allow-complement policy",
+            );
         }
       } else if (r.type === IAM_POLICY_ATTACHMENT_TYPE) {
         if (
-          policyReferenceIsFullAdmin(r, "policyArn", fullAdminPolicyUrns, fullAdminPolicyValues)
+          policyReferenceHasUnsafeAuthority(r, "policyArn", unsafePolicyUrns, unsafePolicyValues)
         ) {
           const roleUrn = linkedGithubOidcRole(r, ["roles"], ghOidcRoleUrns, ghOidcRolesByValue);
-          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
+          if (roleUrn)
+            reportAdmin(
+              r,
+              roleUrn,
+              "AdministratorAccess, an exact full-administrator policy, or an unsafe allow-complement policy",
+            );
         }
       }
     }

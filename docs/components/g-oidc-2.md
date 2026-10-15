@@ -11,9 +11,16 @@ GitHub Actions OIDC issuer, then rejects these authority paths:
   `PolicyAttachment` resources targeting the role;
 - exact full-administrator documents in the role's `inlinePolicies` or a
   linked `RolePolicy`; and
-- an in-stack customer-managed `Policy` with an `Allow` statement containing
-  exact `Action: "*"` and `Resource: "*"`, when attached by an exact ARN or
-  Pulumi property dependency.
+- an in-stack customer-managed `Policy` with either an exact full-administrator
+  statement or an `Allow` statement using `NotAction` or `NotResource`, when
+  attached by an exact ARN or Pulumi property dependency.
+
+`NotAction` and `NotResource` describe complements of evolving AWS action and
+resource universes. `G_OIDC_2` therefore rejects their presence on an `Allow`
+statement instead of attempting to prove the residual authority safe. This is
+intentional even when a complement value is empty, malformed, or paired with a
+seemingly scoped resource. Complement operators on `Deny` statements are
+guardrails rather than permission grants and do not trigger this check.
 
 Role correlation prefers Pulumi property and resource dependency URNs. Exact
 role ARN, name, or ID values are the fallback for serialized previews and test
@@ -42,3 +49,8 @@ the deployment's effective-authorization tests for that wider proof.
 The rule emits resource and role URNs without copying policy documents into
 diagnostics. A suppression requires the existing documented `G_OIDC_2` or
 `HULUMI-H4` suppression contract.
+
+Use positive, explicit `Action` and `Resource` allowlists for GitHub deployment
+roles. Where practical, add a separately reviewed restrictive permissions
+boundary as defense in depth; the presence of a boundary ARN alone is not proof
+that it blocks every escalation path.

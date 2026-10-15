@@ -58,6 +58,13 @@ Stable in the v1.2+ release trains. Compatibility with tested Helm chart version
 
 The tier matrix for every baseline component lives in [../tiers.md](../tiers.md).
 
+## GitHub components (`@hulumi/baseline`)
+
+| Component                                 | Doc                                            |
+| ----------------------------------------- | ---------------------------------------------- |
+| `hulumi.baseline.github.OrgFoundation`    | [org-foundation.md](./org-foundation.md)       |
+| `hulumi.baseline.github.SecureRepository` | [secure-repository.md](./secure-repository.md) |
+
 ## Cloudflare edge components (`@hulumi/cloudflare-baseline`)
 
 | Component                                  | Doc                                                          |

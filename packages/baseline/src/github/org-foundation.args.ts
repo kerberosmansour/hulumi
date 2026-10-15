@@ -46,8 +46,10 @@ export interface OidcSubTemplateConfig {
   /**
    * When true (default), Hulumi emits the documented three-axis safe shape:
    * `["repo", "context", "job_workflow_ref", "environment"]`. Any custom
-   * template runs through `assertOidcTemplateSafe` which rejects `*`, `**`,
-   * empty axes, and any axis containing shell metacharacters.
+   * template runs through `assertOidcTemplateSafe` which requires `repo`,
+   * `job_workflow_ref`, and `environment`, while rejecting wildcard,
+   * malformed, duplicate, empty, and non-string claim keys. Additional unique
+   * GitHub-compatible claim keys remain supported.
    */
   useDefault: boolean;
   customTemplate?: string[];

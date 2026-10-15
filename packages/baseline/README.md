@@ -71,6 +71,28 @@ status checks, linear history, admin enforcement, restricted bypass actors,
 secret scanning, push protection, dependabot security updates. See
 [docs/components/secure-repository.md](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/secure-repository.md).
 
+## Quick-start — `OrgFoundation` OIDC subject binding
+
+```ts
+import { OrgFoundation } from "@hulumi/baseline/github";
+
+new OrgFoundation("platform", {
+  tier: "startup-hardened",
+  organization: "my-org",
+  billingEmail: "platform@example.com",
+  oidcSubTemplate: {
+    useDefault: false,
+    customTemplate: ["repo", "job_workflow_ref", "environment", "repository_id"],
+  },
+});
+```
+
+Every custom subject must retain `repo`, `job_workflow_ref`, and
+`environment`. Additional unique GitHub-compatible claims are allowed. Hulumi
+rejects a weak template before it can replace GitHub's complete OIDC `sub`
+format. See
+[docs/components/org-foundation.md](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/org-foundation.md).
+
 ## What you get
 
 | Surface     | Components                                                                                                                                                                                                                                                                                                                           |

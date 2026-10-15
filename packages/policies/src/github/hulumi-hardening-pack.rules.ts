@@ -12,7 +12,6 @@ import { G_OIDC_2 } from "./g-oidc-2";
 import { isUrnChildOfComponent } from "../urn";
 
 const HULUMI_SECURE_REPOSITORY_TYPE = "hulumi:baseline:github:SecureRepository";
-const HULUMI_ORG_FOUNDATION_TYPE = "hulumi:baseline:github:OrgFoundation";
 const RAW_GITHUB_REPO_TYPE = "github:index/repository:Repository";
 
 const DOCS_BASE =
@@ -36,12 +35,6 @@ function isChildOfSecureRepository(urn: string): boolean {
   // raw github.Repository declared with a logical name carrying the
   // SecureRepository type token.
   return isUrnChildOfComponent(urn, HULUMI_SECURE_REPOSITORY_TYPE);
-}
-
-function isChildOfOrgFoundation(urn: string): boolean {
-  // Anchored URN type-chain check — see ../urn.ts. Same forged-logical-name
-  // spoof class as isChildOfSecureRepository above.
-  return isUrnChildOfComponent(urn, HULUMI_ORG_FOUNDATION_TYPE);
 }
 
 /**
@@ -69,47 +62,70 @@ export const h1NoRawGithubRepository: ResourceValidationPolicy = {
 };
 
 /**
- * H2 — wildcard custom OIDC sub template is rejected.
+ * H2 — every custom OIDC subject binds repository, reusable-workflow, and
+ * environment identity.
  *
  * The wildcard rejection happens at runtime in `OrgFoundation`'s
- * constructor (M2's `assertOidcTemplateSafe`). H2 catches the same
- * shape declaratively at preview-time so the discipline holds even
- * when (a) `OrgFoundation` is bypassed via raw
- * `ActionsOrganizationOidcSubjectClaimCustomizationTemplate`, or (b)
- * an attacker submits a malformed Pulumi state file that drops the
- * runtime check.
+ * constructor (M2's `assertOidcTemplateSafe`). H2 independently validates
+ * every resource at preview-time, including children of a claimed
+ * OrgFoundation component, so neither raw resources nor forged component
+ * ancestry can bypass the identity contract.
  */
 const OIDC_TEMPLATE_TYPE =
   "github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate";
+const OIDC_REQUIRED_CLAIM_KEYS = ["repo", "job_workflow_ref", "environment"] as const;
+const OIDC_CLAIM_KEY = /^[A-Za-z0-9_]+$/;
+
+function oidcTemplateViolation(claimKeys: unknown): string | undefined {
+  if (!Array.isArray(claimKeys) || claimKeys.length === 0) {
+    return "includeClaimKeys must be a non-empty array";
+  }
+
+  const seen = new Set<string>();
+  for (let index = 0; index < claimKeys.length; index += 1) {
+    const key = claimKeys[index];
+    if (typeof key !== "string") {
+      return `includeClaimKeys contains a non-string entry at index ${index}`;
+    }
+    if (key.length === 0) {
+      return `includeClaimKeys contains an empty claim key at index ${index}`;
+    }
+    if (key.includes("*")) {
+      return `includeClaimKeys contains wildcard claim key "${key}"; UNC6426 (March 2026) weaponized this shape`;
+    }
+    if (!OIDC_CLAIM_KEY.test(key)) {
+      return `includeClaimKeys contains invalid claim key "${key}"; GitHub permits only alphanumeric characters and underscores`;
+    }
+    if (seen.has(key)) {
+      return `includeClaimKeys contains duplicate claim key "${key}"`;
+    }
+    seen.add(key);
+  }
+
+  const missing = OIDC_REQUIRED_CLAIM_KEYS.filter((key) => !seen.has(key));
+  if (missing.length > 0) {
+    return `includeClaimKeys is missing required identity axes: ${missing.join(", ")}`;
+  }
+  return undefined;
+}
 
 export const h2NoWildcardOidcTemplate: ResourceValidationPolicy = {
   name: "HULUMI-H2-no-wildcard-oidc-template",
   description:
-    "ActionsOrganizationOidcSubjectClaimCustomizationTemplate must not include `*`, `**`, or empty axes — UNC6426 weaponized exactly this shape. Use the three-axis safe default (`repo`, `context`, `job_workflow_ref`, `environment`).",
+    "ActionsOrganizationOidcSubjectClaimCustomizationTemplate must bind `repo`, `job_workflow_ref`, and `environment` through unique GitHub-compatible claim keys. Hulumi's default also includes `context`.",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     if (args.type !== OIDC_TEMPLATE_TYPE) return;
-    if (isChildOfOrgFoundation(args.urn)) {
-      // OrgFoundation already runtime-rejected wildcards; trust the parent
-      // composition. Defense-in-depth check only fires for raw
-      // ActionsOrganizationOidcSubjectClaimCustomizationTemplate uses.
-      return;
-    }
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
     );
     if (matchSuppression("HULUMI-H2", args.urn, suppressions).suppressed) return;
     const claimKeys = (args.props as Record<string, unknown>).includeClaimKeys;
-    if (!Array.isArray(claimKeys)) return;
-    for (const k of claimKeys) {
-      if (typeof k !== "string") continue;
-      if (k.length === 0 || k.includes("*")) {
-        reportViolation(
-          `HULUMI-H2: OIDC sub-claim template at ${args.urn} contains an empty or wildcard axis "${k}"; UNC6426 (March 2026) weaponized this shape; use the three-axis safe default. Docs: ${H2_DOCS}`,
-        );
-        return;
-      }
-    }
+    const violation = oidcTemplateViolation(claimKeys);
+    if (violation === undefined) return;
+    reportViolation(
+      `HULUMI-H2: OIDC sub-claim template at ${args.urn} is unsafe: ${violation}; require repo, job_workflow_ref, and environment. Docs: ${H2_DOCS}`,
+    );
   },
 };
 

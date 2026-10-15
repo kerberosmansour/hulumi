@@ -42,9 +42,9 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 
 ### GitHub
 
-| Pack                            | Coverage                                                                                                                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `github/packs/hulumi-hardening` | `HulumiGithubHardeningPack` — H1 (no admin-bypass), H2 (signed commits required), `G_OIDC_1` (fail-closed OIDC trust), `G_OIDC_2` (cluster/full-admin authority correlation) |
+| Pack                            | Coverage                                                                                                                                                                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `github/packs/hulumi-hardening` | `HulumiGithubHardeningPack` — H1 (no raw repository outside `SecureRepository`), H2 (repository/workflow/environment-bound OIDC subject template), `G_OIDC_1` (fail-closed OIDC trust), `G_OIDC_2` (cluster/full-admin authority correlation) |
 
 `CisV5Pack` section 1.16 accepts both singleton and array IAM `Statement`
 representations. It rejects exact full-administrator documents and the AWS

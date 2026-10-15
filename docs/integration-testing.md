@@ -1,7 +1,7 @@
-# Integration testing — Hulumi M3 weekly workflow
+# Integration testing — Hulumi manual protected workflows
 
 Hulumi's per-PR test suite runs entirely on Pulumi mocks. Real-AWS
-integration is reserved for the dedicated weekly/manual workflow, not
+integration is reserved for dedicated manual protected workflows, not
 PRs, and runs in a sandbox AWS account via GitHub Actions OIDC. This
 document spells out the workflow, the auth path, the cost contract, and
 the open-source threat model.
@@ -10,8 +10,9 @@ the open-source threat model.
 
 [`.github/workflows/weekly-integration.yml`](../.github/workflows/weekly-integration.yml)
 
-- **Trigger**: cron `0 4 * * 0` (Sundays 04:00 UTC) + `workflow_dispatch`
-  for ad-hoc runs.
+- **Trigger**: `workflow_dispatch` only. Scheduled runs were removed because
+  protected-environment approvals accumulated waiting jobs and created a
+  cleanup bottleneck.
 - **Matrix**: `tier ∈ {sandbox, startup-hardened}` — serialized with
   `max-parallel: 1` because AccountFoundation touches account-wide AWS
   services.
@@ -139,6 +140,41 @@ reconciler proofs after assuming the sandbox role through GitHub OIDC,
 but only when maintainers explicitly set the repository variable
 `HULUMI_RECONCILER_AWS_INTEGRATION=1`. PR CI never sets that flag.
 
+## Trusted node-label controller qualification
+
+Controller artifact publication and AWS qualification intentionally use
+different authority boundaries:
+
+- `trusted-node-label-image.yml` has package-write and attestation authority but
+  no AWS OIDC permission. It installs the admitted lock with lifecycle scripts
+  disabled, builds each architecture into a Docker archive, scans both the full
+  OS inventory and exact embedded npm runtime SBOM with checksum-verified
+  OSV-Scanner 2.7.0, and only then publishes a public digest and provenance.
+- `eks-trusted-node-label-qualification.yml` has sandbox OIDC but no package
+  authority. Before any mutation it validates the exact public digest, runner
+  `/32`, account, region and state-bucket owner, then uses IAM policy simulation
+  to prove every required lifecycle action is already allowed. A missing action
+  stops before provisioning.
+- The live job creates one run-scoped public-subnet EKS fixture whose API endpoint
+  admits only the current runner `/32`. It proves exact Pod `imageID`, numeric
+  nonroot and restricted security context, Pod Identity with SDK IMDS disabled,
+  fail-closed admission, rolling replacement, intentional zero capacity,
+  scale-from-zero recovery, bounded metrics/alarms/logs and the controller-role
+  CloudTrail read set.
+- Cleanup is a separate `always()` job that selects only the exact Pulumi stack,
+  destroys it and removes the stack. A second job fails unless both that stack
+  and resources carrying the exact `hulumi:qualification-id` tag are absent.
+
+The workflow downloads no remote install script. It fetches Pulumi CLI 3.268.0
+from the official signed GitHub release and verifies the exact Linux x64 archive
+SHA-256 before extraction. The AWS and Kubernetes provider versions remain the
+same exact versions already admitted by the repository lock.
+
+Apply the EKS qualification statements in
+[`weekly-integration-iam-policy.json`](deployment/weekly-integration-iam-policy.json)
+to the sandbox OIDC role after substituting the account ID. The readiness job is
+the enforcement point; documentation alone never marks the role ready.
+
 The guarded state-transition model for future broad execute-mode work
 lives in [HulumiReconciler.tla](TLAdocs/hulumi/HulumiReconciler.tla) with
 the checked invariant summary in
@@ -169,18 +205,19 @@ credentials.
 
 ## Cost contract
 
-| Resource                           | Per-run cost             | Notes                                            |
-| ---------------------------------- | ------------------------ | ------------------------------------------------ |
-| CloudTrail management events       | $0                       | First trail per region is free.                  |
-| AWS Config                         | ~$0.01–0.05              | Recorder + items enumerated, torn down each run. |
-| GuardDuty (basic)                  | <$0.10                   | Enable + scan + disable in the test window.      |
-| GuardDuty (extended features × 5)  | <$0.20                   | Each feature billed per scan.                    |
-| Security Hub + 2 standards         | <$0.05                   | Per-check pricing; 2 standards = double cost.    |
-| KMS CMK ring (4 keys)              | $0 if torn down each run | $1/month per key if orphaned.                    |
-| S3 (log bucket)                    | <$0.01                   | Object count negligible.                         |
-| S3 (Startup-Hardened log target)   | <$0.01                   | Short-lived server-access-log target bucket.     |
-| S3 (drift-classify fixture bucket) | <$0.01                   | One tagged bucket, destroyed after the test.     |
-| CloudWatch Logs (Startup-Hardened) | <$0.01                   | 365-day retention but tiny ingest.               |
+| Resource                           | Per-run cost             | Notes                                                                          |
+| ---------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| CloudTrail management events       | $0                       | First trail per region is free.                                                |
+| AWS Config                         | ~$0.01–0.05              | Recorder + items enumerated, torn down each run.                               |
+| GuardDuty (basic)                  | <$0.10                   | Enable + scan + disable in the test window.                                    |
+| GuardDuty (extended features × 5)  | <$0.20                   | Each feature billed per scan.                                                  |
+| Security Hub + 2 standards         | <$0.05                   | Per-check pricing; 2 standards = double cost.                                  |
+| KMS CMK ring (4 keys)              | $0 if torn down each run | $1/month per key if orphaned.                                                  |
+| S3 (log bucket)                    | <$0.01                   | Object count negligible.                                                       |
+| S3 (Startup-Hardened log target)   | <$0.01                   | Short-lived server-access-log target bucket.                                   |
+| S3 (drift-classify fixture bucket) | <$0.01                   | One tagged bucket, destroyed after the test.                                   |
+| CloudWatch Logs (Startup-Hardened) | <$0.01                   | 365-day retention but tiny ingest.                                             |
+| EKS controller qualification       | provider current rates   | One cluster and one `t3.medium`, bounded to one manual run and exact teardown. |
 
 **Expected weekly cost with clean teardown**: under $1/run, typically
 $0.20–$0.50. First-ever run might spike to $3–$5 as Config does its

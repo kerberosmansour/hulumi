@@ -1,5 +1,4 @@
-# Weekly integration for AccountFoundation. Cron Sunday 04:00 UTC +
-# workflow_dispatch for ad-hoc verification. OIDC only — no long-lived
+# Manually dispatched integration for AccountFoundation. OIDC only — no long-lived
 # AWS credentials. 30-min job timeout (15-min Pulumi up + 10 min destroy
 # + 5 min slop). Teardown runs on failure (cost safety per global red
 # lines).
@@ -12,8 +11,6 @@
 
 name: weekly-integration
 on:
-  schedule:
-    - cron: "0 4 * * 0"
   workflow_dispatch:
     inputs:
       tier:
@@ -46,11 +43,10 @@ jobs:
     name: account-foundation integration (real AWS)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Scheduled runs do not need an environment review (no actor), but
-    # the workflow_dispatch path is fired with the dispatching actor's
-    # permissions and consumes OIDC against the sandbox account. Gate
-    # behind a protected environment so any manual dispatch must clear
-    # required reviewers. (Maintainer must configure
+    # The workflow_dispatch path is fired with the dispatching actor's
+    # permissions and consumes OIDC against the sandbox account. Gate behind a
+    # protected environment so every dispatch clears required reviewers.
+    # (Maintainer must configure
     # `aws-weekly-integration` in repo settings — see PR body.)
     environment: aws-weekly-integration
     strategy:
@@ -303,17 +299,3 @@ jobs:
             packages/baseline/.pulumi/
             packages/baseline/*.log
           if-no-files-found: ignore
-
-      - name: Teardown (always runs on failure too)
-        if: always() && steps.env.outputs.contract_only == 'false'
-        env:
-          HULUMI_INTEGRATION: "1"
-          HULUMI_TEARDOWN_ONLY: "1"
-          HULUMI_TIER: ${{ matrix.tier }}
-          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
-        run: |
-          # Best-effort teardown. Failures here are logged; the integration
-          # test itself owns afterAll() teardown for the primary path.
-          echo "Teardown step — stack-level afterAll() in the integration test handled the primary destroy path."

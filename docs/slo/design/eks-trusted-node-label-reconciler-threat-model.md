@@ -1,7 +1,8 @@
 # Threat model — trusted EKS node-label reconciler
 
-Status: M1 focused design for Hulumi issue #305. The repository has no open
-canonical Codex Security finding as of 2026-10-15.
+Status: M1–M3 design for Hulumi issue #305. The repository had no open canonical
+Codex Security finding before M2; M3 keeps exact-head and post-merge scans as
+release gates.
 
 ## Requested outcome
 
@@ -47,7 +48,10 @@ allowed EKS managed node group and matches its expected EC2 identity and taints.
 | `tm-eks-node-label-reconciler-abuse-6` | A stolen controller token or another Node writer changes the protected label or piggybacks another field change. | The narrow identity restoration path becomes general Node mutation authority. | Bind minimal RBAC to one ServiceAccount and enforce exact label-addition shape and identity with a fail-closed ValidatingAdmissionPolicy. |
 | `tm-eks-node-label-reconciler-abuse-7` | An API returns a partial page, duplicate record, malformed object or unbounded continuation. | The controller authorizes against incomplete evidence or consumes unbounded memory/time. | Bound every page/item/byte/retry count, require requested records exactly once, and treat every partial/ambiguous result as failure. |
 | `tm-eks-node-label-reconciler-abuse-8` | A failure path logs bearer tokens, credential headers, raw provider responses or high-cardinality metadata. | Credentials or sensitive infrastructure topology enter logs and metric stores. | Emit only stable reason codes, fixed dimensions and a one-way Node UID correlation hash; test redaction on every failure class. |
-| `tm-eks-node-label-reconciler-abuse-9` | A mutable or known-vulnerable controller image is deployed. | Registry substitution or a compromised runtime gains the controller's patch authority. | Require a digest-pinned image in M2; publish only an OSV/Trivy-clean, provenance-attested artifact after M3 qualification. |
+| `tm-eks-node-label-reconciler-abuse-9` | A mutable or known-vulnerable controller image is deployed. | Registry substitution or a compromised runtime gains the controller's patch authority. | Require a digest-pinned image in M2; publish only an official-OSV-clean artifact with an embedded runtime SBOM and build provenance after M3 qualification. |
+| `tm-eks-node-label-reconciler-abuse-10` | A compromised action, fork or feature ref reaches a job that combines registry write, signing and sandbox OIDC authority. | Untrusted code publishes a controller image or mutates the sandbox under a trusted repository identity. | Separate image and AWS workflows/jobs, pin every dependency, expose authority only on exact merged `main`, and hand off only a public immutable digest. |
+| `tm-eks-node-label-reconciler-abuse-11` | OIDC succeeds but the role/account/region/backend or effective EKS permissions differ from the reviewed contract. | Provision starts with partial authority, fails mid-flight and leaves resources or broadens the role ad hoc. | Run a read-only readiness job first, verify exact identity/ownership/capabilities, and make the mutation job depend on its success. |
+| `tm-eks-node-label-reconciler-abuse-12` | A job is canceled or fails after cloud creation and reports a no-op teardown message as cleanup. | EKS, EC2, IAM, VPC or state artifacts remain billable and become a future confused-deputy target. | Use exact run-scoped state and names, always run real destroy/remove, perform a second independent inventory, and fail the qualification if anything remains. |
 
 ## Residual risks and milestone ownership
 
@@ -58,6 +62,8 @@ allowed EKS managed node group and matches its expected EC2 identity and taints.
 | RBAC cannot restrict a Node patch to one label key. | M2 must add an admission control bound to the exact controller identity and mutation shape. | M2, repository maintainer. |
 | Intentional zero capacity has no recovery-time sample. | M3 measures recovery only after capacity becomes non-zero and records the scale-from-zero start point. | M3, repository maintainer. |
 | The M2 component accepts an externally built digest-pinned controller image. | The digest prevents substitution but does not establish build provenance or vulnerability status. M3 must publish and attest the supported image before an operational release claim. | M3, repository maintainer, before publication. |
+| Current sandbox OIDC proves identity but its documented policy does not yet prove every EKS/VPC/IAM lifecycle permission. | M3 may implement the repository controls locally, but live provision and publication remain blocked until the merged read-only readiness job passes and any policy change is applied by the sandbox owner. | M3 operator-readiness gate; sandbox owner, before live provision. |
+| Public base registries differ in signed-metadata support and scanner feeds can disagree. | Pin the index digest; retain publisher/source evidence; require complete official OSV inventories for both architectures and the exact npm runtime graph; publish Hulumi's final image with an embedded SBOM/provenance. Independent scanner evidence is additive only after that tool's own dependency graph passes admission. | M3 repository maintainer, every image build. |
 
 ## Compliance/control mapping
 

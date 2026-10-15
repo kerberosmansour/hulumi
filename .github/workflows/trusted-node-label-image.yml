@@ -1,0 +1,248 @@
+# Manually publish the trusted-node-label controller from merged main.
+# Build jobs have no registry/OIDC authority. The isolated publish job receives
+# only prebuilt, OSV-admitted archives and cannot execute repository build code.
+
+name: trusted-node-label-image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trusted-node-label-image-main
+  cancel-in-progress: false
+
+jobs:
+  dependency-admission:
+    if: github.ref == 'refs/heads/main'
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
+  build-and-scan:
+    if: github.ref == 'refs/heads/main'
+    needs: dependency-admission
+    name: Build and OSV scan (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install admitted lock without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build admitted workspace
+        run: pnpm -r build
+
+      - name: Prepare exact production runtime inventory
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          IMAGE_CONTEXT="$RUNNER_TEMP/hulumi-controller-${ARCH}"
+          pnpm --filter @hulumi/k8s-baseline --prod deploy "$IMAGE_CONTEXT"
+          python3 scripts/osv-image-gate.py \
+            --prepare-runtime-sbom "$IMAGE_CONTEXT" \
+            --output "$IMAGE_CONTEXT/runtime-dependencies.cdx.json"
+          test -f "$IMAGE_CONTEXT/dist/trusted-node-label-controller-main.js"
+          echo "IMAGE_CONTEXT=$IMAGE_CONTEXT" >> "$GITHUB_ENV"
+
+      - name: Build one exact platform archive without executing image content
+        env:
+          ARCH: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          docker buildx version
+          mkdir -p .image-evidence
+          docker buildx build \
+            --platform "$PLATFORM" \
+            --pull \
+            --provenance=false \
+            --sbom=false \
+            --progress=plain \
+            --tag "local/hulumi-trusted-node-label-reconciler:${ARCH}" \
+            --file containers/trusted-node-label-reconciler/Dockerfile \
+            --output "type=docker,dest=.image-evidence/controller-${ARCH}.tar" \
+            "$IMAGE_CONTEXT"
+
+      - name: Fail closed on final OS and exact runtime dependency graph
+        env:
+          ARCH: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          python3 scripts/osv-image-gate.py \
+            --archive ".image-evidence/controller-${ARCH}.tar" \
+            --expected-platform "$PLATFORM" \
+            --sbom "$IMAGE_CONTEXT/runtime-dependencies.cdx.json" \
+            --output ".image-evidence/controller-${ARCH}-osv.json"
+          cp "$IMAGE_CONTEXT/runtime-dependencies.cdx.json" \
+            ".image-evidence/runtime-dependencies-${ARCH}.cdx.json"
+
+      - name: Verify numeric nonroot runtime after admission
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          docker load --input ".image-evidence/controller-${ARCH}.tar"
+          test "$(docker image inspect --format '{{.Config.User}}' "local/hulumi-trusted-node-label-reconciler:${ARCH}")" = "65532:65532"
+          if [ "$ARCH" = "amd64" ]; then
+            docker run --rm --entrypoint node \
+              "local/hulumi-trusted-node-label-reconciler:${ARCH}" --version
+          fi
+
+      - name: Seal per-platform evidence
+        working-directory: .image-evidence
+        run: sha256sum -- ./* > checksums.txt
+
+      - name: Upload admitted platform archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: trusted-node-label-controller-${{ matrix.arch }}
+          path: .image-evidence/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: [dependency-admission, build-and-scan]
+    name: Publish immutable public digest and provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/kerberosmansour/hulumi-trusted-node-label-reconciler
+      PACKAGE: hulumi-trusted-node-label-reconciler
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: trusted-node-label-controller-*
+          path: .image-artifacts
+
+      - name: Verify archive evidence before registry authority is used
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            directory=".image-artifacts/trusted-node-label-controller-${arch}"
+            test -d "$directory"
+            (cd "$directory" && sha256sum --check checksums.txt)
+            python3 -c '
+          import json, pathlib, sys
+          receipt = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if receipt.get("admissionExitCode") != 0:
+              raise SystemExit("OSV image receipt did not pass")
+          if receipt.get("advisoryIds") or receipt.get("runtimeDependencyAdvisoryIds"):
+              raise SystemExit("OSV image receipt contains an advisory")
+          if not receipt.get("packageCount") or not receipt.get("runtimeDependencyPackageCount"):
+              raise SystemExit("OSV image receipt has an empty inventory")
+          ' "$directory/controller-${arch}-osv.receipt.json"
+          done
+
+      - name: Load only the admitted archives
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            docker load --input ".image-artifacts/trusted-node-label-controller-${arch}/controller-${arch}.tar"
+          done
+
+      - name: Publish per-platform manifests and exact multi-platform index
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for arch in amd64 arm64; do
+            remote_ref="${IMAGE}:${GITHUB_SHA}-${arch}"
+            docker tag "local/hulumi-trusted-node-label-reconciler:${arch}" "$remote_ref"
+            docker push "$remote_ref"
+          done
+          index_ref="${IMAGE}:${GITHUB_SHA}"
+          docker manifest create "$index_ref" \
+            "${IMAGE}:${GITHUB_SHA}-amd64" \
+            "${IMAGE}:${GITHUB_SHA}-arm64"
+          docker manifest annotate "$index_ref" "${IMAGE}:${GITHUB_SHA}-amd64" --os linux --arch amd64
+          docker manifest annotate "$index_ref" "${IMAGE}:${GITHUB_SHA}-arm64" --os linux --arch arm64
+          docker manifest push --purge "$index_ref"
+          docker buildx imagetools inspect --raw "$index_ref" > image-index.json
+          digest="sha256:$(sha256sum image-index.json | cut -d' ' -f1)"
+          case "$digest" in
+            sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "::error::Registry did not return an exact sha256 index"; exit 1 ;;
+          esac
+          docker manifest inspect "${IMAGE}@${digest}" >/dev/null
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf '%s@%s\n' "$IMAGE" "$digest" > published-image.txt
+
+      - name: Attest final image build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
+
+      - name: Require public package visibility and prove anonymous digest pull
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          visibility="$(gh api "/user/packages/container/${PACKAGE}" --jq .visibility)"
+          if [ "$visibility" != "public" ]; then
+            echo "::error::GHCR package visibility must be changed to public in Package settings before qualification"
+            exit 1
+          fi
+          docker logout ghcr.io
+          docker pull "${IMAGE}@${DIGEST}"
+
+      - name: Verify exact signer workflow and source commit
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p .publish-evidence
+          cp image-index.json published-image.txt .publish-evidence/
+          gh attestation verify "oci://${IMAGE}@${DIGEST}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle-from-oci \
+            --signer-workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/trusted-node-label-image.yml" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners \
+            --format json > .publish-evidence/provenance-verification.json
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: trusted-node-label-controller-publication
+          path: .publish-evidence/*
+          if-no-files-found: error
+          retention-days: 30

@@ -60,12 +60,19 @@ will not necessarily appear there. Never manufacture installs to improve ranking
 
 ## Tell us what worked
 
-Feedback is optional. Use the [integration feedback form](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml)
-for a success, partial result or blocker. Include package/version and a sanitized
-use case; agent/model and a public example are optional. Reports are public and
-associated with your GitHub account. Agents should draft feedback only and obtain
-explicit permission before submitting. Use [private advisories](https://github.com/kerberosmansour/hulumi/security/advisories/new)
-for vulnerabilities. No runtime library telemetry is added by this workflow.
+Feedback is optional. Share success and general usage in [Discussions](https://github.com/kerberosmansour/hulumi/discussions).
+Use an [integration report](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml)
+for a concrete blocker or documentation gap. Search existing issues first.
+Follow the [feedback policy and local draft helper](feedback.md); it records exact
+versions/features, actual checks, consulted docs and duplicate evidence. The
+[sunlit-upstream-feedback skill](../../skills/sunlit-upstream-feedback/SKILL.md)
+can be installed by the same reviewed-copy procedure above. Its bundled Python
+script is optional and never sends data or executes reproduction commands.
 
-Maintainers: see [adoption measurement](adoption-measurement.md) for dated snapshots,
-provider analytics, feedback review and repeatable task checks.
+Reports are public and associated with the submitting account. An agent must
+obtain operator authorization before posting. Suspected vulnerabilities go to
+[private reports](https://github.com/kerberosmansour/hulumi/security/advisories/new).
+No library telemetry or automatic reporting is added.
+
+See [task contracts](tasks.md), [evaluation protocol](evaluation.md),
+[adoption measurement](adoption-measurement.md), and [distribution readiness](distribution.md).

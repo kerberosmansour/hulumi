@@ -21,7 +21,10 @@ CI runs a `license-boundary` lint that fails on known-distinctive framework pros
 ## How to develop
 
 ```bash
-pnpm install
+pnpm install --ignore-scripts --frozen-lockfile
+python3 scripts/osv-dependency-gate.py
+# Review provenance and the scan before enabling scripts/builds.
+pnpm install --frozen-lockfile
 pnpm -r test          # unit tests
 pnpm -r typecheck
 pnpm -r lint
@@ -29,7 +32,7 @@ pnpm run lint:license-boundary
 pnpm run format:check
 ```
 
-Before opening a PR, confirm `pnpm -r test && pnpm -r typecheck && pnpm -r lint` pass locally on Node 20 LTS with pnpm ≥ 9.
+Before opening a PR, confirm `pnpm -r test && pnpm -r typecheck && pnpm -r lint` pass locally on Node.js >=22.12.0 with the pinned pnpm@9.12.0 from `package.json`. The package manifests are the source of truth for prerequisites.
 
 ## Branch + PR conventions
 
@@ -40,7 +43,7 @@ Before opening a PR, confirm `pnpm -r test && pnpm -r typecheck && pnpm -r lint`
 
 ## No runtime dependency additions without discussion
 
-Adding a runtime dependency to any publishable `@hulumi/*` package is a significant supply-chain decision. Open a GitHub Discussion first describing:
+Adding a runtime dependency to any publishable `@hulumi/*` package is a significant supply-chain decision. Open a [dependency proposal discussion](https://github.com/kerberosmansour/hulumi/discussions) first describing:
 
 - why the dependency is needed,
 - what the exact version + integrity hash will be,
@@ -107,3 +110,18 @@ The Apache-2.0 licence grants no rights in the project name or logo. See [TRADEM
 ## Security
 
 See [SECURITY.md](./SECURITY.md) for responsible-disclosure details.
+
+## Current release banner
+
+After reviewing a coordinated release tag and its migration notes, check the current
+README banner directly against that local tag's root and six package manifests:
+
+```sh
+python3 scripts/sync-consumer-release.py --tag v3.0.0 --check
+```
+
+For the next reviewed release, use its explicit stable tag and `--write`, then review
+the diff. The command does not fetch tags, execute tagged code, infer a release from
+`main`, or rewrite historical release entries. It refuses inconsistent package
+versions or missing migration notes. Keep package examples and consumer references
+in the release review too; this command updates only the single current banner.

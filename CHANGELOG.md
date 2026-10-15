@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local constructor-to-policy evidence does not qualify live webhook/runner
   lifecycle. Preserve external dependency identities and existing APIs/versions.
 
-## Unreleased
+### Dependencies
 
-_No changes yet._
+- Update the private threat-model skill’s Node 20 types to 20.19.43 after script-disabled resolution, full archive/signature/provenance review and official OSV admission. Runtime packages and transitive versions are unchanged.
 
 ## [3.0.0] — 2026-10-14
 

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { normalizeEvidence } from "../src/evidence/normalize.ts";
+import { normalizeEvidence, type RawScanFinding } from "../src/evidence/normalize.ts";
 import {
   assertEmergencyInvariant,
   defaultRouteConfig,
@@ -21,8 +21,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { ensureScannerBinary, scanProject, verifyScannerBinary } from "../src/cli/scan.ts";
+import { remediateFromFiles } from "../src/cli/remediate.ts";
 import {
   classifyManifest,
   conventionsSchema,
@@ -32,6 +33,108 @@ import {
   proposeScope,
   scopeFileSchema,
 } from "../src/scope/policy.ts";
+
+const remediationCli = fileURLToPath(new URL("../src/cli/remediate.ts", import.meta.url));
+const tsxCli = fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url));
+
+const remediationFinding = {
+  ecosystem: "npm" as const,
+  package: "lodash",
+  version: "4.17.20",
+  advisoryId: "GHSA-35jh-r3h4-6jhm",
+};
+
+function packageLock(version = remediationFinding.version) {
+  return {
+    name: "remediation-fixture",
+    version: "1.0.0",
+    lockfileVersion: 3,
+    packages: {
+      "": { dependencies: { [remediationFinding.package]: version } },
+      [`node_modules/${remediationFinding.package}`]: { version },
+    },
+    dependencies: { [remediationFinding.package]: { version } },
+  };
+}
+
+async function writeRemediationManifest(root: string, manifestPath: string) {
+  const target = join(root, manifestPath);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(packageLock(), null, 2)}\n`);
+  await writeFile(
+    join(dirname(target), "package.json"),
+    `${JSON.stringify({ dependencies: { [remediationFinding.package]: remediationFinding.version } }, null, 2)}\n`,
+  );
+}
+
+function git(root: string, ...args: string[]) {
+  const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+async function commitRemediationFixture(root: string) {
+  git(root, "init", "-q");
+  git(root, "config", "user.name", "Hulumi SCA Test");
+  git(root, "config", "user.email", "sca-test@example.invalid");
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "fixture");
+  return git(root, "rev-parse", "HEAD");
+}
+
+async function writeRemediationWorkItem(
+  directory: string,
+  manifestPath: string,
+  mutate?: (value: Record<string, unknown>) => void,
+  finding: Omit<RawScanFinding, "manifestPath"> = remediationFinding,
+  fixedVersion = "4.17.21",
+) {
+  const raw = { ...finding, manifestPath };
+  const evidence = normalizeEvidence({
+    finding: raw,
+    osv: { fixedVersion, severityClass: "critical" },
+    dependencyReview: { present: true, vulnerableTransitives: [] },
+  });
+  const value: Record<string, unknown> = {
+    version: 1,
+    workItems: [{ findingKey: evidence.findingKey, track: "emergency", state: "in_progress" }],
+    evidence: [evidence],
+  };
+  mutate?.(value);
+  const bytes = `${JSON.stringify(value, null, 2)}\n`;
+  const path = join(directory, "work-items.json");
+  await writeFile(path, bytes);
+  return { path, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+function runRemediation(
+  root: string,
+  workItemsPath: string,
+  expectedRevision: string,
+  expectedDigest: string,
+  env?: NodeJS.ProcessEnv,
+) {
+  return spawnSync(
+    tsxCli,
+    [
+      remediationCli,
+      "remediate-emergency",
+      "--work-items",
+      workItemsPath,
+      "--output",
+      "remediation-result.json",
+      "--apply",
+      "true",
+      "--repository-root",
+      root,
+      "--expected-revision",
+      expectedRevision,
+      "--work-items-sha256",
+      expectedDigest,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 10_000, env: { ...process.env, ...env } },
+  );
+}
 
 const manifest = (path: string) => ({ path, ecosystem: "npm" as const, parser: "package-lock" });
 
@@ -202,6 +305,313 @@ test("real triage CLI fails closed on MAL with no fix and preserves scanner/stat
     await assert.rejects(access(join(root, "events.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("remediation apply changes only the reviewed manifest pair at the exact revision", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-valid-")));
+  try {
+    await writeRemediationManifest(root, "package-lock.json");
+    await writeFile(join(root, "sentinel.txt"), "unchanged\n");
+    const revision = await commitRemediationFixture(root);
+    const work = await writeRemediationWorkItem(root, "package-lock.json");
+
+    const child = runRemediation(root, work.path, revision, work.sha256);
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(
+      JSON.parse(await readFile(join(root, "package.json"), "utf8")).dependencies.lodash,
+      "4.17.21",
+    );
+    assert.equal(
+      JSON.parse(await readFile(join(root, "package-lock.json"), "utf8")).packages[
+        "node_modules/lodash"
+      ].version,
+      "4.17.21",
+    );
+    assert.equal(await readFile(join(root, "sentinel.txt"), "utf8"), "unchanged\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("bounded remediation preserves exact PyPI and NuGet manifest syntax", async () => {
+  const fixtures = [
+    {
+      ecosystem: "PyPI" as const,
+      package: "demo.pkg",
+      from: "1.2.3",
+      to: "1.2.4",
+      manifestPath: "requirements.txt",
+      files: {
+        "requirements.txt": "demo.pkg == 1.2.3  # retained comment\nother==9.0.0\n",
+      },
+      assertResult: async (root: string) => {
+        assert.equal(
+          await readFile(join(root, "requirements.txt"), "utf8"),
+          "demo.pkg == 1.2.4  # retained comment\nother==9.0.0\n",
+        );
+      },
+    },
+    {
+      ecosystem: "NuGet" as const,
+      package: "Demo.Package",
+      from: "2.3.4",
+      to: "2.3.5",
+      manifestPath: "packages.lock.json",
+      files: {
+        "packages.lock.json": `${JSON.stringify(
+          {
+            version: 1,
+            dependencies: {
+              "net8.0": {
+                "Demo.Package": { type: "Direct", requested: "[2.3.4, )", resolved: "2.3.4" },
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "worker-dotnet.csproj":
+          '<Project><ItemGroup><PackageReference Include="Demo.Package" Version="2.3.4" /></ItemGroup></Project>\n',
+      },
+      assertResult: async (root: string) => {
+        const lock = JSON.parse(await readFile(join(root, "packages.lock.json"), "utf8"));
+        assert.equal(lock.dependencies["net8.0"]["Demo.Package"].resolved, "2.3.5");
+        assert.equal(lock.dependencies["net8.0"]["Demo.Package"].requested, "[2.3.5, )");
+        assert.match(
+          await readFile(join(root, "worker-dotnet.csproj"), "utf8"),
+          /Include="Demo\.Package" Version="2\.3\.5"/,
+        );
+      },
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), `hulumi-sca-remediation-${fixture.ecosystem.toLowerCase()}-`)),
+    );
+    try {
+      for (const [path, contents] of Object.entries(fixture.files)) {
+        await writeFile(join(root, path), contents);
+      }
+      const revision = await commitRemediationFixture(root);
+      const work = await writeRemediationWorkItem(
+        root,
+        fixture.manifestPath,
+        undefined,
+        {
+          ecosystem: fixture.ecosystem,
+          package: fixture.package,
+          version: fixture.from,
+          advisoryId: "GHSA-fixture-remediation",
+        },
+        fixture.to,
+      );
+
+      const child = runRemediation(root, work.path, revision, work.sha256);
+      assert.equal(child.status, 0, child.stderr);
+      await fixture.assertResult(root);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});
+
+for (const kind of ["absolute", "traversal"] as const) {
+  const article = kind === "absolute" ? "an" : "a";
+  test(`remediation rejects ${article} ${kind} manifest path before touching an outside repository`, async () => {
+    const parent = await realpath(await mkdtemp(join(tmpdir(), `hulumi-sca-remediation-${kind}-`)));
+    const root = join(parent, "repo");
+    const outside = join(parent, "outside");
+    await mkdir(root);
+    await mkdir(outside);
+    try {
+      await writeRemediationManifest(outside, "package-lock.json");
+      await writeFile(join(root, "sentinel.txt"), "trusted checkout\n");
+      const before = await readFile(join(outside, "package-lock.json"), "utf8");
+      const revision = await commitRemediationFixture(root);
+      const manifestPath =
+        kind === "absolute" ? join(outside, "package-lock.json") : "../outside/package-lock.json";
+      const work = await writeRemediationWorkItem(root, manifestPath);
+
+      const child = runRemediation(root, work.path, revision, work.sha256);
+      assert.notEqual(child.status, 0);
+      assert.match(child.stderr, /repository-relative|outside|traversal/i);
+      assert.equal(await readFile(join(outside, "package-lock.json"), "utf8"), before);
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+}
+
+test("remediation rejects backslash path ambiguity", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-backslash-")));
+  const manifestPath = "nested\\package-lock.json";
+  try {
+    await writeRemediationManifest(root, manifestPath);
+    const before = await readFile(join(root, manifestPath), "utf8");
+    const revision = await commitRemediationFixture(root);
+    const work = await writeRemediationWorkItem(root, manifestPath);
+
+    const child = runRemediation(root, work.path, revision, work.sha256);
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /backslash|canonical|repository-relative/i);
+    assert.equal(await readFile(join(root, manifestPath), "utf8"), before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("remediation rejects intermediate and final symbolic links", async () => {
+  for (const linkKind of ["intermediate", "final"] as const) {
+    const parent = await realpath(
+      await mkdtemp(join(tmpdir(), `hulumi-sca-remediation-${linkKind}-link-`)),
+    );
+    const root = join(parent, "repo");
+    const outside = join(parent, "outside");
+    await mkdir(root);
+    await mkdir(outside);
+    try {
+      await writeRemediationManifest(outside, "package-lock.json");
+      const manifestPath = "linked/package-lock.json";
+      if (linkKind === "intermediate") {
+        await symlink(outside, join(root, "linked"));
+      } else {
+        await mkdir(join(root, "linked"));
+        await symlink(join(outside, "package-lock.json"), join(root, manifestPath));
+        await writeFile(
+          join(root, "linked/package.json"),
+          `${JSON.stringify({ dependencies: { lodash: "4.17.20" } }, null, 2)}\n`,
+        );
+      }
+      const before = await readFile(join(outside, "package-lock.json"), "utf8");
+      const revision = await commitRemediationFixture(root);
+      const work = await writeRemediationWorkItem(root, manifestPath);
+
+      const child = runRemediation(root, work.path, revision, work.sha256);
+      assert.notEqual(child.status, 0);
+      assert.match(child.stderr, /symbolic link|regular file/i);
+      assert.equal(await readFile(join(outside, "package-lock.json"), "utf8"), before);
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  }
+});
+
+test("remediation rejects a non-regular manifest before opening it", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-fifo-")));
+  try {
+    await writeFile(join(root, "sentinel.txt"), "trusted checkout\n");
+    const revision = await commitRemediationFixture(root);
+    const fifo = spawnSync("mkfifo", [join(root, "package-lock.json")], { encoding: "utf8" });
+    assert.equal(fifo.status, 0, fifo.stderr);
+    const work = await writeRemediationWorkItem(root, "package-lock.json");
+
+    const child = runRemediation(root, work.path, revision, work.sha256);
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /regular file/i);
+    assert.equal(await readFile(join(root, "sentinel.txt"), "utf8"), "trusted checkout\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+for (const binding of ["revision", "digest"] as const) {
+  test(`remediation rejects a mismatched reviewed ${binding} before mutation`, async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), `hulumi-sca-remediation-${binding}-`)),
+    );
+    try {
+      await writeRemediationManifest(root, "package-lock.json");
+      const before = await readFile(join(root, "package-lock.json"), "utf8");
+      const revision = await commitRemediationFixture(root);
+      const work = await writeRemediationWorkItem(root, "package-lock.json");
+      const expectedRevision = binding === "revision" ? "0".repeat(40) : revision;
+      const expectedDigest = binding === "digest" ? "f".repeat(64) : work.sha256;
+
+      const child = runRemediation(root, work.path, expectedRevision, expectedDigest);
+      assert.notEqual(child.status, 0);
+      assert.match(child.stderr, binding === "revision" ? /revision|HEAD/i : /digest|SHA-256/i);
+      assert.equal(await readFile(join(root, "package-lock.json"), "utf8"), before);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("remediation rejects duplicate evidence instead of selecting the first row", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-duplicate-")));
+  try {
+    await writeRemediationManifest(root, "package-lock.json");
+    const before = await readFile(join(root, "package-lock.json"), "utf8");
+    const revision = await commitRemediationFixture(root);
+    const work = await writeRemediationWorkItem(root, "package-lock.json", (value) => {
+      value.evidence = [...(value.evidence as unknown[]), ...(value.evidence as unknown[])];
+    });
+
+    const child = runRemediation(root, work.path, revision, work.sha256);
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /duplicate|exactly one|schema/i);
+    assert.equal(await readFile(join(root, "package-lock.json"), "utf8"), before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("remediation rejects a target replaced after its checked read", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-race-")));
+  try {
+    await writeRemediationManifest(root, "package-lock.json");
+    const revision = await commitRemediationFixture(root);
+    const work = await writeRemediationWorkItem(root, "package-lock.json");
+    const replacement = `${JSON.stringify(packageLock("9.9.9"), null, 2)}\n`;
+
+    await assert.rejects(
+      remediateFromFiles({
+        workItemsPath: work.path,
+        outputPath: "remediation-result.json",
+        applyPatch: true,
+        repositoryRoot: root,
+        expectedRevision: revision,
+        workItemsSha256: work.sha256,
+        beforeAtomicReplaceForTest: async (path) => {
+          assert.equal(path, "package-lock.json");
+          await writeFile(join(root, path), replacement);
+        },
+      }),
+      /changed before atomic replacement/i,
+    );
+    assert.equal(await readFile(join(root, "package-lock.json"), "utf8"), replacement);
+    assert.equal(
+      JSON.parse(await readFile(join(root, "package.json"), "utf8")).dependencies.lodash,
+      "4.17.20",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("bounded remediation refuses pnpm apply without invoking the package manager", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-pnpm-")));
+  const bin = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-remediation-bin-")));
+  const marker = join(root, "pnpm-was-invoked");
+  try {
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    const revision = await commitRemediationFixture(root);
+    const work = await writeRemediationWorkItem(root, "pnpm-lock.yaml");
+    const fakePnpm = join(bin, "pnpm");
+    await writeFile(fakePnpm, `#!/bin/sh\ntouch '${marker}'\nexit 0\n`, { mode: 0o700 });
+    await chmod(fakePnpm, 0o700);
+
+    const child = runRemediation(root, work.path, revision, work.sha256, {
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+    });
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /pnpm|bounded|unsupported/i);
+    await assert.rejects(access(marker));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(bin, { recursive: true, force: true });
   }
 });
 

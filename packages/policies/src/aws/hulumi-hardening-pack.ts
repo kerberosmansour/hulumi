@@ -603,36 +603,45 @@ function isTlsOnlyPolicy(props: Record<string, unknown>): boolean {
   });
 }
 
-// Value-binding helpers for H5: a sibling resource that has the right type
-// and shape proves NOTHING unless it actually points at the exempted bucket.
-// Without this, an attacker who forges a SecureBucket-typed parent can also
-// add five decoy siblings (PublicAccessBlock + SSE + ownership + versioning
-// + policy) targeting a *different* bucket — H5 finds the decoys via shared
-// parent URN and reports no violation, while the actually-exempted raw
-// bucket is fully unhardened. The siblings' `bucket` prop and the bucket
-// policy's `Resource` ARNs must reference the exempted bucket explicitly.
-function bucketTargetCandidates(bucket: PolicyResource): Set<string> {
-  const out = new Set<string>();
-  if (typeof bucket.name === "string" && bucket.name !== "") out.add(bucket.name);
+// Value-binding helpers for H5. Pulumi logical names are caller-controlled
+// labels, not provider identities, and component instance names are not
+// available through the type-chain comparison used below. Accept exactly
+// one concrete physical bucket identity and require every target-bearing
+// property to carry a dependency edge to this exact bucket URN.
+function resolvedPhysicalBucketIdentity(bucket: PolicyResource): string | undefined {
   const props = (bucket.props ?? {}) as Record<string, unknown>;
-  const bucketProp = props.bucket;
-  if (typeof bucketProp === "string" && bucketProp !== "") out.add(bucketProp);
-  const idProp = props.id;
-  if (typeof idProp === "string" && idProp !== "") out.add(idProp);
-  return out;
+  const identities = new Set<string>();
+  for (const value of [props.bucket, props.id]) {
+    if (typeof value === "string" && value !== "") identities.add(value);
+  }
+  return identities.size === 1 ? identities.values().next().value : undefined;
 }
 
-function bucketControlTargetsBucket(
-  props: Record<string, unknown>,
+function propertyDependsOnBucket(
+  resource: PolicyResource,
+  propertyName: string,
   bucket: PolicyResource,
 ): boolean {
-  const target = props.bucket;
-  if (typeof target !== "string" || target === "") return false;
-  return bucketTargetCandidates(bucket).has(target);
+  return (resource.propertyDependencies?.[propertyName] ?? []).some(
+    (dependency) => dependency?.urn === bucket.urn,
+  );
 }
 
-function isTlsOnlyPolicyForBucket(props: Record<string, unknown>, bucket: PolicyResource): boolean {
-  if (!bucketControlTargetsBucket(props, bucket)) return false;
+function bucketControlTargetsBucket(control: PolicyResource, bucket: PolicyResource): boolean {
+  if (!propertyDependsOnBucket(control, "bucket", bucket)) return false;
+  const physicalIdentity = resolvedPhysicalBucketIdentity(bucket);
+  if (physicalIdentity === undefined) return false;
+  const props = (control.props ?? {}) as Record<string, unknown>;
+  const target = props.bucket;
+  return target === physicalIdentity;
+}
+
+function isTlsOnlyPolicyForBucket(policy: PolicyResource, bucket: PolicyResource): boolean {
+  if (!bucketControlTargetsBucket(policy, bucket)) return false;
+  if (!propertyDependsOnBucket(policy, "policy", bucket)) return false;
+  const physicalIdentity = resolvedPhysicalBucketIdentity(bucket);
+  if (physicalIdentity === undefined) return false;
+  const props = (policy.props ?? {}) as Record<string, unknown>;
   let doc: unknown = props.policy;
   if (typeof doc === "string") {
     try {
@@ -646,7 +655,6 @@ function isTlsOnlyPolicyForBucket(props: Record<string, unknown>, bucket: Policy
   // The Resource block on the relevant Deny statement must cover both the
   // bucket ARN and the object ARN of the exempted bucket — otherwise the
   // policy can name a Deny on a *different* bucket and still pass.
-  const candidates = bucketTargetCandidates(bucket);
   return list.some((raw) => {
     const stmt = asRecord(raw);
     if (stmt?.Effect !== "Deny") return false;
@@ -654,15 +662,8 @@ function isTlsOnlyPolicyForBucket(props: Record<string, unknown>, bucket: Policy
     if (!(secureTransport === "false" || secureTransport === false)) return false;
     const resources: unknown = stmt.Resource;
     const resourceList: unknown[] = Array.isArray(resources) ? resources : [resources];
-    let coversBucket = false;
-    let coversObjects = false;
-    for (const candidate of candidates) {
-      const bucketArn = `arn:aws:s3:::${candidate}`;
-      const objectArn = `${bucketArn}/*`;
-      if (resourceList.some((entry) => entry === bucketArn)) coversBucket = true;
-      if (resourceList.some((entry) => entry === objectArn)) coversObjects = true;
-    }
-    return coversBucket && coversObjects;
+    const bucketArn = `arn:aws:s3:::${physicalIdentity}`;
+    return resourceList.includes(bucketArn) && resourceList.includes(`${bucketArn}/*`);
   });
 }
 
@@ -676,12 +677,13 @@ function isTlsOnlyPolicyForBucket(props: Record<string, unknown>, bucket: Policy
 // Tightening the string check cannot fix this (the attacker controls the
 // names too). Instead, require every bucket that USES the exemption to be
 // backed by the hardened sibling resources a genuine SecureBucket always
-// emits. A forged wrapper without them is reported; a forged wrapper that
-// DOES emit them is, by construction, actually hardened.
+// emits. Each control must carry exact property dependencies on the bucket
+// output it consumes; shared type ancestry, equal logical names, and general
+// ordering dependencies never prove that the control targets this bucket.
 export const h5SecureBucketExemptionRequiresHardening: StackValidationPolicy = {
   name: "HULUMI-H5-securebucket-exemption-requires-hardening",
   description:
-    "Every raw bucket that relies on the H1 SecureBucket exemption must be backed by the hardened sibling resources a real SecureBucket emits: an all-true BucketPublicAccessBlock, SSE-KMS, BucketOwnerEnforced ownership, enabled versioning, and a TLS-only bucket policy. The H1 exemption keys on a forgeable Pulumi URN type token (no package provenance); H5 closes that bypass by validating actual hardening at stack level instead of trusting the URN.",
+    "Every raw bucket that relies on the H1 SecureBucket exemption must be backed by dependency-bound hardened resources a real SecureBucket emits: an all-true BucketPublicAccessBlock, SSE-KMS, BucketOwnerEnforced ownership, enabled versioning, and a TLS-only bucket policy. H5 requires each target-bearing property to depend on the exact bucket URN and never treats a logical name as provider identity.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const suppressions = readSuppressions(
@@ -693,42 +695,48 @@ export const h5SecureBucketExemptionRequiresHardening: StackValidationPolicy = {
     });
     for (const bucket of exemptedBuckets) {
       if (matchSuppression("HULUMI-H5", bucket.urn, suppressions).suppressed) continue;
-      // Every sibling check is BOTH structural (anchored parent-component
-      // type-chain match, not unanchored URN prefix) AND value-binding
-      // (sibling's `bucket` prop, or for the policy its `Resource` block,
-      // must reference the exempted bucket explicitly). The old
-      // `urn.startsWith(bucket.urn.split("$")[0])` form was forgeable in
-      // two ways: (a) a sibling parented under an unrelated component
-      // could share the string prefix; (b) without value binding, any
-      // siblings under the same forged wrapper that targeted a *different*
-      // bucket satisfied the check while the exempted bucket stayed raw.
+      // Every sibling check combines anchored type-chain ancestry, one
+      // unambiguous physical bucket identity, an exact target-property
+      // dependency edge to this bucket URN, and the control's hardening
+      // shape. General `dependsOn` and caller-chosen logical names are never
+      // attribution evidence. Bucket policies additionally bind the policy
+      // document property because it embeds the bucket and object ARNs.
       const sibling = (
         types: readonly string[],
-        ok: (props: Record<string, unknown>, bucketRes: PolicyResource) => boolean,
+        ok: (resource: PolicyResource, bucketRes: PolicyResource) => boolean,
       ): boolean =>
         args.resources.some(
           (r: PolicyResource) =>
-            types.includes(r.type) &&
-            urnsShareParentComponent(bucket.urn, r.urn) &&
-            ok((r.props ?? {}) as Record<string, unknown>, bucket),
+            types.includes(r.type) && urnsShareParentComponent(bucket.urn, r.urn) && ok(r, bucket),
         );
 
       const missing: string[] = [];
       if (
         !sibling(
           BUCKET_PAB_TYPES,
-          (p, b) => bucketControlTargetsBucket(p, b) && isAllPublicAccessBlocked(p),
+          (r, b) =>
+            bucketControlTargetsBucket(r, b) &&
+            isAllPublicAccessBlocked((r.props ?? {}) as Record<string, unknown>),
         )
       ) {
         missing.push("all-true BucketPublicAccessBlock");
       }
-      if (!sibling(BUCKET_SSE_TYPES, (p, b) => bucketControlTargetsBucket(p, b) && isKmsSse(p))) {
+      if (
+        !sibling(
+          BUCKET_SSE_TYPES,
+          (r, b) =>
+            bucketControlTargetsBucket(r, b) &&
+            isKmsSse((r.props ?? {}) as Record<string, unknown>),
+        )
+      ) {
         missing.push("SSE-KMS encryption");
       }
       if (
         !sibling(
           BUCKET_OWNERSHIP_TYPES,
-          (p, b) => bucketControlTargetsBucket(p, b) && isOwnerEnforced(p),
+          (r, b) =>
+            bucketControlTargetsBucket(r, b) &&
+            isOwnerEnforced((r.props ?? {}) as Record<string, unknown>),
         )
       ) {
         missing.push("BucketOwnerEnforced ownership controls");
@@ -736,7 +744,9 @@ export const h5SecureBucketExemptionRequiresHardening: StackValidationPolicy = {
       if (
         !sibling(
           BUCKET_VERSIONING_TYPES,
-          (p, b) => bucketControlTargetsBucket(p, b) && isVersioningEnabled(p),
+          (r, b) =>
+            bucketControlTargetsBucket(r, b) &&
+            isVersioningEnabled((r.props ?? {}) as Record<string, unknown>),
         )
       ) {
         missing.push("enabled bucket versioning");

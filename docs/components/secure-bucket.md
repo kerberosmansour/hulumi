@@ -4,7 +4,7 @@ Hardened S3 bucket `ComponentResource` with Sandbox and Startup-Hardened tiers. 
 
 **Stability**: `stable` from v0.2 per [interfaces.md §1](../slo/design/hulumi/interfaces.md).
 **Ships**: M2.
-**Paired policies**: `HulumiHardeningPack` H1 (blocks raw `aws.s3.Bucket` / `aws.s3.BucketV2`), H4 (Startup-Hardened requires logging sibling).
+**Paired policies**: `HulumiHardeningPack` H1 (blocks raw `aws.s3.Bucket` / `aws.s3.BucketV2`), H4 (Startup-Hardened requires logging sibling), H5 (proves the H1 exemption is backed by controls bound to the exact bucket).
 
 ## Quick-start
 
@@ -19,6 +19,14 @@ export const bucketArn = scratch.arn;
 ```
 
 Emits: Bucket, PublicAccessBlock (T/T/T/T), SSE-KMS, BucketOwnerEnforced, Versioning, TLS-only policy.
+
+The controls consume `bucket.id` or `bucket.arn` as Pulumi Inputs. Pulumi records
+those flows as per-property dependency edges. HULUMI-H5 requires the exact edge
+from each control's `bucket` property to this bucket, and from the bucket policy's
+`policy` property to this bucket. Logical resource names, shared component type
+chains, equal strings, and general `dependsOn` relationships do not establish
+control ownership. This prevents one component instance's controls from satisfying
+another bucket's H1 exemption.
 
 ### Startup-Hardened tier
 

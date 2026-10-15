@@ -60,6 +60,13 @@ function makeStackArgs(
   } as StackValidationArgs;
 }
 
+function bucketPropertyDependencies(
+  bucket: PolicyResource,
+  ...propertyNames: string[]
+): Record<string, PolicyResource[]> {
+  return Object.fromEntries(propertyNames.map((propertyName) => [propertyName, [bucket]]));
+}
+
 describe("HulumiHardeningPack H1 — blocks raw aws.s3.BucketV2 (security S5)", () => {
   let violations: string[];
   const report = (msg: string): void => {
@@ -866,53 +873,60 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       type: "aws:s3/bucket:Bucket",
       urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
       name: "sb-bucket",
-      props: {},
+      props: { bucket: "sb-bucket", id: "sb-bucket" },
     });
   // Fixtures explicitly bind each sibling to the exempted bucket via the
   // `bucket` prop and (for the policy) via the `Resource` block. This is
   // what a genuine SecureBucket emits — and is what H5's value-binding
   // check requires to defeat the "decoy siblings targeting a different
   // bucket" bypass.
-  const hardenedSiblings = (): PolicyResource[] => [
+  const hardenedSiblings = (
+    bucket: PolicyResource = exemptedBucket(),
+    target = "sb-bucket",
+  ): PolicyResource[] => [
     makePolicyResource({
       type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
       urn: `${PARENT}$aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock::sb-pab`,
       name: "sb-pab",
       props: {
-        bucket: "sb-bucket",
+        bucket: target,
         blockPublicAcls: true,
         ignorePublicAcls: true,
         blockPublicPolicy: true,
         restrictPublicBuckets: true,
       },
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
     }),
     makePolicyResource({
       type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
       urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
       name: "sb-sse",
       props: {
-        bucket: "sb-bucket",
+        bucket: target,
         rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
       },
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
     }),
     makePolicyResource({
       type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
       urn: `${PARENT}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
       name: "sb-own",
-      props: { bucket: "sb-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
+      props: { bucket: target, rule: { objectOwnership: "BucketOwnerEnforced" } },
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
     }),
     makePolicyResource({
       type: "aws:s3/bucketVersioning:BucketVersioning",
       urn: `${PARENT}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
       name: "sb-ver",
-      props: { bucket: "sb-bucket", versioningConfiguration: { status: "Enabled" } },
+      props: { bucket: target, versioningConfiguration: { status: "Enabled" } },
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
     }),
     makePolicyResource({
       type: "aws:s3/bucketPolicy:BucketPolicy",
       urn: `${PARENT}$aws:s3/bucketPolicy:BucketPolicy::sb-pol`,
       name: "sb-pol",
       props: {
-        bucket: "sb-bucket",
+        bucket: target,
         policy: JSON.stringify({
           Version: "2012-10-17",
           Statement: [
@@ -920,12 +934,13 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
               Effect: "Deny",
               Principal: "*",
               Action: "s3:*",
-              Resource: ["arn:aws:s3:::sb-bucket", "arn:aws:s3:::sb-bucket/*"],
+              Resource: [`arn:aws:s3:::${target}`, `arn:aws:s3:::${target}/*`],
               Condition: { Bool: { "aws:SecureTransport": "false" } },
             },
           ],
         }),
       },
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket", "policy"),
     }),
   ];
   const runH5 = (resources: PolicyResource[], config: Record<string, unknown> = {}): void =>
@@ -949,23 +964,119 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
   });
 
   it("does NOT report when the exempted bucket is backed by all real hardened siblings (genuine SecureBucket)", () => {
-    runH5([exemptedBucket(), ...hardenedSiblings()]);
+    const bucket = exemptedBucket();
+    runH5([bucket, ...hardenedSiblings(bucket)]);
     expect(violations).toHaveLength(0);
   });
 
   it("reports only the specific missing control when hardening is partial (SSE present but AES256, not KMS)", () => {
-    const siblings = hardenedSiblings();
+    const bucket = exemptedBucket();
+    const siblings = hardenedSiblings(bucket);
     siblings[1] = makePolicyResource({
       type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
       urn: `${PARENT}$aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration::sb-sse`,
       name: "sb-sse",
       props: { rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "AES256" } }] },
     });
-    runH5([exemptedBucket(), ...siblings]);
+    runH5([bucket, ...siblings]);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/SSE-KMS encryption/);
     expect(violations[0]).not.toMatch(/BucketPublicAccessBlock/);
     expect(violations[0]).not.toMatch(/TLS-only/);
+  });
+
+  it("rejects controls for another bucket when its physical identity equals the victim logical name", () => {
+    const victim = makePolicyResource({
+      type: "aws:s3/bucket:Bucket",
+      urn: `${PARENT}$aws:s3/bucket:Bucket::victim-bucket`,
+      name: "victim-bucket",
+      props: { bucket: "victim-physical", id: "victim-physical" },
+    });
+    const hardenedBucket = makePolicyResource({
+      type: "aws:s3/bucket:Bucket",
+      urn: `${PARENT}$aws:s3/bucket:Bucket::hardened-bucket`,
+      name: "hardened-bucket",
+      props: { bucket: "victim-bucket", id: "victim-bucket" },
+    });
+
+    runH5([victim, hardenedBucket, ...hardenedSiblings(hardenedBucket, "victim-bucket")]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("victim-bucket");
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+  });
+
+  it.each([
+    [0, "all-true BucketPublicAccessBlock"],
+    [1, "SSE-KMS encryption"],
+    [2, "BucketOwnerEnforced ownership controls"],
+    [3, "enabled bucket versioning"],
+  ])(
+    "rejects control index %i when its bucket property lacks the exact dependency edge",
+    (index, label) => {
+      const bucket = exemptedBucket();
+      const siblings = hardenedSiblings(bucket);
+      siblings[index] = { ...siblings[index], propertyDependencies: {} };
+
+      runH5([bucket, ...siblings]);
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toContain(label);
+    },
+  );
+
+  it("rejects a TLS policy whose bucket property is bound but policy document is not", () => {
+    const bucket = exemptedBucket();
+    const siblings = hardenedSiblings(bucket);
+    siblings[4] = {
+      ...siblings[4],
+      propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
+    };
+
+    runH5([bucket, ...siblings]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+    expect(violations[0]).not.toMatch(/BucketPublicAccessBlock/);
+  });
+
+  it("rejects general dependsOn edges when target properties do not depend on the bucket", () => {
+    const bucket = exemptedBucket();
+    const siblings = hardenedSiblings(bucket).map((sibling) => ({
+      ...sibling,
+      dependencies: [bucket],
+      propertyDependencies: {},
+    }));
+
+    runH5([bucket, ...siblings]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+  });
+
+  it("fails closed when bucket and id expose conflicting physical identities", () => {
+    const bucket = makePolicyResource({
+      ...exemptedBucket(),
+      props: { bucket: "physical-a", id: "physical-b" },
+    });
+
+    runH5([bucket, ...hardenedSiblings(bucket, "physical-a")]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+  });
+
+  it("never falls back to the bucket logical name when physical identity is unresolved", () => {
+    const bucket = makePolicyResource({ ...exemptedBucket(), props: {} });
+
+    runH5([bucket, ...hardenedSiblings(bucket, bucket.name)]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/all-true BucketPublicAccessBlock/);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
   });
 
   it("honors a HULUMI-H5 suppression scoped to the bucket URN", () => {
@@ -1116,7 +1227,7 @@ describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)
       type: "aws:s3/bucket:Bucket",
       urn: `${PARENT}$aws:s3/bucket:Bucket::sb-bucket`,
       name: "sb-bucket",
-      props: {},
+      props: { bucket: "sb-bucket", id: "sb-bucket" },
     });
 
   // Decoy siblings: same parent component URN prefix and correct shape,
@@ -1227,6 +1338,7 @@ describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)
     // names another bucket in Resource. Only the TLS-only-policy control
     // should be reported as missing.
     const PARENT_LOCAL = PARENT; // alias for clarity
+    const bucket = exemptedBucket();
     const siblings: PolicyResource[] = [
       makePolicyResource({
         type: "aws:s3/bucketPublicAccessBlock:BucketPublicAccessBlock",
@@ -1239,6 +1351,7 @@ describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)
           blockPublicPolicy: true,
           restrictPublicBuckets: true,
         },
+        propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
       }),
       makePolicyResource({
         type: "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
@@ -1248,18 +1361,21 @@ describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)
           bucket: "sb-bucket",
           rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "aws:kms" } }],
         },
+        propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
       }),
       makePolicyResource({
         type: "aws:s3/bucketOwnershipControls:BucketOwnershipControls",
         urn: `${PARENT_LOCAL}$aws:s3/bucketOwnershipControls:BucketOwnershipControls::sb-own`,
         name: "sb-own",
         props: { bucket: "sb-bucket", rule: { objectOwnership: "BucketOwnerEnforced" } },
+        propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
       }),
       makePolicyResource({
         type: "aws:s3/bucketVersioning:BucketVersioning",
         urn: `${PARENT_LOCAL}$aws:s3/bucketVersioning:BucketVersioning::sb-ver`,
         name: "sb-ver",
         props: { bucket: "sb-bucket", versioningConfiguration: { status: "Enabled" } },
+        propertyDependencies: bucketPropertyDependencies(bucket, "bucket"),
       }),
       makePolicyResource({
         type: "aws:s3/bucketPolicy:BucketPolicy",
@@ -1281,9 +1397,10 @@ describe("HulumiHardeningPack H5 — URN/binding bypasses (Cluster B regression)
             ],
           }),
         },
+        propertyDependencies: bucketPropertyDependencies(bucket, "bucket", "policy"),
       }),
     ];
-    runH5([exemptedBucket(), ...siblings]);
+    runH5([bucket, ...siblings]);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/TLS-only bucket policy/);
     expect(violations[0]).not.toMatch(/all-true BucketPublicAccessBlock/);

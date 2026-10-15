@@ -29,6 +29,22 @@ function validateEnvironment(env: DeploymentEnvironmentConfig): void {
   }
 }
 
+function validateEnvironments(
+  environments: readonly DeploymentEnvironmentConfig[] | undefined,
+): asserts environments is readonly DeploymentEnvironmentConfig[] {
+  if (!Array.isArray(environments) || environments.length === 0) {
+    throw new Error("DeploymentRepositoryFoundation: at least one environment is required");
+  }
+  const names = new Set<string>();
+  for (const env of environments) {
+    if (names.has(env.name)) {
+      throw new Error("DeploymentRepositoryFoundation: environment names must be unique");
+    }
+    names.add(env.name);
+    validateEnvironment(env);
+  }
+}
+
 function reviewers(
   env: DeploymentEnvironmentConfig,
 ): github.types.input.RepositoryEnvironmentReviewer[] | undefined {
@@ -62,8 +78,8 @@ export class DeploymentRepositoryFoundation
     super(DEPLOYMENT_REPOSITORY_FOUNDATION_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
 
-    const environments = args.environments ?? [];
-    for (const env of environments) validateEnvironment(env);
+    const environments = args.environments;
+    validateEnvironments(environments);
 
     const secureRepository = new hulumiGithub.SecureRepository(
       args.name,
@@ -71,6 +87,7 @@ export class DeploymentRepositoryFoundation
         tier: args.tier,
         visibility: args.visibility ?? "private",
         description: `Deployment repository managed by Hulumi for ${args.owner}`,
+        topics: ["deployment"],
       },
       { parent: this },
     );

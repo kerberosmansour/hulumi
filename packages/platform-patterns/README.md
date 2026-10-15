@@ -50,11 +50,11 @@ new CloudflareOriginIngress("edge", {
 new GitHubAwsOidcDeploymentRole("deploy", {
   tier: "startup-hardened",
   owner: "kerberosmansour",
-  repository: "hulumi",
+  repository: "deployments",
   environment: "prod",
-  reusableWorkflowRef: "kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
+  reusableWorkflowRef: "kerberosmansour/deployments/.github/workflows/deploy.yml@refs/heads/main",
   audience: "sts.amazonaws.com",
-  roleName: "hulumi-prod-deploy",
+  roleName: "deployments-prod-deploy",
   oidcProviderArn: "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
 });
 
@@ -62,6 +62,14 @@ new DeploymentRepositoryFoundation("deploy-repo", {
   tier: "startup-hardened",
   owner: "kerberosmansour",
   name: "deployments",
+  environments: [
+    {
+      name: "prod",
+      requiredReviewerTeamIds: [1234],
+      protectedBranches: true,
+      customBranchPolicies: false,
+    },
+  ],
 });
 
 new BuildProvenanceFoundation("provenance", {

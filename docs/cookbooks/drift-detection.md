@@ -125,7 +125,7 @@ jobs:
         with: { fetch-depth: 0 } # CRITICAL — see troubleshooting
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: "22.12.0" }
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DRIFT_ROLE_ARN }}

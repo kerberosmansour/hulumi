@@ -22,14 +22,14 @@ This walkthrough takes you from "clean machine" to a working hardened S3 bucket 
 | Tool                       | Version   | Why                                                 |
 | -------------------------- | --------- | --------------------------------------------------- |
 | Node.js                    | >=22.12.0 | Matches the published package engine requirement.   |
-| pnpm                       | ≥ 9       | The repo and recommended setup use pnpm.            |
+| pnpm                       | 9.12.0    | The repo and recommended setup use pnpm.            |
 | Pulumi CLI                 | ≥ 3.232.0 | Hulumi's tested floor for `@pulumi/pulumi`.         |
 | (optional) Claude Code CLI | latest    | Required only for the `/hulumi-threat-model` skill. |
 | (optional) AWS CLI         | ≥ 2.15    | Only needed when you eventually run `pulumi up`.    |
 
 ```bash
-node --version   # v20.x
-pnpm --version   # 9.12.0 or later
+node --version   # >=22.12.0
+pnpm --version   # 9.12.0 (workspace pin)
 pulumi version   # 3.232.0 or later
 ```
 

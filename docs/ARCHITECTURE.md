@@ -185,7 +185,7 @@ pnpm run release:verify-attestations          # gh attestation verify on packed 
 
 These are documented inline so future agents can see them without traversing every file:
 
-- Node ≥ 20.0.0, pnpm ≥ 9.0.0, packageManager pinned to `pnpm@9.12.0`.
+- Node.js >=22.12.0, pnpm ≥ 9.0.0, packageManager pinned to `pnpm@9.12.0`.
 - **Inside the Hulumi repo**, every entry in `scripts/protected-dependencies.mjs` is exact-pinned with a reviewed integrity-only lock resolution; Pulumi bumps go through the 72h/24h cooling-off CI gate. **Published `@hulumi/*` packages** declare caret-range peer dependencies (1.4.1+), so consumers can use any caret-compatible Pulumi SDK without exact-version pinning.
 - Apache-2.0 throughout. No verbatim CCM / AICM / CAIQ / CIS Benchmark / NIST control text in source — `license-boundary-lint` blocks PRs.
 - SLSA Build L3 on every npm release; npm trusted publishing via OIDC; no `NPM_TOKEN`.

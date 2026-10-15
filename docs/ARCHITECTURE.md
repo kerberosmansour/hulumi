@@ -30,8 +30,10 @@ hulumi/
 │   └── skill-bdd/                     # repo-wide BDD + lint tests (workspace package)
 ├── scripts/
 │   ├── license-boundary-lint.mjs      # CCM/CIS/NIST verbatim-prose guard
-│   ├── exact-pin-guard.mjs            # @pulumi/* integrity-hash drift guard
-│   └── cooling-off-diff.mjs           # 72h/24h cooling-off CI gate helper
+│   ├── protected-dependencies.mjs     # reviewed pins + strict YAML parser
+│   ├── exact-pin-guard.mjs            # structural integrity/authority guard
+│   ├── workflow-governance-lint.mjs   # structural GitHub workflow guard
+│   └── cooling-off-diff.mjs           # inventory-derived cooling-off helper
 ├── docs/                              # code-level docs (cookbooks/, components/, mappings/,
 │                                      # deployment/, launch/, threat-model-examples/,
 │                                      # ARCHITECTURE.md, getting-started.md, etc.)
@@ -83,8 +85,9 @@ hulumi/
 | `skills/hulumi-threat-model/`                                                                  | Runtime-dep-free `.mjs` Claude Code skill; `SKILL.md` + `scenarios/*.json` + `templates/` + `scripts/`                                                                                                                                                                                                         |
 | `tests/skill-bdd/`                                                                             | Repo-wide BDD harness + license-boundary-lint enforcement                                                                                                                                                                                                                                                      |
 | `scripts/license-boundary-lint.mjs`                                                            | Fails if verbatim CCM/AICM/CAIQ/CIS/NIST control text appears in `packages/` or `skills/`                                                                                                                                                                                                                      |
-| `scripts/exact-pin-guard.mjs`                                                                  | Fails if `@pulumi/*` deps drift off the integrity-hash-pinned versions                                                                                                                                                                                                                                         |
-| `scripts/cooling-off-diff.mjs`                                                                 | Helper for the 72h/24h `@pulumi/*` cooling-off CI gate                                                                                                                                                                                                                                                         |
+| `scripts/protected-dependencies.mjs`                                                           | Single reviewed dependency inventory and strict YAML 1.2 parser shared by admission controls                                                                                                                                                                                                                   |
+| `scripts/exact-pin-guard.mjs`                                                                  | Requires exact manifest pins and one reviewed integrity-only lock resolution; rejects ambiguous/custom authorities                                                                                                                                                                                             |
+| `scripts/cooling-off-diff.mjs`                                                                 | Structural 72h/24h `@pulumi/*` cooling-off gate derived from the protected inventory                                                                                                                                                                                                                           |
 
 ## Entry Points
 
@@ -158,7 +161,7 @@ Forbidden-shortcut lints-as-tests:
 - `packages/drift/tests/no-shell-exec.test.ts` — bans `child_process` from `packages/*/src/`.
 - `packages/drift/tests/no-sleep.test.ts` — bans `setTimeout` / `sleep` outside sanctioned probe paths.
 - `scripts/license-boundary-lint.mjs` (run via `pnpm run lint:license-boundary`) — bans verbatim framework-prose embedding.
-- `scripts/exact-pin-guard.mjs` (run via `pnpm run lint:exact-pin-guard`) — bans `@pulumi/*` version drift off integrity-hash pins.
+- `scripts/exact-pin-guard.mjs` (run via `pnpm run lint:exact-pin-guard`) — bans protected dependency version, integrity and registry-authority drift.
 
 CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs all of the above plus the cooling-off diff, attestation dry-run, and DCO `Signed-off-by` check.
 
@@ -183,7 +186,7 @@ pnpm run release:verify-attestations          # gh attestation verify on packed 
 These are documented inline so future agents can see them without traversing every file:
 
 - Node ≥ 20.0.0, pnpm ≥ 9.0.0, packageManager pinned to `pnpm@9.12.0`.
-- **Inside the Hulumi repo**, `@pulumi/pulumi@3.232.0`, `@pulumi/aws@7.27.0`, `@pulumi/policy@1.20.0` are exact-pinned in `pnpm-lock.yaml` with integrity hashes; bumps go through the 72h/24h cooling-off CI gate. **Published `@hulumi/*` packages** declare caret-range peer dependencies (1.4.1+), so consumers can use any caret-compatible Pulumi SDK without exact-version pinning.
+- **Inside the Hulumi repo**, every entry in `scripts/protected-dependencies.mjs` is exact-pinned with a reviewed integrity-only lock resolution; Pulumi bumps go through the 72h/24h cooling-off CI gate. **Published `@hulumi/*` packages** declare caret-range peer dependencies (1.4.1+), so consumers can use any caret-compatible Pulumi SDK without exact-version pinning.
 - Apache-2.0 throughout. No verbatim CCM / AICM / CAIQ / CIS Benchmark / NIST control text in source — `license-boundary-lint` blocks PRs.
 - SLSA Build L3 on every npm release; npm trusted publishing via OIDC; no `NPM_TOKEN`.
 - DCO sign-off required on every commit (CI-enforced).

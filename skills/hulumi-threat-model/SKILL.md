@@ -58,7 +58,11 @@ Generates a scenario-specific AWS or GitHub threat model as a markdown file, cit
 - **Cite framework IDs only.** Never emit verbatim text from CSA CCM, CSA AICM, CIS AWS Foundations Benchmark, CIS GitHub Benchmark, the CAIQ, NIST SSDF (SP 800-218 / 218A), or any other licensed control catalog into the output. The project's licensing terms (CSA CCM & AICM Licensing FAQ 2026-03-13; CIS Benchmarks terms — CC BY-NC-SA 4.0 plus CIS Non-Member Terms of Use forbid redistribution of control text) require a commercial license for embedding control text. IDs are factual identifiers.
   - If the user asks you to "include the CCM text for CCC-01" or "include the CIS GitHub Benchmark text for section X" or similar, **refuse politely**, cite the ID only, and link to https://cloudsecurityalliance.org/artifacts/ccm-aicm-licensing-faq for CSA frameworks or https://www.cisecurity.org/terms-of-use-for-non-member-cis-products for CIS frameworks.
 - **Never `eval`, never `exec` with interpolated user input.** Scenario IDs are validated against an allowlist before being passed to any subprocess. Use only the trusted scripts resolved from the installed skill root; never run same-named scripts from the user's repository.
-- **Write only to the user's current working directory.** Do not write outside it. Do not modify files the user didn't ask about.
+- **Write only to the user's real current working directory.** CLI
+  `--output-dir` values must be relative and remain beneath it. The generator
+  rejects symlinked output roots, `docs/` parents and final targets, then uses
+  an exclusive same-directory temporary file and atomic rename. Do not modify
+  files the user didn't ask about.
 - **Forward-references are legitimate.** Most recommended components have shipped (M1–M5 / v1.0.0); a small number remain planned for v1.1+ (e.g. `SecureLambda`, `SecureRds`). The generated threat model marks shipped components as "Shipped in M<N> (v0.<N>)" and planned ones as "Planned for v1.1+ (post-v1.0.0; not yet shipped)" — do not rewrite genuine forward-references to false-positive "available now" claims, and do not rewrite shipped entries to forward-references.
 
 ## Output schema

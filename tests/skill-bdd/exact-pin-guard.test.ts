@@ -15,6 +15,7 @@ import {
   writeFileSync,
   cpSync,
   rmSync,
+  symlinkSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { resolve, join } from "node:path";
@@ -24,6 +25,8 @@ import { describe, expect, it } from "vitest";
 const repoRoot = resolve(__dirname, "..", "..");
 const script = resolve(repoRoot, "scripts", "exact-pin-guard.mjs");
 const scriptSource = readFileSync(script, "utf8");
+const inventoryPath = resolve(repoRoot, "scripts", "protected-dependencies.mjs");
+const inventorySource = readFileSync(inventoryPath, "utf8");
 
 // The 5 drift runtime deps that M4 adds to ALLOWED — encoded so a future
 // removal that doesn't replace them with equivalents trips the test.
@@ -52,11 +55,9 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
 
   describe("Scenario: ALLOWED includes drift's runtime deps", () => {
     it.each(M4_DRIFT_DEPS)("ALLOWED contains a `%s` entry", (depName) => {
-      // Match the `name: "<depName>"` line in the ALLOWED table source.
-      // Using a permissive regex so the test stays valid if the version
-      // bumps (M4 cares about presence, not the specific version).
-      const re = new RegExp(`name:\\s*["']${depName.replace(/\//g, "\\/")}["']`);
-      expect(scriptSource, `ALLOWED is missing an entry for ${depName}`).toMatch(re);
+      expect(inventorySource, `protected inventory is missing an entry for ${depName}`).toContain(
+        `name: "${depName}"`,
+      );
     });
   });
 
@@ -96,9 +97,9 @@ describe("Feature: Pin-guard extension + dead-code cleanup (Runbook hulumi-pre-p
 
   describe("Scenario: pin-guard does not check @hulumi/* deps", () => {
     it("ALLOWED contains no @hulumi/* entries (those are publish targets, not transitive deps)", () => {
-      const allowedBlock = scriptSource.slice(
-        scriptSource.indexOf("const ALLOWED"),
-        scriptSource.indexOf("function resolveFromLockfile"),
+      const allowedBlock = inventorySource.slice(
+        inventorySource.indexOf("PROTECTED_DEPENDENCIES"),
+        inventorySource.indexOf("PULUMI_PACKAGE_NAMES"),
       );
       expect(allowedBlock).not.toMatch(/name:\s*["']@hulumi\//);
     });
@@ -110,6 +111,11 @@ it("rejects a protected integrity change even when the manifest remains exact", 
   try {
     mkdirSync(join(sandbox, "scripts"));
     cpSync(script, join(sandbox, "scripts/exact-pin-guard.mjs"));
+    cpSync(
+      join(repoRoot, "scripts", "protected-dependencies.mjs"),
+      join(sandbox, "scripts", "protected-dependencies.mjs"),
+    );
+    symlinkSync(join(repoRoot, "node_modules"), join(sandbox, "node_modules"), "dir");
     cpSync(join(repoRoot, "package.json"), join(sandbox, "package.json"));
     cpSync(join(repoRoot, "packages"), join(sandbox, "packages"), {
       recursive: true,
@@ -119,7 +125,7 @@ it("rejects a protected integrity change even when the manifest remains exact", 
         !path.includes("tests") &&
         !path.includes("src"),
     });
-    const integrity = scriptSource.match(/integrity:\s*\n?\s*"(sha512-[^"]+)"/)![1];
+    const integrity = inventorySource.match(/integrity:\s*\n?\s*"(sha512-[^"]+)"/)![1];
     const lock = readFileSync(join(repoRoot, "pnpm-lock.yaml"), "utf8");
     expect(lock).toContain(integrity);
     writeFileSync(
@@ -131,8 +137,87 @@ it("rejects a protected integrity change even when the manifest remains exact", 
       timeout: 30000,
     });
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("reviewed pin");
+    expect(result.stderr).toMatch(/reviewed pin|integrity/i);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }
+});
+
+function runGuardAgainstLock(transform: (lock: string) => string) {
+  const sandbox = mkdtempSync(join(tmpdir(), "hulumi-pin-guard-adversarial-"));
+  try {
+    mkdirSync(join(sandbox, "scripts"));
+    cpSync(script, join(sandbox, "scripts/exact-pin-guard.mjs"));
+    cpSync(
+      join(repoRoot, "scripts", "protected-dependencies.mjs"),
+      join(sandbox, "scripts", "protected-dependencies.mjs"),
+    );
+    symlinkSync(join(repoRoot, "node_modules"), join(sandbox, "node_modules"), "dir");
+    cpSync(join(repoRoot, "package.json"), join(sandbox, "package.json"));
+    cpSync(join(repoRoot, "packages"), join(sandbox, "packages"), {
+      recursive: true,
+      filter: (path) =>
+        !path.includes("node_modules") &&
+        !path.includes("dist") &&
+        !path.includes("tests") &&
+        !path.includes("src"),
+    });
+    const lock = readFileSync(join(repoRoot, "pnpm-lock.yaml"), "utf8");
+    writeFileSync(join(sandbox, "pnpm-lock.yaml"), transform(lock));
+    return spawnSync(process.execPath, [join(sandbox, "scripts/exact-pin-guard.mjs")], {
+      encoding: "utf8",
+      timeout: 30_000,
+    });
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
+describe("structural lockfile admission", () => {
+  it("rejects a comment decoy placed before a tampered real integrity", () => {
+    const integrity = inventorySource.match(/integrity:\s*\n?\s*"(sha512-[^"]+)"/)![1];
+    const result = runGuardAgainstLock((lock) =>
+      lock.replace(
+        `resolution: {integrity: ${integrity}}`,
+        `# resolution: {integrity: ${integrity}}\n    resolution: {integrity: sha512-tampered}`,
+      ),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/reviewed pin|integrity/i);
+  });
+
+  it("rejects duplicate package keys instead of accepting the first match", () => {
+    const header = "  '@pulumi/pulumi@3.268.0':";
+    const result = runGuardAgainstLock((lock) =>
+      lock.replace(header, `${header}\n    resolution: {integrity: sha512-decoy}\n\n${header}`),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/duplicate|yaml|parse/i);
+  });
+
+  it("does not accept an integrity record from the snapshots map", () => {
+    const header = "  '@pulumi/pulumi@3.268.0':";
+    const result = runGuardAgainstLock((lock) =>
+      lock
+        .replace(header, "  '@pulumi/pulumi@3.268.0-not-the-package-node':")
+        .replace(
+          "snapshots:\n",
+          "snapshots:\n\n  '@pulumi/pulumi@3.268.0':\n    dependencies: {}\n",
+        ),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/missing from pnpm-lock|packages/i);
+  });
+
+  it("rejects a custom tarball authority even when integrity is unchanged", () => {
+    const integrity = inventorySource.match(/integrity:\s*\n?\s*"(sha512-[^"]+)"/)![1];
+    const result = runGuardAgainstLock((lock) =>
+      lock.replace(
+        `resolution: {integrity: ${integrity}}`,
+        `resolution: {integrity: ${integrity}, tarball: https://packages.invalid/pulumi.tgz}`,
+      ),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/tarball|registry|resolution/i);
+  });
 });

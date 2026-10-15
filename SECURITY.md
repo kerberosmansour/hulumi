@@ -138,22 +138,28 @@ Hulumi's own releases carry SLSA Build L3 provenance. `@pulumi/*` transitive
 dependencies do not carry SLSA attestations as of v1.3.2. Our compensating
 controls:
 
-1. **Exact-version-pinning with integrity hashes**: every `@pulumi/*` dep is
-   exact-pinned in `pnpm-lock.yaml`. Drift is detected by
+1. **Exact-version-pinning with integrity hashes**: every dependency in
+   [`scripts/protected-dependencies.mjs`](./scripts/protected-dependencies.mjs)
+   is exact-pinned in a package manifest and `pnpm-lock.yaml`. Drift is detected by
    [`scripts/exact-pin-guard.mjs`](./scripts/exact-pin-guard.mjs) on every PR.
    The guard also covers `@hulumi/drift`'s runtime deps
    (`@aws-sdk/client-cloudtrail`, `@aws-sdk/client-sts`,
    `@aws-sdk/credential-providers`, `p-timeout`, `simple-git`) and
    `@hulumi/k8s-baseline`'s `@aws-sdk/client-secrets-manager`, plus
    `@pulumi/github` and `@pulumi/cloudflare` for the GitHub and edge
-   surfaces — 13 pinned packages total at v1.3.2.
-   The guard derives the expected current version from exact package manifests
-   and the integrity hash from `pnpm-lock.yaml`, so cooled Dependabot Track B
+   surfaces, and the `yaml` parser used by the admission controls themselves.
+   The guard parses the lockfile as strict YAML 1.2, rejects duplicate keys,
+   aliases, merge keys and custom tarball authorities, and accepts only the
+   reviewed integrity-only resolution for the exact `packages` node.
+   It derives the expected current version from exact package manifests and the
+   integrity hash from `pnpm-lock.yaml`, so cooled Dependabot Track B
    bumps can pass without a second CI-triggering commit while still proving
    exact pins + lockfile integrity.
 2. **72h cooling-off for minor/major bumps + 24h for patches**:
    [`.github/workflows/pulumi-cooling-off.yml`](./.github/workflows/pulumi-cooling-off.yml)
-   runs on every PR bumping a `@pulumi/*` pin. The job calls
+   runs on every PR bumping a `@pulumi/*` pin. The complete package list is
+   derived from the same reviewed inventory, including `@pulumi/cloudflare`.
+   The job calls
    `https://registry.npmjs.org/@pulumi/<pkg>` to look up the upstream publish
    timestamp; if the bump is younger than the threshold, the job fails and
    the PR cannot merge.
@@ -167,18 +173,19 @@ Dependabot's standard major-version-ignore-list (see
 
 ## Transitive-supply-chain disclosure
 
-| Dep                          | Provenance today | Compensating control                       |
-| ---------------------------- | ---------------- | ------------------------------------------ |
-| `@pulumi/pulumi`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
-| `@pulumi/aws`                | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
-| `@pulumi/policy`             | npm — no SLSA    | exact-pin (no upstream changes likely)     |
-| `@pulumi/github`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
-| `@pulumi/kubernetes`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
-| `@pulumi/cloudflare`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes |
-| `@aws-sdk/*`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
-| `simple-git`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
-| `p-timeout`                  | npm — no SLSA    | exact-pin in lockfile + integrity hashes   |
-| GitHub Actions reusable wf's | varies           | pinned to exact 40-char SHA in workflows   |
+| Dep                          | Provenance today | Compensating control                         |
+| ---------------------------- | ---------------- | -------------------------------------------- |
+| `@pulumi/pulumi`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@pulumi/aws`                | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@pulumi/policy`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@pulumi/github`             | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@pulumi/kubernetes`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@pulumi/cloudflare`         | npm — no SLSA    | exact-pin + cooling-off + integrity hashes   |
+| `@aws-sdk/*`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes     |
+| `simple-git`                 | npm — no SLSA    | exact-pin in lockfile + integrity hashes     |
+| `p-timeout`                  | npm — no SLSA    | exact-pin in lockfile + integrity hashes     |
+| `yaml`                       | npm — no SLSA    | exact-pin + structural lock/workflow parsing |
+| GitHub Actions reusable wf's | varies           | pinned to exact 40-char SHA in workflows     |
 
 We track a maintainer follow-up to file an upstream
 `actions/attest-build-provenance` PR with `pulumi/pulumi-aws` once their
@@ -203,7 +210,10 @@ for customization, validation, application, and revert procedures.
 ## Privacy
 
 Hulumi does not transmit telemetry. The `/hulumi-threat-model` skill writes
-only to the user's local filesystem. The drift classifier (`@hulumi/drift`)
+only beneath the user's real current directory. It rejects absolute/traversing
+CLI output paths and symlinked output roots, parents and targets, then replaces
+the output by an exclusive same-directory temporary file plus atomic rename.
+The drift classifier (`@hulumi/drift`)
 reads AWS APIs directly from the user's credentials and writes only to
 `.hulumi/drift-cache/` on disk with `chmod 0600`. Foreign-UID cache files
 are refused on read.

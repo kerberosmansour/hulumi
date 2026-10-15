@@ -307,6 +307,66 @@ describe("workflow-governance linter", () => {
   });
 });
 
+describe("workflow-governance structural YAML handling", () => {
+  it("applies governance checks to quoted YAML keys and values", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "quoted.yml"),
+      [
+        '"name": "quoted"',
+        '"permissions":',
+        '  "contents": "write"',
+        '"jobs":',
+        '  "build":',
+        '    "runs-on": "ubuntu-latest"',
+        '    "steps":',
+        '      - "uses": "actions/checkout@v6"',
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_SHA_1_FULL_LENGTH_SHA_PIN");
+    expect(output).toContain("WF_PERM_1_MINIMUM_GITHUB_TOKEN_PERMISSIONS");
+  });
+
+  it.each([
+    ["duplicate keys", "permissions: {}\npermissions: {}\njobs: {}\n"],
+    ["aliases", "permissions: &perms\n  contents: read\ncopy: *perms\njobs: {}\n"],
+    [
+      "merge keys",
+      "defaults: &defaults\n  runs-on: ubuntu-latest\npermissions: {}\njobs:\n  build:\n    <<: *defaults\n    steps: []\n",
+    ],
+    ["malformed job shape", "permissions: {}\njobs:\n  build: not-a-job\n"],
+  ])("fails closed on %s", (_name, source) => {
+    const fixture = makeFixture();
+    writeFileSync(join(fixture, ".github", "workflows", "malformed.yml"), source);
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/ @security-team\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_YAML_1_STRICT_STRUCTURAL_PARSE");
+  });
+
+  it("does not treat an ownerless workflow pattern as CODEOWNERS protection", () => {
+    const fixture = makeFixture();
+    writeFileSync(
+      join(fixture, ".github", "workflows", "valid.yml"),
+      ["name: valid", "permissions: {}", "jobs: {}", ""].join("\n"),
+    );
+    writeFileSync(join(fixture, "CODEOWNERS"), "/.github/workflows/\n");
+
+    const result = runLinter(fixture);
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.status).toBe(1);
+    expect(output).toContain("WF_CODEOWNERS_1_WORKFLOWS_PROTECTED");
+  });
+});
+
 // =============================================================================
 // WF_ENV_1 settings-state verification (ticket-183, opt-in via --check-settings
 // or { checkSettings: true } JS-API option). Direct JS-API tests with a

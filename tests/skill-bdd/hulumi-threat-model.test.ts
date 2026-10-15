@@ -70,6 +70,7 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
     expect(path).toMatch(/docs\/threat-model-aws-multi-account-baseline-\d{8}\.md$/);
     const onDisk = await readFile(path, "utf8");
     expect(onDisk).toBe(content);
+    expect((await readdir(join(tmp, "docs"))).filter((name) => name.includes(".tmp-"))).toEqual([]);
 
     // Frontmatter present with required fields
     expect(content).toMatch(/^---\nname: threat-model-aws-multi-account-baseline\n/);
@@ -221,7 +222,7 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
         "--mappings-dir",
         synthMappingsDir,
         "--output-dir",
-        tmp,
+        ".",
       ],
       { encoding: "utf8", cwd: tmp },
     );
@@ -473,5 +474,115 @@ describe("Feature: /hulumi-threat-model produces framework-ID-cited threat-model
     for (const url of urls) {
       expect(url).toMatch(/^https?:\/\//);
     }
+  });
+
+  describe("[abuse: output path integrity]", () => {
+    it("rejects an absolute CLI output directory", async () => {
+      const res = spawnSync(
+        process.execPath,
+        [
+          join(SCRIPTS_DIR, "generate-threat-model.mjs"),
+          "aws-multi-account-baseline",
+          "--output-dir",
+          tmp,
+        ],
+        { encoding: "utf8", cwd: tmp },
+      );
+      expect(res.status).not.toBe(0);
+      expect(`${res.stdout}\n${res.stderr}`).toMatch(/output-dir|absolute|relative|within/i);
+      await expect(fs.access(join(tmp, "docs"))).rejects.toThrow();
+    });
+
+    it("rejects a CLI output directory that traverses outside the working directory", async () => {
+      const res = spawnSync(
+        process.execPath,
+        [
+          join(SCRIPTS_DIR, "generate-threat-model.mjs"),
+          "aws-multi-account-baseline",
+          "--output-dir",
+          "../escaped",
+        ],
+        { encoding: "utf8", cwd: tmp },
+      );
+      expect(res.status).not.toBe(0);
+      expect(`${res.stdout}\n${res.stderr}`).toMatch(/output-dir|traversal|within/i);
+    });
+
+    it("rejects a symlinked programmatic output root", async () => {
+      const generate = await importGenerator();
+      const realRoot = join(tmp, "real-root");
+      const linkedRoot = join(tmp, "linked-root");
+      await fs.mkdir(realRoot);
+      await fs.symlink(realRoot, linkedRoot, "dir");
+
+      await expect(
+        generate({
+          scenario: "aws-multi-account-baseline",
+          scenariosDir: join(SKILL_DIR, "scenarios"),
+          mappingsDir: MAPPINGS_DIR,
+          templatesDir: join(SKILL_DIR, "templates"),
+          outputDir: `${linkedRoot}/`,
+        }),
+      ).rejects.toThrow(/symlink|output/i);
+    });
+
+    it("rejects a relative CLI output path whose symlink resolves outside cwd", async () => {
+      const outside = await mkdtemp(join(tmpdir(), "hulumi-output-outside-"));
+      try {
+        await fs.symlink(outside, join(tmp, "linked-outside"), "dir");
+        const res = spawnSync(
+          process.execPath,
+          [
+            join(SCRIPTS_DIR, "generate-threat-model.mjs"),
+            "aws-multi-account-baseline",
+            "--output-dir",
+            "linked-outside",
+          ],
+          { encoding: "utf8", cwd: tmp },
+        );
+        expect(res.status).not.toBe(0);
+        expect(`${res.stdout}\n${res.stderr}`).toMatch(/output-dir|outside|symlink|within/i);
+        await expect(fs.access(join(outside, "docs"))).rejects.toThrow();
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
+    });
+
+    it("rejects symlinked docs directories and final output targets without altering the target", async () => {
+      const generate = await importGenerator();
+      const rootWithLinkedDocs = join(tmp, "linked-docs-root");
+      const linkedDocsTarget = join(tmp, "linked-docs-target");
+      await fs.mkdir(rootWithLinkedDocs);
+      await fs.mkdir(linkedDocsTarget);
+      await fs.symlink(linkedDocsTarget, join(rootWithLinkedDocs, "docs"), "dir");
+      await expect(
+        generate({
+          scenario: "aws-multi-account-baseline",
+          scenariosDir: join(SKILL_DIR, "scenarios"),
+          mappingsDir: MAPPINGS_DIR,
+          templatesDir: join(SKILL_DIR, "templates"),
+          outputDir: rootWithLinkedDocs,
+          nowIso: "2026-10-15T00:00:00.000Z",
+        }),
+      ).rejects.toThrow(/symlink|docs/i);
+
+      const rootWithLinkedFile = join(tmp, "linked-file-root");
+      const docs = join(rootWithLinkedFile, "docs");
+      const victim = join(tmp, "victim.md");
+      await fs.mkdir(docs, { recursive: true });
+      await writeFile(victim, "do not overwrite\n");
+      await fs.symlink(victim, join(docs, "threat-model-aws-multi-account-baseline-20261015.md"));
+      await expect(
+        generate({
+          scenario: "aws-multi-account-baseline",
+          scenariosDir: join(SKILL_DIR, "scenarios"),
+          mappingsDir: MAPPINGS_DIR,
+          templatesDir: join(SKILL_DIR, "templates"),
+          outputDir: rootWithLinkedFile,
+          nowIso: "2026-10-15T00:00:00.000Z",
+        }),
+      ).rejects.toThrow(/symlink|target|regular/i);
+      expect(await readFile(victim, "utf8")).toBe("do not overwrite\n");
+    });
   });
 });

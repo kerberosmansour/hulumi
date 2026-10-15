@@ -1,6 +1,14 @@
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { normalizeEvidence } from "../src/evidence/normalize.ts";
+import {
+  assertEmergencyInvariant,
+  defaultRouteConfig,
+  routeEvidence,
+} from "../src/classify/route.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scanProject } from "../src/cli/scan.ts";
@@ -93,6 +101,94 @@ test("malformed dependency input fails with its original cause and no clean repo
       },
     );
     await assert.rejects(access(join(root, "findings.osv.json")));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+const maliciousEvidence = (fixedVersion: string | null) =>
+  normalizeEvidence({
+    finding: {
+      ecosystem: "npm",
+      package: "synthetic-not-installed",
+      version: "0.0.0",
+      advisoryId: "MAL-TEST-0001",
+      manifestPath: "package-lock.json",
+    },
+    osv: { severityClass: "malicious", fixedVersion },
+    dependencyReview: { present: true, vulnerableTransitives: [] },
+    ghsa: { cvss: 0 },
+    kev: { listed: false },
+    epss: { score: 0 },
+  });
+
+for (const missing of [null, "", "   "]) {
+  test(`a present malicious package without a valid fixed release fails: ${JSON.stringify(missing)}`, () => {
+    assert.throws(
+      () => routeEvidence(maliciousEvidence(missing)),
+      /known malicious.*remove.*investigat/i,
+    );
+  });
+}
+
+test("disabling the generic fixed-release preference cannot waive malicious removal", () => {
+  const config = { emergency: { ...defaultRouteConfig.emergency, requireFixAvailable: false } };
+  assert.throws(
+    () => routeEvidence(maliciousEvidence(null), config),
+    /known malicious.*remove.*investigat/i,
+  );
+});
+
+test("legacy optional flags cannot demote a fixable malicious package", () => {
+  const config = { emergency: { ...defaultRouteConfig.emergency, treatMalAsEmergency: false } };
+  assert.deepEqual(routeEvidence(maliciousEvidence("0.0.1"), config), { track: "emergency" });
+  assert.doesNotThrow(() => assertEmergencyInvariant(maliciousEvidence("0.0.1"), config));
+});
+
+test("ordinary low-risk vulnerability routing stays unchanged", () => {
+  const evidence = maliciousEvidence("0.0.1");
+  evidence.osv.class = "critical";
+  assert.deepEqual(routeEvidence(evidence), { track: "cadence" });
+  evidence.osv.fixedVersion = null;
+  assert.deepEqual(routeEvidence(evidence), { track: "dropped", reason: "no fix" });
+});
+
+test("real triage CLI fails closed on MAL with no fix and preserves scanner/state evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "hulumi-sca-mal-triage-"));
+  try {
+    const findings = join(root, "findings.json"),
+      state = join(root, "state.json"),
+      work = join(root, "work.json");
+    const input = JSON.stringify({ findings: [maliciousEvidence(null).raw] });
+    const previousState = JSON.stringify({ version: 1, revision: 7, findings: {} });
+    await writeFile(findings, input);
+    await writeFile(state, previousState);
+    const cli = fileURLToPath(new URL("../src/cli/triage.ts", import.meta.url));
+    const child = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        cli,
+        "triage",
+        "--findings",
+        findings,
+        "--state",
+        state,
+        "--work-items",
+        work,
+        "--events",
+        join(root, "events.json"),
+      ],
+      { encoding: "utf8", timeout: 10000 },
+    );
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /known malicious.*remove.*investigat/i);
+    assert.equal(await readFile(findings, "utf8"), input);
+    assert.equal(await readFile(state, "utf8"), previousState);
+    await assert.rejects(access(work));
+    await assert.rejects(access(join(root, "events.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

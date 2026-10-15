@@ -405,3 +405,15 @@ preservation of explicit scope choices and fail-closed malformed input. Delibera
 vulnerable fixtures are never installed. TypeScript7 remains outside the admitted
 graph because the held parser supports TypeScript below6.1; npm peer overrides
 are not evidence of compatibility. No native Vitest5 chain was executed/admitted.
+
+## Known malicious findings
+
+Official OSV admission rejects known MAL advisories without a waiver. The legacy
+SCA triage tool also fails when a present malicious package has no fixed release,
+requiring removal and investigation instead of marking it dropped. Its input scan
+report and previous state remain unchanged; no clean work-items report is written.
+A fixable malicious finding stays urgent even if the legacy optional
+`treatMalAsEmergency` setting is false. Urgent classification does not authorize
+installation, auto-remediation, merging or publishing. The existing read-only CI
+and explicit dependency admission still apply. Tests use synthetic finding JSON
+and never install or execute a malicious package.

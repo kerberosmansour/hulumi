@@ -21,7 +21,7 @@ This walkthrough takes you from "clean machine" to a working hardened S3 bucket 
 
 | Tool                       | Version   | Why                                                 |
 | -------------------------- | --------- | --------------------------------------------------- |
-| Node.js                    | 20 LTS    | Hulumi packages target Node 20.                     |
+| Node.js                    | >=22.12.0 | Matches the published package engine requirement.   |
 | pnpm                       | ≥ 9       | The repo and recommended setup use pnpm.            |
 | Pulumi CLI                 | ≥ 3.232.0 | Hulumi's tested floor for `@pulumi/pulumi`.         |
 | (optional) Claude Code CLI | latest    | Required only for the `/hulumi-threat-model` skill. |
@@ -29,7 +29,7 @@ This walkthrough takes you from "clean machine" to a working hardened S3 bucket 
 
 ```bash
 node --version   # v20.x
-pnpm --version   # 9.x or later
+pnpm --version   # 9.12.0 or later
 pulumi version   # 3.232.0 or later
 ```
 

@@ -73,7 +73,7 @@ The classifier is the part of Hulumi that most directly serves the "agent is aut
 - Your team has at least one AI agent in the IaC authoring loop.
 - You need to pass a compliance audit that asks for CCM / CIS / NIST mappings, but you can't legally ship the framework prose with your code.
 - You want drift detection that distinguishes provider-API churn from console break-glass, and you want it without paying a SaaS.
-- You ship Pulumi (TypeScript) and are comfortable on Node 20.
+- You ship Pulumi (TypeScript) and are comfortable on Node.js >=22.12.0.
 
 **Weak fit (today):**
 

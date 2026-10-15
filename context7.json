@@ -1,0 +1,23 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Hulumi",
+  "description": "Hardened Pulumi TypeScript components and policy packs for AWS, GitHub, Kubernetes and Cloudflare infrastructure.",
+  "folders": ["docs/agents", "skills/hulumi-secure-pulumi/references"],
+  "excludeFolders": ["docs/slo", "tests", "examples", "node_modules", "target", ".github"],
+  "excludeFiles": [
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "ARCHITECTURE.md",
+    "GOVERNANCE.md",
+    "CODE_OF_CONDUCT.md",
+    "TRADEMARKS.md",
+    "adoption-measurement.md"
+  ],
+  "rules": [
+    "Use APIs from the documented published version; check versioned references before upgrading.",
+    "Respect the consuming project's dependency-admission policy and explicit user authorization."
+  ]
+}

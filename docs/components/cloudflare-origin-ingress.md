@@ -9,6 +9,8 @@
 
 Tunnel mode creates a Cloudflare tunnel and remote tunnel config with a public hostname binding. The `runtime` field records whether the workload runtime is automated by the component or cookbook-only.
 
+`tunnelSecret` is omitted from the parent component inputs and is forced to a Pulumi secret on the tunnel child. Callers should still use `pulumi.secret(...)` at the configuration boundary so the value remains secret before it reaches the component.
+
 ```ts
 import * as pulumi from "@pulumi/pulumi";
 import { CloudflareOriginIngress } from "@hulumi/platform-patterns";
@@ -37,23 +39,39 @@ Use `additionalRoutes` when one tunnel should front several public hostnames. `h
 
 ## Allowlist+AOP Mode
 
-Allowlist+AOP mode requires source CIDR evidence, load-balancer security-group restriction, target security-group restriction, origin certificate evidence, and Authenticated Origin Pull certificate evidence.
+Allowlist+AOP mode creates the complete AWS enforcement path: a version-pinned ALB trust store, an HTTPS listener using mutual-TLS `verify` mode, load-balancer source restrictions, a target security-group restriction, and per-hostname Cloudflare Authenticated Origin Pulls.
 
 ```ts
-new CloudflareOriginIngress("aop", {
+import { CLOUDFLARE_IPV4_ORIGIN_CIDRS, CloudflareOriginIngress } from "@hulumi/platform-patterns";
+
+new CloudflareOriginIngress("alb-origin", {
   tier: "startup-hardened",
   mode: "allowlistAop",
   cloudflareZoneId: "zone_123",
   hostname: "app.example.com",
-  cloudflareSourceCidrBlocks: ["203.0.113.0/24"],
+  cloudflareSourceCidrBlocks: CLOUDFLARE_IPV4_ORIGIN_CIDRS,
   loadBalancerSecurityGroupId: "sg-lb",
   targetSecurityGroupId: "sg-target",
   originPort: 443,
-  originCertificateReference: "ssm:/edge/origin-ca-cert",
+  loadBalancerArn:
+    "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+  originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+  originTargetGroupArn:
+    "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+  aopCaBundleS3Bucket: "edge-trust",
+  aopCaBundleS3Key: "aop/app-root-ca.pem",
+  aopCaBundleS3ObjectVersion: "ca-version-1",
   authenticatedOriginPullCertificateId: "cert_123",
-  aopMode: "hostname",
 });
 ```
+
+The CA bundle is the root that issued the client certificate uploaded to Cloudflare; it is separate from the ALB server certificate referenced by `originServerCertificateArn`. Keep the client private key out of Pulumi state and upload it to Cloudflare through a separately controlled certificate workflow. The component fixes the listener policy to `ELBSecurityPolicy-TLS13-1-2-2021-06`, verifies client certificates, and refuses expired client certificates.
+
+`CLOUDFLARE_IPV4_ORIGIN_CIDRS` is the pinned set published by Cloudflare. A non-empty unique subset is permitted, but every entry must match that set exactly. When Cloudflare publishes a range change, update Hulumi through a reviewed release before deploying the new range; arbitrary CIDRs, including `0.0.0.0/0`, fail closed.
+
+### Migration from metadata-only AOP
+
+The former `originCertificateReference` and `aopMode` inputs are removed. Replace them with the concrete load-balancer, ACM server certificate, target-group, and versioned S3 CA-bundle inputs shown above. The component now owns the HTTPS listener and trust store. Import matching existing resources into the component's child URNs before the first update, or plan a reviewed replacement; do not allow Pulumi to create a competing listener on an occupied port.
 
 ## Origin IP Rotation Warning
 

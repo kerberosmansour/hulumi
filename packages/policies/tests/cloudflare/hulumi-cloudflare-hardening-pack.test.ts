@@ -336,34 +336,25 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
     violations = [];
   });
 
-  it("reports CF_ORIGIN_1 when an application hostname has no CloudflareOriginIngress evidence", () => {
-    const appRecord = makePolicyResource({
-      type: DNS_RECORD_TYPE,
-      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::app`,
-      name: "app",
-      props: {
-        type: "CNAME",
-        name: "app.example.com",
-        content: "public-origin.example.com",
-        proxied: true,
-        tags: ["hulumi:purpose=public-app"],
-      },
-    });
+  const TUNNEL_TYPE = "cloudflare:index/zeroTrustTunnelCloudflared:ZeroTrustTunnelCloudflared";
+  const TUNNEL_CONFIG_TYPE =
+    "cloudflare:index/zeroTrustTunnelCloudflaredConfig:ZeroTrustTunnelCloudflaredConfig";
+  const AOP_TYPE = "cloudflare:index/authenticatedOriginPulls:AuthenticatedOriginPulls";
+  const TRUST_STORE_TYPE = "aws:lb/trustStore:TrustStore";
+  const LISTENER_TYPE = "aws:lb/listener:Listener";
+  const SECURITY_GROUP_RULE_TYPE = "aws:ec2/securityGroupRule:SecurityGroupRule";
 
+  function validate(resources: PolicyResource[]): void {
     (
       cfOrigin1RequireSecureOriginMode.validateStack as (
         a: StackValidationArgs,
         r: (m: string) => void,
       ) => void
-    )(makeStackArgs([appRecord]), report);
+    )(makeStackArgs(resources), report);
+  }
 
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain(CF_ORIGIN_1_RULE_ID);
-    expect(violations[0]).toContain(appRecord.urn);
-  });
-
-  it("does NOT report when matching CloudflareOriginIngress evidence is present", () => {
-    const appRecord = makePolicyResource({
+  function appRecord(): PolicyResource {
+    return makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${PUBLIC_HOSTNAME_TYPE}$${DNS_RECORD_TYPE}::app`,
       name: "app",
@@ -375,52 +366,410 @@ describe("HulumiCloudflareHardeningPack CF_ORIGIN_1 — secure origin evidence r
         tags: ["hulumi:purpose=public-app"],
       },
     });
-    const ingress = makePolicyResource({
+  }
+
+  function ingress(
+    mode: "tunnel" | "allowlistAop",
+    props: Record<string, unknown> = {},
+  ): PolicyResource {
+    return makePolicyResource({
       type: ORIGIN_INGRESS_TYPE,
       urn: `urn:pulumi:s::p::${ORIGIN_INGRESS_TYPE}::app-ingress`,
       name: "app-ingress",
-      props: { mode: "tunnel", hostname: "app.example.com" },
+      props: {
+        mode,
+        hostname: "app.example.com",
+        ...props,
+      },
     });
+  }
 
-    (
-      cfOrigin1RequireSecureOriginMode.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([appRecord, ingress]), report);
+  function child(
+    parent: PolicyResource,
+    type: string,
+    name: string,
+    props: Record<string, unknown>,
+    propertyDependencies: Record<string, PolicyResource[]> = {},
+    dependencies: PolicyResource[] = [],
+  ): PolicyResource {
+    return makePolicyResource({
+      type,
+      urn: `urn:pulumi:s::p::${ORIGIN_INGRESS_TYPE}$${type}::${name}`,
+      name,
+      props,
+      parent,
+      propertyDependencies,
+      dependencies,
+    });
+  }
 
+  function tunnelTuple(
+    configOverrides: Record<string, unknown> = {},
+    configDependencies: Record<string, PolicyResource[]> | undefined = undefined,
+  ): PolicyResource[] {
+    const component = ingress("tunnel", { cloudflareAccountId: "acct_123" });
+    const tunnel = child(component, TUNNEL_TYPE, "app-tunnel", {
+      accountId: "acct_123",
+      configSrc: "cloudflare",
+    });
+    const config = child(
+      component,
+      TUNNEL_CONFIG_TYPE,
+      "app-tunnel-config",
+      {
+        accountId: "acct_123",
+        tunnelId: "app-tunnel-id",
+        source: "cloudflare",
+        config: {
+          ingresses: [
+            {
+              hostname: "app.example.com",
+              service: "https://origin.internal",
+              originRequest: { noTlsVerify: false, matchSnItoHost: true },
+            },
+            { service: "http_status:404" },
+          ],
+        },
+        ...configOverrides,
+      },
+      configDependencies ?? { tunnelId: [tunnel] },
+    );
+    return [component, tunnel, config];
+  }
+
+  function aopTuple(): PolicyResource[] {
+    const component = ingress("allowlistAop", {
+      cloudflareZoneId: "zone_123",
+      cloudflareSourceCidrBlocks: ["173.245.48.0/20"],
+      loadBalancerSecurityGroupId: "sg-lb",
+      targetSecurityGroupId: "sg-target",
+      originPort: 443,
+      loadBalancerArn:
+        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+      originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+      originTargetGroupArn:
+        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+      aopCaBundleS3Bucket: "edge-trust",
+      aopCaBundleS3Key: "aop/app-root-ca.pem",
+      aopCaBundleS3ObjectVersion: "ca-version-1",
+      authenticatedOriginPullCertificateId: "cert_123",
+    });
+    const trustStore = child(component, TRUST_STORE_TYPE, "app-aop-trust", {
+      caCertificatesBundleS3Bucket: "edge-trust",
+      caCertificatesBundleS3Key: "aop/app-root-ca.pem",
+      caCertificatesBundleS3ObjectVersion: "ca-version-1",
+      arn: "arn:aws:elasticloadbalancing:eu-west-2:123456789012:truststore/app/789",
+    });
+    const listener = child(
+      component,
+      LISTENER_TYPE,
+      "app-aop-listener",
+      {
+        loadBalancerArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+        certificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+        protocol: "HTTPS",
+        port: 443,
+        sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
+        defaultActions: [
+          {
+            type: "forward",
+            targetGroupArn:
+              "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+          },
+        ],
+        mutualAuthentication: {
+          mode: "verify",
+          trustStoreArn: "arn:aws:elasticloadbalancing:eu-west-2:123456789012:truststore/app/789",
+          ignoreClientCertificateExpiry: false,
+        },
+      },
+      { mutualAuthentication: [trustStore] },
+    );
+    const sourceRule = child(component, SECURITY_GROUP_RULE_TYPE, "app-cf-source-0", {
+      type: "ingress",
+      fromPort: 443,
+      toPort: 443,
+      protocol: "tcp",
+      cidrBlocks: ["173.245.48.0/20"],
+      securityGroupId: "sg-lb",
+    });
+    const targetRule = child(component, SECURITY_GROUP_RULE_TYPE, "app-target-from-lb", {
+      type: "ingress",
+      fromPort: 443,
+      toPort: 443,
+      protocol: "tcp",
+      sourceSecurityGroupId: "sg-lb",
+      securityGroupId: "sg-target",
+    });
+    const aop = child(
+      component,
+      AOP_TYPE,
+      "app-aop",
+      {
+        zoneId: "zone_123",
+        configs: [{ certId: "cert_123", enabled: true, hostname: "app.example.com" }],
+      },
+      {},
+      [listener, sourceRule, targetRule],
+    );
+    return [component, aop, trustStore, listener, sourceRule, targetRule];
+  }
+
+  it("reports CF_ORIGIN_1 when an application hostname has no CloudflareOriginIngress evidence", () => {
+    const record = appRecord();
+    validate([record]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(CF_ORIGIN_1_RULE_ID);
+    expect(violations[0]).toContain(record.urn);
+  });
+
+  it("reports when a matching component token has no concrete tunnel children", () => {
+    validate([appRecord(), ingress("tunnel", { cloudflareAccountId: "acct_123" })]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("does NOT report when an exact secure tunnel tuple is present", () => {
+    validate([appRecord(), ...tunnelTuple()]);
     expect(violations).toEqual([]);
   });
 
-  it("reports when only unrelated CloudflareOriginIngress evidence exists for another hostname", () => {
-    const appRecord = makePolicyResource({
-      type: DNS_RECORD_TYPE,
-      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::api`,
-      name: "api",
-      props: {
-        type: "CNAME",
-        name: "api.example.com",
-        content: "public-origin.example.com",
-        proxied: true,
-        tags: ["hulumi:purpose=public-app"],
+  it.each([
+    [
+      "TLS verification disabled",
+      {
+        config: {
+          ingresses: [
+            {
+              hostname: "app.example.com",
+              service: "https://origin.internal",
+              originRequest: { noTlsVerify: true },
+            },
+            { service: "http_status:404" },
+          ],
+        },
       },
-    });
-    const unrelatedIngress = makePolicyResource({
-      type: ORIGIN_INGRESS_TYPE,
-      urn: `urn:pulumi:s::p::${ORIGIN_INGRESS_TYPE}::app-ingress`,
-      name: "api.example.com",
-      props: { mode: "tunnel", hostname: "app.example.com" },
-    });
+      undefined,
+    ],
+    [
+      "terminal fallback absent",
+      {
+        config: {
+          ingresses: [
+            {
+              hostname: "app.example.com",
+              service: "https://origin.internal",
+              originRequest: { noTlsVerify: false, matchSnItoHost: true },
+            },
+          ],
+        },
+      },
+      undefined,
+    ],
+    ["another account", { accountId: "acct_other" }, undefined],
+    ["unbound tunnel id", {}, {}],
+  ])("reports when tunnel evidence has %s", (_label, overrides, dependencies) => {
+    validate([
+      appRecord(),
+      ...tunnelTuple(
+        overrides as Record<string, unknown>,
+        dependencies as Record<string, PolicyResource[]> | undefined,
+      ),
+    ]);
+    expect(violations).toHaveLength(1);
+  });
 
-    (
-      cfOrigin1RequireSecureOriginMode.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([appRecord, unrelatedIngress]), report);
+  it("does NOT report when an exact per-hostname AOP and ALB mTLS tuple is present", () => {
+    validate([appRecord(), ...aopTuple()]);
+    expect(violations).toEqual([]);
+  });
+
+  it.each([
+    [
+      "listener is absent",
+      (resources: PolicyResource[]) => resources.filter((r) => r.type !== LISTENER_TYPE),
+    ],
+    [
+      "trust store is absent",
+      (resources: PolicyResource[]) => resources.filter((r) => r.type !== TRUST_STORE_TYPE),
+    ],
+    [
+      "AOP is disabled",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === AOP_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  configs: [{ certId: "cert_123", enabled: false, hostname: "app.example.com" }],
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "AOP is not ordered after origin enforcement",
+      (resources: PolicyResource[]) =>
+        resources.map((resource) =>
+          resource.type === AOP_TYPE
+            ? ({ ...resource, dependencies: [] } as PolicyResource)
+            : resource,
+        ),
+    ],
+    [
+      "AOP is bound to another hostname",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === AOP_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  configs: [{ certId: "cert_123", enabled: true, hostname: "other.example.com" }],
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "mTLS is passthrough",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === LISTENER_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  mutualAuthentication: { mode: "passthrough" },
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "client certificate expiry is ignored",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === LISTENER_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  mutualAuthentication: {
+                    ...((r.props as Record<string, unknown>).mutualAuthentication as Record<
+                      string,
+                      unknown
+                    >),
+                    ignoreClientCertificateExpiry: true,
+                  },
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "trust store is unbound",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === LISTENER_TYPE ? ({ ...r, propertyDependencies: {} } as PolicyResource) : r,
+        ),
+    ],
+    [
+      "listener uses another server certificate",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === LISTENER_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  certificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/other",
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "listener forwards to another target group",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === LISTENER_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  defaultActions: [
+                    {
+                      type: "forward",
+                      targetGroupArn:
+                        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/other/999",
+                    },
+                  ],
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "CA bundle is unversioned",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === TRUST_STORE_TYPE
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  caCertificatesBundleS3ObjectVersion: undefined,
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "source rule is Internet-wide",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === SECURITY_GROUP_RULE_TYPE &&
+          Array.isArray((r.props as Record<string, unknown>).cidrBlocks)
+            ? ({
+                ...r,
+                props: { ...(r.props as Record<string, unknown>), cidrBlocks: ["0.0.0.0/0"] },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+    [
+      "target rule trusts another load balancer",
+      (resources: PolicyResource[]) =>
+        resources.map((r) =>
+          r.type === SECURITY_GROUP_RULE_TYPE &&
+          (r.props as Record<string, unknown>).sourceSecurityGroupId !== undefined
+            ? ({
+                ...r,
+                props: {
+                  ...(r.props as Record<string, unknown>),
+                  sourceSecurityGroupId: "sg-other",
+                },
+              } as PolicyResource)
+            : r,
+        ),
+    ],
+  ])("reports when allowlist+AOP evidence has %s", (_label, mutate) => {
+    validate([appRecord(), ...mutate(aopTuple())]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("reports when only unrelated CloudflareOriginIngress evidence exists for another hostname", () => {
+    const unrelatedIngress = ingress("tunnel", {
+      hostname: "other.example.com",
+      cloudflareAccountId: "acct_123",
+    });
+    validate([appRecord(), unrelatedIngress]);
 
     expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain(appRecord.urn);
+    expect(violations[0]).toContain(appRecord().urn);
   });
 });
 

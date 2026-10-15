@@ -44,14 +44,14 @@ Startup-Hardened defaults to the full set. Sandbox may pass `scps: []` and `scpT
 
 The matching CrossGuard pack is `HulumiAwsOrgHardeningPack` at `@hulumi/policies/aws-org/packs/hulumi-aws-org-hardening`.
 
-| Rule           | Enforces                                             |
-| -------------- | ---------------------------------------------------- |
-| `HULUMI-ORG-1` | delegated security administrators are present        |
-| `HULUMI-ORG-2` | bootstrap and steady-state roles are separated       |
-| `HULUMI-ORG-3` | approved SCP guardrail set exists                    |
-| `HULUMI-ORG-4` | S3 account Public Access Block has all four switches |
-| `HULUMI-ORG-5` | S3 account Public Access Block is present            |
-| `HULUMI-ORG-6` | sandbox tier without SCPs emits an advisory          |
+| Rule           | Enforces                                                                                |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `HULUMI-ORG-1` | every delegated security service is bound to the foundation's exact security account ID |
+| `HULUMI-ORG-2` | bootstrap and steady-state roles are separated                                          |
+| `HULUMI-ORG-3` | approved SCP guardrail set exists                                                       |
+| `HULUMI-ORG-4` | S3 account Public Access Block has all four switches                                    |
+| `HULUMI-ORG-5` | S3 account Public Access Block is present                                               |
+| `HULUMI-ORG-6` | sandbox tier without SCPs emits an advisory                                             |
 
 ## Outputs
 
@@ -66,6 +66,7 @@ The matching CrossGuard pack is `HulumiAwsOrgHardeningPack` at `@hulumi/policies
 ## Safety notes
 
 - `homeRegion` must be included in `enabledRegions`.
+- `securityAccountId` must resolve to a literal 12-digit AWS account ID during preview. `HULUMI-ORG-1` fails closed when it cannot compare that identity with each delegated-administrator `accountId`.
 - Startup-Hardened requires at least one SCP target unless `attachScps: false` is explicitly set.
 - `bootstrapRoleArn` and `steadyStateRoleArn` must differ when both are literal strings.
 - Account IDs, OU IDs, root IDs, and role ARNs in examples are placeholders.

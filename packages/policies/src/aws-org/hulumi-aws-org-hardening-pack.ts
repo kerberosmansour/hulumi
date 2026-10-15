@@ -12,6 +12,7 @@ const FOUNDATION_TYPE = "hulumi:baseline:aws:AwsOrganizationSecurityFoundation";
 const DELEGATED_ADMIN_TYPE = "aws:organizations/delegatedAdministrator:DelegatedAdministrator";
 const ORG_POLICY_TYPE = "aws:organizations/policy:Policy";
 const S3_ACCOUNT_BPA_TYPE = "aws:s3/accountPublicAccessBlock:AccountPublicAccessBlock";
+const AWS_ACCOUNT_ID = /^[0-9]{12}$/;
 
 const REQUIRED_DELEGATED_ADMIN_SERVICES = [
   "guardduty.amazonaws.com",
@@ -59,20 +60,38 @@ export const org1DelegatedAdminsRequired: StackValidationPolicy = {
     "Startup-hardened AWS organizations must delegate GuardDuty, Security Hub, Config, and Access Analyzer administration to the security account.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
-    if (!hasStartupHardenedFoundation(args.resources)) return;
-    const present = new Set(
-      args.resources
-        .filter((resource) => resource.type === DELEGATED_ADMIN_TYPE)
-        .map((resource) => resource.props.servicePrincipal)
-        .filter((service): service is string => typeof service === "string"),
+    const foundations = args.resources.filter(isStartupHardenedFoundation);
+    if (foundations.length === 0) return;
+    const delegatedAdmins = args.resources.filter(
+      (resource) => resource.type === DELEGATED_ADMIN_TYPE,
     );
-    const missing = REQUIRED_DELEGATED_ADMIN_SERVICES.filter((service) => !present.has(service));
-    if (missing.length > 0) {
-      reportViolation(
-        `HULUMI-ORG-1: startup-hardened AWS organization foundation is missing delegated admin service(s): ${missing.join(
-          ", ",
-        )}. Docs: ${DOCS_BASE}`,
+
+    for (const foundation of foundations) {
+      const securityAccountId = foundation.props.securityAccountId;
+      if (typeof securityAccountId !== "string" || !AWS_ACCOUNT_ID.test(securityAccountId)) {
+        reportViolation(
+          `HULUMI-ORG-1: ${foundation.urn} must provide a literal 12-digit securityAccountId so delegated administrator ownership can be verified. Docs: ${DOCS_BASE}`,
+          foundation.urn,
+        );
+        continue;
+      }
+
+      const missing = REQUIRED_DELEGATED_ADMIN_SERVICES.filter(
+        (service) =>
+          !delegatedAdmins.some(
+            (resource) =>
+              resource.props.servicePrincipal === service &&
+              resource.props.accountId === securityAccountId,
+          ),
       );
+      if (missing.length > 0) {
+        reportViolation(
+          `HULUMI-ORG-1: ${foundation.urn} is missing delegated admin service(s) bound to security account ${securityAccountId}: ${missing.join(
+            ", ",
+          )}. Docs: ${DOCS_BASE}`,
+          foundation.urn,
+        );
+      }
     }
   },
 };

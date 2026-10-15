@@ -14,7 +14,10 @@
     "GOVERNANCE.md",
     "CODE_OF_CONDUCT.md",
     "TRADEMARKS.md",
-    "adoption-measurement.md"
+    "adoption-measurement.md",
+    "SECURITY.md",
+    "MAINTAINERS.md",
+    "THREAT_MODEL.md"
   ],
   "rules": [
     "Use APIs from the documented published version; check versioned references before upgrading.",

@@ -40,6 +40,14 @@ import { hulumiHardeningPack } from "@hulumi/policies/aws/packs/hulumi-hardening
 | `aws/packs/cis-v5`                       | `CisV5Pack` — CIS AWS Foundations Benchmark v5.0.0 sections 1–3 (IDs-only — see [licensing](https://github.com/kerberosmansour/hulumi/blob/main/docs/mappings/licensing.md)) |
 | `aws-org/packs/hulumi-aws-org-hardening` | `HulumiAwsOrgHardeningPack` — delegated admins, role separation, approved SCP set, and account-level S3 Public Access Block posture                                          |
 
+HULUMI-H5 validates the defense-in-depth controls behind every raw S3 bucket that
+uses the `SecureBucket` H1 exemption. A matching logical name or shared component
+type is not evidence that a control targets that bucket. Public-access block,
+SSE-KMS, ownership, and versioning must carry a `propertyDependencies.bucket`
+edge to the exact bucket URN. The TLS policy must bind both its `bucket` and
+`policy` properties to that bucket and cover the bucket and object ARNs. Missing,
+ambiguous, or general `dependsOn`-only relationships fail closed.
+
 ### GitHub
 
 | Pack                            | Coverage                                                                                                                                                                                                                                      |

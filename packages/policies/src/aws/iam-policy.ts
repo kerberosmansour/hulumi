@@ -61,6 +61,23 @@ export function iamPolicyHasFullAdmin(policy: unknown): boolean {
   );
 }
 
+/**
+ * True when an Allow statement uses IAM complement operators. G_OIDC_2
+ * rejects these forms instead of attempting to prove the residual action and
+ * resource universe selected by attacker-controlled NotAction/NotResource
+ * values. Deny statements are guardrails rather than permission grants.
+ */
+export function iamPolicyHasUnsafeAllowComplement(policy: unknown): boolean {
+  const statements = iamPolicyStatements(policy);
+  if (!statements) return false;
+  return statements.some(
+    (statement) =>
+      statement.Effect === "Allow" &&
+      (Object.prototype.hasOwnProperty.call(statement, "NotAction") ||
+        Object.prototype.hasOwnProperty.call(statement, "NotResource")),
+  );
+}
+
 export function containsAdministratorAccessArn(value: unknown): boolean {
   return (
     (typeof value === "string" && AWS_ADMINISTRATOR_ACCESS_ARNS.has(value)) ||

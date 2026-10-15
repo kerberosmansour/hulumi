@@ -315,6 +315,141 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
     expect(run(makeStackArgs([policy, role]))).toHaveLength(1);
   });
 
+  it("rejects Allow + NotAction in a GitHub OIDC role inline policy", () => {
+    const role = res({
+      ...ghRole,
+      props: {
+        ...ghRole.props,
+        inlinePolicies: [
+          {
+            name: "near-admin",
+            policy: JSON.stringify({
+              Statement: { Effect: "Allow", NotAction: "iam:DeleteRole", Resource: "*" },
+            }),
+          },
+        ],
+      },
+    });
+
+    const result = run(makeStackArgs([role]));
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatch(/effective administrator|complement/i);
+  });
+
+  it("rejects Allow + NotResource in a linked RolePolicy", () => {
+    const inline = res({
+      type: "aws:iam/rolePolicy:RolePolicy",
+      urn: "urn:pulumi:s::p::aws:iam/rolePolicy:RolePolicy::not-resource",
+      props: {
+        policy: JSON.stringify({
+          Statement: {
+            Effect: "Allow",
+            Action: "*",
+            NotResource: "arn:aws:s3:::break-glass-evidence/*",
+          },
+        }),
+      },
+      propertyDependencies: { role: [ghRole] },
+    });
+
+    expect(run(makeStackArgs([ghRole, inline]))).toEqual([
+      expect.stringMatching(/effective administrator|complement/i),
+    ]);
+  });
+
+  it("rejects a customer-managed complement policy through every supported attachment path", () => {
+    const policyArn = "arn:aws:iam::1:policy/near-admin";
+    const policy = res({
+      type: "aws:iam/policy:Policy",
+      urn: "urn:pulumi:s::p::aws:iam/policy:Policy::near-admin",
+      props: {
+        arn: policyArn,
+        policy: JSON.stringify({
+          Statement: { Effect: "Allow", NotAction: ["iam:DeleteRole"], Resource: "*" },
+        }),
+      },
+    });
+    const directRole = res({
+      ...ghRole,
+      props: { ...ghRole.props, managedPolicyArns: [policyArn] },
+      propertyDependencies: { managedPolicyArns: [policy] },
+    });
+    const attachments = [
+      res({
+        type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+        urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::near-admin",
+        props: { policyArn },
+        propertyDependencies: { role: [ghRole], policyArn: [policy] },
+      }),
+      res({
+        type: "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive",
+        urn: "urn:pulumi:s::p::aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive::near-admin",
+        props: { roleName: "gh-deploy", policyArns: [policyArn] },
+        propertyDependencies: { policyArns: [policy] },
+      }),
+      res({
+        type: "aws:iam/policyAttachment:PolicyAttachment",
+        urn: "urn:pulumi:s::p::aws:iam/policyAttachment:PolicyAttachment::near-admin",
+        props: { roles: ["gh-deploy"], policyArn },
+        propertyDependencies: { policyArn: [policy] },
+      }),
+    ];
+
+    expect(run(makeStackArgs([policy, directRole]))).toHaveLength(1);
+    for (const attachment of attachments) {
+      expect(run(makeStackArgs([ghRole, policy, attachment]))).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    { NotAction: [] },
+    { Action: "*", NotResource: null },
+    { NotAction: ["iam:DeleteRole"], NotResource: ["arn:aws:s3:::exception/*"] },
+  ])("fails closed on allow-side complement presence: %j", (complement) => {
+    const statement =
+      "NotResource" in complement
+        ? { Effect: "Allow", ...complement }
+        : { Effect: "Allow", ...complement, Resource: "*" };
+    const role = res({
+      ...ghRole,
+      props: {
+        ...ghRole.props,
+        inlinePolicies: [
+          {
+            name: "ambiguous-complement",
+            policy: JSON.stringify({
+              Statement: statement,
+            }),
+          },
+        ],
+      },
+    });
+
+    expect(run(makeStackArgs([role]))).toHaveLength(1);
+  });
+
+  it("does not treat deny-side complement operators as a permission grant", () => {
+    const role = res({
+      ...ghRole,
+      props: {
+        ...ghRole.props,
+        inlinePolicies: [
+          {
+            name: "deny-guardrail",
+            policy: JSON.stringify({
+              Statement: [
+                { Effect: "Deny", NotAction: "s3:GetObject", Resource: "*" },
+                { Effect: "Deny", Action: "*", NotResource: "arn:aws:s3:::approved/*" },
+              ],
+            }),
+          },
+        ],
+      },
+    });
+
+    expect(run(makeStackArgs([role]))).toHaveLength(0);
+  });
+
   it("does NOT flag a scoped customer-managed policy attached to a GitHub OIDC role", () => {
     const policy = res({
       type: "aws:iam/policy:Policy",

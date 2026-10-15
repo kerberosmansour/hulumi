@@ -16,8 +16,34 @@ import { assertValidTier } from "./tier";
 
 export const CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE = "hulumi:platform:CloudflareOriginIngress";
 
+/**
+ * Cloudflare's definitive IPv4 proxy ranges as published at
+ * https://www.cloudflare.com/ips-v4 on 2023-09-28. The component fails
+ * closed when a range is absent from this pinned set so a package review is
+ * required when Cloudflare changes the list.
+ */
+export const CLOUDFLARE_IPV4_ORIGIN_CIDRS = [
+  "173.245.48.0/20",
+  "103.21.244.0/22",
+  "103.22.200.0/22",
+  "103.31.4.0/22",
+  "141.101.64.0/18",
+  "108.162.192.0/18",
+  "190.93.240.0/20",
+  "188.114.96.0/20",
+  "197.234.240.0/22",
+  "198.41.128.0/17",
+  "162.158.0.0/15",
+  "104.16.0.0/13",
+  "104.24.0.0/14",
+  "172.64.0.0/13",
+  "131.0.72.0/22",
+] as const;
+
+const CLOUDFLARE_IPV4_ORIGIN_CIDR_SET = new Set<string>(CLOUDFLARE_IPV4_ORIGIN_CIDRS);
+const ALB_TLS_POLICY = "ELBSecurityPolicy-TLS13-1-2-2021-06";
+
 const FQDN_REGEX = /^(?=.{1,253}$)([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
-const CIDR_REGEX = /^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2])$/u;
 
 function assertHostname(hostname: string): void {
   if (!FQDN_REGEX.test(hostname)) {
@@ -108,28 +134,53 @@ function listenerAuthRotation(
   };
 }
 
+function componentInputs(args: CloudflareOriginIngressArgs): pulumi.Inputs {
+  if (args.mode === "allowlistAop") return args as pulumi.Inputs;
+  return {
+    tier: args.tier,
+    mode: args.mode,
+    hostname: args.hostname,
+    ...(args.listenerAuth !== undefined ? { listenerAuth: args.listenerAuth } : {}),
+    cloudflareAccountId: args.cloudflareAccountId,
+    ...(args.tunnelName !== undefined ? { tunnelName: args.tunnelName } : {}),
+    service: args.service,
+    ...(args.httpHostHeader !== undefined ? { httpHostHeader: args.httpHostHeader } : {}),
+    ...(args.additionalRoutes !== undefined ? { additionalRoutes: args.additionalRoutes } : {}),
+    runtime: args.runtime,
+    tunnelSecretConfigured: true,
+  };
+}
+
 function validateAllowlistAop(args: CloudflareOriginIngressAllowlistAopArgs): void {
   assertInputString(args.cloudflareZoneId, "cloudflareZoneId");
   assertInputString(args.loadBalancerSecurityGroupId, "loadBalancerSecurityGroupId");
   assertInputString(args.targetSecurityGroupId, "targetSecurityGroupId");
-  if (
-    args.originCertificateReference.trim().length === 0 ||
-    (typeof args.authenticatedOriginPullCertificateId === "string" &&
-      args.authenticatedOriginPullCertificateId.trim().length === 0)
-  ) {
-    throw new Error(
-      "CloudflareOriginIngress: Authenticated Origin Pull and origin certificate evidence are required for allowlist+AOP mode",
-    );
-  }
+  assertInputString(args.loadBalancerArn, "loadBalancerArn");
+  assertInputString(args.originServerCertificateArn, "originServerCertificateArn");
+  assertInputString(args.originTargetGroupArn, "originTargetGroupArn");
+  assertInputString(args.aopCaBundleS3Bucket, "aopCaBundleS3Bucket");
+  assertInputString(args.aopCaBundleS3Key, "aopCaBundleS3Key");
+  assertInputString(args.aopCaBundleS3ObjectVersion, "aopCaBundleS3ObjectVersion");
+  assertInputString(
+    args.authenticatedOriginPullCertificateId,
+    "Authenticated Origin Pull certificate id",
+  );
   if (!Number.isInteger(args.originPort) || args.originPort < 1 || args.originPort > 65535) {
     throw new Error("CloudflareOriginIngress: originPort must be between 1 and 65535");
   }
   if (args.cloudflareSourceCidrBlocks.length === 0) {
     throw new Error("CloudflareOriginIngress: at least one Cloudflare source CIDR is required");
   }
+  const seen = new Set<string>();
   for (const cidr of args.cloudflareSourceCidrBlocks) {
-    if (!CIDR_REGEX.test(cidr)) {
-      throw new Error(`CloudflareOriginIngress: invalid Cloudflare source CIDR "${cidr}"`);
+    if (seen.has(cidr)) {
+      throw new Error(`CloudflareOriginIngress: duplicate Cloudflare source CIDR "${cidr}"`);
+    }
+    seen.add(cidr);
+    if (!CLOUDFLARE_IPV4_ORIGIN_CIDR_SET.has(cidr)) {
+      throw new Error(
+        `CloudflareOriginIngress: Cloudflare source CIDR "${cidr}" is not in the pinned official IPv4 range set`,
+      );
     }
   }
 }
@@ -149,7 +200,7 @@ export class CloudflareOriginIngress
     args: CloudflareOriginIngressArgs,
     opts?: pulumi.ComponentResourceOptions,
   ) {
-    super(CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
+    super(CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE, name, componentInputs(args), opts);
     assertValidTier(args.tier);
     assertHostname(args.hostname);
     assertListenerAuth(args.listenerAuth);
@@ -178,7 +229,7 @@ export class CloudflareOriginIngress
           accountId: args.cloudflareAccountId,
           name: args.tunnelName ?? name,
           configSrc: "cloudflare",
-          tunnelSecret: args.tunnelSecret,
+          tunnelSecret: pulumi.secret(args.tunnelSecret),
         },
         { parent: this },
       );
@@ -202,21 +253,44 @@ export class CloudflareOriginIngress
       }
     } else {
       validateAllowlistAop(args);
-      const aopConfig: cloudflare.types.input.AuthenticatedOriginPullsConfig = {
-        certId: args.authenticatedOriginPullCertificateId,
-        enabled: true,
-        ...(args.aopMode === "hostname" ? { hostname: args.hostname } : {}),
-      };
-      const aop = new cloudflare.AuthenticatedOriginPulls(
-        `${name}-aop`,
+      const trustStore = new aws.lb.TrustStore(
+        `${name}-aop-trust`,
         {
-          zoneId: args.cloudflareZoneId,
-          configs: [aopConfig],
+          caCertificatesBundleS3Bucket: args.aopCaBundleS3Bucket,
+          caCertificatesBundleS3Key: args.aopCaBundleS3Key,
+          caCertificatesBundleS3ObjectVersion: args.aopCaBundleS3ObjectVersion,
+          tags: {
+            "hulumi:component": CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE,
+            "hulumi:hostname": args.hostname,
+          },
         },
         { parent: this },
       );
-      resourceIds.push(aop.id);
+      const listener = new aws.lb.Listener(
+        `${name}-aop-listener`,
+        {
+          loadBalancerArn: args.loadBalancerArn,
+          certificateArn: args.originServerCertificateArn,
+          defaultActions: [{ type: "forward", targetGroupArn: args.originTargetGroupArn }],
+          mutualAuthentication: {
+            mode: "verify",
+            trustStoreArn: trustStore.arn,
+            ignoreClientCertificateExpiry: false,
+            advertiseTrustStoreCaNames: "off",
+          },
+          port: args.originPort,
+          protocol: "HTTPS",
+          sslPolicy: ALB_TLS_POLICY,
+          tags: {
+            "hulumi:component": CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE,
+            "hulumi:hostname": args.hostname,
+          },
+        },
+        { parent: this },
+      );
+      resourceIds.push(trustStore.id, listener.id);
 
+      const originEnforcementResources: pulumi.Resource[] = [listener];
       for (const [index, cidr] of args.cloudflareSourceCidrBlocks.entries()) {
         const sourceRule = new aws.ec2.SecurityGroupRule(
           `${name}-cf-source-${index}`,
@@ -232,6 +306,7 @@ export class CloudflareOriginIngress
           { parent: this },
         );
         resourceIds.push(sourceRule.id);
+        originEnforcementResources.push(sourceRule);
       }
       const targetRule = new aws.ec2.SecurityGroupRule(
         `${name}-target-from-lb`,
@@ -247,9 +322,26 @@ export class CloudflareOriginIngress
         { parent: this },
       );
       resourceIds.push(targetRule.id);
+      originEnforcementResources.push(targetRule);
+
+      const aopConfig: cloudflare.types.input.AuthenticatedOriginPullsConfig = {
+        certId: args.authenticatedOriginPullCertificateId,
+        enabled: true,
+        hostname: args.hostname,
+      };
+      const aop = new cloudflare.AuthenticatedOriginPulls(
+        `${name}-aop`,
+        {
+          zoneId: args.cloudflareZoneId,
+          configs: [aopConfig],
+        },
+        { parent: this, dependsOn: originEnforcementResources },
+      );
+      resourceIds.push(aop.id);
       protectionLayers = [
         "cloudflare_source_restriction",
         "authenticated_origin_pull",
+        "alb_mtls_verify",
         "target_sg_restriction",
       ];
       runtimeContracts = [];

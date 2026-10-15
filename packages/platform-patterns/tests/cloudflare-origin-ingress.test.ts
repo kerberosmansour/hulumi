@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { CloudflareOriginIngress } from "../src";
+import { CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE, CloudflareOriginIngress } from "../src";
 import { registrations, resetRegistrations, settlePulumi, valueOf } from "./setup";
 
 function inputsFor(type: string): Record<string, unknown> | undefined {
@@ -13,21 +13,27 @@ describe("CloudflareOriginIngress", () => {
   });
 
   it("registers tunnel and public hostname config for tunnel mode", async () => {
+    const literalTunnelSecret = "AQIDBAUGBwgBAgMEBQYHCAECAwQFBgcIAQIDBAUGBwg=";
     const ingress = new CloudflareOriginIngress("edge", {
       tier: "startup-hardened",
       mode: "tunnel",
       cloudflareAccountId: "acct_123",
       hostname: "app.example.com",
       service: "http://app.default.svc.cluster.local:8080",
-      tunnelSecret: "AQIDBAUGBwgBAgMEBQYHCAECAwQFBgcIAQIDBAUGBwg=",
+      tunnelSecret: literalTunnelSecret,
       runtime: { kind: "eks", automation: "managed-contract" },
     });
 
     await settlePulumi();
 
-    expect(
-      inputsFor("cloudflare:index/zeroTrustTunnelCloudflared:ZeroTrustTunnelCloudflared"),
-    ).toMatchObject({ accountId: "acct_123", configSrc: "cloudflare" });
+    const componentInputs = inputsFor(CLOUDFLARE_ORIGIN_INGRESS_COMPONENT_TYPE);
+    expect(componentInputs).not.toHaveProperty("tunnelSecret");
+    const tunnelInputs = inputsFor(
+      "cloudflare:index/zeroTrustTunnelCloudflared:ZeroTrustTunnelCloudflared",
+    );
+    expect(tunnelInputs).toMatchObject({ accountId: "acct_123", configSrc: "cloudflare" });
+    expect(tunnelInputs?.tunnelSecret).not.toBe(literalTunnelSecret);
+    expect(tunnelInputs?.tunnelSecret).toMatchObject({ value: literalTunnelSecret });
     expect(
       inputsFor(
         "cloudflare:index/zeroTrustTunnelCloudflaredConfig:ZeroTrustTunnelCloudflaredConfig",
@@ -141,31 +147,43 @@ describe("CloudflareOriginIngress", () => {
         mode: "allowlistAop",
         cloudflareZoneId: "zone_123",
         hostname: "app.example.com",
-        cloudflareSourceCidrBlocks: ["203.0.113.0/24"],
+        cloudflareSourceCidrBlocks: ["173.245.48.0/20"],
         loadBalancerSecurityGroupId: "sg-lb",
         targetSecurityGroupId: "sg-target",
         originPort: 443,
-        originCertificateReference: "",
+        loadBalancerArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+        originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+        originTargetGroupArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+        aopCaBundleS3Bucket: "edge-trust",
+        aopCaBundleS3Key: "aop/app-root-ca.pem",
+        aopCaBundleS3ObjectVersion: "ca-version-1",
         authenticatedOriginPullCertificateId: "",
-        aopMode: "hostname",
       });
     }).toThrow(/Authenticated Origin Pull/);
     expect(registrations.filter((r) => !r.type.startsWith("hulumi:"))).toHaveLength(0);
   });
 
-  it("registers AOP and AWS security-group restrictions for allowlist+AOP mode", async () => {
+  it("registers per-hostname AOP, versioned ALB mTLS, and exact security-group restrictions", async () => {
     const ingress = new CloudflareOriginIngress("aop", {
       tier: "startup-hardened",
       mode: "allowlistAop",
       cloudflareZoneId: "zone_123",
       hostname: "app.example.com",
-      cloudflareSourceCidrBlocks: ["203.0.113.0/24"],
+      cloudflareSourceCidrBlocks: ["173.245.48.0/20"],
       loadBalancerSecurityGroupId: "sg-lb",
       targetSecurityGroupId: "sg-target",
       originPort: 443,
-      originCertificateReference: "origin-ca-cert-param",
+      loadBalancerArn:
+        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+      originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+      originTargetGroupArn:
+        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+      aopCaBundleS3Bucket: "edge-trust",
+      aopCaBundleS3Key: "aop/app-root-ca.pem",
+      aopCaBundleS3ObjectVersion: "ca-version-1",
       authenticatedOriginPullCertificateId: "cert_123",
-      aopMode: "hostname",
     });
 
     await settlePulumi();
@@ -183,7 +201,7 @@ describe("CloudflareOriginIngress", () => {
         expect.objectContaining({
           inputs: expect.objectContaining({
             securityGroupId: "sg-lb",
-            cidrBlocks: ["203.0.113.0/24"],
+            cidrBlocks: ["173.245.48.0/20"],
           }),
         }),
         expect.objectContaining({
@@ -194,13 +212,93 @@ describe("CloudflareOriginIngress", () => {
         }),
       ]),
     );
+    expect(inputsFor("aws:lb/trustStore:TrustStore")).toMatchObject({
+      caCertificatesBundleS3Bucket: "edge-trust",
+      caCertificatesBundleS3Key: "aop/app-root-ca.pem",
+      caCertificatesBundleS3ObjectVersion: "ca-version-1",
+    });
+    expect(inputsFor("aws:lb/listener:Listener")).toMatchObject({
+      loadBalancerArn:
+        "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+      certificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+      protocol: "HTTPS",
+      port: 443,
+      sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
+      defaultActions: [
+        {
+          type: "forward",
+          targetGroupArn:
+            "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+        },
+      ],
+      mutualAuthentication: {
+        mode: "verify",
+        ignoreClientCertificateExpiry: false,
+      },
+    });
     await expect(valueOf(ingress.protectionLayers)).resolves.toEqual(
       expect.arrayContaining([
         "cloudflare_source_restriction",
         "authenticated_origin_pull",
+        "alb_mtls_verify",
         "target_sg_restriction",
       ]),
     );
+  });
+
+  it.each([
+    ["Internet-wide", "0.0.0.0/0"],
+    ["invalid octets", "999.999.999.999/24"],
+    ["non-canonical network", "173.245.48.1/20"],
+    ["unrelated public range", "203.0.113.0/24"],
+  ])("rejects %s source CIDR before registering provider resources", (_label, cidr) => {
+    expect(() => {
+      new CloudflareOriginIngress("bad-cidr", {
+        tier: "startup-hardened",
+        mode: "allowlistAop",
+        cloudflareZoneId: "zone_123",
+        hostname: "app.example.com",
+        cloudflareSourceCidrBlocks: [cidr],
+        loadBalancerSecurityGroupId: "sg-lb",
+        targetSecurityGroupId: "sg-target",
+        originPort: 443,
+        loadBalancerArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+        originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+        originTargetGroupArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+        aopCaBundleS3Bucket: "edge-trust",
+        aopCaBundleS3Key: "aop/app-root-ca.pem",
+        aopCaBundleS3ObjectVersion: "ca-version-1",
+        authenticatedOriginPullCertificateId: "cert_123",
+      });
+    }).toThrow(/Cloudflare source CIDR/);
+    expect(registrations.filter((r) => !r.type.startsWith("hulumi:"))).toHaveLength(0);
+  });
+
+  it("rejects duplicate Cloudflare source CIDRs", () => {
+    expect(() => {
+      new CloudflareOriginIngress("duplicate-cidr", {
+        tier: "startup-hardened",
+        mode: "allowlistAop",
+        cloudflareZoneId: "zone_123",
+        hostname: "app.example.com",
+        cloudflareSourceCidrBlocks: ["173.245.48.0/20", "173.245.48.0/20"],
+        loadBalancerSecurityGroupId: "sg-lb",
+        targetSecurityGroupId: "sg-target",
+        originPort: 443,
+        loadBalancerArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:loadbalancer/app/origin/123",
+        originServerCertificateArn: "arn:aws:acm:eu-west-2:123456789012:certificate/server",
+        originTargetGroupArn:
+          "arn:aws:elasticloadbalancing:eu-west-2:123456789012:targetgroup/origin/456",
+        aopCaBundleS3Bucket: "edge-trust",
+        aopCaBundleS3Key: "aop/app-root-ca.pem",
+        aopCaBundleS3ObjectVersion: "ca-version-1",
+        authenticatedOriginPullCertificateId: "cert_123",
+      });
+    }).toThrow(/duplicate Cloudflare source CIDR/);
+    expect(registrations.filter((r) => !r.type.startsWith("hulumi:"))).toHaveLength(0);
   });
 
   it("outputs listener auth rotation references without secret values", async () => {

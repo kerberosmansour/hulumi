@@ -17,6 +17,31 @@ const ZONE_DNSSEC_TYPE = "cloudflare:index/zoneDnssec:ZoneDnssec";
 const PUBLIC_HOSTNAME_TYPE = "hulumi:cloudflare:PublicHostname";
 const ZONE_FOUNDATION_TYPE = "hulumi:cloudflare:ZoneFoundation";
 const ORIGIN_INGRESS_TYPE = "hulumi:platform:CloudflareOriginIngress";
+const TUNNEL_TYPE = "cloudflare:index/zeroTrustTunnelCloudflared:ZeroTrustTunnelCloudflared";
+const TUNNEL_CONFIG_TYPE =
+  "cloudflare:index/zeroTrustTunnelCloudflaredConfig:ZeroTrustTunnelCloudflaredConfig";
+const AOP_TYPE = "cloudflare:index/authenticatedOriginPulls:AuthenticatedOriginPulls";
+const TRUST_STORE_TYPE = "aws:lb/trustStore:TrustStore";
+const LISTENER_TYPE = "aws:lb/listener:Listener";
+const SECURITY_GROUP_RULE_TYPE = "aws:ec2/securityGroupRule:SecurityGroupRule";
+const ALB_TLS_POLICY = "ELBSecurityPolicy-TLS13-1-2-2021-06";
+const CLOUDFLARE_IPV4_ORIGIN_CIDRS = new Set([
+  "173.245.48.0/20",
+  "103.21.244.0/22",
+  "103.22.200.0/22",
+  "103.31.4.0/22",
+  "141.101.64.0/18",
+  "108.162.192.0/18",
+  "190.93.240.0/20",
+  "188.114.96.0/20",
+  "197.234.240.0/22",
+  "198.41.128.0/17",
+  "162.158.0.0/15",
+  "104.16.0.0/13",
+  "104.24.0.0/14",
+  "172.64.0.0/13",
+  "131.0.72.0/22",
+]);
 
 const DOCS_URL =
   "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/cloudflare-policy-packs.md";
@@ -185,6 +210,244 @@ function ingressHostname(resource: PolicyResource): string | undefined {
   return normalizedString(props.hostname);
 }
 
+function objectValue(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+function exactString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string")) {
+    return undefined;
+  }
+  return value;
+}
+
+function isDirectChildOf(
+  resource: PolicyResource,
+  parent: PolicyResource,
+  childType: string,
+): boolean {
+  return (
+    resource.type === childType &&
+    resource.parent?.type === parent.type &&
+    resource.parent.urn === parent.urn &&
+    isUrnChildOfComponent(resource.urn, parent.type)
+  );
+}
+
+function directChildren(
+  resources: readonly PolicyResource[],
+  parent: PolicyResource,
+  childType: string,
+): PolicyResource[] {
+  return resources.filter((resource) => isDirectChildOf(resource, parent, childType));
+}
+
+function propertyDependsOn(
+  resource: PolicyResource,
+  property: string,
+  target: PolicyResource,
+): boolean {
+  const dependencies = resource.propertyDependencies[property];
+  return (
+    Array.isArray(dependencies) &&
+    dependencies.some(
+      (dependency) => dependency.type === target.type && dependency.urn === target.urn,
+    )
+  );
+}
+
+function hasSecureTunnelEvidence(
+  resources: readonly PolicyResource[],
+  component: PolicyResource,
+): boolean {
+  const componentProps = component.props as Record<string, unknown>;
+  const accountId = exactString(componentProps.cloudflareAccountId);
+  if (accountId === undefined) return false;
+  const hostname = ingressHostname(component);
+  if (hostname === undefined) return false;
+
+  const tunnels = directChildren(resources, component, TUNNEL_TYPE);
+  const configs = directChildren(resources, component, TUNNEL_CONFIG_TYPE);
+  if (tunnels.length !== 1 || configs.length !== 1) return false;
+
+  const tunnel = tunnels[0];
+  const tunnelProps = tunnel.props as Record<string, unknown>;
+  if (tunnelProps.accountId !== accountId || tunnelProps.configSrc !== "cloudflare") return false;
+
+  const configResource = configs[0];
+  const configProps = configResource.props as Record<string, unknown>;
+  if (
+    configProps.accountId !== accountId ||
+    configProps.source !== "cloudflare" ||
+    !propertyDependsOn(configResource, "tunnelId", tunnel)
+  ) {
+    return false;
+  }
+  const config = objectValue(configProps.config);
+  const ingresses = config?.ingresses;
+  if (!Array.isArray(ingresses) || ingresses.length < 2) return false;
+  const fallback = objectValue(ingresses.at(-1));
+  if (fallback?.service !== "http_status:404" || fallback.hostname !== undefined) return false;
+
+  return ingresses.slice(0, -1).some((entry) => {
+    const route = objectValue(entry);
+    if (normalizedString(route?.hostname) !== hostname) return false;
+    if (exactString(route?.service) === undefined) return false;
+    const request = objectValue(route?.originRequest);
+    return request?.noTlsVerify === false && request.matchSnItoHost === true;
+  });
+}
+
+function exactIngressRule(
+  resource: PolicyResource,
+  port: number,
+  securityGroupId: string,
+): Record<string, unknown> | undefined {
+  const props = resource.props as Record<string, unknown>;
+  if (
+    props.type !== "ingress" ||
+    props.fromPort !== port ||
+    props.toPort !== port ||
+    props.protocol !== "tcp" ||
+    props.securityGroupId !== securityGroupId
+  ) {
+    return undefined;
+  }
+  return props;
+}
+
+function hasSecureAopEvidence(
+  resources: readonly PolicyResource[],
+  component: PolicyResource,
+): boolean {
+  const props = component.props as Record<string, unknown>;
+  const hostname = ingressHostname(component);
+  const zoneId = exactString(props.cloudflareZoneId);
+  const certificateId = exactString(props.authenticatedOriginPullCertificateId);
+  const loadBalancerSecurityGroupId = exactString(props.loadBalancerSecurityGroupId);
+  const targetSecurityGroupId = exactString(props.targetSecurityGroupId);
+  const loadBalancerArn = exactString(props.loadBalancerArn);
+  const serverCertificateArn = exactString(props.originServerCertificateArn);
+  const targetGroupArn = exactString(props.originTargetGroupArn);
+  const caBucket = exactString(props.aopCaBundleS3Bucket);
+  const caKey = exactString(props.aopCaBundleS3Key);
+  const caObjectVersion = exactString(props.aopCaBundleS3ObjectVersion);
+  const port = props.originPort;
+  const cidrs = stringArray(props.cloudflareSourceCidrBlocks);
+  if (
+    hostname === undefined ||
+    zoneId === undefined ||
+    certificateId === undefined ||
+    loadBalancerSecurityGroupId === undefined ||
+    targetSecurityGroupId === undefined ||
+    loadBalancerArn === undefined ||
+    serverCertificateArn === undefined ||
+    targetGroupArn === undefined ||
+    caBucket === undefined ||
+    caKey === undefined ||
+    caObjectVersion === undefined ||
+    typeof port !== "number" ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535 ||
+    cidrs === undefined ||
+    cidrs.length === 0 ||
+    new Set(cidrs).size !== cidrs.length ||
+    !cidrs.every((cidr) => CLOUDFLARE_IPV4_ORIGIN_CIDRS.has(cidr))
+  ) {
+    return false;
+  }
+
+  const aops = directChildren(resources, component, AOP_TYPE);
+  const trustStores = directChildren(resources, component, TRUST_STORE_TYPE);
+  const listeners = directChildren(resources, component, LISTENER_TYPE);
+  const securityGroupRules = directChildren(resources, component, SECURITY_GROUP_RULE_TYPE);
+  if (
+    aops.length !== 1 ||
+    trustStores.length !== 1 ||
+    listeners.length !== 1 ||
+    securityGroupRules.length !== cidrs.length + 1
+  ) {
+    return false;
+  }
+
+  const aopProps = aops[0].props as Record<string, unknown>;
+  const configs = aopProps.configs;
+  if (!Array.isArray(configs) || configs.length !== 1 || aopProps.zoneId !== zoneId) return false;
+  const aopConfig = objectValue(configs[0]);
+  if (
+    aopConfig?.enabled !== true ||
+    aopConfig.certId !== certificateId ||
+    normalizedString(aopConfig.hostname) !== hostname
+  ) {
+    return false;
+  }
+
+  const trustStore = trustStores[0];
+  const trustProps = trustStore.props as Record<string, unknown>;
+  if (
+    trustProps.caCertificatesBundleS3Bucket !== caBucket ||
+    trustProps.caCertificatesBundleS3Key !== caKey ||
+    trustProps.caCertificatesBundleS3ObjectVersion !== caObjectVersion
+  ) {
+    return false;
+  }
+
+  const listener = listeners[0];
+  const listenerProps = listener.props as Record<string, unknown>;
+  const actions = listenerProps.defaultActions;
+  const mutualAuthentication = objectValue(listenerProps.mutualAuthentication);
+  if (
+    listenerProps.loadBalancerArn !== loadBalancerArn ||
+    listenerProps.certificateArn !== serverCertificateArn ||
+    listenerProps.protocol !== "HTTPS" ||
+    listenerProps.port !== port ||
+    listenerProps.sslPolicy !== ALB_TLS_POLICY ||
+    !Array.isArray(actions) ||
+    actions.length !== 1 ||
+    mutualAuthentication?.mode !== "verify" ||
+    mutualAuthentication.ignoreClientCertificateExpiry !== false ||
+    exactString(mutualAuthentication.trustStoreArn) === undefined ||
+    !propertyDependsOn(listener, "mutualAuthentication", trustStore)
+  ) {
+    return false;
+  }
+  const action = objectValue(actions[0]);
+  if (action?.type !== "forward" || action.targetGroupArn !== targetGroupArn) return false;
+
+  const sourceRules = securityGroupRules.filter((rule) => {
+    const ruleProps = exactIngressRule(rule, port, loadBalancerSecurityGroupId);
+    return ruleProps !== undefined && ruleProps.cidrBlocks !== undefined;
+  });
+  if (sourceRules.length !== cidrs.length) return false;
+  for (const cidr of cidrs) {
+    const matches = sourceRules.filter((rule) => {
+      const ruleProps = rule.props as Record<string, unknown>;
+      const blocks = stringArray(ruleProps.cidrBlocks);
+      return blocks?.length === 1 && blocks[0] === cidr;
+    });
+    if (matches.length !== 1) return false;
+  }
+
+  const targetRules = securityGroupRules.filter((rule) => {
+    const ruleProps = exactIngressRule(rule, port, targetSecurityGroupId);
+    return (
+      ruleProps !== undefined &&
+      ruleProps.sourceSecurityGroupId === loadBalancerSecurityGroupId &&
+      ruleProps.cidrBlocks === undefined
+    );
+  });
+  if (targetRules.length !== 1) return false;
+  return [listener, ...sourceRules, targetRules[0]].every((resource) =>
+    hasDependencyOn(aops[0], resource),
+  );
+}
+
 function hasIngressEvidenceForRecord(
   resources: readonly PolicyResource[],
   record: PolicyResource,
@@ -193,7 +456,11 @@ function hasIngressEvidenceForRecord(
   if (hostname === undefined) return false;
   return resources.some((resource) => {
     if (resource.type !== ORIGIN_INGRESS_TYPE) return false;
-    return ingressHostname(resource) === hostname;
+    if (ingressHostname(resource) !== hostname) return false;
+    const props = resource.props as Record<string, unknown>;
+    if (props.mode === "tunnel") return hasSecureTunnelEvidence(resources, resource);
+    if (props.mode === "allowlistAop") return hasSecureAopEvidence(resources, resource);
+    return false;
   });
 }
 

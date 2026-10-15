@@ -47,9 +47,13 @@ export interface CloudflareOriginIngressAllowlistAopArgs extends OriginIngressCo
   readonly loadBalancerSecurityGroupId: pulumi.Input<string>;
   readonly targetSecurityGroupId: pulumi.Input<string>;
   readonly originPort: number;
-  readonly originCertificateReference: string;
+  readonly loadBalancerArn: pulumi.Input<string>;
+  readonly originServerCertificateArn: pulumi.Input<string>;
+  readonly originTargetGroupArn: pulumi.Input<string>;
+  readonly aopCaBundleS3Bucket: pulumi.Input<string>;
+  readonly aopCaBundleS3Key: pulumi.Input<string>;
+  readonly aopCaBundleS3ObjectVersion: pulumi.Input<string>;
   readonly authenticatedOriginPullCertificateId: pulumi.Input<string>;
-  readonly aopMode: "zone" | "hostname";
 }
 
 export type CloudflareOriginIngressArgs =

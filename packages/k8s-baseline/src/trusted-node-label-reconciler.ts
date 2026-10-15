@@ -333,6 +333,7 @@ export class EksTrustedNodeLabelReconciler
     const oldHasLabel = `has(oldObject.metadata.labels) && ${labelKey} in oldObject.metadata.labels`;
     const labelUnchanged = `((${oldHasLabel}) == (${newHasLabel}) && (!(${oldHasLabel}) || object.metadata.labels[${labelKey}] == oldObject.metadata.labels[${labelKey}]))`;
     const labelsAreExactAddition = `(${newHasLabel}) && !(${oldHasLabel}) && object.metadata.labels[${labelKey}] == ${labelValue} && ((!has(oldObject.metadata.labels) && object.metadata.labels.size() == 1) || (has(oldObject.metadata.labels) && object.metadata.labels.size() == oldObject.metadata.labels.size() + 1 && oldObject.metadata.labels.all(k, v, k in object.metadata.labels && object.metadata.labels[k] == v)))`;
+    const labelsAreExactRemoval = `(${oldHasLabel}) && oldObject.metadata.labels[${labelKey}] == ${labelValue} && !(${newHasLabel}) && ((!has(object.metadata.labels) && oldObject.metadata.labels.size() == 1) || (has(object.metadata.labels) && oldObject.metadata.labels.size() == object.metadata.labels.size() + 1 && object.metadata.labels.all(k, v, k in oldObject.metadata.labels && oldObject.metadata.labels[k] == v)))`;
     const unchangedMetadata = [
       "metadata.generateName",
       "metadata.namespace",
@@ -349,7 +350,7 @@ export class EksTrustedNodeLabelReconciler
       .map(optionalEqual)
       .join(" && ");
     const noPiggyback = `object.metadata.name == oldObject.metadata.name && object.metadata.uid == oldObject.metadata.uid && object.metadata.resourceVersion == oldObject.metadata.resourceVersion && object.spec == oldObject.spec && object.status == oldObject.status && ${unchangedMetadata}`;
-    const updateRule = `request.operation != "UPDATE" || (request.userInfo.username == ${controllerUsername} ? ((${labelsAreExactAddition}) && (${noPiggyback})) : (${labelUnchanged}))`;
+    const updateRule = `request.operation != "UPDATE" || (request.userInfo.username == ${controllerUsername} ? (((${labelsAreExactAddition}) || (${labelsAreExactRemoval})) && (${noPiggyback})) : (${labelUnchanged}))`;
     const admissionPolicyName = `${name}-protected-node-label`;
     const admissionPolicy = new k8s.admissionregistration.v1.ValidatingAdmissionPolicy(
       `${name}-protected-label-policy`,
@@ -376,7 +377,7 @@ export class EksTrustedNodeLabelReconciler
             {
               expression: updateRule,
               message:
-                "Only the exact trusted-node-label reconciler identity may add the absent configured label without another Node mutation.",
+                "Only the exact trusted-node-label reconciler identity may add or remove the exact configured label without another Node mutation.",
               reason: "Forbidden",
             },
           ],

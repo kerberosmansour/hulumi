@@ -161,6 +161,82 @@ describe("trusted node-label controller", () => {
     );
   });
 
+  test("BDD-M4a-4: failed attestation revokes the exact label and records a bounded reason", async () => {
+    const trusted = node({ labels: { ...node().labels, [LABEL_KEY]: "trusted" } });
+    const deps = adapters({ listedNodes: [trusted], currentNode: trusted });
+    deps.aws.describeEc2Instance = vi.fn(async () => ({
+      ...ec2Instance,
+      state: "stopped",
+    }));
+    const audit: ControllerAuditEvent[] = [];
+
+    const result = await runTrustedNodeLabelControllerCycle(config(), {
+      ...deps,
+      audit: (event) => audit.push(event),
+      now: () => NOW,
+    });
+
+    expect(result).toEqual({
+      capacity: "ready",
+      decisions: 1,
+      failures: 1,
+      missingTrustedLabels: 1,
+      patched: 1,
+    });
+    expect(deps.patches).toEqual([
+      {
+        name: trusted.name,
+        patch: [
+          { op: "test", path: "/metadata/uid", value: trusted.uid },
+          { op: "test", path: "/metadata/resourceVersion", value: trusted.resourceVersion },
+          { op: "test", path: "/spec/providerID", value: trusted.providerId },
+          {
+            op: "test",
+            path: "/metadata/labels/identity.node-restriction.kubernetes.io~1workload",
+            value: "trusted",
+          },
+          {
+            op: "remove",
+            path: "/metadata/labels/identity.node-restriction.kubernetes.io~1workload",
+          },
+        ],
+      },
+    ]);
+    expect(audit).toContainEqual(
+      expect.objectContaining({ event: "node_revoked", reason: "instance_not_running" }),
+    );
+    expect(JSON.stringify(audit)).not.toContain(trusted.uid);
+  });
+
+  test("BDD-M4a-5: revocation-only candidates do not make node-group capacity look ready", async () => {
+    const stale = node({
+      name: "ip-10-0-0-99.eu-west-2.compute.internal",
+      uid: "stale-node-uid",
+      labels: {
+        ...node().labels,
+        "eks.amazonaws.com/nodegroup": "other-workers",
+        [LABEL_KEY]: "trusted",
+      },
+    });
+    const deps = adapters({ listedNodes: [stale], currentNode: stale });
+    deps.aws.describeAutoScalingGroups = vi.fn(async () => [
+      { ...autoScalingGroups[0], instances: [] },
+    ]);
+    const result = await runTrustedNodeLabelControllerCycle(config(), {
+      ...deps,
+      audit: () => undefined,
+      now: () => NOW,
+    });
+
+    expect(result).toMatchObject({
+      capacity: "awaiting_nodes",
+      decisions: 1,
+      failures: 2,
+      missingTrustedLabels: 1,
+      patched: 1,
+    });
+  });
+
   test("BDD-M2-2: provider failure patches nothing and remains a bounded metric-bearing result", async () => {
     const deps = adapters();
     deps.aws.describeNodeGroup = vi.fn(async () => {

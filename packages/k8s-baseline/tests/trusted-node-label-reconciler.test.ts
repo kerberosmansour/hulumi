@@ -91,6 +91,11 @@ describe("EksTrustedNodeLabelReconciler component", () => {
     expect(expressions).toContain("identity.node-restriction.kubernetes.io/workload");
     expect(expressions).toContain("object.spec == oldObject.spec");
     expect(expressions).toContain("oldObject.metadata.labels.all");
+    expect(expressions).toContain("object.metadata.labels.all");
+    expect(expressions).toContain("oldObject.metadata.labels.size() == 1");
+    expect(expressions).toContain(
+      'oldObject.metadata.labels["identity.node-restriction.kubernetes.io/workload"] == "trusted"',
+    );
     for (const field of [
       "generateName",
       "namespace",

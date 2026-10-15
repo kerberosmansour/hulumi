@@ -77,6 +77,33 @@ function expectDeny(input: ReconciliationInput, reason: string): void {
   expect(planTrustedNodeLabel(input)).toEqual({ action: "deny", reason });
 }
 
+function expectRevoke(input: ReconciliationInput, reason: string): void {
+  input.node.labels[PROTECTED_LABEL] = "sensitive";
+  const decision = planTrustedNodeLabel(input);
+  expect(decision.action).toBe("revoke");
+  if (decision.action !== "revoke") return;
+  expect(decision.reason).toBe(reason);
+  expect(decision.plan).toMatchObject({
+    mutation: "remove",
+    protectedLabelKey: PROTECTED_LABEL,
+    protectedLabelValue: "sensitive",
+  });
+  expect(decision.patch).toEqual([
+    { op: "test", path: "/metadata/uid", value: input.node.uid },
+    { op: "test", path: "/metadata/resourceVersion", value: input.node.resourceVersion },
+    { op: "test", path: "/spec/providerID", value: input.node.providerId },
+    {
+      op: "test",
+      path: "/metadata/labels/security.hulumi.dev.node-restriction.kubernetes.io~1workload-tier",
+      value: "sensitive",
+    },
+    {
+      op: "remove",
+      path: "/metadata/labels/security.hulumi.dev.node-restriction.kubernetes.io~1workload-tier",
+    },
+  ]);
+}
+
 describe("trusted node-label reconciliation kernel", () => {
   test("BDD-1: emits one protected-label mutation with UID, version and provider tests", () => {
     const result = planTrustedNodeLabel(baseInput());
@@ -99,7 +126,60 @@ describe("trusted node-label reconciliation kernel", () => {
       },
     ]);
     expect(result.plan.instanceId).toBe(INSTANCE_ID);
+    expect(result.plan).toMatchObject({
+      mutation: "add",
+      protectedLabelValue: "sensitive",
+    });
     expect(result.patch.filter((operation) => operation.op !== "test")).toHaveLength(1);
+  });
+
+  test.each([
+    [
+      "provider_id_malformed",
+      (input: ReconciliationInput): void => {
+        input.node.providerId = "aws://malformed";
+      },
+    ],
+    [
+      "evidence_stale",
+      (input: ReconciliationInput): void => {
+        input.nodeGroup.capturedAtEpochMs = NOW - 60_001;
+      },
+    ],
+    [
+      "node_group_mismatch",
+      (input: ReconciliationInput): void => {
+        input.nodeGroup.nodeGroupName = "other-workers";
+      },
+    ],
+    [
+      "membership_missing",
+      (input: ReconciliationInput): void => {
+        input.autoScalingGroups[0].instances = [];
+      },
+    ],
+    [
+      "instance_not_running",
+      (input: ReconciliationInput): void => {
+        input.ec2Instance.state = "stopped";
+      },
+    ],
+    [
+      "node_zone_label_mismatch",
+      (input: ReconciliationInput): void => {
+        input.node.labels["topology.kubernetes.io/zone"] = "eu-west-2b";
+      },
+    ],
+    [
+      "expected_taint_missing",
+      (input: ReconciliationInput): void => {
+        input.node.taints = [];
+      },
+    ],
+  ] as const)("BDD-M4a-1: revokes exact trust after %s", (reason, mutate) => {
+    const input = baseInput();
+    mutate(input);
+    expectRevoke(input, reason);
   });
 
   test("BDD-2: forged kubelet labels cannot replace absent AWS membership", () => {
@@ -217,7 +297,10 @@ describe("trusted node-label reconciliation kernel", () => {
     const forgedExpected = baseInput();
     forgedExpected.node.labels[PROTECTED_LABEL] = "sensitive";
     forgedExpected.autoScalingGroups[0].instances = [];
-    expectDeny(forgedExpected, "membership_missing");
+    expect(planTrustedNodeLabel(forgedExpected)).toMatchObject({
+      action: "revoke",
+      reason: "membership_missing",
+    });
 
     const conflict = baseInput();
     conflict.node.labels[PROTECTED_LABEL] = "general";
@@ -291,5 +374,43 @@ describe("trusted node-label reconciliation kernel", () => {
       valid: false,
       reason: "protected_label_changed",
     });
+  });
+
+  test("BDD-M4a-2: remove-plan validation requires the same exact protected value", () => {
+    const input = baseInput();
+    input.autoScalingGroups[0].instances = [];
+    input.node.labels[PROTECTED_LABEL] = "sensitive";
+    const decision = planTrustedNodeLabel(input);
+    expect(decision.action).toBe("revoke");
+    if (decision.action !== "revoke") return;
+
+    expect(validateReconciliationPlan(decision.plan, input.node)).toEqual({ valid: true });
+    expect(
+      validateReconciliationPlan(decision.plan, {
+        ...input.node,
+        labels: { ...input.node.labels, [PROTECTED_LABEL]: "general" },
+      }),
+    ).toEqual({ valid: false, reason: "protected_label_changed" });
+    const labels = { ...input.node.labels };
+    delete labels[PROTECTED_LABEL];
+    expect(validateReconciliationPlan(decision.plan, { ...input.node, labels })).toEqual({
+      valid: false,
+      reason: "protected_label_changed",
+    });
+  });
+
+  test("BDD-M4a-3: a conflicting protected value is denied and never removed", () => {
+    const input = baseInput();
+    input.node.labels[PROTECTED_LABEL] = "general";
+    input.autoScalingGroups[0].instances = [];
+    expectDeny(input, "protected_label_conflict");
+  });
+
+  test("BDD-M4a-3: malformed local identity never produces a revocation plan", () => {
+    const input = baseInput();
+    input.node.labels[PROTECTED_LABEL] = "sensitive";
+    input.autoScalingGroups[0].instances = [];
+    (input.node as unknown as { name: unknown }).name = undefined;
+    expectDeny(input, "input_malformed");
   });
 });

@@ -13,6 +13,9 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_PAGES = 12;
 const PAGE_SIZE = 100;
 const NODE_NAME = /^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$/u;
+const LABEL_SELECTOR_KEY =
+  /^(?=.{3,317}$)[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,251}[A-Za-z0-9])?\/[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$/u;
+const LABEL_SELECTOR_VALUE = /^(?=.{1,63}$)[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$/u;
 
 export type KubernetesAdapterErrorCode =
   | "kubernetes_transport_failed"
@@ -64,9 +67,17 @@ export interface TrustedNodeLabelKubernetesConfig {
 }
 
 export interface TrustedNodeLabelKubernetesAdapter {
-  listCandidateNodes(): Promise<NodeSnapshot[]>;
+  listCandidateNodes(
+    protectedLabelKey: string,
+    protectedLabelValue: string,
+  ): Promise<NodeSnapshot[]>;
   getNode(nodeName: string): Promise<NodeSnapshot>;
-  patchNode(nodeName: string, patch: readonly JsonPatchOperation[]): Promise<void>;
+  patchNode(
+    nodeName: string,
+    patch: readonly JsonPatchOperation[],
+    protectedLabelKey: string,
+    protectedLabelValue: string,
+  ): Promise<void>;
 }
 
 async function defaultTransport(
@@ -184,6 +195,63 @@ function parseJson(body: string): unknown {
   }
 }
 
+function sameNodeSnapshot(left: NodeSnapshot, right: NodeSnapshot): boolean {
+  return (
+    left.name === right.name &&
+    left.uid === right.uid &&
+    left.resourceVersion === right.resourceVersion &&
+    left.providerId === right.providerId &&
+    JSON.stringify(left.labels) === JSON.stringify(right.labels) &&
+    JSON.stringify(left.taints) === JSON.stringify(right.taints)
+  );
+}
+
+function isExactPatch(
+  patch: readonly JsonPatchOperation[],
+  protectedLabelKey: string,
+  protectedLabelValue: string,
+): boolean {
+  if (
+    !LABEL_SELECTOR_KEY.test(protectedLabelKey) ||
+    !LABEL_SELECTOR_VALUE.test(protectedLabelValue)
+  ) {
+    return false;
+  }
+  if (patch.length !== 4 && patch.length !== 5) return false;
+  const [uid, resourceVersion, providerId] = patch;
+  if (
+    uid?.op !== "test" ||
+    uid.path !== "/metadata/uid" ||
+    uid.value.length < 1 ||
+    uid.value.length > 128 ||
+    resourceVersion?.op !== "test" ||
+    resourceVersion.path !== "/metadata/resourceVersion" ||
+    resourceVersion.value.length < 1 ||
+    resourceVersion.value.length > 128 ||
+    providerId?.op !== "test" ||
+    providerId.path !== "/spec/providerID" ||
+    providerId.value.length < 1 ||
+    providerId.value.length > 256
+  ) {
+    return false;
+  }
+
+  const labelPath = `/metadata/labels/${protectedLabelKey.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+  if (patch.length === 4) {
+    const add = patch[3];
+    return add.op === "add" && add.path === labelPath && add.value === protectedLabelValue;
+  }
+  const labelTest = patch[3];
+  const remove = patch[4];
+  return (
+    labelTest.op === "test" &&
+    labelTest.path === labelPath &&
+    labelTest.value === protectedLabelValue &&
+    remove.op === "remove" &&
+    remove.path === labelTest.path
+  );
+}
+
 export function createTrustedNodeLabelKubernetesAdapter(
   config: TrustedNodeLabelKubernetesConfig,
   transport: KubernetesTransport = defaultTransport,
@@ -231,48 +299,78 @@ export function createTrustedNodeLabelKubernetesAdapter(
   }
 
   return {
-    async listCandidateNodes(): Promise<NodeSnapshot[]> {
-      const nodes: NodeSnapshot[] = [];
-      const seenContinuations = new Set<string>();
-      let continuation: string | undefined;
-      for (let page = 0; page < MAX_PAGES; page += 1) {
-        const query = new URLSearchParams({
-          limit: String(Math.min(PAGE_SIZE, config.maxNodesPerCycle)),
-          labelSelector: `eks.amazonaws.com/nodegroup=${config.nodeGroupName}`,
-        });
-        if (continuation !== undefined) query.set("continue", continuation);
-        const response = await request("GET", `/api/v1/nodes?${query.toString()}`);
-        if (response.statusCode === 401 || response.statusCode === 403) {
-          throw new KubernetesAdapterError("kubernetes_unauthorized", response.statusCode);
-        }
-        if (response.statusCode !== 200) {
-          throw new KubernetesAdapterError("kubernetes_transport_failed", response.statusCode);
-        }
-        const pageBody = asRecord(parseJson(response.body));
-        const metadata = asRecord(pageBody?.metadata);
-        const items = pageBody?.items;
-        if (
-          pageBody?.apiVersion !== "v1" ||
-          pageBody.kind !== "NodeList" ||
-          !Array.isArray(items)
-        ) {
-          throw new KubernetesAdapterError("kubernetes_response_invalid");
-        }
-        for (const item of items) {
-          nodes.push(parseNode(item));
-          if (nodes.length > config.maxNodesPerCycle) {
-            throw new KubernetesAdapterError("kubernetes_node_bound_exceeded");
-          }
-        }
-        const next = metadata?.continue;
-        if (next === undefined || next === "") return nodes;
-        if (typeof next !== "string" || next.length > 1_024 || seenContinuations.has(next)) {
-          throw new KubernetesAdapterError("kubernetes_pagination_invalid");
-        }
-        seenContinuations.add(next);
-        continuation = next;
+    async listCandidateNodes(
+      protectedLabelKey: string,
+      protectedLabelValue: string,
+    ): Promise<NodeSnapshot[]> {
+      if (
+        !LABEL_SELECTOR_KEY.test(protectedLabelKey) ||
+        !LABEL_SELECTOR_VALUE.test(protectedLabelValue) ||
+        !LABEL_SELECTOR_VALUE.test(config.nodeGroupName)
+      ) {
+        throw new KubernetesAdapterError("kubernetes_response_invalid");
       }
-      throw new KubernetesAdapterError("kubernetes_pagination_invalid");
+      const nodesByUid = new Map<string, NodeSnapshot>();
+      const uidByName = new Map<string, string>();
+
+      async function collect(labelSelector: string): Promise<void> {
+        const seenContinuations = new Set<string>();
+        let continuation: string | undefined;
+        for (let page = 0; page < MAX_PAGES; page += 1) {
+          const query = new URLSearchParams({
+            limit: String(Math.min(PAGE_SIZE, config.maxNodesPerCycle)),
+            labelSelector,
+          });
+          if (continuation !== undefined) query.set("continue", continuation);
+          const response = await request("GET", `/api/v1/nodes?${query.toString()}`);
+          if (response.statusCode === 401 || response.statusCode === 403) {
+            throw new KubernetesAdapterError("kubernetes_unauthorized", response.statusCode);
+          }
+          if (response.statusCode !== 200) {
+            throw new KubernetesAdapterError("kubernetes_transport_failed", response.statusCode);
+          }
+          const pageBody = asRecord(parseJson(response.body));
+          const metadata = asRecord(pageBody?.metadata);
+          const items = pageBody?.items;
+          if (
+            pageBody?.apiVersion !== "v1" ||
+            pageBody.kind !== "NodeList" ||
+            !Array.isArray(items)
+          ) {
+            throw new KubernetesAdapterError("kubernetes_response_invalid");
+          }
+          for (const item of items) {
+            const node = parseNode(item);
+            const existingUid = uidByName.get(node.name);
+            const existingNode = nodesByUid.get(node.uid);
+            if (
+              (existingUid !== undefined && existingUid !== node.uid) ||
+              (existingNode !== undefined && !sameNodeSnapshot(existingNode, node))
+            ) {
+              throw new KubernetesAdapterError("kubernetes_response_invalid");
+            }
+            if (existingNode === undefined) {
+              uidByName.set(node.name, node.uid);
+              nodesByUid.set(node.uid, node);
+              if (nodesByUid.size > config.maxNodesPerCycle) {
+                throw new KubernetesAdapterError("kubernetes_node_bound_exceeded");
+              }
+            }
+          }
+          const next = metadata?.continue;
+          if (next === undefined || next === "") return;
+          if (typeof next !== "string" || next.length > 1_024 || seenContinuations.has(next)) {
+            throw new KubernetesAdapterError("kubernetes_pagination_invalid");
+          }
+          seenContinuations.add(next);
+          continuation = next;
+        }
+        throw new KubernetesAdapterError("kubernetes_pagination_invalid");
+      }
+
+      await collect(`eks.amazonaws.com/nodegroup=${config.nodeGroupName}`);
+      await collect(`${protectedLabelKey}=${protectedLabelValue}`);
+      return [...nodesByUid.values()];
     },
 
     async getNode(nodeName: string): Promise<NodeSnapshot> {
@@ -289,8 +387,16 @@ export function createTrustedNodeLabelKubernetesAdapter(
       return parseNode(parseJson(response.body));
     },
 
-    async patchNode(nodeName: string, patch: readonly JsonPatchOperation[]): Promise<void> {
-      if (!NODE_NAME.test(nodeName) || patch.length !== 4) {
+    async patchNode(
+      nodeName: string,
+      patch: readonly JsonPatchOperation[],
+      protectedLabelKey: string,
+      protectedLabelValue: string,
+    ): Promise<void> {
+      if (
+        !NODE_NAME.test(nodeName) ||
+        !isExactPatch(patch, protectedLabelKey, protectedLabelValue)
+      ) {
         throw new KubernetesAdapterError("kubernetes_response_invalid");
       }
       const body = JSON.stringify(patch);

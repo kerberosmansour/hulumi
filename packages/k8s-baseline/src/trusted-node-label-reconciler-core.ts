@@ -82,6 +82,7 @@ export type DenyReason =
   | "evidence_from_future"
   | "evidence_stale"
   | "evidence_skew_exceeded"
+  | "evidence_unavailable"
   | "node_group_mismatch"
   | "node_group_unavailable"
   | "asg_not_attested"
@@ -102,21 +103,31 @@ export type DenyReason =
   | "protected_label_conflict";
 
 export type JsonPatchOperation =
-  { op: "test"; path: string; value: string } | { op: "add"; path: string; value: string };
+  | { op: "test"; path: string; value: string }
+  | { op: "add"; path: string; value: string }
+  | { op: "remove"; path: string };
 
 export interface ReconciliationPlan {
+  mutation: "add" | "remove";
   nodeName: string;
   nodeUid: string;
   resourceVersion: string;
   providerId: string;
-  instanceId: string;
+  instanceId?: string;
   protectedLabelKey: string;
+  protectedLabelValue: string;
 }
 
 export type ReconciliationDecision =
   | { action: "deny"; reason: DenyReason }
   | { action: "noop"; instanceId: string }
-  | { action: "patch"; plan: ReconciliationPlan; patch: JsonPatchOperation[] };
+  | { action: "patch"; plan: ReconciliationPlan; patch: JsonPatchOperation[] }
+  | {
+      action: "revoke";
+      reason: DenyReason;
+      plan: ReconciliationPlan;
+      patch: JsonPatchOperation[];
+    };
 
 export type CapacityState =
   "invalid" | "zero_capacity" | "awaiting_nodes" | "reconciling" | "ready";
@@ -200,6 +211,69 @@ function jsonPointerEscape(value: string): string {
   return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }
 
+function canSafelyRevoke(policy: TrustedNodeLabelPolicy, node: NodeSnapshot): boolean {
+  return (
+    typeof policy.protectedLabelKey === "string" &&
+    isValidProtectedLabelKey(policy.protectedLabelKey) &&
+    typeof policy.protectedLabelValue === "string" &&
+    LABEL_VALUE_RE.test(policy.protectedLabelValue) &&
+    typeof node.name === "string" &&
+    BOUNDED_IDENTIFIER_RE.test(node.name) &&
+    typeof node.uid === "string" &&
+    node.uid.length >= 1 &&
+    node.uid.length <= 128 &&
+    typeof node.resourceVersion === "string" &&
+    node.resourceVersion.length >= 1 &&
+    node.resourceVersion.length <= 128 &&
+    typeof node.providerId === "string" &&
+    node.providerId.length >= 1 &&
+    node.providerId.length <= 256 &&
+    node.labels !== null &&
+    typeof node.labels === "object" &&
+    !Array.isArray(node.labels) &&
+    Object.keys(node.labels).length <= MAX_NODE_LABELS
+  );
+}
+
+export function planTrustedNodeLabelFailure(
+  policy: TrustedNodeLabelPolicy,
+  node: NodeSnapshot,
+  reason: DenyReason,
+  instanceId?: string,
+): ReconciliationDecision {
+  const existing = node.labels?.[policy.protectedLabelKey];
+  if (existing !== undefined && existing !== policy.protectedLabelValue) {
+    return deny("protected_label_conflict");
+  }
+  if (existing !== policy.protectedLabelValue || !canSafelyRevoke(policy, node)) {
+    return deny(reason);
+  }
+
+  const labelPath = `/metadata/labels/${jsonPointerEscape(policy.protectedLabelKey)}`;
+  const plan: ReconciliationPlan = {
+    mutation: "remove",
+    nodeName: node.name,
+    nodeUid: node.uid,
+    resourceVersion: node.resourceVersion,
+    providerId: node.providerId,
+    ...(instanceId === undefined ? {} : { instanceId }),
+    protectedLabelKey: policy.protectedLabelKey,
+    protectedLabelValue: policy.protectedLabelValue,
+  };
+  return {
+    action: "revoke",
+    reason,
+    plan,
+    patch: [
+      { op: "test", path: "/metadata/uid", value: node.uid },
+      { op: "test", path: "/metadata/resourceVersion", value: node.resourceVersion },
+      { op: "test", path: "/spec/providerID", value: node.providerId },
+      { op: "test", path: labelPath, value: policy.protectedLabelValue },
+      { op: "remove", path: labelPath },
+    ],
+  };
+}
+
 function evidenceFailure(input: ReconciliationInput): DenyReason | undefined {
   const timestamps = [
     input.nodeGroup.capturedAtEpochMs,
@@ -229,14 +303,22 @@ function evidenceFailure(input: ReconciliationInput): DenyReason | undefined {
 function inputFailure(input: ReconciliationInput): DenyReason | undefined {
   const { policy, node, nodeGroup, autoScalingGroups } = input;
   if (
+    typeof policy.clusterName !== "string" ||
     !BOUNDED_IDENTIFIER_RE.test(policy.clusterName) ||
+    typeof policy.nodeGroupName !== "string" ||
     !BOUNDED_IDENTIFIER_RE.test(policy.nodeGroupName) ||
+    typeof policy.awsAccountId !== "string" ||
     !AWS_ACCOUNT_ID_RE.test(policy.awsAccountId) ||
+    typeof policy.region !== "string" ||
     !AWS_REGION_RE.test(policy.region) ||
+    typeof policy.protectedLabelValue !== "string" ||
     !LABEL_VALUE_RE.test(policy.protectedLabelValue) ||
+    typeof node.name !== "string" ||
     !BOUNDED_IDENTIFIER_RE.test(node.name) ||
+    typeof node.uid !== "string" ||
     node.uid.length < 1 ||
     node.uid.length > 128 ||
+    typeof node.resourceVersion !== "string" ||
     node.resourceVersion.length < 1 ||
     node.resourceVersion.length > 128
   ) {
@@ -356,38 +438,60 @@ function attestTaints(input: ReconciliationInput): DenyReason | undefined {
 
 /**
  * Attest one Node against independent provider snapshots, then plan either no
- * mutation or one concurrency-bound protected-label addition.
+ * mutation or one concurrency-bound protected-label addition/removal.
  */
 export function planTrustedNodeLabel(input: ReconciliationInput): ReconciliationDecision {
   try {
     const shapeFailure = inputFailure(input);
-    if (shapeFailure !== undefined) return deny(shapeFailure);
+    if (shapeFailure !== undefined) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, shapeFailure);
+    }
 
     const provider = PROVIDER_ID_RE.exec(input.node.providerId);
-    if (provider === null) return deny("provider_id_malformed");
+    if (provider === null) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, "provider_id_malformed");
+    }
     const [, availabilityZone, instanceId] = provider;
 
     const freshnessFailure = evidenceFailure(input);
-    if (freshnessFailure !== undefined) return deny(freshnessFailure);
+    if (freshnessFailure !== undefined) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, freshnessFailure, instanceId);
+    }
 
     if (
       input.nodeGroup.clusterName !== input.policy.clusterName ||
       input.nodeGroup.nodeGroupName !== input.policy.nodeGroupName
     ) {
-      return deny("node_group_mismatch");
+      return planTrustedNodeLabelFailure(
+        input.policy,
+        input.node,
+        "node_group_mismatch",
+        instanceId,
+      );
     }
     if (input.nodeGroup.status !== "ACTIVE" && input.nodeGroup.status !== "UPDATING") {
-      return deny("node_group_unavailable");
+      return planTrustedNodeLabelFailure(
+        input.policy,
+        input.node,
+        "node_group_unavailable",
+        instanceId,
+      );
     }
 
     const membershipFailure = attestMembership(input, instanceId);
-    if (membershipFailure !== undefined) return deny(membershipFailure);
+    if (membershipFailure !== undefined) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, membershipFailure, instanceId);
+    }
 
     const ec2Failure = attestEc2AndNode(input, instanceId, availabilityZone);
-    if (ec2Failure !== undefined) return deny(ec2Failure);
+    if (ec2Failure !== undefined) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, ec2Failure, instanceId);
+    }
 
     const taintFailure = attestTaints(input);
-    if (taintFailure !== undefined) return deny(taintFailure);
+    if (taintFailure !== undefined) {
+      return planTrustedNodeLabelFailure(input.policy, input.node, taintFailure, instanceId);
+    }
 
     const existing = input.node.labels[input.policy.protectedLabelKey];
     if (existing !== undefined && existing !== input.policy.protectedLabelValue) {
@@ -398,12 +502,14 @@ export function planTrustedNodeLabel(input: ReconciliationInput): Reconciliation
     }
 
     const plan: ReconciliationPlan = {
+      mutation: "add",
       nodeName: input.node.name,
       nodeUid: input.node.uid,
       resourceVersion: input.node.resourceVersion,
       providerId: input.node.providerId,
       instanceId,
       protectedLabelKey: input.policy.protectedLabelKey,
+      protectedLabelValue: input.policy.protectedLabelValue,
     };
     return {
       action: "patch",
@@ -441,7 +547,11 @@ export function validateReconciliationPlan(
   if (currentNode.providerId !== plan.providerId) {
     return { valid: false, reason: "provider_id_changed" };
   }
-  if (currentNode.labels[plan.protectedLabelKey] !== undefined) {
+  const currentLabel = currentNode.labels[plan.protectedLabelKey];
+  if (
+    (plan.mutation === "add" && currentLabel !== undefined) ||
+    (plan.mutation === "remove" && currentLabel !== plan.protectedLabelValue)
+  ) {
     return { valid: false, reason: "protected_label_changed" };
   }
   return { valid: true };

@@ -42,7 +42,9 @@
     "@aws-sdk/client-cloudwatch": "3.1149.0",
     "@aws-sdk/client-ec2": "3.1149.0",
     "@aws-sdk/client-eks": "3.1149.0",
-    "@aws-sdk/client-secrets-manager": "3.1149.0"
+    "@aws-sdk/client-secrets-manager": "3.1149.0",
+    "@aws-sdk/credential-provider-http": "3.972.76",
+    "@smithy/signature-v4": "5.7.4"
   },
   "peerDependencies": {
     "@pulumi/aws": "^7.50.0",

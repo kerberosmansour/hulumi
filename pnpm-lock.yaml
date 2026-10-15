@@ -408,6 +408,12 @@ importers:
       '@aws-sdk/client-secrets-manager':
         specifier: 3.1149.0
         version: 3.1149.0
+      '@aws-sdk/credential-provider-http':
+        specifier: 3.972.76
+        version: 3.972.76
+      '@smithy/signature-v4':
+        specifier: 5.7.4
+        version: 5.7.4
     devDependencies:
       '@pulumi/aws':
         specifier: 7.50.0

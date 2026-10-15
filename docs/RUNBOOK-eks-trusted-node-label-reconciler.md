@@ -19,6 +19,8 @@ compliance: [nist-800-53]
 | --------- | ---------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M1        | Pure attestation and patch-planning kernel                                   | done (2026-10-15) | [Verification](slo/verify/eks-trusted-node-label-reconciler-m1.md), [lessons](slo/lessons/eks-trusted-node-label-reconciler-m1.md), [completion](slo/completion/eks-trusted-node-label-reconciler-m1.md). |
 | M2        | Deployable controller, IAM/RBAC/admission, audit and alarms                  | done (2026-10-15) | [Verification](slo/verify/eks-trusted-node-label-reconciler-m2.md), [lessons](slo/lessons/eks-trusted-node-label-reconciler-m2.md), [completion](slo/completion/eks-trusted-node-label-reconciler-m2.md). |
+| M4a       | Exact add/remove revocation and no-piggyback admission correction            | done (2026-10-16) | Merged security correction at `e114dc29`; exact-main xhigh security review completed.                                                                                                                     |
+| M4b       | IAM-backed patch authority split                                             | in progress       | [Runbook](slo/current/RUNBOOK-eks-trusted-node-label-patch-authority-m4b.md); exact-head CI and merged-main security review remain.                                                                       |
 | M3        | Isolated EKS rolling/zero-capacity qualification and coordinated publication | proposed          | Ready to author after the M2 retrospective; live operator readiness remains a hard gate.                                                                                                                  |
 
 The runbook is intentionally authored one milestone at a time. M2 and M3 titles
@@ -28,12 +30,24 @@ reserve the outcome; they do not authorize their file scope or shortcuts.
 
 - Kubelet-supplied metadata never authorizes a protected identity.
 - The controller never receives cluster-admin and never gets write AWS actions.
+- The projected ServiceAccount token has only Node `get/list`; a fresh EKS IAM
+  token, exact AccessEntry mapping and fail-closed admission are required for
+  Node `patch`.
 - A conflicting protected label is a security finding, not an overwrite target.
 - The patch mutates one configured NodeRestriction-protected label and tests the
   exact UID, resourceVersion and provider ID observed during attestation.
 - Zero capacity is healthy only when the EKS node group's desired size is zero.
 - No dependency, lockfile, cloud resource, registry artifact or public API changes
   in M1.
+
+M4a and M4b are bounded security corrections discovered before M3. M4a adds
+exact revocation plus no-piggyback admission. M4b removes reusable
+ServiceAccount mutation authority: reads retain the projected token while each
+PATCH uses a fresh EKS IAM authenticator token backed only by the component's
+Pod Identity credentials. The cluster must use `API` or `API_AND_CONFIG_MAP`
+authentication and run the Pod Identity Agent; there is no `aws-auth` or default
+credential-chain fallback. See the M4b runbook and component guide for rollout,
+rollback and the same-ServiceAccount Pod residual.
 
 ## Formal-verification decision
 

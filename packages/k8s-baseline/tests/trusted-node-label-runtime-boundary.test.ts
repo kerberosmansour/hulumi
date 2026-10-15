@@ -21,6 +21,7 @@ import { trustedNodeLabelConfigurationFromEnvironment } from "../src/trusted-nod
 import { runTrustedNodeLabelControllerCycle } from "../src/trusted-node-label-controller";
 
 const NOW = 1_800_000_000_000;
+const IAM_PATCH_TOKEN = `k8s-aws-v1.${"a".repeat(64)}`;
 const execFileAsync = promisify(execFile);
 
 function nodeObject(resourceVersion = "100") {
@@ -236,8 +237,9 @@ describe("AWS evidence adapter", () => {
 });
 
 describe("Kubernetes API adapter", () => {
-  test("BDD-M2-1: uses the projected token/CA, parses Nodes and sends only JSON Patch", async () => {
+  test("BDD-M4b-4: reads use the projected token and each PATCH uses a fresh IAM token", async () => {
     const requests: KubernetesTransportRequest[] = [];
+    const patchTokenProvider = vi.fn(async () => IAM_PATCH_TOKEN);
     const transport = vi.fn(async (request: KubernetesTransportRequest) => {
       requests.push(request);
       if (request.method === "PATCH") return { statusCode: 200, body: "{}" };
@@ -263,6 +265,7 @@ describe("Kubernetes API adapter", () => {
         nodeGroupName: "trusted-workers",
         maxNodesPerCycle: 10,
       },
+      patchTokenProvider,
       transport,
       async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
     );
@@ -300,13 +303,64 @@ describe("Kubernetes API adapter", () => {
       "labelSelector=identity.node-restriction.kubernetes.io%2Fworkload%3Dtrusted",
     );
     expect(
-      requests.every((request) => request.headers.Authorization === "Bearer token-value-123456789"),
+      requests
+        .slice(0, 3)
+        .every((request) => request.headers.Authorization === "Bearer token-value-123456789"),
     ).toBe(true);
+    expect(requests[3].headers.Authorization).toBe(`Bearer ${IAM_PATCH_TOKEN}`);
+    expect(patchTokenProvider).toHaveBeenCalledTimes(1);
     expect(requests[3]).toMatchObject({
       method: "PATCH",
       headers: { "Content-Type": "application/json-patch+json" },
       body: JSON.stringify(patch),
     });
+  });
+
+  test("BDD-M4b-7: malformed IAM patch tokens fail before transport", async () => {
+    for (const token of [
+      undefined,
+      "",
+      "x".repeat(4097),
+      "k8s-aws-v1.has space",
+      "k8s-aws-v1.line\nbreak",
+    ]) {
+      const transport = vi.fn(async () => ({ statusCode: 200, body: "{}" }));
+      const adapter = createTrustedNodeLabelKubernetesAdapter(
+        {
+          hostname: "kubernetes.default.svc",
+          port: 443,
+          tokenPath: "/token",
+          caPath: "/ca",
+          nodeGroupName: "trusted-workers",
+          maxNodesPerCycle: 10,
+        },
+        async () => token as string,
+        transport,
+        async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
+      );
+      await expect(
+        adapter.patchNode(
+          "ip-10-0-0-10.eu-west-2.compute.internal",
+          [
+            { op: "test", path: "/metadata/uid", value: "uid-1" },
+            { op: "test", path: "/metadata/resourceVersion", value: "100" },
+            {
+              op: "test",
+              path: "/spec/providerID",
+              value: "aws:///eu-west-2a/i-0123456789abcdef0",
+            },
+            {
+              op: "add",
+              path: "/metadata/labels/identity.node-restriction.kubernetes.io~1workload",
+              value: "trusted",
+            },
+          ],
+          "identity.node-restriction.kubernetes.io/workload",
+          "trusted",
+        ),
+      ).rejects.toMatchObject({ code: "kubernetes_unauthorized" });
+      expect(transport).not.toHaveBeenCalled();
+    }
   });
 
   test("BDD-M4a-6: accepts only an exact value-tested remove patch", async () => {
@@ -320,6 +374,7 @@ describe("Kubernetes API adapter", () => {
         nodeGroupName: "trusted-workers",
         maxNodesPerCycle: 10,
       },
+      async () => IAM_PATCH_TOKEN,
       vi.fn(async (request: KubernetesTransportRequest) => {
         requests.push(request);
         return { statusCode: 200, body: "{}" };
@@ -385,6 +440,7 @@ describe("Kubernetes API adapter", () => {
         nodeGroupName: "trusted-workers",
         maxNodesPerCycle: 1,
       },
+      async () => IAM_PATCH_TOKEN,
       vi.fn(async () => {
         query += 1;
         return {
@@ -419,6 +475,7 @@ describe("Kubernetes API adapter", () => {
         nodeGroupName: "trusted-workers",
         maxNodesPerCycle: 10,
       },
+      async () => IAM_PATCH_TOKEN,
       vi.fn(async (request: KubernetesTransportRequest) => {
         selectors.push(request.path);
         return {
@@ -472,7 +529,13 @@ describe("Kubernetes API adapter", () => {
       await writeFile(tokenPath, "projected-token-value-123456789", { mode: 0o600 });
       const [key, cert] = await Promise.all([readFile(keyPath), readFile(certPath)]);
       const observedPatches: string[] = [];
+      const observedAuthorization: Array<{ method: string; authorization: string | undefined }> =
+        [];
       const server = createServer({ key, cert }, (request, response) => {
+        observedAuthorization.push({
+          method: request.method ?? "",
+          authorization: request.headers.authorization,
+        });
         const chunks: Buffer[] = [];
         request.on("data", (chunk: Buffer) => chunks.push(chunk));
         request.on("end", () => {
@@ -501,14 +564,17 @@ describe("Kubernetes API adapter", () => {
       try {
         const address = server.address();
         if (address === null || typeof address === "string") throw new Error("missing test port");
-        const kubernetes = createTrustedNodeLabelKubernetesAdapter({
-          hostname: "127.0.0.1",
-          port: address.port,
-          tokenPath,
-          caPath: certPath,
-          nodeGroupName: "trusted-workers",
-          maxNodesPerCycle: 10,
-        });
+        const kubernetes = createTrustedNodeLabelKubernetesAdapter(
+          {
+            hostname: "127.0.0.1",
+            port: address.port,
+            tokenPath,
+            caPath: certPath,
+            nodeGroupName: "trusted-workers",
+            maxNodesPerCycle: 10,
+          },
+          async () => IAM_PATCH_TOKEN,
+        );
         const sender = {
           send: vi.fn(async (command: unknown) => {
             const name = (command as { constructor: { name: string } }).constructor.name;
@@ -589,6 +655,15 @@ describe("Kubernetes API adapter", () => {
         );
         expect(result).toMatchObject({ failures: 0, patched: 1 });
         expect(observedPatches).toHaveLength(1);
+        expect(
+          observedAuthorization
+            .filter((request) => request.method === "GET")
+            .every((request) => request.authorization === "Bearer projected-token-value-123456789"),
+        ).toBe(true);
+        expect(observedAuthorization.find((request) => request.method === "PATCH")).toEqual({
+          method: "PATCH",
+          authorization: `Bearer ${IAM_PATCH_TOKEN}`,
+        });
         expect(JSON.parse(observedPatches[0])).toEqual(
           expect.arrayContaining([
             { op: "test", path: "/metadata/resourceVersion", value: "100" },
@@ -619,6 +694,7 @@ describe("Kubernetes API adapter", () => {
         nodeGroupName: "trusted-workers",
         maxNodesPerCycle: 10,
       },
+      async () => IAM_PATCH_TOKEN,
       async () => ({
         statusCode: 200,
         body: JSON.stringify({

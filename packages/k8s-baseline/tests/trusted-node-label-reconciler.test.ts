@@ -36,8 +36,14 @@ function resource(type: string) {
   return found.inputs;
 }
 
+function resources(type: string) {
+  return registrations
+    .filter((registration) => registration.type === type)
+    .map((registration) => registration.inputs);
+}
+
 describe("EksTrustedNodeLabelReconciler component", () => {
-  test("BDD-M2-5: renders the dedicated identity, minimal RBAC, admission, restricted workload and alarms", async () => {
+  test("BDD-M4b-1/2/3/9: renders split IAM-backed patch authority and exact admission", async () => {
     const component = new EksTrustedNodeLabelReconciler("trusted-label", baseArgs());
     await settlePulumi();
 
@@ -47,6 +53,7 @@ describe("EksTrustedNodeLabelReconciler component", () => {
     const expectedTypes = [
       "aws:iam/role:Role",
       "aws:iam/rolePolicy:RolePolicy",
+      "aws:eks/accessEntry:AccessEntry",
       "aws:eks/podIdentityAssociation:PodIdentityAssociation",
       "kubernetes:core/v1:ServiceAccount",
       "kubernetes:rbac.authorization.k8s.io/v1:ClusterRole",
@@ -80,14 +87,75 @@ describe("EksTrustedNodeLabelReconciler component", () => {
         ?.Resource,
     ).toBe("arn:aws:eks:eu-west-2:111122223333:nodegroup/prod-eks/trusted-workers/*");
 
-    expect(resource("kubernetes:rbac.authorization.k8s.io/v1:ClusterRole").rules).toEqual([
-      { apiGroups: [""], resources: ["nodes"], verbs: ["get", "list", "patch"] },
-    ]);
+    const trust = JSON.parse(resource("aws:iam/role:Role").assumeRolePolicy as string) as {
+      Statement: Array<{
+        Principal: { Service: string };
+        Action: string[];
+        Condition?: { StringEquals?: Record<string, string> };
+      }>;
+    };
+    expect(trust.Statement).toHaveLength(1);
+    expect(trust.Statement[0]).toMatchObject({
+      Principal: { Service: "pods.eks.amazonaws.com" },
+      Action: ["sts:AssumeRole", "sts:TagSession"],
+      Condition: {
+        StringEquals: {
+          "aws:RequestTag/eks-cluster-arn": "arn:aws:eks:eu-west-2:111122223333:cluster/prod-eks",
+          "aws:RequestTag/kubernetes-namespace": "hulumi-system",
+          "aws:RequestTag/kubernetes-service-account": "trusted-label-reconciler",
+        },
+      },
+    });
+
+    expect(resource("aws:eks/accessEntry:AccessEntry")).toMatchObject({
+      clusterName: "prod-eks",
+      principalArn: expect.stringContaining("trusted-label-role"),
+      region: "eu-west-2",
+      type: "STANDARD",
+      kubernetesGroups: ["hulumi:trusted-node-label:trusted-label"],
+      userName: "hulumi:trusted-node-label:trusted-label:{{SessionName}}",
+    });
+
+    const clusterRoles = resources("kubernetes:rbac.authorization.k8s.io/v1:ClusterRole");
+    expect(clusterRoles).toHaveLength(2);
+    expect(
+      clusterRoles.find(
+        (role) =>
+          (role.metadata as { name: string }).name === "trusted-label-node-label-reconciler",
+      )?.rules,
+    ).toEqual([{ apiGroups: [""], resources: ["nodes"], verbs: ["get", "list"] }]);
+    expect(
+      clusterRoles.find(
+        (role) => (role.metadata as { name: string }).name === "trusted-label-node-label-mutator",
+      )?.rules,
+    ).toEqual([{ apiGroups: [""], resources: ["nodes"], verbs: ["patch"] }]);
+    const bindings = resources("kubernetes:rbac.authorization.k8s.io/v1:ClusterRoleBinding");
+    expect(bindings).toHaveLength(2);
+    expect(bindings).toContainEqual(
+      expect.objectContaining({
+        roleRef: expect.objectContaining({ name: "trusted-label-node-label-mutator" }),
+        subjects: [
+          {
+            kind: "Group",
+            name: "hulumi:trusted-node-label:trusted-label",
+            apiGroup: "rbac.authorization.k8s.io",
+          },
+        ],
+      }),
+    );
     const policy = resource("kubernetes:admissionregistration.k8s.io/v1:ValidatingAdmissionPolicy")
       .spec as { failurePolicy: string; validations: Array<{ expression: string }> };
     expect(policy.failurePolicy).toBe("Fail");
     const expressions = policy.validations.map((validation) => validation.expression).join("\n");
-    expect(expressions).toContain("system:serviceaccount:hulumi-system:trusted-label-reconciler");
+    expect(expressions).not.toContain(
+      "system:serviceaccount:hulumi-system:trusted-label-reconciler",
+    );
+    expect(expressions).toContain(
+      'request.userInfo.username.startsWith("hulumi:trusted-node-label:trusted-label:")',
+    );
+    expect(expressions).toContain(
+      'request.userInfo.groups.exists(group, group == "hulumi:trusted-node-label:trusted-label")',
+    );
     expect(expressions).toContain("identity.node-restriction.kubernetes.io/workload");
     expect(expressions).toContain("object.spec == oldObject.spec");
     expect(expressions).toContain("oldObject.metadata.labels.all");

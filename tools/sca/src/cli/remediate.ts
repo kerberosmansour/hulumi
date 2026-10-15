@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { execFile } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { constants as fsConstants, type BigIntStats } from "node:fs";
+import { lstat, open, readFile, realpath, rename, unlink } from "node:fs/promises";
+import { isAbsolute, dirname, join, posix, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
+import { z } from "zod";
 import {
   agentRequestSchema,
   runAgentReview,
@@ -12,6 +16,66 @@ import {
 } from "../agents/adapter";
 import { createClaudeBackend } from "../agents/claude";
 import type { NormalizedEvidence } from "../evidence/normalize";
+
+const execFileAsync = promisify(execFile);
+const noFollowFlag = fsConstants.O_NOFOLLOW ?? 0;
+
+const normalizedEvidenceSchema = z
+  .object({
+    findingKey: z.string().min(1),
+    osv: z
+      .object({
+        advisoryId: z.string().min(1),
+        class: z.enum(["malicious", "critical"]),
+        fixedVersion: z.string().min(1).nullable(),
+      })
+      .strict(),
+    dependencyReview: z
+      .object({ present: z.boolean(), vulnerableTransitives: z.array(z.string().min(1)) })
+      .strict(),
+    ghsa: z.object({ id: z.string().min(1).nullable(), cvss: z.number().nullable() }).strict(),
+    kev: z.object({ listed: z.boolean().nullable() }).strict(),
+    epss: z.object({ score: z.number().nullable(), available: z.boolean() }).strict(),
+    registry: z.object({ publishedAt: z.string().nullable() }).strict(),
+    provenance: z
+      .object({
+        osv: z.enum(["ok", "unavailable"]),
+        dependencyReview: z.enum(["ok", "unavailable"]),
+        ghsa: z.enum(["ok", "unavailable"]),
+        kev: z.enum(["ok", "unavailable"]),
+        epss: z.enum(["ok", "unavailable"]),
+        registry: z.enum(["ok", "unavailable"]),
+      })
+      .strict(),
+    manifestPaths: z.array(z.string().min(1)).min(1),
+    raw: z
+      .object({
+        ecosystem: z.enum(["npm", "PyPI", "NuGet"]),
+        package: z.string().min(1),
+        version: z.string().min(1),
+        advisoryId: z.string().min(1),
+        manifestPath: z.string().min(1),
+      })
+      .strict(),
+  })
+  .strict();
+
+const workItemsFileSchema = z
+  .object({
+    version: z.literal(1),
+    workItems: z.array(
+      z
+        .object({
+          findingKey: z.string().min(1),
+          track: z.enum(["emergency", "cadence", "dropped"]),
+          state: z.enum(["in_progress", "detected", "escalated", "remediated", "dropped"]),
+          reason: z.string().min(1).optional(),
+        })
+        .strict(),
+    ),
+    evidence: z.array(normalizedEvidenceSchema).optional(),
+  })
+  .strict();
 
 export interface EmergencyWorkItem {
   findingKey: string;
@@ -217,30 +281,40 @@ export async function remediateEmergency(
   return escalate(result, `reviewer verdict ${result.verdict.decision}`);
 }
 
-interface WorkItemsFile {
-  workItems: Array<{
-    findingKey: string;
-    track: "emergency" | "cadence" | "dropped";
-    state: EmergencyWorkItem["state"];
-  }>;
-  evidence?: NormalizedEvidence[];
-}
-
 export async function remediateFromFiles(args: {
   workItemsPath: string;
   outputPath: string;
   applyPatch?: boolean;
+  repositoryRoot?: string;
+  expectedRevision?: string;
+  workItemsSha256?: string;
+  beforeAtomicReplaceForTest?: (path: string) => Promise<void>;
 }): Promise<RemediationResult> {
-  const workItemsFile = JSON.parse(await readFile(args.workItemsPath, "utf8")) as WorkItemsFile;
-  const selected = workItemsFile.workItems.find((item) => item.track === "emergency");
+  const workItemsBytes = await readFile(args.workItemsPath);
+  const workItemsFile = parseWorkItemsFile(workItemsBytes);
+  const repository = await openRepositoryBoundary(args.repositoryRoot ?? process.cwd());
+  if (args.applyPatch) {
+    await verifyApplyBinding(repository, workItemsBytes, args);
+  }
+
+  const emergencyItems = workItemsFile.workItems.filter((item) => item.track === "emergency");
+  if (emergencyItems.length > 1) {
+    throw new Error("work-item schema requires exactly one emergency item");
+  }
+  const selected = emergencyItems[0];
   if (!selected) {
     const result = noEmergencyResult();
-    await writeFile(args.outputPath, `${JSON.stringify(result, null, 2)}\n`);
+    await writeRepositoryOutput(repository, args.outputPath, result);
     return result;
   }
-  const evidence = workItemsFile.evidence?.find(
+  const matchingEvidence = (workItemsFile.evidence ?? []).filter(
     (record) => record.findingKey === selected.findingKey,
   );
+  if (matchingEvidence.length !== 1) {
+    throw new Error("work-item schema requires exactly one evidence row for the emergency item");
+  }
+  const evidence = matchingEvidence[0];
+  assertEvidenceConsistency(selected.findingKey, evidence);
   if (!evidence?.osv.fixedVersion) {
     throw new Error("emergency work item is missing normalized evidence/fix");
   }
@@ -255,6 +329,12 @@ export async function remediateFromFiles(args: {
     manifestPaths: evidence.manifestPaths,
   };
   const allowedPaths = allowedPathsFor(workItem.manifestPaths);
+  if (args.applyPatch && workItem.manifestPaths.some((path) => path.endsWith("pnpm-lock.yaml"))) {
+    throw new Error(
+      "pnpm apply is unsupported by bounded remediation; use the dependency-admission pipeline",
+    );
+  }
+  await validateRepositoryTargets(repository, allowedPaths);
   const result = await remediateEmergency(workItem, {
     sideEffectsAllowed: true,
     agentBackend: createClaudeBackend(),
@@ -262,9 +342,9 @@ export async function remediateFromFiles(args: {
     dependencyClosure: [`${workItem.packageName}@${workItem.fixedVersion}`],
   });
   if (args.applyPatch && result.pr.opened && !result.escalated) {
-    await applyDependencyBump(workItem);
+    await applyDependencyBump(repository, workItem, args.beforeAtomicReplaceForTest);
   }
-  await writeFile(args.outputPath, `${JSON.stringify(result, null, 2)}\n`);
+  await writeRepositoryOutput(repository, args.outputPath, result);
   return result;
 }
 
@@ -310,6 +390,9 @@ export async function main(argv = process.argv.slice(2)) {
     workItemsPath: parsed.options.get("work-items") ?? ".cache/sca-work-items.json",
     outputPath: parsed.options.get("output") ?? ".cache/sca-remediation-plan.json",
     applyPatch: parsed.options.get("apply") === "true",
+    repositoryRoot: parsed.options.get("repository-root"),
+    expectedRevision: parsed.options.get("expected-revision"),
+    workItemsSha256: parsed.options.get("work-items-sha256"),
   });
   process.stdout.write(
     `sca remediate-emergency completed: pr=${result.pr.opened ? "opened" : "blocked"}, verdict=${result.verdict.decision}, merged=false\n`,
@@ -413,6 +496,395 @@ function escalate(result: RemediationResult, reason: string): RemediationResult 
   return result;
 }
 
+interface RepositoryBoundary {
+  root: string;
+  applyAuthorized: boolean;
+  expectedRevision?: string;
+}
+
+interface CheckedRepositoryFile {
+  path: string;
+  absolutePath: string;
+  bytes: Buffer;
+  stat: BigIntStats;
+  sha256: string;
+}
+
+function parseWorkItemsFile(bytes: Buffer) {
+  let value: unknown;
+  try {
+    value = JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new Error("work-item JSON failed schema validation", { cause: error });
+  }
+  const parsed = workItemsFileSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(`work-item JSON failed schema validation: ${parsed.error.message}`);
+  }
+  return parsed.data;
+}
+
+function assertEvidenceConsistency(findingKey: string, evidence: NormalizedEvidence) {
+  const expectedKey = `${evidence.raw.ecosystem}:${evidence.raw.package}@${evidence.raw.version}:${evidence.raw.advisoryId}`;
+  if (findingKey !== expectedKey || evidence.findingKey !== expectedKey) {
+    throw new Error("work-item evidence has an inconsistent finding identity");
+  }
+  if (evidence.osv.advisoryId !== evidence.raw.advisoryId) {
+    throw new Error("work-item evidence has an inconsistent advisory identity");
+  }
+  if (
+    evidence.manifestPaths.length !== 1 ||
+    evidence.manifestPaths[0] !== evidence.raw.manifestPath
+  ) {
+    throw new Error("work-item evidence has inconsistent manifest paths");
+  }
+}
+
+async function openRepositoryBoundary(repositoryRoot: string): Promise<RepositoryBoundary> {
+  const requested = resolve(repositoryRoot);
+  const requestedStat = await lstat(requested, { bigint: true });
+  if (requestedStat.isSymbolicLink() || !requestedStat.isDirectory()) {
+    throw new Error("repository root must be a real directory, not a symbolic link");
+  }
+  const canonical = await realpath(requested);
+  if (canonical !== requested) {
+    throw new Error("repository root must have a canonical path with no symbolic-link components");
+  }
+  return { root: canonical, applyAuthorized: false };
+}
+
+async function verifyApplyBinding(
+  repository: RepositoryBoundary,
+  workItemsBytes: Buffer,
+  args: {
+    repositoryRoot?: string;
+    expectedRevision?: string;
+    workItemsSha256?: string;
+  },
+) {
+  if (!args.repositoryRoot) {
+    throw new Error("apply requires an explicit --repository-root");
+  }
+  if (!args.expectedRevision || !/^[a-f0-9]{40}$/i.test(args.expectedRevision)) {
+    throw new Error("apply requires an immutable 40-character --expected-revision");
+  }
+  if (!args.workItemsSha256 || !/^[a-f0-9]{64}$/i.test(args.workItemsSha256)) {
+    throw new Error("apply requires a 64-character --work-items-sha256");
+  }
+  const actualDigest = sha256(workItemsBytes);
+  if (actualDigest !== args.workItemsSha256.toLowerCase()) {
+    throw new Error("reviewed work-item SHA-256 digest does not match the supplied file");
+  }
+  const actualRevision = await readRepositoryRevision(repository);
+  if (actualRevision !== args.expectedRevision.toLowerCase()) {
+    throw new Error(
+      `repository revision mismatch: expected ${args.expectedRevision.toLowerCase()}, got ${actualRevision}`,
+    );
+  }
+  repository.applyAuthorized = true;
+  repository.expectedRevision = args.expectedRevision.toLowerCase();
+}
+
+async function readRepositoryRevision(repository: RepositoryBoundary) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", repository.root, "rev-parse", "--verify", "HEAD^{commit}"],
+      { encoding: "utf8" },
+    );
+    return stdout.trim();
+  } catch (error) {
+    throw new Error("repository revision could not be verified", { cause: error });
+  }
+}
+
+async function assertApplyRevision(repository: RepositoryBoundary) {
+  if (!repository.applyAuthorized || !repository.expectedRevision) return;
+  const actualRevision = await readRepositoryRevision(repository);
+  if (actualRevision !== repository.expectedRevision) {
+    throw new Error(
+      `repository revision changed during apply: expected ${repository.expectedRevision}, got ${actualRevision}`,
+    );
+  }
+}
+
+function validateRepositoryRelativePath(path: string) {
+  if (
+    path.length === 0 ||
+    path.includes("\0") ||
+    path.includes("\\") ||
+    isAbsolute(path) ||
+    /^[A-Za-z]:/.test(path) ||
+    posix.normalize(path) !== path ||
+    path.split("/").some((part) => part.length === 0 || part === "." || part === "..")
+  ) {
+    throw new Error(`path must be canonical and repository-relative: ${path}`);
+  }
+}
+
+function absoluteRepositoryPath(repository: RepositoryBoundary, path: string) {
+  validateRepositoryRelativePath(path);
+  const absolutePath = resolve(repository.root, ...path.split("/"));
+  const fromRoot = relative(repository.root, absolutePath);
+  if (
+    fromRoot === "" ||
+    fromRoot === ".." ||
+    fromRoot.startsWith(`..${sep}`) ||
+    isAbsolute(fromRoot)
+  ) {
+    throw new Error(`path resolves outside the repository: ${path}`);
+  }
+  return absolutePath;
+}
+
+async function validatePathComponents(
+  repository: RepositoryBoundary,
+  path: string,
+  options: { allowMissingFinal?: boolean } = {},
+) {
+  const absolutePath = absoluteRepositoryPath(repository, path);
+  const parts = path.split("/");
+  let current = repository.root;
+  for (const [index, part] of parts.entries()) {
+    current = join(current, part);
+    const final = index === parts.length - 1;
+    let stat: BigIntStats;
+    try {
+      stat = await lstat(current, { bigint: true });
+    } catch (error) {
+      if (
+        final &&
+        options.allowMissingFinal === true &&
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        return { absolutePath, stat: undefined };
+      }
+      throw error;
+    }
+    if (stat.isSymbolicLink()) {
+      throw new Error(`repository path contains a symbolic link: ${path}`);
+    }
+    if (!final && !stat.isDirectory()) {
+      throw new Error(`repository path parent is not a directory: ${path}`);
+    }
+    if (final && !stat.isFile()) {
+      throw new Error(`repository target is not a regular file: ${path}`);
+    }
+    if (final) {
+      const canonical = await realpath(current);
+      if (canonical !== absolutePath) {
+        throw new Error(`repository target is not canonical: ${path}`);
+      }
+      return { absolutePath, stat };
+    }
+  }
+  throw new Error(`repository target is invalid: ${path}`);
+}
+
+async function validateRepositoryTargets(repository: RepositoryBoundary, paths: string[]) {
+  const uniquePaths = [...new Set(paths)];
+  for (const path of uniquePaths) {
+    await validatePathComponents(repository, path);
+  }
+  if (!repository.applyAuthorized) return;
+  await assertApplyRevision(repository);
+  try {
+    await execFileAsync(
+      "git",
+      ["-C", repository.root, "ls-files", "--error-unmatch", "--", ...uniquePaths],
+      { encoding: "utf8" },
+    );
+    await execFileAsync("git", [
+      "-C",
+      repository.root,
+      "diff",
+      "--quiet",
+      "HEAD",
+      "--",
+      ...uniquePaths,
+    ]);
+    await execFileAsync("git", [
+      "-C",
+      repository.root,
+      "diff",
+      "--cached",
+      "--quiet",
+      "HEAD",
+      "--",
+      ...uniquePaths,
+    ]);
+  } catch (error) {
+    throw new Error(
+      "apply targets must be tracked and unchanged at the expected repository revision",
+      {
+        cause: error,
+      },
+    );
+  }
+  await assertApplyRevision(repository);
+}
+
+function sameFingerprint(left: BigIntStats, right: BigIntStats) {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.mode === right.mode
+  );
+}
+
+function sha256(bytes: Buffer) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function readRepositoryFile(
+  repository: RepositoryBoundary,
+  path: string,
+): Promise<CheckedRepositoryFile> {
+  const checked = await validatePathComponents(repository, path);
+  const handle = await open(checked.absolutePath, fsConstants.O_RDONLY | noFollowFlag);
+  try {
+    const descriptorStat = await handle.stat({ bigint: true });
+    if (
+      !descriptorStat.isFile() ||
+      !checked.stat ||
+      !sameFingerprint(checked.stat, descriptorStat)
+    ) {
+      throw new Error(`repository target changed during no-follow open: ${path}`);
+    }
+    const bytes = await handle.readFile();
+    const after = await lstat(checked.absolutePath, { bigint: true });
+    if (!sameFingerprint(descriptorStat, after)) {
+      throw new Error(`repository target changed during checked read: ${path}`);
+    }
+    return {
+      path,
+      absolutePath: checked.absolutePath,
+      bytes,
+      stat: descriptorStat,
+      sha256: sha256(bytes),
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
+async function assertRepositoryFileUnchanged(
+  repository: RepositoryBoundary,
+  expected: CheckedRepositoryFile,
+) {
+  const current = await readRepositoryFile(repository, expected.path);
+  if (!sameFingerprint(current.stat, expected.stat) || current.sha256 !== expected.sha256) {
+    throw new Error(`repository target changed before atomic replacement: ${expected.path}`);
+  }
+}
+
+async function atomicReplaceRepositoryFile(
+  repository: RepositoryBoundary,
+  expected: CheckedRepositoryFile,
+  bytes: Buffer,
+) {
+  const temporaryPath = join(
+    dirname(expected.absolutePath),
+    `.${posix.basename(expected.path)}.hulumi-${randomUUID()}.tmp`,
+  );
+  let staged = true;
+  const handle = await open(
+    temporaryPath,
+    fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | noFollowFlag,
+    Number(expected.stat.mode & 0o777n),
+  );
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    await assertRepositoryFileUnchanged(repository, expected);
+    await rename(temporaryPath, expected.absolutePath);
+    staged = false;
+    const final = await readRepositoryFile(repository, expected.path);
+    if (final.sha256 !== sha256(bytes)) {
+      throw new Error(`atomic replacement verification failed: ${expected.path}`);
+    }
+  } finally {
+    if (staged) await unlink(temporaryPath).catch(() => undefined);
+  }
+}
+
+async function atomicWriteRepositoryOutput(
+  repository: RepositoryBoundary,
+  path: string,
+  bytes: Buffer,
+) {
+  validateRepositoryRelativePath(path);
+  let existing: CheckedRepositoryFile | undefined;
+  try {
+    existing = await readRepositoryFile(repository, path);
+  } catch (error) {
+    if (!(
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    )) {
+      throw error;
+    }
+  }
+  if (existing) {
+    await atomicReplaceRepositoryFile(repository, existing, bytes);
+    return;
+  }
+  const checked = await validatePathComponents(repository, path, { allowMissingFinal: true });
+  const temporaryPath = join(
+    dirname(checked.absolutePath),
+    `.${posix.basename(path)}.hulumi-${randomUUID()}.tmp`,
+  );
+  let staged = true;
+  const handle = await open(
+    temporaryPath,
+    fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | noFollowFlag,
+    0o600,
+  );
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    const stillMissing = await validatePathComponents(repository, path, {
+      allowMissingFinal: true,
+    });
+    if (stillMissing.stat !== undefined) {
+      throw new Error(`repository output appeared concurrently: ${path}`);
+    }
+    await rename(temporaryPath, checked.absolutePath);
+    staged = false;
+    const final = await readRepositoryFile(repository, path);
+    if (final.sha256 !== sha256(bytes)) {
+      throw new Error(`repository output verification failed: ${path}`);
+    }
+  } finally {
+    if (staged) await unlink(temporaryPath).catch(() => undefined);
+  }
+}
+
+async function writeRepositoryOutput(
+  repository: RepositoryBoundary,
+  outputPath: string,
+  result: RemediationResult,
+) {
+  await atomicWriteRepositoryOutput(
+    repository,
+    outputPath,
+    Buffer.from(`${JSON.stringify(result, null, 2)}\n`),
+  );
+}
+
 async function runWithTimeout<T>(action: () => Promise<T>, timeoutMs: number): Promise<T> {
   let timeout: NodeJS.Timeout | undefined;
   try {
@@ -437,10 +909,13 @@ function allowedPathsFor(manifestPaths: string[]) {
     ...new Set(
       manifestPaths.flatMap((path) => {
         if (path.endsWith("package-lock.json")) {
-          return [path, join(dirname(path), "package.json")];
+          return [path, posix.join(posix.dirname(path), "package.json")];
         }
         if (path.endsWith("pnpm-lock.yaml")) {
-          return [path, "package.json"];
+          return [path];
+        }
+        if (path.endsWith("packages.lock.json")) {
+          return [path, posix.join(posix.dirname(path), "worker-dotnet.csproj")];
         }
         return [path];
       }),
@@ -448,36 +923,94 @@ function allowedPathsFor(manifestPaths: string[]) {
   ];
 }
 
-async function applyDependencyBump(workItem: EmergencyWorkItem) {
+interface RepositoryMutation {
+  original: CheckedRepositoryFile;
+  replacement: Buffer;
+}
+
+async function applyDependencyBump(
+  repository: RepositoryBoundary,
+  workItem: EmergencyWorkItem,
+  beforeAtomicReplaceForTest?: (path: string) => Promise<void>,
+) {
+  const mutations: RepositoryMutation[] = [];
   for (const manifestPath of workItem.manifestPaths) {
     if (manifestPath.endsWith("package-lock.json")) {
-      await updatePackageLock(manifestPath, workItem);
-      await updatePackageJson(join(dirname(manifestPath), "package.json"), workItem);
+      if (workItem.ecosystem !== "npm") {
+        throw new Error("package-lock.json remediation requires the npm ecosystem");
+      }
+      mutations.push(await updatePackageLock(repository, manifestPath, workItem));
+      mutations.push(
+        await updatePackageJson(
+          repository,
+          posix.join(posix.dirname(manifestPath), "package.json"),
+          workItem,
+        ),
+      );
       continue;
     }
     if (manifestPath.endsWith("pnpm-lock.yaml")) {
-      await updatePnpmWorkspace(workItem);
-      continue;
+      throw new Error(
+        "pnpm apply is unsupported by bounded remediation; use the dependency-admission pipeline",
+      );
     }
     if (manifestPath.endsWith("requirements.txt")) {
-      await updateRequirements(manifestPath, workItem);
+      if (workItem.ecosystem !== "PyPI") {
+        throw new Error("requirements.txt remediation requires the PyPI ecosystem");
+      }
+      mutations.push(await updateRequirements(repository, manifestPath, workItem));
       continue;
     }
     if (manifestPath.endsWith("packages.lock.json")) {
-      await updatePackagesLock(manifestPath, workItem);
-      await updateCsproj(dirname(manifestPath), workItem);
+      if (workItem.ecosystem !== "NuGet") {
+        throw new Error("packages.lock.json remediation requires the NuGet ecosystem");
+      }
+      mutations.push(await updatePackagesLock(repository, manifestPath, workItem));
+      mutations.push(
+        await updateCsproj(
+          repository,
+          posix.join(posix.dirname(manifestPath), "worker-dotnet.csproj"),
+          workItem,
+        ),
+      );
+      continue;
+    }
+    throw new Error(`unsupported manifest type for bounded remediation: ${manifestPath}`);
+  }
+  if (
+    mutations.length === 0 ||
+    mutations.every((mutation) => mutation.original.bytes.equals(mutation.replacement))
+  ) {
+    throw new Error("bounded remediation found no exact vulnerable version to replace");
+  }
+  for (const mutation of mutations) {
+    await assertRepositoryFileUnchanged(repository, mutation.original);
+  }
+  await assertApplyRevision(repository);
+  if (beforeAtomicReplaceForTest && mutations[0]) {
+    await beforeAtomicReplaceForTest(mutations[0].original.path);
+  }
+  for (const mutation of mutations) {
+    if (!mutation.original.bytes.equals(mutation.replacement)) {
+      await assertApplyRevision(repository);
+      await atomicReplaceRepositoryFile(repository, mutation.original, mutation.replacement);
     }
   }
 }
 
-async function updatePackageLock(path: string, workItem: EmergencyWorkItem) {
-  const parsed = JSON.parse(await readFile(path, "utf8")) as {
+async function updatePackageLock(
+  repository: RepositoryBoundary,
+  path: string,
+  workItem: EmergencyWorkItem,
+): Promise<RepositoryMutation> {
+  const original = await readRepositoryFile(repository, path);
+  const parsed = JSON.parse(original.bytes.toString("utf8")) as {
     packages?: Record<string, { version?: string; dependencies?: Record<string, string> }>;
     dependencies?: Record<string, { version?: string }>;
   };
   parsed.packages ??= {};
   const rootPackage = parsed.packages[""];
-  if (rootPackage?.dependencies?.[workItem.packageName]) {
+  if (rootPackage?.dependencies?.[workItem.packageName] === workItem.fromVersion) {
     rootPackage.dependencies[workItem.packageName] = workItem.fixedVersion;
   }
   const nodePackage = parsed.packages[`node_modules/${workItem.packageName}`];
@@ -488,15 +1021,16 @@ async function updatePackageLock(path: string, workItem: EmergencyWorkItem) {
   if (dependency?.version === workItem.fromVersion) {
     dependency.version = workItem.fixedVersion;
   }
-  await writeFile(path, `${JSON.stringify(parsed, null, 2)}\n`);
+  return { original, replacement: Buffer.from(`${JSON.stringify(parsed, null, 2)}\n`) };
 }
 
-async function updatePackageJson(path: string, workItem: EmergencyWorkItem) {
-  const text = await readOptionalText(path);
-  if (text === undefined) {
-    return;
-  }
-  const parsed = JSON.parse(text) as {
+async function updatePackageJson(
+  repository: RepositoryBoundary,
+  path: string,
+  workItem: EmergencyWorkItem,
+): Promise<RepositoryMutation> {
+  const original = await readRepositoryFile(repository, path);
+  const parsed = JSON.parse(original.bytes.toString("utf8")) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
     optionalDependencies?: Record<string, string>;
@@ -510,33 +1044,41 @@ async function updatePackageJson(path: string, workItem: EmergencyWorkItem) {
       section[workItem.packageName] = workItem.fixedVersion;
     }
   }
-  await writeFile(path, `${JSON.stringify(parsed, null, 2)}\n`);
+  return { original, replacement: Buffer.from(`${JSON.stringify(parsed, null, 2)}\n`) };
 }
 
-async function updatePnpmWorkspace(workItem: EmergencyWorkItem) {
-  if (workItem.ecosystem !== "npm") {
-    return;
-  }
-  await runProcess("pnpm", [
-    "update",
-    "-r",
-    `${workItem.packageName}@${workItem.fixedVersion}`,
-    "--save-exact",
-  ]);
+async function updateRequirements(
+  repository: RepositoryBoundary,
+  path: string,
+  workItem: EmergencyWorkItem,
+): Promise<RepositoryMutation> {
+  const original = await readRepositoryFile(repository, path);
+  const text = original.bytes.toString("utf8");
+  const pattern =
+    /(^[ \t]*)([A-Za-z0-9][A-Za-z0-9._-]*)([ \t]*==[ \t]*)([^ \t\r\n#]+)([ \t]*(?:#.*)?$)/gim;
+  return {
+    original,
+    replacement: Buffer.from(
+      text.replace(pattern, (line, indentation, packageName, separator, version, suffix) => {
+        if (
+          String(packageName).toLowerCase() !== workItem.packageName.toLowerCase() ||
+          String(version).toLowerCase() !== workItem.fromVersion.toLowerCase()
+        ) {
+          return line;
+        }
+        return `${indentation}${packageName}${separator}${workItem.fixedVersion}${suffix}`;
+      }),
+    ),
+  };
 }
 
-async function updateRequirements(path: string, workItem: EmergencyWorkItem) {
-  const text = await readFile(path, "utf8");
-  const escaped = escapeRegExp(workItem.packageName);
-  const pattern = new RegExp(
-    `(^\\s*${escaped}\\s*==\\s*)${escapeRegExp(workItem.fromVersion)}(\\s*(?:#.*)?$)`,
-    "im",
-  );
-  await writeFile(path, text.replace(pattern, `$1${workItem.fixedVersion}$2`));
-}
-
-async function updatePackagesLock(path: string, workItem: EmergencyWorkItem) {
-  const parsed = JSON.parse(await readFile(path, "utf8")) as {
+async function updatePackagesLock(
+  repository: RepositoryBoundary,
+  path: string,
+  workItem: EmergencyWorkItem,
+): Promise<RepositoryMutation> {
+  const original = await readRepositoryFile(repository, path);
+  const parsed = JSON.parse(original.bytes.toString("utf8")) as {
     dependencies?: Record<string, Record<string, { requested?: string; resolved?: string }>>;
   };
   for (const framework of Object.values(parsed.dependencies ?? {})) {
@@ -546,40 +1088,28 @@ async function updatePackagesLock(path: string, workItem: EmergencyWorkItem) {
       dependency.requested = `[${workItem.fixedVersion}, )`;
     }
   }
-  await writeFile(path, `${JSON.stringify(parsed, null, 2)}\n`);
+  return { original, replacement: Buffer.from(`${JSON.stringify(parsed, null, 2)}\n`) };
 }
 
-async function updateCsproj(directory: string, workItem: EmergencyWorkItem) {
-  const csprojPath = join(directory, "worker-dotnet.csproj");
-  const text = await readOptionalText(csprojPath);
-  if (text === undefined) {
-    return;
-  }
-  const escapedPackage = escapeRegExp(workItem.packageName);
-  const escapedVersion = escapeRegExp(workItem.fromVersion);
-  const pattern = new RegExp(
-    `(<PackageReference\\s+Include="${escapedPackage}"\\s+Version=")${escapedVersion}(")`,
-  );
-  await writeFile(csprojPath, text.replace(pattern, `$1${workItem.fixedVersion}$2`));
-}
-
-async function readOptionalText(path: string) {
-  try {
-    return await readFile(path, "utf8");
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
-    ) {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+async function updateCsproj(
+  repository: RepositoryBoundary,
+  path: string,
+  workItem: EmergencyWorkItem,
+): Promise<RepositoryMutation> {
+  const original = await readRepositoryFile(repository, path);
+  const text = original.bytes.toString("utf8");
+  const pattern = /(<PackageReference\s+Include=")([^"]+)("\s+Version=")([^"]+)(")/g;
+  return {
+    original,
+    replacement: Buffer.from(
+      text.replace(pattern, (element, prefix, packageName, separator, version, suffix) => {
+        if (packageName !== workItem.packageName || version !== workItem.fromVersion) {
+          return element;
+        }
+        return `${prefix}${packageName}${separator}${workItem.fixedVersion}${suffix}`;
+      }),
+    ),
+  };
 }
 
 function isTestPath(path?: string) {
@@ -590,24 +1120,6 @@ function isTestPath(path?: string) {
       path.endsWith(".test.ts") ||
       path.endsWith(".spec.ts"))
   );
-}
-
-async function runProcess(command: string, args: string[]) {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: process.cwd(),
-      shell: false,
-      stdio: "inherit",
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`${command} ${args.join(" ")} failed with exit code ${code}`));
-    });
-  });
 }
 
 function parseArgs(argv: string[]) {

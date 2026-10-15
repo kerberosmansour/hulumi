@@ -52,6 +52,28 @@ function unwrapStringData(raw: unknown): Record<string, string> {
 }
 
 describe("KubernetesSecretFromAwsSecretsManager — happy paths", () => {
+  test("captures the injected fetcher before later test-hook teardown", async () => {
+    const injectedFetcher = vi.fn(async () => JSON.stringify({ username: "captured-user" }));
+    __setSecretsManagerFetcher(injectedFetcher);
+    new KubernetesSecretFromAwsSecretsManager("captured-fetcher", {
+      secretsManagerArn: "arn:aws:secretsmanager:us-east-1:111:secret:captured",
+      keyMapping: { username: "user" },
+      namespace: "prod",
+      secretName: "captured-creds",
+    });
+
+    // Reset immediately, before Pulumi's asynchronous Output.apply executes.
+    // The already-created component must retain the authority selected when it
+    // was constructed; only later component instances may observe this reset.
+    __setSecretsManagerFetcher(undefined);
+    await settlePulumi();
+
+    expect(injectedFetcher).toHaveBeenCalledTimes(1);
+    expect(unwrapStringData(secrets()[0].inputs.stringData)).toEqual({
+      user: "captured-user",
+    });
+  });
+
   test("happy path: extracts and applies key mapping", async () => {
     __setSecretsManagerFetcher(async () =>
       JSON.stringify({ username: "u", password: "p", extra: "e" }),
@@ -233,9 +255,14 @@ describe("KubernetesSecretFromAwsSecretsManager — M2 fail-closed defaults", ()
     ).toThrow(/keyMapping has 65 entries.*max 64|exceeds max keyMapping bound/i);
   });
 
-  test("Scenario: keyMapping at the bound (64 keys) still constructs", () => {
+  test("Scenario: keyMapping at the bound (64 keys) still constructs", async () => {
     const okMapping: Record<string, string> = {};
-    for (let i = 0; i < 64; i++) okMapping[`k${i}`] = `key${i}`;
+    const payload: Record<string, string> = {};
+    for (let i = 0; i < 64; i++) {
+      okMapping[`k${i}`] = `key${i}`;
+      payload[`k${i}`] = `value${i}`;
+    }
+    __setSecretsManagerFetcher(async () => JSON.stringify(payload));
     expect(
       () =>
         new KubernetesSecretFromAwsSecretsManager("c", {
@@ -245,6 +272,8 @@ describe("KubernetesSecretFromAwsSecretsManager — M2 fail-closed defaults", ()
           secretName: "x",
         }),
     ).not.toThrow();
+    await settlePulumi();
+    expect(Object.keys(unwrapStringData(secrets()[0].inputs.stringData))).toHaveLength(64);
   });
 });
 

@@ -33,8 +33,9 @@ export type SecretsManagerFetcher = (arn: string, region?: string) => Promise<st
 let activeFetcher: SecretsManagerFetcher | undefined = undefined;
 
 /**
- * Inject a mock fetcher for tests. Pass `undefined` to reset to the SDK
- * default. Calling code must clean up after each test.
+ * Inject a mock fetcher for tests. Pass `undefined` to reset future component
+ * instances to the SDK default. Each instance captures the selected fetcher
+ * during construction so later test teardown cannot redirect in-flight work.
  */
 export function __setSecretsManagerFetcher(fetcher: SecretsManagerFetcher | undefined): void {
   activeFetcher = fetcher;
@@ -188,6 +189,11 @@ export class KubernetesSecretFromAwsSecretsManager
 
     const failureMode: SecretFailureMode = args.failureMode ?? "fail";
     const missingKeyMode: MissingKeyMode = args.missingKeyMode ?? "fail";
+    // Bind fetch authority to this component instance before scheduling any
+    // Output.apply work. Reading the mutable test seam inside the callback
+    // would allow later teardown to redirect an already-created instance to
+    // the real AWS SDK.
+    const fetch = activeFetcher ?? defaultFetcher;
 
     const parent = { parent: this } as const;
 
@@ -218,7 +224,6 @@ export class KubernetesSecretFromAwsSecretsManager
     }
 
     const extracted = inputs.apply(async ([arn, region]: [string, string]) => {
-      const fetch = activeFetcher ?? defaultFetcher;
       let raw: string;
       try {
         raw = await fetch(arn, region === "" ? undefined : region);

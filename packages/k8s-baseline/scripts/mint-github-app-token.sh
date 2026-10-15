@@ -1,26 +1,13 @@
 #!/usr/bin/env bash
-# mint-github-app-token.sh — sign a JWT with the GitHub App's private key,
-# discover the installation ID for a target repo, exchange the JWT for a
-# 1-hour scoped installation token. Prints the token to stdout (and only
-# stdout) for use under BuildKit's --mount=type=secret pattern.
-#
-# Usage:
-#   mint-github-app-token.sh <SECRET_ID> <REPO_OWNER> <REPO_NAME>
-#
-# Where:
-#   SECRET_ID    — AWS Secrets Manager secret ID containing {app_id, private_key, repos?, permissions?}
-#   REPO_OWNER   — GitHub org/user owning the target repo
-#   REPO_NAME    — repo name
-#
-# Side-effects:
-#   - Reads the SM secret via `aws secretsmanager get-secret-value`
-#   - Calls GitHub's API: GET /repos/{owner}/{repo}/installation, then
-#     POST /app/installations/{id}/access_tokens
-#   - Prints the minted token (`ghs_...`) to STDOUT exactly once
-#   - On failure, writes a `security_event.mint_failed` line to stderr and exits
-#     non-zero. NEVER echoes the PEM, the JWT, or any token bytes to stderr.
+# Mint a one-hour GitHub App installation token whose repository and permission
+# authority is bound to the GitHubAppCredential component scope.
 
 set -euo pipefail
+export LC_ALL=C
+
+readonly SCOPE_TAG='hulumi:github-app-scope-sha256'
+readonly MAX_SCOPE_BYTES=16384
+readonly MAX_SECRET_BYTES=65536
 
 scratch=""
 cleanup() {
@@ -32,7 +19,14 @@ cleanup() {
     fi
   fi
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+fail() {
+  printf 'security_event.mint_failed reason=%s\n' "$1" >&2
+  exit "${2:-1}"
+}
 
 if [ "$#" -ne 3 ]; then
   echo "usage: $0 <SECRET_ID> <REPO_OWNER> <REPO_NAME>" >&2
@@ -42,125 +36,121 @@ fi
 SECRET_ID="$1"
 REPO_OWNER="$2"
 REPO_NAME="$3"
+TARGET_REPO="${REPO_OWNER}/${REPO_NAME}"
 
 if [ -z "${SECRET_ID}" ] || [ -z "${REPO_OWNER}" ] || [ -z "${REPO_NAME}" ]; then
-  echo "error: SECRET_ID, REPO_OWNER, REPO_NAME must all be non-empty" >&2
-  exit 2
+  fail "required_argument_missing" 2
+fi
+if [[ ! "${REPO_OWNER}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$ ]]; then
+  fail "invalid_repo_owner" 2
+fi
+if [[ ! "${REPO_NAME}" =~ ^[A-Za-z0-9_.-]{1,100}$ ]] || [ "${REPO_NAME}" = "." ] || [ "${REPO_NAME}" = ".." ]; then
+  fail "invalid_repo_name" 2
 fi
 
-case "${SECRET_ID}" in
-  *[\;\|\&\`\$\(\)]*)
-    echo "error: SECRET_ID contains shell metacharacters; refusing" >&2
-    exit 2
-    ;;
-esac
+for command in aws jq openssl awk curl; do
+  command -v "${command}" >/dev/null 2>&1 || fail "${command}_missing" 2
+done
 
-if ! command -v aws >/dev/null 2>&1; then
-  echo "security_event.mint_failed reason=aws_cli_missing" >&2
-  exit 2
-fi
-if ! command -v jq >/dev/null 2>&1; then
-  echo "security_event.mint_failed reason=jq_missing" >&2
-  exit 2
-fi
-if ! command -v openssl >/dev/null 2>&1; then
-  echo "security_event.mint_failed reason=openssl_missing" >&2
-  exit 2
-fi
-if ! command -v curl >/dev/null 2>&1; then
-  echo "security_event.mint_failed reason=curl_missing" >&2
-  exit 2
+EXPECTED_SCOPE_SHA=$(aws secretsmanager describe-secret \
+  --secret-id "${SECRET_ID}" \
+  --query "Tags[?Key=='${SCOPE_TAG}'].Value | [0]" \
+  --output text 2>/dev/null) || fail "scope_tag_lookup_failed"
+if [[ ! "${EXPECTED_SCOPE_SHA}" =~ ^[0-9a-f]{64}$ ]]; then
+  fail "scope_tag_missing"
 fi
 
-# Pull the secret JSON.
-SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ID}" --query SecretString --output text 2>/dev/null) || {
-  echo "security_event.mint_failed reason=sm_get_failed secret_id=${SECRET_ID}" >&2
-  exit 1
-}
-
-APP_ID=$(printf '%s' "${SECRET_JSON}" | jq -r '.app_id')
-if [ -z "${APP_ID}" ] || [ "${APP_ID}" = "null" ]; then
-  echo "security_event.mint_failed reason=missing_app_id" >&2
-  exit 1
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "${SECRET_ID}" \
+  --query SecretString \
+  --output text 2>/dev/null) || fail "sm_get_failed"
+if [ "${#SECRET_JSON}" -gt "${MAX_SECRET_BYTES}" ]; then
+  fail "secret_payload_too_large"
 fi
 
-REPOS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -c '.repos // ["*"]')
-if ! printf '%s' "${REPOS_JSON}" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null; then
-  echo "security_event.mint_failed reason=invalid_repos" >&2
-  exit 1
+APP_ID=$(printf '%s' "${SECRET_JSON}" | jq -er '.app_id | select(type == "string" and test("^[0-9]+$"))') || fail "invalid_app_id"
+REPOS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -ce '.repos') || fail "invalid_repositories"
+PERMISSIONS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -ce '.permissions') || fail "invalid_permissions"
+PAYLOAD_SCOPE_SHA=$(printf '%s' "${SECRET_JSON}" | jq -er '.scope_sha256 | select(type == "string" and test("^[0-9a-f]{64}$"))') || fail "scope_digest_missing"
+if ! printf '%s' "${SECRET_JSON}" | jq -e '.private_key | type == "string" and length > 0' >/dev/null; then
+  fail "private_key_missing"
 fi
 
-PERMISSIONS_JSON=$(printf '%s' "${SECRET_JSON}" | jq -c '.permissions // {}')
-if ! printf '%s' "${PERMISSIONS_JSON}" | jq -e 'type == "object"' >/dev/null; then
-  echo "security_event.mint_failed reason=invalid_permissions" >&2
-  exit 1
+if ! printf '%s' "${REPOS_JSON}" | jq -e '
+  type == "array" and
+  length > 0 and length <= 500 and
+  length == (unique | length) and
+  ((index("*") == null) or length == 1) and
+  all(.[];
+    type == "string" and
+    (. == "*" or
+      (test("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$") and
+       (split("/")[1] != ".") and (split("/")[1] != ".."))))
+' >/dev/null; then
+  fail "invalid_repositories"
 fi
+if ! printf '%s' "${PERMISSIONS_JSON}" | jq -e '
+  type == "object" and
+  length > 0 and length <= 100 and
+  all(to_entries[];
+    (.key | test("^[a-z][a-z0-9_]{0,63}$")) and
+    (.value == "read" or .value == "write" or .value == "admin"))
+' >/dev/null; then
+  fail "invalid_permissions"
+fi
+
+CANONICAL_SCOPE=$(jq -cn \
+  --argjson repos "${REPOS_JSON}" \
+  --argjson permissions "${PERMISSIONS_JSON}" \
+  '{permissions: ($permissions | to_entries | sort_by(.key) | from_entries), repos: ($repos | sort)}')
+if [ "${#CANONICAL_SCOPE}" -gt "${MAX_SCOPE_BYTES}" ]; then
+  fail "scope_too_large"
+fi
+COMPUTED_SCOPE_SHA=$(printf '%s' "${CANONICAL_SCOPE}" | openssl dgst -sha256 | awk '{print $NF}')
+if [ "${COMPUTED_SCOPE_SHA}" != "${PAYLOAD_SCOPE_SHA}" ] || [ "${COMPUTED_SCOPE_SHA}" != "${EXPECTED_SCOPE_SHA}" ]; then
+  fail "scope_mismatch"
+fi
+if ! printf '%s' "${REPOS_JSON}" | jq -e --arg target "${TARGET_REPO}" 'index("*") != null or index($target) != null' >/dev/null; then
+  fail "repo_not_allowed"
+fi
+
+REQUEST_BODY=$(jq -cn \
+  --arg repo_name "${REPO_NAME}" \
+  --argjson permissions "${PERMISSIONS_JSON}" \
+  '{repositories: [$repo_name], permissions: $permissions}')
 
 scratch="$(mktemp)"
 chmod 600 "${scratch}"
 printf '%s' "${SECRET_JSON}" | jq -r '.private_key' > "${scratch}"
 
-# Build the JWT.
 NOW=$(date +%s)
 IAT=$((NOW - 60))
-EXP=$((NOW + 540))   # 9 minutes — JWT max is 10 minutes
+EXP=$((NOW + 540))
 
 b64url() {
-  # base64url encode (no padding)
   openssl base64 -A | tr '+/' '-_' | tr -d '='
 }
 
 HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
-PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "${IAT}" "${EXP}" "${APP_ID}" | b64url)
-SIGNING_INPUT="${HEADER}.${PAYLOAD}"
-
+JWT_PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "${IAT}" "${EXP}" "${APP_ID}" | b64url)
+SIGNING_INPUT="${HEADER}.${JWT_PAYLOAD}"
 SIGNATURE=$(printf '%s' "${SIGNING_INPUT}" | openssl dgst -sha256 -sign "${scratch}" | b64url)
 JWT="${SIGNING_INPUT}.${SIGNATURE}"
 
-# Discover installation ID.
-INSTALLATION_ID=$(curl -fsS \
+INSTALLATION_RESPONSE=$(curl --proto '=https' --tlsv1.2 -fsS \
   -H "Authorization: Bearer ${JWT}" \
   -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/installation" 2>/dev/null \
-  | jq -r '.id') || {
-  echo "security_event.mint_failed reason=installation_lookup_failed repo=${REPO_OWNER}/${REPO_NAME}" >&2
-  exit 1
-}
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/installation" 2>/dev/null) || fail "installation_lookup_failed"
+INSTALLATION_ID=$(printf '%s' "${INSTALLATION_RESPONSE}" | jq -er '.id | select(type == "number" and . > 0)') || fail "installation_id_missing"
 
-if [ -z "${INSTALLATION_ID}" ] || [ "${INSTALLATION_ID}" = "null" ]; then
-  echo "security_event.mint_failed reason=installation_id_missing repo=${REPO_OWNER}/${REPO_NAME}" >&2
-  exit 1
-fi
-
-# Mint the installation token (1-hour scoped).
-REQUEST_BODY=$(jq -cn --arg repo "${REPO_OWNER}/${REPO_NAME}" --argjson repos "${REPOS_JSON}" --argjson permissions "${PERMISSIONS_JSON}" '
-  if ($repos | length == 1 and $repos[0] == "*")
-  then {permissions: $permissions}
-  elif ($repos | index($repo)) != null
-  then {repositories: [$repo], permissions: $permissions}
-  else error("requested repository is not in allowed repos")
-  end
-') || {
-  echo "security_event.mint_failed reason=repo_not_allowed repo=${REPO_OWNER}/${REPO_NAME}" >&2
-  exit 1
-}
-
-TOKEN=$(curl -fsS -X POST \
+TOKEN_RESPONSE=$(curl --proto '=https' --tlsv1.2 -fsS -X POST \
   -H "Authorization: Bearer ${JWT}" \
   -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
   -H "Content-Type: application/json" \
   --data "${REQUEST_BODY}" \
-  "https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens" 2>/dev/null \
-  | jq -r '.token') || {
-  echo "security_event.mint_failed reason=token_mint_failed installation_id=${INSTALLATION_ID}" >&2
-  exit 1
-}
+  "https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens" 2>/dev/null) || fail "token_mint_failed"
+TOKEN=$(printf '%s' "${TOKEN_RESPONSE}" | jq -er '.token | select(type == "string" and length > 0)') || fail "token_missing"
 
-if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
-  echo "security_event.mint_failed reason=token_missing installation_id=${INSTALLATION_ID}" >&2
-  exit 1
-fi
-
-# stdout — the only place the token appears.
 printf '%s\n' "${TOKEN}"
-exit 0

@@ -41,6 +41,12 @@ jobs:
       - name: Install SCA brain
         run: npm ci --ignore-scripts --prefix tools/sca
 
+      - name: Validate the SCA tool and scope authority boundary
+        run: |
+          npm test --prefix tools/sca
+          npm run build --prefix tools/sca
+          npm run lint --prefix tools/sca
+
       - name: Run scope-sync (read-only; fails on unclassified drift)
         run: |
           tools/sca/node_modules/.bin/tsx tools/sca/src/cli/scope-sync.ts scope-sync \

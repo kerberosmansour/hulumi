@@ -330,7 +330,7 @@ async function validateLockfiles(rootDir: string, lockfiles: ScanLockfile[]) {
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`malformed lockfile: ${entry.path}: ${reason}`);
+      throw new Error(`malformed lockfile: ${entry.path}: ${reason}`, { cause: error });
     }
   }
 }

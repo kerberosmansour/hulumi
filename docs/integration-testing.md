@@ -391,3 +391,17 @@ after two days. Required check names and main-only tarball attestation remain.
 This removes one duplicate workspace build per CI run; no measured
 runner-time or cost reduction is claimed. Documentation-only runs still execute
 the full suite; no workflow path-filter bypass was added.
+
+## Nested SCA tool maintenance
+
+`tools/sca` uses exact reviewed development pins and Node24 types matching CI.
+Its tests run with Node's built-in runner and the existing tsx loader; the unused
+nested Vitest dependency and commands targeting absent BDD/E2E files are removed.
+The read-only scope-drift job runs the real tool tests, build and lint after
+script-disabled installation and official OSV admission. Root workspace Vitest
+and its SCA workflow contract tests remain intact. Tests cover fixture exclusion,
+unknown-scope escalation, prohibition of autonomous emergency scope promotion,
+preservation of explicit scope choices and fail-closed malformed input. Deliberate
+vulnerable fixtures are never installed. TypeScript7 remains outside the admitted
+graph because the held parser supports TypeScript below6.1; npm peer overrides
+are not evidence of compatibility. No native Vitest5 chain was executed/admitted.

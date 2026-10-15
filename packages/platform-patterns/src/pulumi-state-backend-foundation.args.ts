@@ -8,6 +8,16 @@ export type PulumiStateBackendDrPosture =
 export interface PulumiStateBackendReplicationArgs {
   readonly destinationBucketArn: pulumi.Input<string>;
   readonly roleArn: pulumi.Input<string>;
+  /**
+   * Customer managed KMS key ARN or alias ARN in the destination bucket's
+   * Region. Required at runtime whenever replication is configured. S3
+   * requires this together with the SSE-KMS source-selection opt-in; without
+   * both, KMS-encrypted state objects are not replicated.
+   *
+   * Kept optional in the v3 declaration so existing programs receive the
+   * explicit constructor migration error rather than a declaration-only
+   * failure. A future major can make the property statically required.
+   */
   readonly destinationKmsKeyArn?: pulumi.Input<string>;
 }
 

@@ -78,6 +78,93 @@ describe("PulumiStateBackendFoundation", () => {
     ).toThrow(/kmsAliasName/);
     expect(registrations).toHaveLength(0);
   });
+
+  it("Scenario: replication without a destination KMS key fails before registration", async () => {
+    await settlePulumi();
+    resetRegistrations();
+    const replicationWithoutKey = {
+      destinationBucketArn: "arn:aws:s3:::hulumi-state-replica",
+      roleArn: "arn:aws:iam::123456789012:role/hulumi-state-replication",
+    };
+
+    expect(
+      () =>
+        new PulumiStateBackendFoundation("state", {
+          tier: "startup-hardened",
+          bucketName: "hulumi-state-example",
+          kmsAliasName: "alias/hulumi/state/example",
+          replication: replicationWithoutKey,
+        }),
+    ).toThrow(/destinationKmsKeyArn/);
+    expect(registrations).toHaveLength(0);
+  });
+
+  it("Scenario: replication with an empty literal destination KMS key fails before registration", async () => {
+    await settlePulumi();
+    resetRegistrations();
+    expect(
+      () =>
+        new PulumiStateBackendFoundation("state", {
+          tier: "startup-hardened",
+          bucketName: "hulumi-state-example",
+          kmsAliasName: "alias/hulumi/state/example",
+          replication: {
+            destinationBucketArn: "arn:aws:s3:::hulumi-state-replica",
+            roleArn: "arn:aws:iam::123456789012:role/hulumi-state-replication",
+            destinationKmsKeyArn: "  ",
+          },
+        }),
+    ).toThrow(/destinationKmsKeyArn/);
+    expect(registrations).toHaveLength(0);
+  });
+
+  it("Scenario: replication selects SSE-KMS state and encrypts replicas with the exact destination key", async () => {
+    const destinationKmsKeyArn =
+      "arn:aws:kms:eu-west-1:210987654321:key/11111111-2222-3333-4444-555555555555";
+    const backend = new PulumiStateBackendFoundation("state", {
+      tier: "startup-hardened",
+      bucketName: "hulumi-state-example",
+      kmsAliasName: "alias/hulumi/state/example",
+      replication: {
+        destinationBucketArn: "arn:aws:s3:::hulumi-state-replica",
+        roleArn: "arn:aws:iam::123456789012:role/hulumi-state-replication",
+        destinationKmsKeyArn,
+      },
+    });
+
+    await expect(valueOf(backend.drPosture)).resolves.toBe("replication");
+    await settlePulumi();
+
+    const replicationType = "aws:s3/bucketReplicationConfig:BucketReplicationConfig";
+    const replication = registrations.find((entry) => entry.type === replicationType);
+    expect(replication).toBeDefined();
+    expect(replication!.inputs.rules).toEqual([
+      expect.objectContaining({
+        status: "Enabled",
+        sourceSelectionCriteria: {
+          sseKmsEncryptedObjects: { status: "Enabled" },
+        },
+        destination: expect.objectContaining({
+          bucket: "arn:aws:s3:::hulumi-state-replica",
+          encryptionConfiguration: { replicaKmsKeyId: destinationKmsKeyArn },
+        }),
+      }),
+    ]);
+
+    const replicationIndex = registrations.findIndex((entry) => entry.type === replicationType);
+    const encryptionIndex = registrations.findIndex(
+      (entry) =>
+        entry.type ===
+        "aws:s3/bucketServerSideEncryptionConfiguration:BucketServerSideEncryptionConfiguration",
+    );
+    const versioningIndex = registrations.findIndex(
+      (entry) => entry.type === "aws:s3/bucketVersioning:BucketVersioning",
+    );
+    expect(encryptionIndex).toBeGreaterThanOrEqual(0);
+    expect(versioningIndex).toBeGreaterThanOrEqual(0);
+    expect(replicationIndex).toBeGreaterThan(encryptionIndex);
+    expect(replicationIndex).toBeGreaterThan(versioningIndex);
+  });
 });
 
 describe("Pulumi state helper invariants", () => {

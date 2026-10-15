@@ -127,6 +127,16 @@ export { EksBackupFoundation, EKS_BACKUP_FOUNDATION_COMPONENT_TYPE } from "./eks
 export type { EksBackupFoundationArgs, EksBackupLifecycleRule } from "./eks-backup-foundation.args";
 export { MAX_BACKUP_LIFECYCLE_RULES, MAX_BACKUP_SELECTIONS } from "./eks-backup-foundation.args";
 export type { EksBackupFoundationOutputs } from "./eks-backup-foundation.outputs";
+
+export {
+  EksTrustedNodeLabelReconciler,
+  EKS_TRUSTED_NODE_LABEL_RECONCILER_COMPONENT_TYPE,
+} from "./trusted-node-label-reconciler";
+export { DEFAULT_TRUSTED_NODE_LABEL_METRIC_NAMESPACE } from "./trusted-node-label-reconciler.args";
+export type { EksTrustedNodeLabelReconcilerArgs } from "./trusted-node-label-reconciler.args";
+export type { EksTrustedNodeLabelReconcilerOutputs } from "./trusted-node-label-reconciler.outputs";
+export { runTrustedNodeLabelControllerFromEnvironment } from "./trusted-node-label-controller-main";
+export type { TrustedNodeLabelEnvironmentConfiguration } from "./trusted-node-label-controller-main";
 export type {
   NamespaceFoundationArgs,
   NamespaceFoundationQuota,

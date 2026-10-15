@@ -33,23 +33,24 @@ All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason 
 
 Stable in the v1.2+ release trains. Compatibility with tested Helm chart versions is documented in [`packages/k8s-baseline/COMPATIBILITY.md`](../../packages/k8s-baseline/COMPATIBILITY.md) and asserted in the `release-readiness.test.ts` BDD suite.
 
-| Component                                          | Doc                                                                          |
-| -------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `hulumi.k8s.HardenedHelmRelease`                   | [hardened-helm-release.md](./hardened-helm-release.md)                       |
-| `hulumi.k8s.MetricsServer`                         | [metrics-server.md](./metrics-server.md)                                     |
-| `hulumi.k8s.EksSubnetTagger`                       | [eks-subnet-tagger.md](./eks-subnet-tagger.md)                               |
-| `hulumi.k8s.EksAdminAccessPath`                    | [eks-admin-access-path.md](./eks-admin-access-path.md)                       |
-| `hulumi.k8s.IstioFoundation`                       | [istio-foundation.md](./istio-foundation.md)                                 |
-| `hulumi.k8s.AlbMeshedHttpEntrypoint`               | [alb-meshed-http-entrypoint.md](./alb-meshed-http-entrypoint.md)             |
-| `hulumi.k8s.KubernetesSecretFromAwsSecretsManager` | [kubernetes-secret-from-asm.md](./kubernetes-secret-from-asm.md)             |
-| `hulumi.k8s.RdsCredentialSecret`                   | [rds-credential-secret.md](./rds-credential-secret.md)                       |
-| `hulumi.k8s.GitHubAppCredential`                   | [github-app-credential.md](./github-app-credential.md)                       |
-| `hulumi.k8s.NamespaceFoundation`                   | [namespace-foundation.md](./namespace-foundation.md)                         |
-| `hulumi.k8s.EksRuntimeDetectionFoundation`         | [eks-runtime-detection-foundation.md](./eks-runtime-detection-foundation.md) |
-| `hulumi.k8s.EksBackupFoundation`                   | [eks-backup-foundation.md](./eks-backup-foundation.md)                       |
-| `hulumi.k8s.EksAddonFoundation`                    | [eks-addon-foundation.md](./eks-addon-foundation.md)                         |
-| `hulumi.k8s.EksClusterFoundation`                  | [eks-cluster-foundation.md](./eks-cluster-foundation.md)                     |
-| `hulumi.k8s.planUpgrade` (library)                 | [eks-upgrade-planner.md](./eks-upgrade-planner.md)                           |
+| Component                                          | Doc                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `hulumi.k8s.HardenedHelmRelease`                   | [hardened-helm-release.md](./hardened-helm-release.md)                         |
+| `hulumi.k8s.MetricsServer`                         | [metrics-server.md](./metrics-server.md)                                       |
+| `hulumi.k8s.EksSubnetTagger`                       | [eks-subnet-tagger.md](./eks-subnet-tagger.md)                                 |
+| `hulumi.k8s.EksAdminAccessPath`                    | [eks-admin-access-path.md](./eks-admin-access-path.md)                         |
+| `hulumi.k8s.IstioFoundation`                       | [istio-foundation.md](./istio-foundation.md)                                   |
+| `hulumi.k8s.AlbMeshedHttpEntrypoint`               | [alb-meshed-http-entrypoint.md](./alb-meshed-http-entrypoint.md)               |
+| `hulumi.k8s.KubernetesSecretFromAwsSecretsManager` | [kubernetes-secret-from-asm.md](./kubernetes-secret-from-asm.md)               |
+| `hulumi.k8s.RdsCredentialSecret`                   | [rds-credential-secret.md](./rds-credential-secret.md)                         |
+| `hulumi.k8s.GitHubAppCredential`                   | [github-app-credential.md](./github-app-credential.md)                         |
+| `hulumi.k8s.NamespaceFoundation`                   | [namespace-foundation.md](./namespace-foundation.md)                           |
+| `hulumi.k8s.EksRuntimeDetectionFoundation`         | [eks-runtime-detection-foundation.md](./eks-runtime-detection-foundation.md)   |
+| `hulumi.k8s.EksBackupFoundation`                   | [eks-backup-foundation.md](./eks-backup-foundation.md)                         |
+| `hulumi.k8s.EksAddonFoundation`                    | [eks-addon-foundation.md](./eks-addon-foundation.md)                           |
+| `hulumi.k8s.EksClusterFoundation`                  | [eks-cluster-foundation.md](./eks-cluster-foundation.md)                       |
+| `hulumi.k8s.EksTrustedNodeLabelReconciler`         | [eks-trusted-node-label-reconciler.md](./eks-trusted-node-label-reconciler.md) |
+| `hulumi.k8s.planUpgrade` (library)                 | [eks-upgrade-planner.md](./eks-upgrade-planner.md)                             |
 
 The tier matrix for every baseline component lives in [../tiers.md](../tiers.md).
 

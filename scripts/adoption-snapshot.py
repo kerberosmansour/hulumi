@@ -21,6 +21,8 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'kerberosmansour/hulumi'
 ECOSYSTEM = 'npm'
+# Canonical ID returned by Context7 library search; independent of GitHub casing.
+CONTEXT7_LIBRARY_ID = '/kerberosmansour/hulumi'
 MAX_BYTES = 8 * 1024 * 1024
 HOSTS = {'api.npmjs.org', 'crates.io', 'context7.com'}
 
@@ -152,7 +154,7 @@ def context7_metric():
     if not token:
         return {'status': 'unavailable', 'reason': 'CONTEXT7_API_KEY not set'}
     try:
-        url = 'https://context7.com/api/v2/libs/metrics?' + urllib.parse.urlencode({'libraryId': '/' + REPOSITORY, 'days': 30})
+        url = 'https://context7.com/api/v2/libs/metrics?' + urllib.parse.urlencode({'libraryId': CONTEXT7_LIBRARY_ID, 'days': 30})
         data = fetch_json(url, token)
         total = {key: count(data['total'][key]) for key in ('page', 'txt', 'mcp', 'cli')}
         if not all(isinstance(data.get(key), list) for key in ('daily', 'topics', 'countries')) or not isinstance(data.get('mcpClients'), dict) or not isinstance(data['mcpClients'].get('dailyData'), list):

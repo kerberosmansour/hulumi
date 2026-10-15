@@ -60,6 +60,14 @@ class SnapshotTests(unittest.TestCase):
             data['daily'][0]['mcp'] = -1
             self.assertEqual(adoption.context7_metric()['status'], 'unavailable')
 
+    def test_context7_uses_verified_canonical_library_id(self):
+        data = {'total': dict.fromkeys(('page', 'txt', 'mcp', 'cli'), 0),
+                'daily': [], 'mcpClients': {'dailyData': []}, 'topics': [], 'countries': []}
+        with patch.dict(adoption.os.environ, {'CONTEXT7_API_KEY': 'synthetic-test-key'}), patch.object(adoption, 'fetch_json', return_value=data) as fetch:
+            self.assertEqual(adoption.context7_metric()['status'], 'ok')
+            query = adoption.urllib.parse.parse_qs(adoption.urllib.parse.urlsplit(fetch.call_args.args[0]).query)
+            self.assertEqual(query['libraryId'], ['/' + adoption.REPOSITORY.lower()])
+
     def test_no_context7_key_is_explicitly_unavailable(self):
         with patch.dict(adoption.os.environ, {}, clear=True):
             result = adoption.context7_metric()

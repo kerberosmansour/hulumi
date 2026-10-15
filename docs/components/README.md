@@ -29,6 +29,10 @@ Three CrossGuard PolicyPacks added in runbook `hulumi-operations-k8s-security` M
 
 All rules support the existing `Suppression` API: a `{ ruleId, urnScope, reason }` entry on the `suppressions` config silences the rule for the matching URN. Suppressions without a non-empty `reason` are ignored.
 
+WL-1 through WL-4 inspect CronJobs at the Kubernetes-native
+`spec.jobTemplate.spec.template.spec` path, including application and init
+containers.
+
 ## Kubernetes / EKS components (`@hulumi/k8s-baseline`)
 
 Stable in the v1.2+ release trains. Compatibility with tested Helm chart versions is documented in [`packages/k8s-baseline/COMPATIBILITY.md`](../../packages/k8s-baseline/COMPATIBILITY.md) and asserted in the `release-readiness.test.ts` BDD suite.

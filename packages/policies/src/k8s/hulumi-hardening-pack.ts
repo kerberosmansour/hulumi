@@ -5,7 +5,7 @@
 // Scope (M3 BDD):
 //   K8S-WL-1  privileged pod (`securityContext.privileged: true`)
 //   K8S-WL-2  host namespace (`hostNetwork: true`) — opt-out via suppression
-//   K8S-WL-3  `:latest` image tag (or no tag)
+//   K8S-WL-3  image reference without a canonical SHA-256 digest
 //   K8S-WL-4  missing resources / limits — tier-dependent
 //   K8S-SVC-1 public LoadBalancer Service without `hulumi.dev/public-justification`
 //
@@ -148,29 +148,14 @@ export const k8sWl2NoHostNamespace: ResourceValidationPolicy = {
   },
 };
 
-function imageHasMutableTag(image: string): boolean {
-  if (image === "") return true;
-  // No tag at all (or only digest with no tag) → docker default is `:latest`.
-  // Examples of mutable tags we reject:
-  //   - "nginx"            (no tag)
-  //   - "nginx:latest"     (explicit latest)
-  //   - "nginx:edge"       (mutable convention)
-  // Sha256 digest is always considered immutable.
-  if (image.includes("@sha256:")) return false;
-  const colonIdx = image.lastIndexOf(":");
-  // Beware "registry.example.com:5000/x" — that colon is in the host:port,
-  // not the tag. A tag colon must be after the last `/`.
-  const lastSlash = image.lastIndexOf("/");
-  if (colonIdx < lastSlash) return true; // no tag colon after the path
-  if (colonIdx < 0) return true; // no colon at all
-  const tag = image.slice(colonIdx + 1);
-  return tag === "latest" || tag === "" || tag === "edge";
+function imageHasCanonicalSha256Digest(image: unknown): image is string {
+  return typeof image === "string" && /^[^@\s]+@sha256:[a-f0-9]{64}$/.test(image);
 }
 
 export const k8sWl3NoLatestImage: ResourceValidationPolicy = {
   name: "HULUMI-K8S-WL-3-no-mutable-image-tag",
   description:
-    "Container images must use an immutable tag (e.g. semver or digest). `:latest`, no tag (defaults to latest), and the `edge` convention are rejected — they break reproducible deploys and disable image-provenance verification.",
+    "Container images must use a canonical SHA-256 digest. Registry tags, including semantic-version tags, can be repointed and are not content-integrity evidence.",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     if (!isPodOwningType(args.type)) return;
@@ -182,9 +167,9 @@ export const k8sWl3NoLatestImage: ResourceValidationPolicy = {
     if (matchSuppression("HULUMI-K8S-WL-3", args.urn, suppressions).suppressed) return;
     const all = [...(spec.containers ?? []), ...(spec.initContainers ?? [])];
     for (const c of all) {
-      if (typeof c.image === "string" && imageHasMutableTag(c.image)) {
+      if (!imageHasCanonicalSha256Digest(c.image)) {
         reportViolation(
-          `HULUMI-K8S-WL-3: container "${c.name ?? "<unnamed>"}" in ${args.urn} uses mutable image "${c.image}". Pin to a digest or an immutable semver tag. Docs: ${DOCS_BASE}`,
+          `HULUMI-K8S-WL-3: container "${c.name ?? "<unnamed>"}" in ${args.urn} is not pinned to one canonical SHA-256 digest. Use an image reference ending in @sha256:<64 lowercase hex digits>. Docs: ${DOCS_BASE}`,
         );
       }
     }
@@ -280,7 +265,7 @@ export const hulumiK8sHardeningPackMetadata: PackMetadata = {
     },
     {
       id: "HULUMI-K8S-WL-3",
-      title: "No mutable image tag (`:latest`)",
+      title: "Canonical SHA-256 image digest required",
       description: k8sWl3NoLatestImage.description!,
       severity: "high",
       enforcement: "mandatory",

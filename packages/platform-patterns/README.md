@@ -163,3 +163,9 @@ pnpm pack @hulumi/platform-patterns@1.5.0 --pack-destination .
 gh attestation verify ./hulumi-platform-patterns-1.5.0.tgz \
   --repo kerberosmansour/hulumi
 ```
+
+## Unreleased CodeBuildGitHubRunner
+
+Guardian-derived ephemeral project/webhook construction with an own-log-only
+default role, explicit VPC/privilege opt-ins and bounded configured resources.
+Read [operator prerequisites and qualification limits](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/codebuild-github-runner.md). Not in published3.0.0; live cloud qualification remains separate.

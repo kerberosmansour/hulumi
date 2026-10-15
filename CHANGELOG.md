@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Add Guardian-derived `CodeBuildGitHubRunner` source construction and dedicated
+  CrossGuard rules. Defaults use scoped log-only IAM, no VPC/privilege/cache/
+  artifacts, explicit source-auth prerequisites and bounded resource settings.
+- Preserve webhook credential secret metadata and owner/API-bound GitHub provider.
+  Flag extra IAM, privileged mode and VPC exposure with exact owned expiring
+  suppressions. Label overrides remain an AWS/workflow boundary.
+- Local constructor-to-policy evidence does not qualify live webhook/runner
+  lifecycle. Preserve external dependency identities and existing APIs/versions.
+
+## Unreleased
+
 _No changes yet._
 
 ## [3.0.0] — 2026-10-14

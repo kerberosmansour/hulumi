@@ -62,18 +62,25 @@ export interface AdapterSignal {
   ok: boolean;
 }
 
+/**
+ * Inclusive chronological evidence interval.
+ *
+ * `after` is the lower (earlier) bound and `before` is the upper (later)
+ * bound. Both values must be valid timestamps and `after <= before`.
+ */
+export interface EvidenceWindow {
+  after: string;
+  before: string;
+}
+
 export interface DriftAdapter {
   name(): string;
   available(): Promise<boolean>;
-  signal(
-    stack: string,
-    resource: string,
-    window: { before: string; after: string },
-  ): Promise<AdapterSignal>;
+  signal(stack: string, resource: string, window: EvidenceWindow): Promise<AdapterSignal>;
 }
 
 export interface ClassifyOptions {
-  window?: { before: string; after: string };
+  window?: EvidenceWindow;
   minConfidence?: Confidence;
   requireAdapters?: string[];
   /** AWS region used to select the default CloudTrail probe timeout. */

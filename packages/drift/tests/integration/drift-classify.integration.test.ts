@@ -296,8 +296,8 @@ describe.skipIf(!ENABLED)(
         cacheTtlSeconds: 300,
         probeTimeoutMs: 60_000,
         window: {
-          before: mutationStartedAt.toISOString(),
-          after: new Date(Date.now() + 60_000).toISOString(),
+          after: mutationStartedAt.toISOString(),
+          before: new Date(Date.now() + 60_000).toISOString(),
         },
       });
       expect(first.source).toBe("ConsoleBreakGlass");

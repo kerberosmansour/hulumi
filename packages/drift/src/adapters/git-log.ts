@@ -9,7 +9,8 @@
 
 import type { SimpleGit } from "simple-git";
 
-import type { AdapterSignal, DriftAdapter } from "../types";
+import { validateEvidenceWindow } from "../evidence-window";
+import type { AdapterSignal, DriftAdapter, EvidenceWindow } from "../types";
 import { validateUrn } from "../urn-sanitize";
 
 export interface GitLogAdapterArgs {
@@ -40,11 +41,7 @@ export class GitLogAdapter implements DriftAdapter {
     }
   }
 
-  async signal(
-    _stack: string,
-    resource: string,
-    window?: { before: string; after: string },
-  ): Promise<AdapterSignal> {
+  async signal(_stack: string, resource: string, window?: EvidenceWindow): Promise<AdapterSignal> {
     try {
       validateUrn(resource);
     } catch (err) {
@@ -56,6 +53,20 @@ export class GitLogAdapter implements DriftAdapter {
           rejected: "unsafe URN — refused before reaching git CLI",
         },
       };
+    }
+    if (window !== undefined) {
+      try {
+        validateEvidenceWindow(window);
+      } catch (err) {
+        return {
+          detected: false,
+          ok: false,
+          data: {
+            error: err instanceof Error ? err.message : String(err),
+            rejected: "invalid evidence window — refused before git lookup",
+          },
+        };
+      }
     }
     if (!(await this.available())) {
       return {

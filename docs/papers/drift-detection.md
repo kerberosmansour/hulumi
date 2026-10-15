@@ -297,11 +297,12 @@ The classifier composes four adapters. Each implements `DriftAdapter`:
 interface DriftAdapter {
   name(): string;
   available(): Promise<boolean>;
-  signal(
-    stack: string,
-    resource: string,
-    window: { before: string; after: string },
-  ): Promise<AdapterSignal>;
+  signal(stack: string, resource: string, window: EvidenceWindow): Promise<AdapterSignal>;
+}
+
+interface EvidenceWindow {
+  after: string; // inclusive lower (earlier) bound
+  before: string; // inclusive upper (later) bound
 }
 
 interface AdapterSignal {
@@ -312,6 +313,14 @@ interface AdapterSignal {
 ```
 
 All adapters are **constructor-injected** with their underlying dependency (a Pulumi preview function, an AWS SDK call, a `simple-git` instance, an npm fetcher). This means production wires the real dependency and tests pass stubs — no environment swap, no `vi.mock`, no spy proliferation.
+
+The evidence-window polarity is uniform: `after <= event time <= before`. When
+the classifier receives no explicit window, it captures one clock reading and
+uses `after = now - 24h` and `before = now`. Invalid timestamps or reversed
+bounds fail before adapter or probe work. Direct adapters return their
+established degraded signal instead of querying an evidence source with an
+invalid interval. This contract is enforced by
+[`evidence-window-contract.test.ts`](../../packages/drift/tests/evidence-window-contract.test.ts).
 
 ### 4.1 AutomationApiAdapter — does anything diverge?
 
@@ -675,18 +684,19 @@ We try to be honest about what the classifier doesn't do.
 
 ### Test suite (the "executable contract")
 
-| Property                                | Test                                                                                        |
-| --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Verdict matrix walk + Row 4 brute-force | [verdict-matrix.feature.test.ts](../../packages/drift/tests/verdict-matrix.feature.test.ts) |
-| TLA+ alignment meta-test                | [tla-alignment.test.ts](../../packages/drift/tests/tla-alignment.test.ts)                   |
-| Monotonicity                            | [monotonicity.test.ts](../../packages/drift/tests/monotonicity.test.ts)                     |
-| S2 — cache mode + UID check             | [cache-permissions.test.ts](../../packages/drift/tests/cache-permissions.test.ts)           |
-| S3 — URN sanitization                   | [shell-injection.test.ts](../../packages/drift/tests/shell-injection.test.ts)               |
-| S7 — TTL rate limit                     | [rate-limit.test.ts](../../packages/drift/tests/rate-limit.test.ts)                         |
-| E1 — probe timeout                      | [probe-timeout.test.ts](../../packages/drift/tests/probe-timeout.test.ts)                   |
-| E4 — namespace rejection                | [namespace-rejection.test.ts](../../packages/drift/tests/namespace-rejection.test.ts)       |
-| E5 — shallow clone guard                | [shallow-clone.test.ts](../../packages/drift/tests/shallow-clone.test.ts)                   |
-| Forbidden-shortcut lint                 | [no-shell-exec.test.ts](../../packages/drift/tests/no-shell-exec.test.ts)                   |
+| Property                                | Test                                                                                            |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Verdict matrix walk + Row 4 brute-force | [verdict-matrix.feature.test.ts](../../packages/drift/tests/verdict-matrix.feature.test.ts)     |
+| TLA+ alignment meta-test                | [tla-alignment.test.ts](../../packages/drift/tests/tla-alignment.test.ts)                       |
+| Monotonicity                            | [monotonicity.test.ts](../../packages/drift/tests/monotonicity.test.ts)                         |
+| S2 — cache mode + UID check             | [cache-permissions.test.ts](../../packages/drift/tests/cache-permissions.test.ts)               |
+| S3 — URN sanitization                   | [shell-injection.test.ts](../../packages/drift/tests/shell-injection.test.ts)                   |
+| S7 — TTL rate limit                     | [rate-limit.test.ts](../../packages/drift/tests/rate-limit.test.ts)                             |
+| E1 — probe timeout                      | [probe-timeout.test.ts](../../packages/drift/tests/probe-timeout.test.ts)                       |
+| E4 — namespace rejection                | [namespace-rejection.test.ts](../../packages/drift/tests/namespace-rejection.test.ts)           |
+| E5 — shallow clone guard                | [shallow-clone.test.ts](../../packages/drift/tests/shallow-clone.test.ts)                       |
+| Evidence-window ordering + validation   | [evidence-window-contract.test.ts](../../packages/drift/tests/evidence-window-contract.test.ts) |
+| Forbidden-shortcut lint                 | [no-shell-exec.test.ts](../../packages/drift/tests/no-shell-exec.test.ts)                       |
 
 ### Talks
 

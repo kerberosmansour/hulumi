@@ -9,7 +9,8 @@
 // shouldFilterPrincipal() and exercised by
 // tests/namespace-rejection.test.ts.
 
-import type { AdapterSignal, DriftAdapter } from "../types";
+import { resolveEvidenceWindow } from "../evidence-window";
+import type { AdapterSignal, DriftAdapter, EvidenceWindow } from "../types";
 
 export interface CloudTrailEvent {
   EventTime: Date;
@@ -64,18 +65,18 @@ export class CloudTrailAdapter implements DriftAdapter {
     return true;
   }
 
-  async signal(
-    _stack: string,
-    resource: string,
-    window?: { before: string; after: string },
-  ): Promise<AdapterSignal> {
-    const before = window?.before ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const after = window?.after ?? new Date().toISOString();
+  async signal(_stack: string, resource: string, window?: EvidenceWindow): Promise<AdapterSignal> {
+    let resolvedWindow: EvidenceWindow;
+    try {
+      resolvedWindow = resolveEvidenceWindow(window);
+    } catch (err) {
+      return invalidWindowSignal(err);
+    }
     let lookup: LookupWithRetryResult;
     try {
       lookup = await lookupWithRetry(
         this.args.lookup,
-        { resourceArn: resource, before, after },
+        { resourceArn: resource, ...resolvedWindow },
         this.args.retry,
       );
     } catch (err) {
@@ -107,6 +108,17 @@ export class CloudTrailAdapter implements DriftAdapter {
       },
     };
   }
+}
+
+function invalidWindowSignal(err: unknown): AdapterSignal {
+  return {
+    detected: false,
+    ok: false,
+    data: {
+      error: safeErrorMessage(err),
+      rejected: "invalid evidence window — refused before CloudTrail lookup",
+    },
+  };
 }
 
 interface LookupWithRetryResult {

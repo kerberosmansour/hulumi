@@ -106,6 +106,11 @@ new RunnerGovernanceFoundation("runners", {
 });
 ```
 
+The deployment role requires the repository OIDC subject template
+`["repo", "context", "job_workflow_ref"]`. It embeds the exact reusable
+workflow in the AWS-supported `sub` condition instead of emitting an unsupported
+standalone `job_workflow_ref` condition key.
+
 `BrokeredAuroraPostgresBoundary` supplies the value-free AWS and Kubernetes
 infrastructure half of a broker-mediated Aurora PostgreSQL design: four exact
 workload identities, closed network paths, two `SecureSecret` containers,

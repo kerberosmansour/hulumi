@@ -11,12 +11,12 @@ These primitives are for cases where `AccountFoundation`, `SecureBucket`, or pla
 
 ## Defaults
 
-| Primitive                 | Guardrail                                                                                                                                                                   |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SecureIamDeploymentRole` | Exact GitHub OIDC `StringEquals` trust, no wildcard subject axes, optional policy attachments, bounded inline policies, required permission boundary at `startup-hardened`. |
-| `SecureWorkloadRole`      | Explicit AWS service principals only, no wildcard principal, bounded inline policies, required permission boundary at `startup-hardened`.                                   |
-| `SecureSecret`            | KMS key required, no secret value/version creation, optional resource policy rejected if broad, rotation posture surfaced as an output.                                     |
-| `SecureLaunchTemplate`    | IMDSv2 required by default and enforced if callers pass metadata options.                                                                                                   |
+| Primitive                 | Guardrail                                                                                                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SecureIamDeploymentRole` | Exact GitHub OIDC `StringEquals` custom-sub trust binding repository, environment/ref, and reusable workflow; optional policy attachments; bounded inline policies; required permission boundary at `startup-hardened`. |
+| `SecureWorkloadRole`      | Explicit AWS service principals only, no wildcard principal, bounded inline policies, required permission boundary at `startup-hardened`.                                                                               |
+| `SecureSecret`            | KMS key required, no secret value/version creation, optional resource policy rejected if broad, rotation posture surfaced as an output.                                                                                 |
+| `SecureLaunchTemplate`    | IMDSv2 required by default and enforced if callers pass metadata options.                                                                                                                                               |
 
 ## Example
 
@@ -33,6 +33,7 @@ export const deployRole = new SecureIamDeploymentRole("deploy", {
   oidcProviderArn: "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
   audience: "sts.amazonaws.com",
   subjectMode: { kind: "ref", ref: "refs/heads/main" },
+  reusableWorkflowRef: "acme/platform/.github/workflows/deploy.yml@refs/heads/main",
   permissionBoundaryArn: boundary,
 });
 
@@ -50,6 +51,12 @@ export const launchTemplate = new SecureLaunchTemplate("app-lt", {
   instanceType: "t3.micro",
 });
 ```
+
+Configure the repository OIDC subject template with
+`include_claim_keys: ["repo", "context", "job_workflow_ref"]`. AWS evaluates
+the workflow binding inside `sub`; `token.actions.githubusercontent.com:job_workflow_ref`
+is not emitted as a separate condition key. `reusableWorkflowRef` is required
+at runtime for both environment and ref modes.
 
 ## Policy Backstops
 

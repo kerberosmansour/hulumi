@@ -28,6 +28,8 @@ export const MAX_SECURE_IAM_INLINE_POLICIES = 5;
 export const MAX_SECURE_WORKLOAD_SERVICE_PRINCIPALS = 8;
 
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
+const GITHUB_REUSABLE_WORKFLOW_REF_PATTERN =
+  /^[^/:\s]+\/[^/:\s]+\/\.github\/workflows\/[^@:\s]+@refs\/(?:heads|tags)\/[^@:*?\s]+$/u;
 
 function assertNonEmpty(value: string, label: string): void {
   if (value.trim().length === 0) {
@@ -70,10 +72,12 @@ function policyToJson(
     .apply((value) => (typeof value === "string" ? value : JSON.stringify(value)));
 }
 
-function subjectClaim(args: SecureIamDeploymentRoleArgs): string {
-  return args.subjectMode.kind === "environment"
-    ? `repo:${args.owner}/${args.repository}:environment:${args.subjectMode.environment}`
-    : `repo:${args.owner}/${args.repository}:ref:${args.subjectMode.ref}`;
+function subjectClaim(args: SecureIamDeploymentRoleArgs, workflowRef: string): string {
+  const context =
+    args.subjectMode.kind === "environment"
+      ? `environment:${args.subjectMode.environment}`
+      : `ref:${args.subjectMode.ref}`;
+  return `repo:${args.owner}/${args.repository}:${context}:job_workflow_ref:${workflowRef}`;
 }
 
 function validateSubjectMode(subject: SecureIamOidcSubjectMode): void {
@@ -90,28 +94,24 @@ function validateSubjectMode(subject: SecureIamOidcSubjectMode): void {
   }
 }
 
-function validateReusableWorkflowRef(ref: string | undefined, requireRef: boolean): void {
+function validateReusableWorkflowRef(ref: string | undefined): string {
   if (ref === undefined) {
-    if (requireRef) throw new Error("reusableWorkflowRef is required for environment subjects");
-    return;
+    throw new Error("reusableWorkflowRef is required for every GitHub OIDC deployment subject");
   }
   rejectWildcard(ref, "reusableWorkflowRef");
-  if (!ref.includes("/.github/workflows/")) {
-    throw new Error("reusableWorkflowRef must name a workflow file");
+  if (!GITHUB_REUSABLE_WORKFLOW_REF_PATTERN.test(ref)) {
+    throw new Error(
+      "reusableWorkflowRef must name one OWNER/REPOSITORY/.github/workflows/FILE at an exact branch or tag refs/* ref",
+    );
   }
-  if (!ref.includes("@refs/")) {
-    throw new Error("reusableWorkflowRef must use an exact refs/* ref");
-  }
+  return ref;
 }
 
-function deploymentTrustPolicy(args: SecureIamDeploymentRoleArgs): string {
+function deploymentTrustPolicy(args: SecureIamDeploymentRoleArgs, workflowRef: string): string {
   const stringEquals: Record<string, string> = {
     [`${GITHUB_OIDC_ISSUER}:aud`]: args.audience,
-    [`${GITHUB_OIDC_ISSUER}:sub`]: subjectClaim(args),
+    [`${GITHUB_OIDC_ISSUER}:sub`]: subjectClaim(args, workflowRef),
   };
-  if (args.reusableWorkflowRef !== undefined) {
-    stringEquals[`${GITHUB_OIDC_ISSUER}:job_workflow_ref`] = args.reusableWorkflowRef;
-  }
   return JSON.stringify({
     Version: "2012-10-17",
     Statement: [
@@ -125,14 +125,15 @@ function deploymentTrustPolicy(args: SecureIamDeploymentRoleArgs): string {
   });
 }
 
-function validateDeploymentArgs(args: SecureIamDeploymentRoleArgs): void {
+function validateDeploymentArgs(args: SecureIamDeploymentRoleArgs): string {
   validateTierAndBoundary("SecureIamDeploymentRole", args.tier, args.permissionBoundaryArn);
   rejectWildcard(args.owner, "owner");
   rejectWildcard(args.repository, "repository");
   rejectWildcard(args.audience, "audience");
   validateSubjectMode(args.subjectMode);
-  validateReusableWorkflowRef(args.reusableWorkflowRef, args.subjectMode.kind === "environment");
+  const workflowRef = validateReusableWorkflowRef(args.reusableWorkflowRef);
   validateInlinePolicies(args.inlinePolicies);
+  return workflowRef;
 }
 
 function commonRoleArgs(
@@ -202,14 +203,14 @@ export class SecureIamDeploymentRole
     args: SecureIamDeploymentRoleArgs,
     opts?: pulumi.ComponentResourceOptions,
   ) {
-    validateDeploymentArgs(args);
+    const workflowRef = validateDeploymentArgs(args);
     super(SECURE_IAM_DEPLOYMENT_ROLE_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
 
     const role = new aws.iam.Role(
       `${name}-role`,
       commonRoleArgs(
         args.roleName,
-        deploymentTrustPolicy(args),
+        deploymentTrustPolicy(args, workflowRef),
         args.tier,
         "SecureIamDeploymentRole",
         true,
@@ -231,11 +232,9 @@ export class SecureIamDeploymentRole
     this.roleName = role.name;
     const summary: Record<string, string> = {
       repository: `${args.owner}/${args.repository}`,
-      subject: subjectClaim(args),
+      subject: subjectClaim(args, workflowRef),
       audience: args.audience,
-      ...(args.reusableWorkflowRef !== undefined
-        ? { reusableWorkflowRef: args.reusableWorkflowRef }
-        : {}),
+      reusableWorkflowRef: workflowRef,
     };
     this.trustPolicySummary = pulumi.output(summary);
 

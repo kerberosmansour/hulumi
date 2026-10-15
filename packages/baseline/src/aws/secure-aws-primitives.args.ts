@@ -28,6 +28,7 @@ export interface SecureIamDeploymentRoleArgs extends SecureIamRoleBaseArgs {
   readonly oidcProviderArn: pulumi.Input<string>;
   readonly audience: string;
   readonly subjectMode: SecureIamOidcSubjectMode;
+  /** Required at runtime for every subject mode and embedded in the customized `sub`. */
   readonly reusableWorkflowRef?: string;
 }
 

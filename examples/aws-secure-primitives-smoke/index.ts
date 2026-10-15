@@ -12,6 +12,7 @@ export const deployRole = new SecureIamDeploymentRole("primitive-deploy", {
   oidcProviderArn: "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
   audience: "sts.amazonaws.com",
   subjectMode: { kind: "ref", ref: "refs/heads/main" },
+  reusableWorkflowRef: "kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
   permissionBoundaryArn,
 });
 

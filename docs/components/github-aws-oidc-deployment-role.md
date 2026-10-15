@@ -4,7 +4,8 @@
 
 ## Behavior
 
-- Trust policy binds exact repository, environment, reusable workflow ref, and audience.
+- Trust policy binds exact repository, one environment/ref context, reusable workflow, and audience in one scalar customized `sub`.
+- AWS conditions contain only supported `aud` and `sub` keys. The workflow ref is embedded in `sub`.
 - Wildcards are rejected before provider registration.
 - Policy attachments use `RolePolicyAttachment`; no long-lived AWS access-key examples are emitted.
 - The usage block uses `id-token: write` and a placeholder for a full-length pinned action SHA.
@@ -24,5 +25,27 @@ new GitHubAwsOidcDeploymentRole("deploy", {
   policyArns: ["arn:aws:iam::aws:policy/ReadOnlyAccess"],
 });
 ```
+
+## Required GitHub OIDC template
+
+Apply this repository subject template before a workflow uses the role:
+
+```json
+{
+  "use_default": false,
+  "include_claim_keys": ["repo", "context", "job_workflow_ref"]
+}
+```
+
+The component emits the matching subject in that order. Environment mode emits
+`repo:OWNER/REPOSITORY:environment:ENVIRONMENT:job_workflow_ref:WORKFLOW@REF`;
+ref mode replaces the environment pair with `ref:refs/...`.
+
+GitHub recommends creating the matching cloud trust before changing the token
+template. For an existing role, plan a fail-closed interval or create a
+separately named parallel role, apply the repository template, validate the new
+path, then retire the old role. Do not add the old and new subjects as array
+alternatives. Organization templates also require the repository to opt in with
+`use_default: false`.
 
 Attach least-privilege application policies in real stacks. The example policy ARN is only a shape placeholder.

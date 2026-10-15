@@ -7,28 +7,36 @@ identity credentials, and GCP Workload Identity Federation providers.
 
 ## AWS Condition Operators
 
-For AWS IAM role trust policies, the rule checks the
-`token.actions.githubusercontent.com:sub` condition under exact, set-qualified,
-and `IfExists` string operators:
+For AWS IAM role trust policies, the rule requires exactly one scalar
+`StringEquals` restriction for `token.actions.githubusercontent.com:sub`.
+`StringLike`, set-qualified operators, `IfExists`, arrays, and duplicate
+restrictions fail closed. AWS documents `sub` as a single-valued OIDC condition
+key, `IfExists` can succeed when the claim is absent, and multiple policy values
+are alternatives rather than cumulative restrictions.
 
-- `StringLike`, `ForAnyValue:StringLike`, `ForAllValues:StringLike`, and
-  `StringLikeIfExists` are rejected whenever they target the GitHub `sub`
-  claim.
-- `StringEquals`, `ForAnyValue:StringEquals`, `ForAllValues:StringEquals`, and
-  `StringEqualsIfExists` are accepted only when every `sub` value is
-  non-empty and contains no wildcard.
-
-Each GitHub-federated statement must contain exactly one supported equality
-restriction for `sub`. Missing conditions or claims, multiple attempted
-restrictions, unsupported operators, non-string values, malformed JSON, and
-invalid singleton/array statement structures fail closed. Singleton and array
-`Statement` forms receive the same checks. This keeps omission, type confusion,
-and decoy operators from bypassing the mandatory hardening pack.
+The literal subject must contain unique key/value pairs for `repo`,
+`job_workflow_ref`, and exactly one execution context: `environment` or `ref`.
+The repository must be one exact `OWNER/REPOSITORY`, the workflow must name one
+`.github/workflows/*` file at an exact branch or tag ref, and a `ref` context
+must be one exact `refs/*` value. Missing, duplicate, malformed, empty,
+wildcard, pull-request, array-valued, and overlong subjects fail closed.
 
 ## Expected Shape
 
-Use exact equality for the repository, workflow, and environment axes. The
-matching positive component is
+AWS does not expose `job_workflow_ref` as an independent GitHub OIDC condition
+key. Configure GitHub's customized `sub` template as follows so AWS can enforce
+the workflow identity:
+
+```json
+{
+  "include_claim_keys": ["repo", "context", "job_workflow_ref"]
+}
+```
+
+This yields
+`repo:OWNER/REPOSITORY:environment:ENVIRONMENT:job_workflow_ref:WORKFLOW@REF`
+or `repo:OWNER/REPOSITORY:ref:REF:job_workflow_ref:WORKFLOW@REF`. The matching
+positive component is
 [`GitHubAwsOidcDeploymentRole`](./github-aws-oidc-deployment-role.md), which
 renders the narrow AWS trust policy and usage block for GitHub Actions.
 
@@ -61,3 +69,5 @@ authority in the same Pulumi stack.
 - [Microsoft Entra workload identity trust for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-app-reg-github-actions)
 - [Google Cloud workload identity federation for deployment pipelines](https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)
 - [GitHub OpenID Connect reference](https://docs.github.com/en/actions/reference/security/oidc)
+- [AWS OIDC federation condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_iam-condition-keys.html#condition-keys-wif)
+- [AWS condition operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html)

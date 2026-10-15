@@ -10,6 +10,8 @@ import { assertValidTier } from "./tier";
 
 export const GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_COMPONENT_TYPE =
   "hulumi:platform:GitHubAwsOidcDeploymentRole";
+const GITHUB_REUSABLE_WORKFLOW_REF_PATTERN =
+  /^[^/:\s]+\/[^/:\s]+\/\.github\/workflows\/[^@:\s]+@refs\/(?:heads|tags)\/[^@:*?\s]+$/u;
 
 function rejectWildcard(value: string, label: string): void {
   if (value.trim().length === 0) {
@@ -32,22 +34,25 @@ function resolveSubjectMode(args: GitHubAwsOidcDeploymentRoleArgs): GitHubAwsOid
   );
 }
 
-function validateReusableWorkflowRef(ref: string): void {
-  rejectWildcard(ref, "reusableWorkflowRef");
-  if (!ref.includes("/.github/workflows/")) {
-    throw new Error("GitHubAwsOidcDeploymentRole: reusableWorkflowRef must name a workflow file");
-  }
-  if (!ref.includes("@refs/")) {
+function validateReusableWorkflowRef(ref: string | undefined): string {
+  if (ref === undefined) {
     throw new Error(
-      "GitHubAwsOidcDeploymentRole: reusableWorkflowRef must use an exact refs/* ref",
+      "GitHubAwsOidcDeploymentRole: reusableWorkflowRef is required for every subject mode",
     );
   }
+  rejectWildcard(ref, "reusableWorkflowRef");
+  if (!GITHUB_REUSABLE_WORKFLOW_REF_PATTERN.test(ref)) {
+    throw new Error(
+      "GitHubAwsOidcDeploymentRole: reusableWorkflowRef must name one OWNER/REPOSITORY/.github/workflows/FILE at an exact branch or tag refs/* ref",
+    );
+  }
+  return ref;
 }
 
 function validateArgs(
   args: GitHubAwsOidcDeploymentRoleArgs,
   subject: GitHubAwsOidcSubjectMode,
-): void {
+): string {
   rejectWildcard(args.owner, "owner");
   rejectWildcard(args.repository, "repository");
   rejectWildcard(args.audience, "audience");
@@ -56,12 +61,6 @@ function validateArgs(
   }
   if (subject.kind === "environment") {
     rejectWildcard(subject.environment, "environment");
-    if (args.reusableWorkflowRef === undefined) {
-      throw new Error(
-        "GitHubAwsOidcDeploymentRole: reusableWorkflowRef is required in environment mode",
-      );
-    }
-    validateReusableWorkflowRef(args.reusableWorkflowRef);
   } else {
     rejectWildcard(subject.ref, "ref");
     if (subject.ref === "pull_request" || subject.ref === "pull_request_target") {
@@ -74,32 +73,29 @@ function validateArgs(
         "GitHubAwsOidcDeploymentRole: ref must be an exact refs/* ref (e.g. refs/heads/main or refs/tags/v1.2.3)",
       );
     }
-    if (args.reusableWorkflowRef !== undefined) {
-      validateReusableWorkflowRef(args.reusableWorkflowRef);
-    }
   }
+  return validateReusableWorkflowRef(args.reusableWorkflowRef);
 }
 
 function subjectClaim(
   args: GitHubAwsOidcDeploymentRoleArgs,
   subject: GitHubAwsOidcSubjectMode,
+  workflowRef: string,
 ): string {
-  return subject.kind === "environment"
-    ? `repo:${args.owner}/${args.repository}:environment:${subject.environment}`
-    : `repo:${args.owner}/${args.repository}:ref:${subject.ref}`;
+  const context =
+    subject.kind === "environment" ? `environment:${subject.environment}` : `ref:${subject.ref}`;
+  return `repo:${args.owner}/${args.repository}:${context}:job_workflow_ref:${workflowRef}`;
 }
 
 function trustPolicy(
   args: GitHubAwsOidcDeploymentRoleArgs,
   subject: GitHubAwsOidcSubjectMode,
+  workflowRef: string,
 ): string {
   const stringEquals: Record<string, string> = {
     "token.actions.githubusercontent.com:aud": args.audience,
-    "token.actions.githubusercontent.com:sub": subjectClaim(args, subject),
+    "token.actions.githubusercontent.com:sub": subjectClaim(args, subject, workflowRef),
   };
-  if (args.reusableWorkflowRef !== undefined) {
-    stringEquals["token.actions.githubusercontent.com:job_workflow_ref"] = args.reusableWorkflowRef;
-  }
   return JSON.stringify({
     Version: "2012-10-17",
     Statement: [
@@ -130,7 +126,7 @@ export class GitHubAwsOidcDeploymentRole
     super(GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_COMPONENT_TYPE, name, args as pulumi.Inputs, opts);
     assertValidTier(args.tier);
     const subject = resolveSubjectMode(args);
-    validateArgs(args, subject);
+    const workflowRef = validateArgs(args, subject);
 
     const subjectTag =
       subject.kind === "environment"
@@ -138,7 +134,7 @@ export class GitHubAwsOidcDeploymentRole
         : { "hulumi:github-ref": subject.ref };
     const roleArgs: aws.iam.RoleArgs = {
       name: args.roleName,
-      assumeRolePolicy: trustPolicy(args, subject),
+      assumeRolePolicy: trustPolicy(args, subject, workflowRef),
       ...(args.path !== undefined ? { path: args.path } : {}),
       tags: {
         "hulumi:component": "GitHubAwsOidcDeploymentRole",
@@ -162,14 +158,12 @@ export class GitHubAwsOidcDeploymentRole
 
     const summary: Record<string, string> = {
       repository: `${args.owner}/${args.repository}`,
-      subject: subjectClaim(args, subject),
+      subject: subjectClaim(args, subject, workflowRef),
       audience: args.audience,
       ...(subject.kind === "environment"
         ? { environment: subject.environment }
         : { ref: subject.ref }),
-      ...(args.reusableWorkflowRef !== undefined
-        ? { reusableWorkflowRef: args.reusableWorkflowRef }
-        : {}),
+      reusableWorkflowRef: workflowRef,
     };
 
     this.roleArn = role.arn;

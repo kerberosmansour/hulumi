@@ -28,6 +28,16 @@ chains, equal strings, and general `dependsOn` relationships do not establish
 control ownership. This prevents one component instance's controls from satisfying
 another bucket's H1 exemption.
 
+HULUMI-H5 also verifies the complete TLS policy statement. The accepted evidence
+has `Effect: "Deny"`, `Principal: "*"`, `Action: "s3:*"` (or the equivalent
+single-element array), both the exact bucket and object ARNs in `Resource`, and
+exactly one `Bool` condition setting `aws:SecureTransport` to `"false"` or
+`false`. Complement fields (`NotPrincipal`, `NotAction`, `NotResource`), specific
+principals or actions, unknown statement fields, and additional condition keys
+are rejected because they can narrow an apparent deny. H5 reports the existing
+bounded remediation message and does not include the policy document in the
+diagnostic.
+
 ### Startup-Hardened tier
 
 ```ts

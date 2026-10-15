@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Require SecureBucket HULUMI-H5 TLS evidence to be the complete public
+  all-S3 deny bound to the exact bucket and object ARNs. Reject complement
+  operators, specific principals or actions, extra conditions, and unknown
+  statement fields that can narrow an otherwise plausible deny.
+
 - Fail legacy SCA triage for known malicious packages without a fixed release,
   requiring removal/investigation instead of a dropped finding. Legacy optional
   configuration cannot demote fixable malicious findings from urgent handling.

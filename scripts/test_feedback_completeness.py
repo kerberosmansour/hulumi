@@ -67,10 +67,10 @@ class CompletenessTests(unittest.TestCase):
         self.assertEqual(summary, "")
 
     def test_canary_never_echoed(self):
-        secret = "SUNLIT_TEST_SECRET_never_send"
-        result, summary = self.run_check(complete() + "\n" + secret)
+        canary = "SUNLIT_TEST_SECRET_never_send"
+        result, summary = self.run_check(complete() + "\n" + canary)
         self.assertNotEqual(result.returncode, 0)
-        self.assertNotIn(secret, result.stdout + result.stderr + summary)
+        self.assertNotIn(canary, result.stdout + result.stderr + summary)
         self.assertIn("private", summary)
 
     def test_commands_and_actions_expressions_are_inert(self):

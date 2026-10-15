@@ -23,3 +23,6 @@ export type * from "./brokered-aurora-postgres-boundary.outputs";
 export * from "./workload-capability-issuer-boundary";
 export type * from "./workload-capability-issuer-boundary.args";
 export type * from "./workload-capability-issuer-boundary.outputs";
+export * from "./codebuild-github-runner";
+export type * from "./codebuild-github-runner.args";
+export type * from "./codebuild-github-runner.outputs";

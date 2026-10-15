@@ -59,6 +59,10 @@
     "./platform/packs/brokered-postgres-boundary": {
       "types": "./dist/platform/packs/brokered-postgres-boundary.d.ts",
       "default": "./dist/platform/packs/brokered-postgres-boundary.js"
+    },
+    "./platform/packs/codebuild-runner": {
+      "types": "./dist/platform/packs/codebuild-runner.d.ts",
+      "default": "./dist/platform/packs/codebuild-runner.js"
     }
   },
   "files": [

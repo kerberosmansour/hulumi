@@ -274,3 +274,8 @@ workflow also uses this gate. Scanner failures and partial scans fail closed.
 Known malicious-package reports cannot be waived. OSV reports known advisories;
 provenance, integrity and install-script review remain required to address unknown
 malware. [Agent rules](./AGENTS.md) apply to Codex and Claude.
+
+### Unreleased CodeBuild runner
+
+Source adds the Guardian-derived CodeBuild GitHub runner and dedicated CrossGuard
+pack. See [construction, authority and qualification limits](docs/components/codebuild-github-runner.md). No new dependencies or cloud deployment; not part of published3.0.0.

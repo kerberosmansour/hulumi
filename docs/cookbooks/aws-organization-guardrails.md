@@ -54,7 +54,7 @@ pulumi up
 
 ## Verify
 
-- Delegated admin resources exist for GuardDuty, Security Hub, AWS Config, and IAM Access Analyzer.
+- Delegated admin resources exist for GuardDuty, Security Hub, AWS Config, and IAM Access Analyzer, and every resource's `accountId` exactly matches the foundation `securityAccountId`.
 - Security Hub central configuration exists in the home region.
 - AWS Config has an organization aggregator.
 - Account-level S3 Public Access Block has all four switches enabled.
@@ -63,6 +63,8 @@ pulumi up
 ## Troubleshooting
 
 **Startup-Hardened constructor rejects the stack.** Check for an empty account ID, a missing `scpTargetIds` entry, or the same ARN being used for both bootstrap and steady-state roles.
+
+**ORG-1 reports a service that exists.** Inspect the matching `aws.organizations.DelegatedAdministrator`. A service principal delegated to another account does not satisfy the foundation; its `accountId` must exactly match the literal 12-digit `securityAccountId`.
 
 **Security Hub central configuration fails.** Confirm the delegated admin account is a member account, not the management account, and that the Security Hub delegated administrator step has completed.
 

@@ -224,7 +224,8 @@ The longer version of "why these principles, not others" is in [docs/why-hulumi.
 - `tests/` — repo-wide BDD + license-boundary lint enforcement.
 - `docs/` — code-level documentation (`ARCHITECTURE.md`, `getting-started.md`, `cookbooks/`, `components/`, `mappings/`, `tiers.md`, etc.).
 - `docs/slo/` — development-only runbooks and milestone artifacts produced by the [SunLitOrchestrate](https://github.com/kerberosmansour/SunLitOrchestrate) `/slo-*` skill pack. New SLO planning files are intentionally gitignored so they do not become published user artifacts.
-- `scripts/` — `license-boundary-lint.mjs`, `exact-pin-guard.mjs`, `cooling-off-diff.mjs`.
+- `scripts/` — license-boundary, strict workflow-YAML, protected-dependency
+  inventory/exact-pin, OSV admission, and Pulumi cooling-off guards.
 - `.github/workflows/` — CI, release, weekly-integration, and Pulumi cooling-off pipelines.
 
 ## Getting involved

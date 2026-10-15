@@ -2,7 +2,9 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { isPlainRecord, parseStrictYaml } from "./protected-dependencies.mjs";
 
 export const WF_SHA_1_RULE_ID = "WF_SHA_1_FULL_LENGTH_SHA_PIN";
 export const WF_PERM_1_RULE_ID = "WF_PERM_1_MINIMUM_GITHUB_TOKEN_PERMISSIONS";
@@ -12,10 +14,9 @@ export const WF_ENV_2_RULE_ID = "WF_ENV_2_LIVE_ENVIRONMENT_EXISTS";
 export const WF_ENV_3_RULE_ID = "WF_ENV_3_LIVE_ENVIRONMENT_REQUIRES_REVIEWERS";
 export const WF_PR_1_RULE_ID = "WF_PR_1_NO_UNTRUSTED_HEAD_CHECKOUT";
 export const WF_RUNNER_1_RULE_ID = "WF_RUNNER_1_SELF_HOSTED_REQUIRES_APPROVAL";
+export const WF_YAML_1_RULE_ID = "WF_YAML_1_STRICT_STRUCTURAL_PARSE";
 
 const SHA_REF = /^[0-9a-f]{40}$/i;
-const USES_LINE = /^\s*-?\s*uses:\s*["']?([^"'\s#]+)["']?/;
-const CHECKOUT_USES = /^\s*-?\s*uses:\s*["']?actions\/checkout@/i;
 const UNTRUSTED_HEAD_REF =
   /github\.(?:event\.pull_request\.head\.(?:sha|ref|repo\.full_name)|head_ref|event\.workflow_run\.head_sha|event\.workflow_run\.head_branch)/;
 
@@ -27,21 +28,16 @@ function parseArgs(argv) {
   };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--repo-root") {
-      const next = argv[i + 1];
-      if (!next) throw new Error("--repo-root requires a path");
-      options.repoRoot = resolve(next);
+      const value = argv[i + 1];
+      if (!value) throw new Error("--repo-root requires a path");
+      options.repoRoot = resolve(value);
       i += 1;
     } else if (argv[i] === "--check-settings") {
-      // Opt-in WF_ENV_1 settings-state check (ticket-183). Calls
-      // `gh api /repos/{owner}/{repo}/environments/<name>` for every
-      // privileged-job env declared in YAML and flags environments that
-      // are missing from repo settings OR have zero protection rules.
-      // Default off — local lint runs remain offline; CI opts in.
       options.checkSettings = true;
     } else if (argv[i] === "--allow-self-hosted-runner-label") {
-      const next = argv[i + 1];
-      if (!next) throw new Error("--allow-self-hosted-runner-label requires a label");
-      options.approvedSelfHostedRunnerLabels.push(next);
+      const value = argv[i + 1];
+      if (!value) throw new Error("--allow-self-hosted-runner-label requires a label");
+      options.approvedSelfHostedRunnerLabels.push(value);
       i += 1;
     } else {
       throw new Error(`unknown argument: ${argv[i]}`);
@@ -97,394 +93,258 @@ function makeDiagnostic(ruleId, file, line, message) {
   return { ruleId, file, line, message };
 }
 
+function workflowDiagnostic(file, message) {
+  return makeDiagnostic(WF_YAML_1_RULE_ID, file, 1, message);
+}
+
+function parseWorkflowFile(repoRoot, file) {
+  try {
+    const workflow = parseStrictYaml(readFileSync(join(repoRoot, file), "utf8"), file);
+    if (!isPlainRecord(workflow)) {
+      throw new Error("workflow root must be a mapping");
+    }
+    if (workflow.jobs !== undefined && !isPlainRecord(workflow.jobs)) {
+      throw new Error("workflow jobs must be a mapping");
+    }
+    if (
+      workflow.permissions !== undefined &&
+      typeof workflow.permissions !== "string" &&
+      !isPlainRecord(workflow.permissions)
+    ) {
+      throw new Error("workflow permissions must be a string or mapping");
+    }
+    for (const [jobId, job] of Object.entries(workflow.jobs ?? {})) {
+      if (!isPlainRecord(job)) throw new Error(`workflow job '${jobId}' must be a mapping`);
+      if (job.steps !== undefined && !Array.isArray(job.steps)) {
+        throw new Error(`workflow job '${jobId}' steps must be a sequence`);
+      }
+      if (Array.isArray(job.steps) && job.steps.some((step) => !isPlainRecord(step))) {
+        throw new Error(`workflow job '${jobId}' steps must contain mappings`);
+      }
+    }
+    return { workflow, diagnostics: [] };
+  } catch (error) {
+    return {
+      workflow: undefined,
+      diagnostics: [
+        workflowDiagnostic(file, error instanceof Error ? error.message : String(error)),
+      ],
+    };
+  }
+}
+
+function jobsOf(workflow) {
+  if (!isPlainRecord(workflow.jobs)) return [];
+  return Object.entries(workflow.jobs).filter((entry) => isPlainRecord(entry[1]));
+}
+
+function stepsOf(job) {
+  return Array.isArray(job.steps) ? job.steps.filter(isPlainRecord) : [];
+}
+
 function isLocalUsesRef(ref) {
   return ref.startsWith("./") || ref.startsWith("../");
 }
 
-function lintUsesLine(file, lineNumber, line) {
-  const match = line.match(USES_LINE);
-  if (!match) return undefined;
-  const ref = match[1];
-  if (!ref || isLocalUsesRef(ref)) return undefined;
-  const at = ref.lastIndexOf("@");
-  const version = at === -1 ? "" : ref.slice(at + 1);
-  if (SHA_REF.test(version)) return undefined;
-  return makeDiagnostic(
-    WF_SHA_1_RULE_ID,
-    file,
-    lineNumber,
-    `third-party or reusable workflow reference must use a 40-character commit SHA: ${ref}`,
-  );
-}
-
-function topLevelPermissionsBlocks(lines) {
-  const blocks = [];
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    if (lines[idx].trim() !== "permissions:" || /^\s/.test(lines[idx])) continue;
-    const block = { startLine: idx + 1, lines: [] };
-    for (let j = idx + 1; j < lines.length; j += 1) {
-      if (lines[j].trim() === "") {
-        block.lines.push({ lineNumber: j + 1, text: lines[j] });
-        continue;
-      }
-      if (!/^\s/.test(lines[j])) break;
-      block.lines.push({ lineNumber: j + 1, text: lines[j] });
-    }
-    blocks.push(block);
-  }
-  return blocks;
-}
-
-function lintWorkflowPermissions(file, lines) {
+function lintUses(file, workflow) {
   const diagnostics = [];
-  const blocks = topLevelPermissionsBlocks(lines);
-  if (blocks.length === 0) {
+  const references = [];
+  for (const [, job] of jobsOf(workflow)) {
+    if (Object.hasOwn(job, "uses")) references.push(job.uses);
+    for (const step of stepsOf(job)) {
+      if (Object.hasOwn(step, "uses")) references.push(step.uses);
+    }
+  }
+  for (const ref of references) {
+    if (typeof ref !== "string") {
+      diagnostics.push(workflowDiagnostic(file, "uses references must be strings"));
+      continue;
+    }
+    if (isLocalUsesRef(ref)) continue;
+    const at = ref.lastIndexOf("@");
+    const version = at === -1 ? "" : ref.slice(at + 1);
+    if (SHA_REF.test(version)) continue;
     diagnostics.push(
+      makeDiagnostic(
+        WF_SHA_1_RULE_ID,
+        file,
+        1,
+        `third-party or reusable workflow reference must use a 40-character commit SHA: ${ref}`,
+      ),
+    );
+  }
+  return diagnostics;
+}
+
+function lintWorkflowPermissions(file, workflow) {
+  if (!Object.hasOwn(workflow, "permissions")) {
+    return [
       makeDiagnostic(
         WF_PERM_1_RULE_ID,
         file,
         1,
         "workflow must declare top-level minimum GITHUB_TOKEN permissions",
       ),
-    );
-    return diagnostics;
+    ];
   }
-  for (const block of blocks) {
-    for (const entry of block.lines) {
-      if (/^\s*contents:\s*write\s*(#.*)?$/i.test(entry.text)) {
-        diagnostics.push(
-          makeDiagnostic(
-            WF_PERM_1_RULE_ID,
-            file,
-            entry.lineNumber,
-            "top-level contents: write grants broad default GITHUB_TOKEN permissions; move write permission to the specific job that needs it",
-          ),
-        );
-      }
-    }
+  const permissions = workflow.permissions;
+  if (permissions === "write-all") {
+    return [
+      makeDiagnostic(
+        WF_PERM_1_RULE_ID,
+        file,
+        1,
+        "top-level write-all grants broad default GITHUB_TOKEN permissions",
+      ),
+    ];
   }
-  return diagnostics;
-}
-
-function workflowHasTrigger(lines, trigger) {
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    const line = lines[idx];
-    const inline = /^on:\s*(.*)$/.exec(line);
-    if (!inline || /^\s/.test(line)) continue;
-    const rest = inline[1].trim();
-    if (rest.length > 0 && !rest.startsWith("#")) {
-      if (new RegExp(`\\b${trigger}\\b`).test(rest)) return true;
-      continue;
-    }
-    for (let j = idx + 1; j < lines.length; j += 1) {
-      const child = lines[j];
-      if (child.trim() === "") continue;
-      if (!/^\s/.test(child)) break;
-      const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const triggerRe = new RegExp(`^\\s+(?:-\\s*)?${escaped}(?:\\s*:.*|\\s*(?:#.*)?)$`);
-      if (triggerRe.test(child)) return true;
-    }
-  }
-  return false;
-}
-
-function leadingSpaces(line) {
-  return line.match(/^\s*/)[0].length;
-}
-
-function lintPrivilegedUntrustedHeadCheckout(file, lines) {
-  const privilegedTrigger = workflowHasTrigger(lines, "pull_request_target")
-    ? "pull_request_target"
-    : workflowHasTrigger(lines, "workflow_run")
-      ? "workflow_run"
-      : undefined;
-  if (!privilegedTrigger) return [];
-
-  const diagnostics = [];
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    if (!CHECKOUT_USES.test(lines[idx])) continue;
-    const stepIndent = leadingSpaces(lines[idx]);
-    for (let j = idx + 1; j < lines.length; j += 1) {
-      const text = lines[j];
-      if (text.trim() === "") continue;
-      if (leadingSpaces(text) <= stepIndent && /^\s*-\s+/.test(text)) break;
-      if (!UNTRUSTED_HEAD_REF.test(text)) continue;
-      diagnostics.push(
-        makeDiagnostic(
-          WF_PR_1_RULE_ID,
-          file,
-          j + 1,
-          `${privilegedTrigger} workflow checks out attacker-controlled head code in a privileged context; use pull_request for code execution or keep this workflow metadata-only`,
-        ),
-      );
-      break;
-    }
-  }
-  return diagnostics;
-}
-
-// WF_ENV_1 helpers.
-//
-// `workflow_dispatch` is operator-triggered with the actor's permissions —
-// any contributor with repo write can fire it. Jobs in such workflows that
-// assume an AWS role via OIDC or run `pulumi destroy` are privileged and
-// destructive; they MUST be gated behind a protected GitHub Environment
-// (with required reviewers) so a single repo-write account cannot drive
-// a real-cloud teardown. Scheduled triggers on the same workflow do not
-// loosen the rule — the requirement is on jobs reachable via dispatch.
-const AWS_CREDENTIALS_USES = /aws-actions\/configure-aws-credentials/;
-const ROLE_TO_ASSUME = /^\s*role-to-assume\s*:/;
-const PULUMI_DESTROY = /\bpulumi\s+destroy\b/;
-
-function workflowHasDispatchTrigger(lines) {
-  // Detect `on:` blocks that include `workflow_dispatch:` (either as a
-  // bare key, a flow scalar, or a flow-style sequence/string). Handles:
-  //   on: workflow_dispatch
-  //   on: [push, workflow_dispatch]
-  //   on:
-  //     workflow_dispatch:
-  //     schedule:
-  //       - cron: ...
-  return workflowHasTrigger(lines, "workflow_dispatch");
-}
-
-function extractJobs(lines) {
-  // Identify the top-level `jobs:` block, then split each direct child
-  // (one indent in from `jobs:`) into its own slice. Returns
-  // { id, startLine, endLine, lines }[].
-  const jobs = [];
-  let jobsStart = -1;
-  let jobsIndent = -1;
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    if (/^jobs:\s*$/.test(lines[idx]) && !/^\s/.test(lines[idx])) {
-      jobsStart = idx;
-      break;
-    }
-  }
-  if (jobsStart === -1) return jobs;
-  // Find the indent of the first job id (first non-blank, indented line
-  // after `jobs:`). Treat that as the per-job header indent.
-  for (let idx = jobsStart + 1; idx < lines.length; idx += 1) {
-    if (lines[idx].trim() === "") continue;
-    const match = /^(\s+)([A-Za-z0-9_-]+)\s*:\s*$/.exec(lines[idx]);
-    if (match) {
-      jobsIndent = match[1].length;
-    }
-    break;
-  }
-  if (jobsIndent < 0) return jobs;
-
-  let current;
-  for (let idx = jobsStart + 1; idx < lines.length; idx += 1) {
-    const line = lines[idx];
-    const trimmed = line.trim();
-    // A line at column 0 ends the jobs block.
-    if (trimmed !== "" && !/^\s/.test(line)) break;
-    const header = new RegExp(`^\\s{${jobsIndent}}([A-Za-z0-9_-]+)\\s*:\\s*$`).exec(line);
-    if (header) {
-      if (current) {
-        current.endLine = idx - 1;
-        jobs.push(current);
-      }
-      current = { id: header[1], startLine: idx, endLine: lines.length - 1, lines: [] };
-      continue;
-    }
-    if (current) current.lines.push({ lineNumber: idx + 1, text: line });
-  }
-  if (current) jobs.push(current);
-  return jobs;
-}
-
-function jobDeclaresEnvironment(job, jobsIndent) {
-  // `environment:` must be a direct job-level property (one indent
-  // beyond the job header). A nested `environment:` under `with:` or a
-  // step does NOT satisfy the rule.
-  const expected = " ".repeat(jobsIndent + 2);
-  for (const { text } of job.lines) {
-    if (text.startsWith(`${expected}environment:`)) return true;
-  }
-  return false;
-}
-
-function stripYamlComment(value) {
-  return value.replace(/\s+#.*$/u, "").trim();
-}
-
-function normalizeRunnerLabel(value) {
-  return stripYamlComment(value)
-    .replace(/^["']|["']$/g, "")
-    .trim()
-    .toLowerCase();
-}
-
-function parseRunsOnScalar(value) {
-  const clean = stripYamlComment(value);
-  if (clean.startsWith("[") && clean.endsWith("]")) {
-    return clean.slice(1, -1).split(",").map(normalizeRunnerLabel).filter(Boolean);
-  }
-  const normalized = normalizeRunnerLabel(clean);
-  return normalized.length > 0 ? [normalized] : [];
-}
-
-function extractJobRunsOnLabels(job, jobsIndent) {
-  const expected = " ".repeat(jobsIndent + 2);
-  const scalarRe = /^\s+runs-on:\s+(.+?)\s*$/;
-  const bareRe = /^\s+runs-on:\s*(?:#.*)?$/;
-  const listItemRe = /^\s+-\s+(.+?)\s*$/;
-  for (let i = 0; i < job.lines.length; i += 1) {
-    const { text } = job.lines[i];
-    if (!text.startsWith(`${expected}runs-on:`)) continue;
-    const scalar = text.match(scalarRe);
-    if (scalar) return parseRunsOnScalar(scalar[1]);
-    if (!bareRe.test(text)) return [];
-    const labels = [];
-    for (let j = i + 1; j < job.lines.length; j += 1) {
-      const sub = job.lines[j].text;
-      if (sub.trim() === "") continue;
-      if (!sub.startsWith(`${expected}  -`)) break;
-      const match = sub.match(listItemRe);
-      if (match) labels.push(normalizeRunnerLabel(match[1]));
-    }
-    return labels.filter(Boolean);
+  if (isPlainRecord(permissions) && String(permissions.contents).toLowerCase() === "write") {
+    return [
+      makeDiagnostic(
+        WF_PERM_1_RULE_ID,
+        file,
+        1,
+        "top-level contents: write grants broad default GITHUB_TOKEN permissions; move write permission to the specific job that needs it",
+      ),
+    ];
   }
   return [];
 }
 
-function environmentScalar(value) {
-  let name = value.trim();
-  if (name.startsWith('"')) {
-    const match = /^"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/.exec(name);
-    if (!match) return null;
-    try {
-      name = JSON.parse(`"${match[1]}"`);
-    } catch {
-      return null;
-    }
-  } else if (name.startsWith("'")) {
-    const match = /^'((?:[^']|'')*)'\s*(?:#.*)?$/.exec(name);
-    if (!match) return null;
-    name = match[1].replace(/''/g, "'");
-  } else {
-    name = stripYamlComment(name);
-    if (/^[{[&*!>|]/.test(name) || /:\s/.test(name)) return null;
-  }
-  if (name.length === 0 || name.length > 255 || name.includes("${{") || /[\r\n]/.test(name))
-    return null;
-  return name;
+function workflowHasTrigger(workflow, trigger) {
+  const on = workflow.on;
+  if (typeof on === "string") return on === trigger;
+  if (Array.isArray(on)) return on.includes(trigger);
+  return isPlainRecord(on) && Object.hasOwn(on, trigger);
 }
 
-function extractJobEnvironmentName(job, jobsIndent) {
-  const expected = " ".repeat(jobsIndent + 2);
-  for (let i = 0; i < job.lines.length; i += 1) {
-    const { text } = job.lines[i];
-    if (!text.startsWith(`${expected}environment:`)) continue;
-    const value = text.slice(`${expected}environment:`.length);
-    if (stripYamlComment(value) !== "") return environmentScalar(value);
-    for (let j = i + 1; j < job.lines.length; j += 1) {
-      const sub = job.lines[j].text;
-      if (sub.trim() === "" || sub.trimStart().startsWith("#")) continue;
-      if (leadingSpaces(sub) <= expected.length) break;
-      if (leadingSpaces(sub) !== expected.length + 2) continue;
-      const match = /^\s+name:\s*(.*)$/.exec(sub);
-      if (match) return environmentScalar(match[1]);
+function lintPrivilegedUntrustedHeadCheckout(file, workflow) {
+  const trigger = workflowHasTrigger(workflow, "pull_request_target")
+    ? "pull_request_target"
+    : workflowHasTrigger(workflow, "workflow_run")
+      ? "workflow_run"
+      : undefined;
+  if (!trigger) return [];
+
+  const diagnostics = [];
+  for (const [, job] of jobsOf(workflow)) {
+    for (const step of stepsOf(job)) {
+      if (
+        typeof step.uses !== "string" ||
+        !step.uses.toLowerCase().startsWith("actions/checkout@")
+      ) {
+        continue;
+      }
+      if (!isPlainRecord(step.with)) continue;
+      if (!UNTRUSTED_HEAD_REF.test(JSON.stringify(step.with))) continue;
+      diagnostics.push(
+        makeDiagnostic(
+          WF_PR_1_RULE_ID,
+          file,
+          1,
+          `${trigger} workflow checks out attacker-controlled head code in a privileged context; use pull_request for code execution or keep this workflow metadata-only`,
+        ),
+      );
     }
-    return null;
   }
-  return null;
+  return diagnostics;
 }
 
-function jobIsPrivileged(job) {
-  // Returns a short reason if the job assumes an AWS role or runs
-  // `pulumi destroy`, otherwise undefined.
-  for (const { text } of job.lines) {
-    if (AWS_CREDENTIALS_USES.test(text)) return "uses aws-actions/configure-aws-credentials";
-    if (ROLE_TO_ASSUME.test(text)) return "declares role-to-assume";
-    if (PULUMI_DESTROY.test(text)) return "runs pulumi destroy";
+function privilegedReason(job) {
+  if (typeof job.uses === "string" && /aws-actions\/configure-aws-credentials/i.test(job.uses)) {
+    return "uses aws-actions/configure-aws-credentials";
+  }
+  for (const step of stepsOf(job)) {
+    if (
+      typeof step.uses === "string" &&
+      /aws-actions\/configure-aws-credentials/i.test(step.uses)
+    ) {
+      return "uses aws-actions/configure-aws-credentials";
+    }
+    if (isPlainRecord(step.with) && Object.hasOwn(step.with, "role-to-assume")) {
+      return "declares role-to-assume";
+    }
+    if (typeof step.run === "string" && /\bpulumi\s+destroy\b/.test(step.run)) {
+      return "runs pulumi destroy";
+    }
   }
   return undefined;
 }
 
-function detectJobsIndent(lines) {
-  // Mirrors the indent detection in extractJobs so the environment
-  // check can know the per-job indent. Returns -1 if not found.
-  let jobsStart = -1;
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    if (/^jobs:\s*$/.test(lines[idx]) && !/^\s/.test(lines[idx])) {
-      jobsStart = idx;
-      break;
-    }
-  }
-  if (jobsStart === -1) return -1;
-  for (let idx = jobsStart + 1; idx < lines.length; idx += 1) {
-    if (lines[idx].trim() === "") continue;
-    const match = /^(\s+)([A-Za-z0-9_-]+)\s*:\s*$/.exec(lines[idx]);
-    if (match) return match[1].length;
-    break;
-  }
-  return -1;
+function hasEnvironment(job) {
+  return Object.hasOwn(job, "environment");
 }
 
-function lintWorkflowDispatchEnvironments(file, lines) {
+function environmentName(job) {
+  const value = job.environment;
+  const name = isPlainRecord(value) ? value.name : value;
+  if (
+    typeof name !== "string" ||
+    name.length === 0 ||
+    name.length > 255 ||
+    name.includes("${{") ||
+    /[\r\n]/.test(name)
+  ) {
+    return undefined;
+  }
+  return name;
+}
+
+function lintWorkflowDispatchEnvironments(file, workflow) {
+  if (!workflowHasTrigger(workflow, "workflow_dispatch")) return [];
   const diagnostics = [];
-  if (!workflowHasDispatchTrigger(lines)) return diagnostics;
-  const jobsIndent = detectJobsIndent(lines);
-  if (jobsIndent < 0) return diagnostics;
-  for (const job of extractJobs(lines)) {
-    const reason = jobIsPrivileged(job);
-    if (!reason) continue;
-    if (jobDeclaresEnvironment(job, jobsIndent)) continue;
+  for (const [jobId, job] of jobsOf(workflow)) {
+    const reason = privilegedReason(job);
+    if (!reason || environmentName(job)) continue;
     diagnostics.push(
       makeDiagnostic(
         WF_ENV_1_RULE_ID,
         file,
-        job.startLine + 1,
-        `workflow_dispatch job '${job.id}' is privileged (${reason}) and must declare a protected 'environment:' with required reviewers`,
+        1,
+        `workflow_dispatch job '${jobId}' is privileged (${reason}) and must declare a protected 'environment:' with required reviewers`,
       ),
     );
   }
   return diagnostics;
 }
 
-function lintSelfHostedRunnerUsage(file, lines, approvedLabels) {
+function runnerLabels(value) {
+  const raw = Array.isArray(value) ? value : [value];
+  return raw
+    .filter((label) => typeof label === "string")
+    .map((label) => label.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function lintSelfHostedRunnerUsage(file, workflow, approvedLabels) {
+  const approved = new Set((approvedLabels ?? []).map((label) => label.trim().toLowerCase()));
   const diagnostics = [];
-  const jobsIndent = detectJobsIndent(lines);
-  if (jobsIndent < 0) return diagnostics;
-  const approved = new Set(
-    (approvedLabels ?? []).map((label) => normalizeRunnerLabel(label)).filter(Boolean),
-  );
-  for (const job of extractJobs(lines)) {
-    const labels = extractJobRunsOnLabels(job, jobsIndent);
+  for (const [jobId, job] of jobsOf(workflow)) {
+    const labels = runnerLabels(job["runs-on"]);
     if (!labels.includes("self-hosted")) continue;
-    const nonSelfHostedLabels = labels.filter((label) => label !== "self-hosted");
-    const unapproved = nonSelfHostedLabels.filter((label) => !approved.has(label));
-    if (approved.size > 0 && nonSelfHostedLabels.length > 0 && unapproved.length === 0) continue;
+    const custom = labels.filter((label) => label !== "self-hosted");
+    const unapproved = custom.filter((label) => !approved.has(label));
+    if (approved.size > 0 && custom.length > 0 && unapproved.length === 0) continue;
     diagnostics.push(
       makeDiagnostic(
         WF_RUNNER_1_RULE_ID,
         file,
-        job.startLine + 1,
-        `job '${job.id}' uses self-hosted runners; every non-self-hosted label must be explicitly approved (unapproved: ${unapproved.length > 0 ? unapproved.join(", ") : "none declared"})`,
+        1,
+        `job '${jobId}' uses self-hosted runners; every non-self-hosted label must be explicitly approved (unapproved: ${unapproved.length > 0 ? unapproved.join(", ") : "none declared"})`,
       ),
     );
   }
   return diagnostics;
 }
 
-function lintWorkflowFile(repoRoot, file, options = {}) {
-  const full = join(repoRoot, file);
-  const lines = readFileSync(full, "utf8").split(/\r?\n/);
-  const diagnostics = [];
-  lines.forEach((line, idx) => {
-    const diagnostic = lintUsesLine(file, idx + 1, line);
-    if (diagnostic) diagnostics.push(diagnostic);
-  });
-  diagnostics.push(...lintWorkflowPermissions(file, lines));
-  diagnostics.push(...lintPrivilegedUntrustedHeadCheckout(file, lines));
-  diagnostics.push(...lintWorkflowDispatchEnvironments(file, lines));
-  diagnostics.push(
-    ...lintSelfHostedRunnerUsage(file, lines, options.approvedSelfHostedRunnerLabels ?? []),
-  );
-  return diagnostics;
+function lintWorkflowModel(file, workflow, options = {}) {
+  return [
+    ...lintUses(file, workflow),
+    ...lintWorkflowPermissions(file, workflow),
+    ...lintPrivilegedUntrustedHeadCheckout(file, workflow),
+    ...lintWorkflowDispatchEnvironments(file, workflow),
+    ...lintSelfHostedRunnerUsage(file, workflow, options.approvedSelfHostedRunnerLabels ?? []),
+  ];
 }
 
 function codeownersProtectsWorkflows(text) {
@@ -493,13 +353,18 @@ function codeownersProtectsWorkflows(text) {
     .map((line) => line.trim())
     .filter((line) => line !== "" && !line.startsWith("#"))
     .some((line) => {
-      const pattern = line.split(/\s+/)[0] ?? "";
-      return (
+      const [pattern, ...owners] = line.split(/\s+/);
+      const covers =
         pattern === ".github/workflows/" ||
         pattern === "/.github/workflows/" ||
         pattern === ".github/workflows/*" ||
-        pattern === "/.github/workflows/*"
+        pattern === "/.github/workflows/*";
+      const validOwner = owners.some(
+        (owner) =>
+          /^@[A-Za-z0-9](?:[A-Za-z0-9_-]*)(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)?$/.test(owner) ||
+          /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(owner),
       );
+      return covers && validOwner;
     });
 }
 
@@ -526,39 +391,14 @@ export function collectWorkflowGovernanceDiagnostics(options = {}) {
   const diagnostics = [];
   for (const file of files) {
     if (!file.startsWith(".github/workflows/")) continue;
-    diagnostics.push(...lintWorkflowFile(repoRoot, file, options));
+    const parsed = parseWorkflowFile(repoRoot, file);
+    diagnostics.push(...parsed.diagnostics);
+    if (parsed.workflow) diagnostics.push(...lintWorkflowModel(file, parsed.workflow, options));
   }
   diagnostics.push(...lintCodeowners(repoRoot, files));
   return diagnostics;
 }
 
-/**
- * Async variant of {@link collectWorkflowGovernanceDiagnostics} that adds
- * the WF_ENV_1 settings-state check when `options.checkSettings` is true.
- *
- * Background: the existing WF_ENV_1 rule catches "privileged job missing
- * `environment:` line in YAML" but cannot catch "YAML declares
- * `environment: foo` but no `foo` Environment exists in repo settings
- * (or it exists with zero protection rules)". GitHub treats unknown /
- * unprotected environment names as unprotected. The settings-state
- * check (ticket-183) closes that gap.
- *
- * Default-off — `options.checkSettings` defaults to false; without it
- * this function returns the exact same diagnostics as the sync version.
- * Opt-in via `options.checkSettings: true` (programmatic) or the
- * `--check-settings` CLI flag.
- *
- * The check delegates the actual lookup to `options.resolveEnvironment`
- * so tests can pass a stub. The production CLI wires up a resolver that
- * shells out to `gh api /repos/{owner}/{repo}/environments/<name>`.
- *
- * @param {object} [options]
- * @param {string} [options.repoRoot]
- * @param {boolean} [options.checkSettings]
- * @param {string[]} [options.approvedSelfHostedRunnerLabels]
- * @param {(name: string) => Promise<{ name: string; protection_rules: { type: string }[] } | null>} [options.resolveEnvironment]
- * @returns {Promise<Array<{ ruleId: string; file: string; line: number; message: string }>>}
- */
 export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
   const diagnostics = collectWorkflowGovernanceDiagnostics(options);
   if (!options.checkSettings) return diagnostics;
@@ -567,39 +407,32 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
       "collectWorkflowGovernanceDiagnosticsAsync: checkSettings=true requires options.resolveEnvironment to be a function",
     );
   }
+
   const repoRoot = resolve(options.repoRoot ?? process.cwd());
   const files = listGovernanceFiles(repoRoot);
-  // Collect (envName, file, line) candidates for every privileged
-  // workflow_dispatch job that declares an environment. Jobs that
-  // *don't* declare an environment are already covered by the
-  // structural WF_ENV_1 check — no need to settings-check them.
   const candidates = [];
   for (const file of files) {
     if (!file.startsWith(".github/workflows/")) continue;
-    const lines = readFileSync(join(repoRoot, file), "utf8").split(/\r?\n/);
-    if (!workflowHasDispatchTrigger(lines)) continue;
-    const jobsIndent = detectJobsIndent(lines);
-    if (jobsIndent < 0) continue;
-    for (const job of extractJobs(lines)) {
-      if (!jobIsPrivileged(job)) continue;
-      const envName = extractJobEnvironmentName(job, jobsIndent);
+    const parsed = parseWorkflowFile(repoRoot, file);
+    if (!parsed.workflow || !workflowHasTrigger(parsed.workflow, "workflow_dispatch")) continue;
+    for (const [jobId, job] of jobsOf(parsed.workflow)) {
+      if (!privilegedReason(job) || !hasEnvironment(job)) continue;
+      const envName = environmentName(job);
       if (!envName) {
-        if (jobDeclaresEnvironment(job, jobsIndent))
-          diagnostics.push(
-            makeDiagnostic(
-              WF_ENV_2_RULE_ID,
-              file,
-              job.startLine + 1,
-              `privileged job '${job.id}' must declare a statically resolvable environment name for protection verification`,
-            ),
-          );
+        diagnostics.push(
+          makeDiagnostic(
+            WF_ENV_2_RULE_ID,
+            file,
+            1,
+            `privileged job '${jobId}' must declare a statically resolvable environment name for protection verification`,
+          ),
+        );
         continue;
       }
-      candidates.push({ envName, file, line: job.startLine + 1 });
+      candidates.push({ envName, file, line: 1 });
     }
   }
-  // Memoize per env name so two jobs declaring the same environment
-  // generate exactly one resolver call. Cache scope is one invocation.
+
   const cache = new Map();
   for (const candidate of candidates) {
     if (!cache.has(candidate.envName)) {
@@ -617,9 +450,7 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
           `environment '${candidate.envName}' resolver error: ${result.error}`,
         ),
       );
-      continue;
-    }
-    if (result.value === null) {
+    } else if (result.value === null) {
       diagnostics.push(
         makeDiagnostic(
           WF_ENV_2_RULE_ID,
@@ -628,9 +459,7 @@ export async function collectWorkflowGovernanceDiagnosticsAsync(options = {}) {
           `environment '${candidate.envName}' declared in workflow but not configured in repo settings`,
         ),
       );
-      continue;
-    }
-    if (!environmentHasRequiredReviewers(result.value)) {
+    } else if (!environmentHasRequiredReviewers(result.value)) {
       diagnostics.push(
         makeDiagnostic(
           WF_ENV_3_RULE_ID,
@@ -649,16 +478,15 @@ function environmentHasRequiredReviewers(environment) {
   if (!Array.isArray(rules)) return false;
   return rules.some(
     (rule) =>
-      rule !== null &&
-      typeof rule === "object" &&
+      isPlainRecord(rule) &&
       rule.type === "required_reviewers" &&
       Array.isArray(rule.reviewers) &&
       rule.reviewers.some(
         (entry) =>
-          entry !== null &&
-          typeof entry === "object" &&
+          isPlainRecord(entry) &&
           (entry.type === "User" || entry.type === "Team") &&
-          Number.isSafeInteger(entry.reviewer?.id) &&
+          isPlainRecord(entry.reviewer) &&
+          Number.isSafeInteger(entry.reviewer.id) &&
           entry.reviewer.id > 0,
       ),
   );
@@ -666,17 +494,13 @@ function environmentHasRequiredReviewers(environment) {
 
 async function resolveSafely(resolver, name) {
   try {
-    const value = await resolver(name);
-    return { value, error: null };
-  } catch (err) {
-    return { value: null, error: err instanceof Error ? err.message : String(err) };
+    return { value: await resolver(name), error: null };
+  } catch (error) {
+    return { value: null, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
 async function productionResolveEnvironment(name) {
-  // Production CLI resolver: shell out to `gh api`. Uses `{owner}/{repo}`
-  // placeholders so `gh` reads the current git context — no manual
-  // owner/repo parsing in this script.
   const result = spawnSync(
     "gh",
     [
@@ -693,13 +517,13 @@ async function productionResolveEnvironment(name) {
   if (result.status === 0) {
     try {
       return JSON.parse(result.stdout);
-    } catch (err) {
-      throw new Error(`gh api returned non-JSON: ${err instanceof Error ? err.message : err}`);
+    } catch (error) {
+      throw new Error(
+        `gh api returned non-JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
   const stderr = (result.stderr ?? "").trim();
-  // gh returns "Not Found (HTTP 404)" for missing environments — that
-  // is the signal we want, not an error.
   if (/HTTP 404|Not Found/i.test(stderr)) return null;
   throw new Error(`gh api failed (exit ${result.status}): ${stderr || "no stderr"}`);
 }
@@ -711,20 +535,19 @@ function formatDiagnostic(diagnostic, repoRoot) {
   return `${diagnostic.ruleId} ${file}:${diagnostic.line} ${diagnostic.message}`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   (async () => {
     try {
       const options = parseArgs(process.argv.slice(2));
-      let diagnostics;
-      if (options.checkSettings) {
-        options.resolveEnvironment = productionResolveEnvironment;
-        diagnostics = await collectWorkflowGovernanceDiagnosticsAsync(options);
-      } else {
-        diagnostics = collectWorkflowGovernanceDiagnostics(options);
-      }
+      const diagnostics = options.checkSettings
+        ? await collectWorkflowGovernanceDiagnosticsAsync({
+            ...options,
+            resolveEnvironment: productionResolveEnvironment,
+          })
+        : collectWorkflowGovernanceDiagnostics(options);
       if (diagnostics.length === 0) {
         console.log("workflow-governance: pass");
-        process.exit(0);
+        return;
       }
       console.error("workflow-governance: fail");
       for (const diagnostic of diagnostics) {

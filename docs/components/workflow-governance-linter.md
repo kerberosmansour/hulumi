@@ -3,6 +3,9 @@
 M4 adds `scripts/workflow-governance-lint.mjs`, a bounded local repository
 scan for GitHub workflow governance. It reads tracked workflow files and
 CODEOWNERS entries with `git ls-files`; test fixtures can pass `--repo-root`.
+Workflows are parsed as strict YAML 1.2. Duplicate keys, aliases, merge keys,
+parser warnings and malformed workflow/job shapes fail closed instead of being
+interpreted with line-oriented regular expressions.
 The default command is offline. The opt-in `--check-settings` mode shells out
 to `gh api` to resolve live GitHub environments for privileged deployment jobs.
 
@@ -39,6 +42,7 @@ node scripts/workflow-governance-lint.mjs \
 | `WF_ENV_2_LIVE_ENVIRONMENT_EXISTS`                      | Opt-in live check: declared privileged-job environment must exist in GitHub repo settings.         |
 | `WF_ENV_3_LIVE_ENVIRONMENT_REQUIRES_REVIEWERS`          | Opt-in live check: declared privileged-job environment must have required reviewer protection.     |
 | `WF_RUNNER_1_SELF_HOSTED_REQUIRES_APPROVAL`             | Self-hosted runner usage requires explicit approval for every non-`self-hosted` runner label.      |
+| `WF_YAML_1_STRICT_STRUCTURAL_PARSE`                     | Workflow YAML must pass the strict structural parse without aliases, merges or duplicate keys.     |
 
 The linter reports file and line only. It does not scan source code and does
 not inspect or print secret values. `--check-settings` reports resolver errors
@@ -46,6 +50,14 @@ as findings instead of treating unknown live posture as clean.
 
 ### Maintenance hardening
 
-Privileged checkout detection includes PR head SHA, ref and repository name as well as workflow-run head references. Static environment names may contain spaces or dots, and an object-form name may follow another property. With `--check-settings`, dynamic or unsupported environment declarations fail closed. A required-reviewer rule must contain an actual configured reviewer; timers and empty reviewer rules are insufficient. Environment lookup paths are URL-encoded.
+Privileged checkout detection includes PR head SHA, ref and repository name as
+well as workflow-run head references. Quoted keys and values receive the same
+checks as plain YAML. A CODEOWNERS workflow pattern counts only when the row has
+an actual `@user`, `@org/team` or email owner. Static environment names may
+contain spaces or dots, and an object-form name may follow another property.
+With `--check-settings`, dynamic or unsupported environment declarations fail
+closed. A required-reviewer rule must contain an actual configured reviewer;
+timers and empty reviewer rules are insufficient. Environment lookup paths are
+URL-encoded.
 
 The settings check verifies reviewer protection. Deployment-branch restrictions still need a separate live inspection; an environment-form OIDC subject does not encode the source branch. Use exact protected-main deployment rules as described in the sandbox deployment guide.

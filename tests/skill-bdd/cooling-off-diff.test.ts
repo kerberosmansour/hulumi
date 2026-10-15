@@ -23,6 +23,13 @@ const fixturesDir = resolve(__dirname, "fixtures", "cooling-off-diff");
 const RUN_NETWORK = process.env.HULUMI_NETWORK_TESTS === "1";
 const itIfNetwork = RUN_NETWORK ? it : it.skip;
 
+type CoolingOffModule = {
+  PULUMI_PACKAGE_NAMES: readonly string[];
+  extractVersions: (lockYaml: string) => Record<string, string>;
+};
+// @ts-expect-error TS7016: the runtime API is exercised directly here.
+const coolingOff = (await import("../../scripts/cooling-off-diff.mjs")) as CoolingOffModule;
+
 interface RunResult {
   status: number | null;
   stdout: string;
@@ -43,6 +50,25 @@ function runCoolingOff(baseFixture: string, headFixture: string): RunResult {
 }
 
 describe("Feature: cooling-off-diff fixture-replay (Runbook hulumi-pre-public-launch M3)", () => {
+  describe("Scenario: the protected inventory is the single source of truth", () => {
+    it("includes @pulumi/cloudflare and extracts its structural lockfile key", () => {
+      expect(coolingOff.PULUMI_PACKAGE_NAMES).toContain("@pulumi/cloudflare");
+      expect(
+        coolingOff.extractVersions(
+          "packages:\n  '@pulumi/cloudflare@6.22.0':\n    resolution: {integrity: sha512-test}\n",
+        )["@pulumi/cloudflare"],
+      ).toBe("6.22.0");
+    });
+
+    it("rejects duplicate package keys instead of silently choosing one", () => {
+      expect(() =>
+        coolingOff.extractVersions(
+          "packages:\n  '@pulumi/cloudflare@6.22.0': {}\n  '@pulumi/cloudflare@6.22.0': {}\n",
+        ),
+      ).toThrow(/duplicate|yaml|parse/i);
+    });
+  });
+
   describe("Scenario: no @pulumi/* bumps", () => {
     it("base = head returns exit 0 and skips registry lookup (no network)", () => {
       const result = runCoolingOff("baseline.lock.yaml", "baseline.lock.yaml");

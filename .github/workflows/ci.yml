@@ -126,15 +126,26 @@ jobs:
       - run: echo "Covered by the successful workspace build, typecheck and test suite."
 
   pulumi-cooling-off:
+    if: always() && !cancelled()
     name: pulumi cooling-off (72h minor/major / 24h patch)
+    needs: dependency-admission
     runs-on: ubuntu-latest
     steps:
+      - name: Require successful dependency admission
+        if: needs.dependency-admission.result != 'success'
+        run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 9.12.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          cache: pnpm
+      - name: Resolve the admitted root tooling without lifecycle scripts
+        run: pnpm --filter hulumi install --frozen-lockfile --ignore-scripts
       - name: Diff lockfile + check cooling-off
         if: github.event_name == 'pull_request'
         env:

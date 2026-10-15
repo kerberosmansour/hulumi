@@ -15,10 +15,22 @@
 //   - Graceful degradation: if a mappings file is unreadable, warn on stderr,
 //     fall back to a bundled stub, and still write a valid output file.
 
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { readdirSync } from "node:fs";
-import { join, dirname, resolve as resolvePath } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomBytes } from "node:crypto";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = resolvePath(SCRIPT_DIR, "..");
@@ -457,6 +469,75 @@ function yyyymmdd(iso) {
   return `${y}${m}${day}`;
 }
 
+/**
+ * @param {string} root
+ * @param {string} candidate
+ */
+function isWithin(root, candidate) {
+  const rel = relative(root, candidate);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
+ * @param {string} path
+ * @param {string} label
+ */
+function requireRealDirectory(path, label) {
+  const absolute = resolvePath(path);
+  const stat = lstatSync(absolute);
+  if (stat.isSymbolicLink()) throw new Error(`${label} must not be a symlink: ${absolute}`);
+  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${absolute}`);
+  return realpathSync(absolute);
+}
+
+/** @param {string} outputDir */
+function prepareOutputDirectory(outputDir) {
+  const outputRoot = requireRealDirectory(outputDir, "output directory");
+  const docsPath = join(outputRoot, "docs");
+  if (!existsSync(docsPath)) mkdirSync(docsPath, { mode: 0o700 });
+  const docsRoot = requireRealDirectory(docsPath, "output docs directory");
+  if (!isWithin(outputRoot, docsRoot)) {
+    throw new Error("output docs directory resolves outside the output directory");
+  }
+  return docsRoot;
+}
+
+/**
+ * @param {string} path
+ * @param {string} content
+ */
+function writeAtomicNoFollow(path, content) {
+  const parent = requireRealDirectory(dirname(path), "output parent directory");
+  const target = resolvePath(path);
+  if (!isWithin(parent, target)) throw new Error("output target resolves outside its directory");
+  if (existsSync(target)) {
+    const stat = lstatSync(target);
+    if (stat.isSymbolicLink()) throw new Error(`output target must not be a symlink: ${target}`);
+    if (!stat.isFile()) throw new Error(`output target must be a regular file: ${target}`);
+  }
+
+  const temp = join(
+    parent,
+    `.${basename(target)}.tmp-${process.pid}-${randomBytes(12).toString("hex")}`,
+  );
+  let descriptor;
+  try {
+    descriptor = openSync(temp, "wx", 0o600);
+    writeFileSync(descriptor, content, "utf8");
+    closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(temp, target);
+  } catch (error) {
+    if (descriptor !== undefined) closeSync(descriptor);
+    try {
+      unlinkSync(temp);
+    } catch {
+      // The temp path may not have been created or may already have been renamed.
+    }
+    throw error;
+  }
+}
+
 // ---- Main entry (library) ------------------------------------------------
 
 /**
@@ -494,10 +575,9 @@ export async function generateThreatModel(opts) {
     OPEN_QUESTIONS: renderOpenQuestions(emptyFrameworks, unresolved),
   });
 
-  const outDocsDir = join(opts.outputDir, "docs");
-  mkdirSync(outDocsDir, { recursive: true });
+  const outDocsDir = prepareOutputDirectory(opts.outputDir);
   const outPath = join(outDocsDir, `threat-model-${scenario.id}-${yyyymmdd(nowIso)}.md`);
-  writeFileSync(outPath, content, "utf8");
+  writeAtomicNoFollow(outPath, content);
   return { path: outPath, content };
 }
 
@@ -577,7 +657,26 @@ if (isMainModule) {
     process.exit(1);
   }
   const mappingsDir = args.mappingsDir ?? join(REPO_ROOT, "docs/mappings");
-  const outputDir = args.outputDir ?? process.cwd();
+  const cwd = realpathSync(process.cwd());
+  if (args.outputDir !== undefined && isAbsolute(args.outputDir)) {
+    console.error("[hulumi-threat-model] --output-dir must be relative to the working directory");
+    process.exit(1);
+  }
+  let outputDir = resolvePath(cwd, args.outputDir ?? ".");
+  if (!isWithin(cwd, outputDir)) {
+    console.error("[hulumi-threat-model] --output-dir must remain within the working directory");
+    process.exit(1);
+  }
+  try {
+    outputDir = requireRealDirectory(outputDir, "output directory");
+  } catch (error) {
+    console.error(`[hulumi-threat-model] invalid --output-dir: ${describeError(error)}`);
+    process.exit(1);
+  }
+  if (!isWithin(cwd, outputDir)) {
+    console.error("[hulumi-threat-model] --output-dir resolves outside the real working directory");
+    process.exit(1);
+  }
   const templatesDir = args.templatesDir ?? join(SKILL_DIR, "templates");
   generateThreatModel({
     scenario: args.scenario,

@@ -186,15 +186,29 @@ Notable build-shape decisions:
 
 Hulumi takes supply-chain seriously enough that it's a design constraint, not just a best practice. Three rules govern every change:
 
-### Rule 1: `@pulumi/*` is exact-pinned **inside the Hulumi repo**
+### Rule 1: protected dependencies are exact-pinned **inside the Hulumi repo**
 
-Inside the Hulumi repo, `pnpm-lock.yaml` is the source of truth and `scripts/exact-pin-guard.mjs` enforces the protected dependency set for `@pulumi/pulumi`, `@pulumi/aws`, `@pulumi/policy`, `@pulumi/github`, `@pulumi/kubernetes`, `@pulumi/cloudflare`, and selected runtime SDK dependencies. The CI step `lint:exact-pin-guard` fails unless every protected dependency is exact-pinned in package manifests and present in `pnpm-lock.yaml` with an integrity hash. Dependabot Track B can therefore move cooled minor/patch pins without a second CI-triggering commit; human PRs may run `node scripts/exact-pin-guard.mjs --write` to refresh the ALLOWED table for an easier audit diff.
+Inside the Hulumi repo, `scripts/protected-dependencies.mjs` is the reviewed
+inventory for `@pulumi/*`, selected runtime SDK dependencies and security
+tooling such as `yaml`. The CI step `lint:exact-pin-guard` parses
+`pnpm-lock.yaml` as strict YAML 1.2 and fails unless every inventory entry is
+exact-pinned in a manifest and has the one reviewed integrity-only resolution
+in the structural `packages` map. Duplicate keys, aliases, merge keys and
+custom tarball authorities fail closed. Dependabot Track B can move cooled
+minor/patch pins without a second CI-triggering commit; after OSV and provenance
+review, maintainers may run `node scripts/exact-pin-guard.mjs --write` to
+refresh that central inventory for an audit diff.
 
 Note: this rule applies to Hulumi's own development lockfile, not to the consumers of `@hulumi/*` packages. From 1.4.1 onward, the **published** `@hulumi/*` packages declare caret-range peer dependencies so downstream consumers can use any caret-compatible Pulumi SDK without npm `ERESOLVE`. The integrity-hash guard remains a defense against tampered SDK re-publishes hitting **our own** build.
 
 ### Rule 2: Pulumi bumps go through cooling-off
 
-`scripts/cooling-off-diff.mjs` (M5) blocks any PR that bumps a `@pulumi/*` pin until 72h (minor/major) or 24h (patch) have elapsed since the upstream npm publish. This is a deliberate friction point — supply-chain attacks against Pulumi are most effective in the first 24–48h post-publish.
+`scripts/cooling-off-diff.mjs` blocks any PR that bumps an `@pulumi/*` pin
+until 72h (minor/major) or 24h (patch) have elapsed since the upstream npm
+publish. It derives the full list from the protected inventory, including
+`@pulumi/cloudflare`, and parses both lockfiles structurally. This is a
+deliberate friction point — supply-chain attacks against Pulumi are most
+effective in the first 24–48h post-publish.
 
 ### Rule 3: SLSA Build L3 on every release
 

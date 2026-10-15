@@ -13,6 +13,29 @@ gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
 class AdmissionTests(unittest.TestCase):
+    def test_vulnerability_only_scan_is_reported_without_blocking(self):
+        packages = [{"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-example", "aliases": ["CVE-2099-0001"]}]}]
+        for code in (0, 1):
+            self.assertEqual(gate.scan_exit_status(code, packages, []), 0)
+        self.assertEqual(gate.scan_exit_status(2, packages, []), 2)
+        summary = gate.findings_summary(packages)
+        self.assertEqual(summary["vulnerabilityFindings"], 1)
+        self.assertEqual(summary["maliciousFindings"], 0)
+        self.assertEqual(summary["findings"][0]["id"], "GHSA-example")
+
+    def test_mixed_findings_and_malware_alias_are_never_suppressed(self):
+        packages = [{"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-example"}, {"id": "GHSA-malware-alias", "aliases": ["MAL-TEST-2"]}]}]
+        self.assertEqual(gate.scan_exit_status(1, packages, []), 1)
+        summary = gate.findings_summary(packages)
+        self.assertEqual((summary["vulnerabilityFindings"], summary["maliciousFindings"]), (1, 1))
+        self.assertEqual(len(summary["findings"]), 2)
+
+    def test_invalid_advisory_identity_cannot_be_report_only(self):
+        for vuln in ({"id": " MAL-TEST-1"}, {"id": "GHSA-test", "aliases": ["MAL-TEST-1\n"]}, {"id": ""}, {"id": "GHSA-test", "aliases": [None]}, {"id": "GHSA-test", "aliases": [""]}):
+            packages = [{"package": {"name": "synthetic", "version": "1", "ecosystem": "npm"}, "vulnerabilities": [vuln]}]
+            with self.assertRaises(ValueError):
+                gate.scan_exit_status(1, packages, [])
+
     def test_python_inventory_normalizes_names_and_rejects_unpinned_inputs(self):
         with tempfile.TemporaryDirectory() as folder:
             lock = Path(folder) / "requirements.txt"

@@ -25,5 +25,6 @@ jobs:
             osv-dependencies.json
             osv-dependencies.stderr.txt
             osv-dependencies.receipt.json
+            osv-dependencies.summary.json
           if-no-files-found: warn
           retention-days: 14

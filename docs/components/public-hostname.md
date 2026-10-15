@@ -48,6 +48,13 @@ new PublicHostname("legacy-app", {
 | `acknowledgeDnsOnlyExposure` | conditional | Required with `dnsOnlyJustification` when a public application sets `proxied: false`.    |
 | `dnsOnlyJustification`       | conditional | Non-empty reason recorded in a structured security event.                                |
 
+When `HulumiCloudflareHardeningPack` is enabled, CF_DNS_1 verifies this
+exception from the concrete `PublicHostname` parent in the evaluated stack. It
+requires the parent hostname to match the DNS record and rechecks
+`purpose: "public-app"`, `proxied: false`, `acknowledgeDnsOnlyExposure: true`,
+and the non-empty justification. Reproducing the component type token only in
+a raw record's URN does not satisfy the policy.
+
 When `emitDnsRecordTags` is disabled, keep other policy evidence in place. The flag exists for Cloudflare zones where tagged DNS records fail quota checks; it should not be used to hide drift or ownership context.
 
 ## Outputs

@@ -11,11 +11,11 @@ pulumi up --policy-pack node_modules/@hulumi/policies/cloudflare/packs/hulumi-ha
 
 ## Stable Rule IDs
 
-| Rule ID                                  | Enforcement | Purpose                                                                                                                                                         |
-| ---------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD` | mandatory   | Reject raw proxy-eligible public application DNS records that set `proxied=false` outside `PublicHostname`, unless a scoped suppression has a non-empty reason. |
-| `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC` | mandatory   | Require public Cloudflare zones to have `ZoneFoundation` or `ZoneDnssec` evidence, unless a migration suppression has a non-empty reason.                       |
-| `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE` | mandatory   | Require application hostnames to have `CloudflareOriginIngress` tunnel or allowlist+AOP evidence.                                                               |
+| Rule ID                                  | Enforcement | Purpose                                                                                                                                                                                        |
+| ---------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD` | mandatory   | Reject DNS-only public application records unless a concrete matching `PublicHostname` parent records explicit acknowledgement and a non-empty justification, or a scoped suppression applies. |
+| `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC` | mandatory   | Require public Cloudflare zones to have `ZoneFoundation` or `ZoneDnssec` evidence, unless a migration suppression has a non-empty reason.                                                      |
+| `CF_ORIGIN_1_REQUIRE_SECURE_ORIGIN_MODE` | mandatory   | Require application hostnames to have `CloudflareOriginIngress` tunnel or allowlist+AOP evidence.                                                                                              |
 
 ## Suppression Shape
 
@@ -37,6 +37,12 @@ normal operation.
 
 Stack validators require evidence to match the specific resource under review:
 
+- `CF_DNS_1_NO_DNS_ONLY_PUBLIC_APP_RECORD` requires the DNS record's concrete
+  parent to be present in the evaluated stack with the exact
+  `PublicHostname` type, the same normalized hostname, `purpose: "public-app"`,
+  `proxied: false`, `acknowledgeDnsOnlyExposure: true`, and a non-empty
+  `dnsOnlyJustification`. A `PublicHostname` token in the URN type chain is not
+  sufficient by itself.
 - `CF_DNSSEC_1_REQUIRE_PUBLIC_ZONE_DNSSEC` accepts `ZoneDnssec` evidence only
   when it targets the same zone id/zone name, or when Pulumi dependency
   metadata ties the DNSSEC resource to that zone.
@@ -44,5 +50,5 @@ Stack validators require evidence to match the specific resource under review:
   `CloudflareOriginIngress` evidence only when its `hostname` matches the
   public application DNS record hostname.
 
-Unrelated DNSSEC or ingress resources in the same stack do not suppress
-violations for other zones or hostnames.
+Unrelated parent, DNSSEC, or ingress resources in the same stack do not
+suppress violations for other records, zones, or hostnames.

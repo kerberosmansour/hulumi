@@ -1,8 +1,4 @@
-import type {
-  PolicyResource,
-  ResourceValidationPolicy,
-  StackValidationPolicy,
-} from "@pulumi/policy";
+import type { PolicyResource, StackValidationPolicy } from "@pulumi/policy";
 
 import type { PackMetadata } from "../metadata";
 import { matchSuppression, type Suppression } from "../aws/suppressions";
@@ -158,6 +154,32 @@ function recordHostname(resource: PolicyResource): string | undefined {
   );
 }
 
+function hasAcknowledgedPublicHostnameParent(
+  resources: readonly PolicyResource[],
+  record: PolicyResource,
+): boolean {
+  if (!isChildOf(record.urn, PUBLIC_HOSTNAME_TYPE)) return false;
+  if (record.parent?.type !== PUBLIC_HOSTNAME_TYPE) return false;
+  const parent = resources.find(
+    (resource) => resource.type === PUBLIC_HOSTNAME_TYPE && resource.urn === record.parent?.urn,
+  );
+  if (parent === undefined) return false;
+  const props = parent.props as Record<string, unknown>;
+  const justification = props.dnsOnlyJustification;
+  if (
+    props.purpose !== "public-app" ||
+    props.proxied !== false ||
+    props.acknowledgeDnsOnlyExposure !== true ||
+    typeof justification !== "string" ||
+    justification.trim().length === 0
+  ) {
+    return false;
+  }
+  const parentHostname = normalizedString(props.hostname);
+  const childHostname = recordHostname(record);
+  return parentHostname !== undefined && parentHostname === childHostname;
+}
+
 function ingressHostname(resource: PolicyResource): string | undefined {
   const props = resource.props as Record<string, unknown>;
   return normalizedString(props.hostname);
@@ -175,20 +197,23 @@ function hasIngressEvidenceForRecord(
   });
 }
 
-export const cfDns1NoDnsOnlyPublicAppRecord: ResourceValidationPolicy = {
+export const cfDns1NoDnsOnlyPublicAppRecord: StackValidationPolicy = {
   name: CF_DNS_1_RULE_ID,
-  description: "Rejects DNS-only public application records that bypass Cloudflare proxying.",
+  description:
+    "Rejects DNS-only public application records unless a concrete PublicHostname parent records an explicit acknowledgement and justification.",
   enforcementLevel: "mandatory",
-  validateResource: (args, reportViolation) => {
-    if (!isDnsOnlyPublicAppRecord(args)) return;
-    if (isChildOf(args.urn, PUBLIC_HOSTNAME_TYPE)) return;
+  validateStack: (args, reportViolation) => {
     const suppressions = readSuppressions(
       (args.getConfig ? args.getConfig() : undefined) as Record<string, unknown> | undefined,
     );
-    if (matchSuppression(CF_DNS_1_RULE_ID, args.urn, suppressions).suppressed) return;
-    reportViolation(
-      `${CF_DNS_1_RULE_ID}: raw DNS-only public application record detected at ${args.urn}. Use @hulumi/cloudflare-baseline.PublicHostname or set an explicit scoped suppression with a justification. Docs: ${DOCS_URL}`,
-    );
+    for (const resource of args.resources) {
+      if (!isDnsOnlyPublicAppRecord(resource)) continue;
+      if (hasAcknowledgedPublicHostnameParent(args.resources, resource)) continue;
+      if (matchSuppression(CF_DNS_1_RULE_ID, resource.urn, suppressions).suppressed) continue;
+      reportViolation(
+        `${CF_DNS_1_RULE_ID}: DNS-only public application record ${resource.urn} lacks a concrete matching PublicHostname parent with acknowledgeDnsOnlyExposure: true and a non-empty dnsOnlyJustification. Use @hulumi/cloudflare-baseline.PublicHostname or set an explicit scoped suppression with a justification. Docs: ${DOCS_URL}`,
+      );
+    }
   },
 };
 

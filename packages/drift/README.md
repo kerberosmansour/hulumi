@@ -4,9 +4,9 @@ Version 3.0.0 requires Node.js >=22.12.0; see the [coordinated migration notes](
 
 Local-first drift classifier for Pulumi stacks. Distinguishes
 provider-API churn from console break-glass from genuine IaC drift via
-four pluggable adapters whose composition mirrors `HardenedVerdict` in
-[`HulumiDrift.tla`](../../docs/TLAdocs/hulumi/HulumiDrift.tla)
-(upstream planning corpus) exactly.
+four pluggable adapters. See the [verdict implementation](./src/verdict.ts)
+and [alignment tests](./tests/tla-alignment.test.ts). The classifier's upstream
+`HulumiDrift.tla` planning model is not distributed in this repository.
 
 ## Quick-start
 
@@ -63,7 +63,7 @@ remains classifiable during SecureBucket migration.
 
 ## Live posture validator
 
-`@hulumi/drift@1.5.0` also ships the read-only `hulumi validate live` CLI. It turns
+`@hulumi/drift@3.0.0` also ships the read-only `hulumi validate live` CLI. It turns
 bounded provider adapters into deterministic JSON, Markdown, and SARIF posture
 artifacts for AWS organization guardrails, Pulumi state backend posture, EKS
 foundation posture, and GitHub environment/runner governance.
@@ -224,3 +224,14 @@ const plan = new OrphanReconciler().plan({
 ### Executor maintenance bounds
 
 CloudTrail retry `maxAttempts` must be a safe integer from 1 through 10; invalid budgets fail before any AWS call. CloudWatch log-group deletion verifies the identity using the actual Logs client's credential provider and region, and refreshes caller identity for each deletion. Keep the expected account and region explicit.
+
+## Using this with a coding agent
+
+Use the [consumer integration guide](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/integration.md)
+and its published-version skill reference. Check prerequisites, dependency admission
+and the relevant success and failure-path tests before adopting this package.
+Feedback is optional: share general usage in [Discussions](https://github.com/kerberosmansour/hulumi/discussions),
+and use the [integration report](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml)
+for a concrete blocker or documentation gap. An agent must obtain operator permission
+before posting. Use [private security reporting](https://github.com/kerberosmansour/hulumi/security/advisories/new)
+for suspected vulnerabilities. Never share secrets, private code or transcripts.

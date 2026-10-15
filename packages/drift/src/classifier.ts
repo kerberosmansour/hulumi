@@ -26,6 +26,7 @@ import {
   type CacheEnvelope,
 } from "./cache";
 import { runProbe, type ProbeFn } from "./probe";
+import { defaultEvidenceWindow, validateEvidenceWindow } from "./evidence-window";
 
 export interface DriftClassifierArgs {
   adapters: {
@@ -89,6 +90,10 @@ export class DriftClassifier {
     resource: string,
     options: ClassifyOptions = {},
   ): Promise<DriftVerdict> {
+    // Validate caller input before reading a cached verdict. An invalid
+    // security boundary must never be hidden by a cache hit.
+    const explicitWindow =
+      options.window === undefined ? undefined : validateEvidenceWindow(options.window);
     const cacheDir = options.cacheDir ?? ".hulumi/drift-cache";
     const ttl = options.cacheTtlSeconds ?? 21_600;
     const probeTimeoutMs = resolveProbeTimeoutMs({
@@ -115,10 +120,7 @@ export class DriftClassifier {
       });
     }
 
-    const window = options.window ?? {
-      before: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      after: new Date().toISOString(),
-    };
+    const window = explicitWindow ?? defaultEvidenceWindow();
 
     const [autoResult, ctResult, pvResult, glResult] = await Promise.allSettled([
       this.args.adapters.automationApi.signal(stack, resource, window),

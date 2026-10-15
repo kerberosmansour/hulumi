@@ -37,6 +37,26 @@ const verdict = await classifier.classify(
 console.log(verdict.source, verdict.confidence);
 ```
 
+### Evidence-window contract
+
+Every adapter uses the same inclusive chronological interval:
+
+```ts
+await classifier.classify(stack, resource, {
+  window: {
+    after: "2026-10-14T12:00:00Z", // lower, earlier bound
+    before: "2026-10-15T12:00:00Z", // upper, later bound
+  },
+});
+```
+
+When `window` is omitted, `DriftClassifier` captures the clock once and uses
+the preceding 24 hours. Invalid timestamps and intervals where `after > before`
+fail closed before adapters or the delivery probe run. Direct CloudTrail, Git,
+and GitHub webhook adapter calls apply the same validation before evidence
+lookup; `GitLogAdapter` retains its existing unbounded behavior when called
+directly without a window.
+
 S3 resource-token handling accepts both the current `aws:s3/bucket:Bucket`
 token and the legacy `aws:s3/bucketV2:BucketV2` token so old Pulumi state
 remains classifiable during SecureBucket migration.
@@ -91,6 +111,10 @@ Row 4's `medium` ceiling is TLA+-proven (`SafetyRealistic` invariant).
 - **E5** — `GitLogAdapter.available()` is `false` on shallow clones;
   classifier degrades to `Unknown / low` with remediation. See
   `tests/shallow-clone.test.ts`.
+- **Evidence window** — `after` is the inclusive lower bound and `before`
+  is the inclusive upper bound. Defaults use one clock reading and span 24
+  hours; invalid or reversed ranges fail closed. See
+  `tests/evidence-window-contract.test.ts`.
 
 ## Guarded reconciliation and sweeping
 

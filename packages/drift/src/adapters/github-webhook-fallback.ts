@@ -24,7 +24,8 @@
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-import type { AdapterSignal, DriftAdapter } from "../types";
+import { validateEvidenceWindow } from "../evidence-window";
+import type { AdapterSignal, DriftAdapter, EvidenceWindow } from "../types";
 
 const MAX_PAYLOAD_BYTES = 25 * 1024 * 1024; // 25 MB per GitHub spec
 const MAX_NESTING_DEPTH = 64;
@@ -270,17 +271,25 @@ export class GithubWebhookFallbackAdapter implements DriftAdapter {
    * envelopeTime falls in the window are sequenced + folded into the
    * signal payload.
    */
-  async signal(
-    _stack: string,
-    resource: string,
-    window: { before: string; after: string },
-  ): Promise<AdapterSignal> {
+  async signal(_stack: string, resource: string, window: EvidenceWindow): Promise<AdapterSignal> {
     // The DriftAdapter window contract uses `before` as the upper bound
     // (more recent) and `after` as the lower bound (earlier) — events
     // are matched when `after <= t <= before`. This matches the
     // CloudTrail adapter's convention.
-    const upperTs = new Date(window.before).getTime();
-    const lowerTs = new Date(window.after).getTime();
+    try {
+      validateEvidenceWindow(window);
+    } catch (err) {
+      return {
+        detected: false,
+        ok: false,
+        data: {
+          error: err instanceof Error ? err.message : String(err),
+          rejected: "invalid evidence window — refused before webhook evidence lookup",
+        },
+      };
+    }
+    const upperTs = Date.parse(window.before);
+    const lowerTs = Date.parse(window.after);
     // E1 — sequence by envelope timestamp before composition.
     const inWindow = this.events
       .filter((e) => {

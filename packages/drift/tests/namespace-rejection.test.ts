@@ -52,8 +52,8 @@ describe("namespace rejection — E4", () => {
       lookup: async () => events,
     });
     const result = await adapter.signal("stack", "arn:aws:s3:::test", {
-      before: "2026-01-01T00:00:00Z",
-      after: "2026-12-31T23:59:59Z",
+      after: "2026-01-01T00:00:00Z",
+      before: "2026-12-31T23:59:59Z",
     });
     expect(result.ok).toBe(true);
     expect(result.detected).toBe(true);

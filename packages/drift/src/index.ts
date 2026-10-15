@@ -6,10 +6,18 @@ export type {
   DriftVerdict,
   AdapterSignal,
   DriftAdapter,
+  EvidenceWindow,
   ClassifyOptions,
   RemediationHint,
   VerdictSnapshot,
 } from "./types";
+export {
+  DEFAULT_EVIDENCE_WINDOW_MS,
+  InvalidEvidenceWindowError,
+  defaultEvidenceWindow,
+  resolveEvidenceWindow,
+  validateEvidenceWindow,
+} from "./evidence-window";
 export { hardenedVerdict, type VerdictResult } from "./verdict";
 export { checkMonotonicity, type MonotonicityResult } from "./monotonicity";
 export {

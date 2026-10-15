@@ -39,6 +39,16 @@ function validateArgs(args: PulumiStateBackendFoundationArgs): void {
       throw new Error("PulumiStateBackendFoundation: objectLock.days must be at least 1");
     }
   }
+  if (
+    args.replication !== undefined &&
+    (args.replication.destinationKmsKeyArn === undefined ||
+      (typeof args.replication.destinationKmsKeyArn === "string" &&
+        args.replication.destinationKmsKeyArn.trim().length === 0))
+  ) {
+    throw new Error(
+      "PulumiStateBackendFoundation: replication.destinationKmsKeyArn must be a non-empty KMS key ARN or alias ARN",
+    );
+  }
 }
 
 function stateBackendTags(
@@ -159,7 +169,7 @@ export class PulumiStateBackendFoundation
       { parent: this },
     );
 
-    new aws.s3.BucketServerSideEncryptionConfiguration(
+    const bucketEncryption = new aws.s3.BucketServerSideEncryptionConfiguration(
       `${name}-bucket-sse`,
       {
         bucket: this.bucket.id,
@@ -185,7 +195,7 @@ export class PulumiStateBackendFoundation
       { parent: this },
     );
 
-    new aws.s3.BucketVersioning(
+    const bucketVersioning = new aws.s3.BucketVersioning(
       `${name}-bucket-versioning`,
       {
         bucket: this.bucket.id,
@@ -243,20 +253,21 @@ export class PulumiStateBackendFoundation
             {
               id: `${name}-state-replication`,
               status: "Enabled",
+              sourceSelectionCriteria: {
+                sseKmsEncryptedObjects: { status: "Enabled" },
+              },
               destination: {
                 bucket: args.replication.destinationBucketArn,
-                ...(args.replication.destinationKmsKeyArn !== undefined
-                  ? {
-                      encryptionConfiguration: {
-                        replicaKmsKeyId: args.replication.destinationKmsKeyArn,
-                      },
-                    }
-                  : {}),
+                encryptionConfiguration: {
+                  // validateArgs proves this before the component registers;
+                  // the v3 declaration remains optional only for migration.
+                  replicaKmsKeyId: args.replication.destinationKmsKeyArn!,
+                },
               },
             },
           ],
         },
-        { parent: this },
+        { parent: this, dependsOn: [bucketEncryption, bucketVersioning] },
       );
     }
 

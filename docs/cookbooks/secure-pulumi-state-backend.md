@@ -14,6 +14,7 @@ Use this when a stack still uses local state, passphrase secrets, or a hand-roll
 - A dedicated AWS account or security account scope for state.
 - A Pulumi project that can install `@hulumi/platform-patterns`, `@hulumi/policies`, `@pulumi/aws`, and `@pulumi/policy`.
 - A migration window. This cookbook does not automate state migration.
+- For replication: a versioned destination bucket, a symmetric customer managed KMS key in that bucket's Region, and an S3 replication role whose role and key policies allow source decrypt and destination encrypt.
 
 ## Steps
 
@@ -36,6 +37,21 @@ export const drPosture = state.drPosture;
 ```
 
 The optional lease table is only for CI apply serialization. It is not a Pulumi state lock and does not change backend behavior.
+
+To add encrypted-state replication, supply all three external authorities:
+
+```ts
+replication: {
+  destinationBucketArn: "arn:aws:s3:::example-company-pulumi-state-replica",
+  roleArn: "arn:aws:iam::123456789012:role/pulumi-state-replication",
+  destinationKmsKeyArn:
+    "arn:aws:kms:eu-west-1:210987654321:key/11111111-2222-3333-4444-555555555555",
+},
+```
+
+Hulumi enables replication of SSE-KMS source objects and encrypts replicas
+with the supplied destination key. It rejects a missing or empty destination
+key before registering resources.
 
 ### 2. Configure policy checks
 
@@ -71,6 +87,8 @@ Forbidden checks:
 - `backendUrl` resolves to `s3://<bucket>`.
 - `secretsProviderHint` starts with `awskms://`.
 - `drPosture` is not `advisory-degraded` for production.
+- When replication is enabled, the rule selects SSE-KMS objects and its replica KMS key is the reviewed destination key.
+- The destination bucket has versioning enabled and a non-sensitive encrypted canary reaches the expected destination/key; do not use or read a Pulumi state object for this check.
 - `pulumi preview --policy-pack ./policies` reports no `HULUMI-H2` or `STATE-1` violations.
 
 ## Troubleshooting
@@ -80,6 +98,13 @@ Forbidden checks:
 **The stack needs concurrent applies.** Do not rely on Pulumi state behavior for this. Use the optional lease table in your CI wrapper to reject a second active writer for the same stack key.
 
 **No object lock or replication is configured.** The component reports `advisory-degraded`. That may be acceptable for sandbox stacks, but production should opt into Object Lock, replication, or both.
+
+**The replication configuration was accepted but objects do not arrive.** AWS
+does not validate the destination KMS key when it accepts the replication
+configuration. Check destination Region and versioning, the key state and key
+policy, and the replication role's source decrypt and destination encrypt
+permissions. Use replication metrics and a non-sensitive canary rather than
+reading backend state.
 
 ## See also
 

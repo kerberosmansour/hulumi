@@ -32,6 +32,7 @@ pnpm add @hulumi/k8s-baseline @pulumi/kubernetes @pulumi/aws @pulumi/pulumi
 | `KubernetesSecretFromAwsSecretsManager` | K8s `Secret` from an AWS Secrets Manager value, fail-closed on JSON-shape violations                                                                                               |
 | `RdsCredentialSecret`                   | Extract RDS auto-managed master credential into a K8s `Secret` with fail-closed semantics                                                                                          |
 | `GitHubAppCredential`                   | Secrets Manager container + JWT-mint helper bundle for GitHub App credential rotation                                                                                              |
+| `EksTrustedNodeLabelReconciler`         | Restore one NodeRestriction-protected label after exact EKS, Auto Scaling, EC2 and current-Node attestation, with Pod Identity, admission and alarms                               |
 
 ## Quick-start — `IstioFoundation`
 
@@ -63,6 +64,33 @@ const apiKey = new KubernetesSecretFromAwsSecretsManager("api-key", {
 the AWS source value is not a JSON object — preventing accidental
 plaintext leakage. See
 [docs/components/kubernetes-secret-from-asm.md](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/kubernetes-secret-from-asm.md).
+
+## Quick-start — `EksTrustedNodeLabelReconciler`
+
+```ts
+import { EksTrustedNodeLabelReconciler } from "@hulumi/k8s-baseline";
+
+new EksTrustedNodeLabelReconciler("trusted-workers", {
+  k8sProvider: clusterProvider,
+  clusterName: "prod-eks",
+  nodeGroupName: "trusted-workers",
+  awsAccountId: "111122223333",
+  awsRegion: "eu-west-2",
+  namespace: "hulumi-system",
+  controllerImage:
+    "111122223333.dkr.ecr.eu-west-2.amazonaws.com/hulumi-node-label@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  protectedLabelKey: "identity.node-restriction.kubernetes.io/workload",
+  protectedLabelValue: "trusted",
+  allowedInstanceTypes: ["m7i.large"],
+  expectedTaints: [{ key: "dedicated", value: "trusted", effect: "NoSchedule" }],
+  alarmSnsTopicArn: "arn:aws:sns:eu-west-2:111122223333:security-alerts",
+});
+```
+
+M2 requires an operator-built, digest-pinned image containing the package's
+compiled `dist/` tree at `/app/dist`. See the
+[component security contract](../../docs/components/eks-trusted-node-label-reconciler.md).
+The supported provenance-attested image and live EKS qualification follow in M3.
 
 ## Compatibility
 

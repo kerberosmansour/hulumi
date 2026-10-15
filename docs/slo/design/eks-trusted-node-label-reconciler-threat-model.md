@@ -44,6 +44,10 @@ allowed EKS managed node group and matches its expected EC2 identity and taints.
 | `tm-eks-node-label-reconciler-abuse-3` | A Node is deleted/recreated or modified after attestation but before patch. | The verdict is applied to a different object or stale state. | Test UID, resourceVersion and provider ID in the JSON Patch; requeue on conflict and re-attest. |
 | `tm-eks-node-label-reconciler-abuse-4` | An operator or attacker preloads a different protected identity. | The reconciler overwrites evidence of misconfiguration or compromise. | Refuse every conflicting existing value; never replace it automatically. |
 | `tm-eks-node-label-reconciler-abuse-5` | Provider throttling or a zero-sized pool is treated as success. | Missing labels go undetected, or scale-to-zero creates perpetual false alarms. | Distinguish `zero_capacity`, `awaiting_nodes` and provider failure; fail closed and alarm only actionable states. |
+| `tm-eks-node-label-reconciler-abuse-6` | A stolen controller token or another Node writer changes the protected label or piggybacks another field change. | The narrow identity restoration path becomes general Node mutation authority. | Bind minimal RBAC to one ServiceAccount and enforce exact label-addition shape and identity with a fail-closed ValidatingAdmissionPolicy. |
+| `tm-eks-node-label-reconciler-abuse-7` | An API returns a partial page, duplicate record, malformed object or unbounded continuation. | The controller authorizes against incomplete evidence or consumes unbounded memory/time. | Bound every page/item/byte/retry count, require requested records exactly once, and treat every partial/ambiguous result as failure. |
+| `tm-eks-node-label-reconciler-abuse-8` | A failure path logs bearer tokens, credential headers, raw provider responses or high-cardinality metadata. | Credentials or sensitive infrastructure topology enter logs and metric stores. | Emit only stable reason codes, fixed dimensions and a one-way Node UID correlation hash; test redaction on every failure class. |
+| `tm-eks-node-label-reconciler-abuse-9` | A mutable or known-vulnerable controller image is deployed. | Registry substitution or a compromised runtime gains the controller's patch authority. | Require a digest-pinned image in M2; publish only an OSV/Trivy-clean, provenance-attested artifact after M3 qualification. |
 
 ## Residual risks and milestone ownership
 
@@ -53,6 +57,7 @@ allowed EKS managed node group and matches its expected EC2 identity and taints.
 | M1 trusts typed provider snapshots supplied by its caller. | Accepted only for the pure-kernel milestone; M2 owns real adapters and prevents arbitrary input injection. | M2, repository maintainer. |
 | RBAC cannot restrict a Node patch to one label key. | M2 must add an admission control bound to the exact controller identity and mutation shape. | M2, repository maintainer. |
 | Intentional zero capacity has no recovery-time sample. | M3 measures recovery only after capacity becomes non-zero and records the scale-from-zero start point. | M3, repository maintainer. |
+| The M2 component accepts an externally built digest-pinned controller image. | The digest prevents substitution but does not establish build provenance or vulnerability status. M3 must publish and attest the supported image before an operational release claim. | M3, repository maintainer, before publication. |
 
 ## Compliance/control mapping
 

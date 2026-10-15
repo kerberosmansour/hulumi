@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a duplicate build while retaining admission, required checks and
   main-only attestation.
 
+- Remove unused nested SCA Vitest tooling, replace absent test commands with
+  Node scope-authority regressions, and run tool build/lint/tests in read-only CI.
+  Pin reviewed tooling exactly, align Node types with CI, declare the existing
+  ESLint configuration dependency, and retain malformed-lock diagnostic causes.
+
 - Add Guardian-derived `CodeBuildGitHubRunner` source construction and dedicated
   CrossGuard rules. Defaults use scoped log-only IAM, no VPC/privilege/cache/
   artifacts, explicit source-auth prerequisites and bounded resource settings.

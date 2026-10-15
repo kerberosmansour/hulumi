@@ -5,8 +5,10 @@ import type { TrustedNodeLabelKubernetesAdapter } from "./trusted-node-label-con
 import {
   classifyNodeGroupCapacity,
   planTrustedNodeLabel,
+  planTrustedNodeLabelFailure,
   validateReconciliationPlan,
   type DenyReason,
+  type ReconciliationDecision,
   type TrustedNodeLabelPolicy,
 } from "./trusted-node-label-reconciler-core";
 
@@ -19,6 +21,7 @@ export type ControllerAuditEventName =
   | "node_denied"
   | "node_noop"
   | "node_patched"
+  | "node_revoked"
   | "stale_plan"
   | "patch_rejected"
   | "metric_publish_failed";
@@ -125,7 +128,10 @@ export async function runTrustedNodeLabelControllerCycle(
     autoScalingGroups = await dependencies.aws.describeAutoScalingGroups(
       nodeGroup.autoScalingGroupNames,
     );
-    nodes = await dependencies.kubernetes.listCandidateNodes();
+    nodes = await dependencies.kubernetes.listCandidateNodes(
+      config.policy.protectedLabelKey,
+      config.policy.protectedLabelValue,
+    );
   } catch (error) {
     const result: TrustedNodeLabelCycleResult = {
       capacity: "invalid",
@@ -143,7 +149,13 @@ export async function runTrustedNodeLabelControllerCycle(
     return result;
   }
 
-  const capacity = classifyNodeGroupCapacity(nodeGroup.scalingConfig.desiredSize, nodes.length);
+  const nodeGroupNodeCount = nodes.filter(
+    (node) => node.labels["eks.amazonaws.com/nodegroup"] === config.policy.nodeGroupName,
+  ).length;
+  const capacity = classifyNodeGroupCapacity(
+    nodeGroup.scalingConfig.desiredSize,
+    nodeGroupNodeCount,
+  );
   let decisions = 0;
   let failures = capacity === "invalid" || capacity === "awaiting_nodes" ? 1 : 0;
   let missingTrustedLabels = capacity === "awaiting_nodes" || capacity === "reconciling" ? 1 : 0;
@@ -153,42 +165,43 @@ export async function runTrustedNodeLabelControllerCycle(
     decisions += 1;
     const ref = nodeRef(node.uid);
     const missingAtRead = node.labels[config.policy.protectedLabelKey] === undefined;
+    const isNodeGroupCandidate =
+      node.labels["eks.amazonaws.com/nodegroup"] === config.policy.nodeGroupName;
     const provider = PROVIDER_ID.exec(node.providerId);
+    let decision: ReconciliationDecision;
     if (provider === null) {
-      failures += 1;
-      if (missingAtRead) missingTrustedLabels += 1;
-      emit(audit, {
-        timestamp: timestamp(now),
-        event: "node_denied",
-        reason: "provider_id_malformed" satisfies DenyReason,
-        nodeRef: ref,
-      });
-      continue;
+      decision = planTrustedNodeLabelFailure(
+        config.policy,
+        node,
+        "provider_id_malformed" satisfies DenyReason,
+      );
+    } else {
+      try {
+        const ec2Instance = await dependencies.aws.describeEc2Instance(provider[2]);
+        decision = planTrustedNodeLabel({
+          nowEpochMs: now(),
+          policy: config.policy,
+          node,
+          nodeGroup,
+          autoScalingGroups,
+          ec2Instance,
+        });
+      } catch (error) {
+        emit(audit, {
+          timestamp: timestamp(now),
+          event: "provider_failure",
+          reason: errorCode(error),
+          nodeRef: ref,
+        });
+        decision = planTrustedNodeLabelFailure(
+          config.policy,
+          node,
+          "evidence_unavailable",
+          provider[2],
+        );
+      }
     }
 
-    let ec2Instance;
-    try {
-      ec2Instance = await dependencies.aws.describeEc2Instance(provider[2]);
-    } catch (error) {
-      failures += 1;
-      if (missingAtRead) missingTrustedLabels += 1;
-      emit(audit, {
-        timestamp: timestamp(now),
-        event: "provider_failure",
-        reason: errorCode(error),
-        nodeRef: ref,
-      });
-      continue;
-    }
-
-    const decision = planTrustedNodeLabel({
-      nowEpochMs: now(),
-      policy: config.policy,
-      node,
-      nodeGroup,
-      autoScalingGroups,
-      ec2Instance,
-    });
     if (decision.action === "deny") {
       failures += 1;
       if (missingAtRead) missingTrustedLabels += 1;
@@ -204,13 +217,17 @@ export async function runTrustedNodeLabelControllerCycle(
       emit(audit, { timestamp: timestamp(now), event: "node_noop", nodeRef: ref });
       continue;
     }
+    if (decision.action === "revoke") {
+      failures += 1;
+      if (isNodeGroupCandidate) missingTrustedLabels += 1;
+    }
 
     try {
       const currentNode = await dependencies.kubernetes.getNode(decision.plan.nodeName);
       const validation = validateReconciliationPlan(decision.plan, currentNode);
       if (!validation.valid) {
         failures += 1;
-        missingTrustedLabels += 1;
+        if (decision.action === "patch") missingTrustedLabels += 1;
         emit(audit, {
           timestamp: timestamp(now),
           event: "stale_plan",
@@ -219,12 +236,27 @@ export async function runTrustedNodeLabelControllerCycle(
         });
         continue;
       }
-      await dependencies.kubernetes.patchNode(decision.plan.nodeName, decision.patch);
+      await dependencies.kubernetes.patchNode(
+        decision.plan.nodeName,
+        decision.patch,
+        config.policy.protectedLabelKey,
+        config.policy.protectedLabelValue,
+      );
       patched += 1;
-      emit(audit, { timestamp: timestamp(now), event: "node_patched", nodeRef: ref });
+      emit(
+        audit,
+        decision.action === "revoke"
+          ? {
+              timestamp: timestamp(now),
+              event: "node_revoked",
+              reason: decision.reason,
+              nodeRef: ref,
+            }
+          : { timestamp: timestamp(now), event: "node_patched", nodeRef: ref },
+      );
     } catch (error) {
       failures += 1;
-      missingTrustedLabels += 1;
+      if (decision.action === "patch") missingTrustedLabels += 1;
       emit(audit, {
         timestamp: timestamp(now),
         event: "patch_rejected",

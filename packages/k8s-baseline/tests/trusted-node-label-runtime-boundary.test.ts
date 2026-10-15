@@ -266,7 +266,10 @@ describe("Kubernetes API adapter", () => {
       transport,
       async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
     );
-    const nodes = await adapter.listCandidateNodes();
+    const nodes = await adapter.listCandidateNodes(
+      "identity.node-restriction.kubernetes.io/workload",
+      "trusted",
+    );
     expect(nodes).toHaveLength(1);
     expect(await adapter.getNode(nodes[0].name)).toMatchObject({ resourceVersion: "100" });
     const patch = [
@@ -283,19 +286,164 @@ describe("Kubernetes API adapter", () => {
         value: "trusted",
       },
     ];
-    await adapter.patchNode(nodes[0].name, patch);
-    expect(requests).toHaveLength(3);
+    await adapter.patchNode(
+      nodes[0].name,
+      patch,
+      "identity.node-restriction.kubernetes.io/workload",
+      "trusted",
+    );
+    expect(requests).toHaveLength(4);
     expect(requests[0].path).toContain(
       "labelSelector=eks.amazonaws.com%2Fnodegroup%3Dtrusted-workers",
+    );
+    expect(requests[1].path).toContain(
+      "labelSelector=identity.node-restriction.kubernetes.io%2Fworkload%3Dtrusted",
     );
     expect(
       requests.every((request) => request.headers.Authorization === "Bearer token-value-123456789"),
     ).toBe(true);
-    expect(requests[2]).toMatchObject({
+    expect(requests[3]).toMatchObject({
       method: "PATCH",
       headers: { "Content-Type": "application/json-patch+json" },
       body: JSON.stringify(patch),
     });
+  });
+
+  test("BDD-M4a-6: accepts only an exact value-tested remove patch", async () => {
+    const requests: KubernetesTransportRequest[] = [];
+    const adapter = createTrustedNodeLabelKubernetesAdapter(
+      {
+        hostname: "kubernetes.default.svc",
+        port: 443,
+        tokenPath: "/token",
+        caPath: "/ca",
+        nodeGroupName: "trusted-workers",
+        maxNodesPerCycle: 10,
+      },
+      vi.fn(async (request: KubernetesTransportRequest) => {
+        requests.push(request);
+        return { statusCode: 200, body: "{}" };
+      }),
+      async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
+    );
+    const labelPath = "/metadata/labels/identity.node-restriction.kubernetes.io~1workload";
+    const removePatch = [
+      { op: "test" as const, path: "/metadata/uid", value: "uid-1" },
+      { op: "test" as const, path: "/metadata/resourceVersion", value: "100" },
+      {
+        op: "test" as const,
+        path: "/spec/providerID",
+        value: "aws:///eu-west-2a/i-0123456789abcdef0",
+      },
+      { op: "test" as const, path: labelPath, value: "trusted" },
+      { op: "remove" as const, path: labelPath },
+    ];
+
+    await adapter.patchNode(
+      "ip-10-0-0-10.eu-west-2.compute.internal",
+      removePatch,
+      "identity.node-restriction.kubernetes.io/workload",
+      "trusted",
+    );
+    expect(requests).toHaveLength(1);
+    await expect(
+      adapter.patchNode(
+        "ip-10-0-0-10.eu-west-2.compute.internal",
+        [...removePatch.slice(0, 3), removePatch[4]],
+        "identity.node-restriction.kubernetes.io/workload",
+        "trusted",
+      ),
+    ).rejects.toMatchObject({ code: "kubernetes_response_invalid" });
+    await expect(
+      adapter.patchNode(
+        "ip-10-0-0-10.eu-west-2.compute.internal",
+        [...removePatch.slice(0, 4), { op: "remove" as const, path: `${labelPath}-other` }],
+        "identity.node-restriction.kubernetes.io/workload",
+        "trusted",
+      ),
+    ).rejects.toMatchObject({ code: "kubernetes_response_invalid" });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("BDD-M4a-7: union discovery deduplicates by UID and enforces one global bound", async () => {
+    const first = nodeObject();
+    const second = {
+      ...nodeObject(),
+      metadata: {
+        ...nodeObject().metadata,
+        name: "ip-10-0-0-11.eu-west-2.compute.internal",
+        uid: "uid-2",
+      },
+    };
+    let query = 0;
+    const adapter = createTrustedNodeLabelKubernetesAdapter(
+      {
+        hostname: "kubernetes.default.svc",
+        port: 443,
+        tokenPath: "/token",
+        caPath: "/ca",
+        nodeGroupName: "trusted-workers",
+        maxNodesPerCycle: 1,
+      },
+      vi.fn(async () => {
+        query += 1;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            apiVersion: "v1",
+            kind: "NodeList",
+            metadata: {},
+            items: query === 1 ? [first] : [first, second],
+          }),
+        };
+      }),
+      async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
+    );
+    await expect(
+      adapter.listCandidateNodes("identity.node-restriction.kubernetes.io/workload", "trusted"),
+    ).rejects.toMatchObject({ code: "kubernetes_node_bound_exceeded" });
+  });
+
+  test("BDD-M4a-7: a trusted Node remains a candidate after its node-group label disappears", async () => {
+    const stale = nodeObject();
+    stale.metadata.labels["eks.amazonaws.com/nodegroup"] = "other-workers";
+    const staleLabels: Record<string, string> = stale.metadata.labels;
+    staleLabels["identity.node-restriction.kubernetes.io/workload"] = "trusted";
+    const selectors: string[] = [];
+    const adapter = createTrustedNodeLabelKubernetesAdapter(
+      {
+        hostname: "kubernetes.default.svc",
+        port: 443,
+        tokenPath: "/token",
+        caPath: "/ca",
+        nodeGroupName: "trusted-workers",
+        maxNodesPerCycle: 10,
+      },
+      vi.fn(async (request: KubernetesTransportRequest) => {
+        selectors.push(request.path);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            apiVersion: "v1",
+            kind: "NodeList",
+            metadata: {},
+            items: request.path.includes("nodegroup") ? [] : [stale],
+          }),
+        };
+      }),
+      async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
+    );
+
+    const candidates = await adapter.listCandidateNodes(
+      "identity.node-restriction.kubernetes.io/workload",
+      "trusted",
+    );
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      uid: "uid-1",
+      labels: { "eks.amazonaws.com/nodegroup": "other-workers" },
+    });
+    expect(selectors).toHaveLength(2);
   });
 
   test("Pass 0 / critical journey: real TLS + file-token adapter, AWS commands, kernel and patch receiver form one cross-layer path", async () => {
@@ -482,7 +630,9 @@ describe("Kubernetes API adapter", () => {
       }),
       async (path) => Buffer.from(path === "/token" ? "token-value-123456789" : "test-ca"),
     );
-    await expect(adapter.listCandidateNodes()).rejects.toMatchObject({
+    await expect(
+      adapter.listCandidateNodes("identity.node-restriction.kubernetes.io/workload", "trusted"),
+    ).rejects.toMatchObject({
       code: "kubernetes_pagination_invalid",
     } satisfies Partial<KubernetesAdapterError>);
   });
@@ -525,6 +675,6 @@ describe("runtime configuration and finite-state alignment", () => {
     expect(controller).toContain("validateReconciliationPlan(decision.plan, currentNode)");
     expect(
       controller.indexOf("validateReconciliationPlan(decision.plan, currentNode)"),
-    ).toBeLessThan(controller.indexOf("patchNode(decision.plan.nodeName"));
+    ).toBeLessThan(controller.indexOf("await dependencies.kubernetes.patchNode("));
   });
 });

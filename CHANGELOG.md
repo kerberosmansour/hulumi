@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Fail legacy SCA triage for known malicious packages without a fixed release,
+  requiring removal/investigation instead of a dropped finding. Legacy optional
+  configuration cannot demote fixable malicious findings from urgent handling.
+
 - Reuse the same-run verified workspace build for CI tarball checks, removing
   a duplicate build while retaining admission, required checks and
   main-only attestation.

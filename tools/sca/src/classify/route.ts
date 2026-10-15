@@ -7,6 +7,7 @@ export interface RouteConfig {
     minCvss: number;
     epssThreshold: number;
     treatKevAsEmergency: boolean;
+    /** Compatibility field; known malicious packages are always urgent. */
     treatMalAsEmergency: boolean;
     requireFixAvailable: boolean;
     requireLockfilePresence: boolean;
@@ -38,6 +39,17 @@ export function routeEvidence(
     return { track: "dropped", reason: "not present in lockfile" };
   }
 
+  // A missing patched release is not a reason to suppress known malicious code.
+  // Keep scanner evidence and fail before triage can emit a dropped work item.
+  if (
+    evidence.osv.class === "malicious" &&
+    (typeof evidence.osv.fixedVersion !== "string" || evidence.osv.fixedVersion.trim() === "")
+  ) {
+    throw new Error(
+      "known malicious package has no fixed release; remove it and investigate before continuing",
+    );
+  }
+
   if (evidence.osv.fixedVersion === null && config.emergency.requireFixAvailable) {
     if (options.forceEmergencyForTest) {
       assertEmergencyInvariant(evidence);
@@ -47,7 +59,7 @@ export function routeEvidence(
 
   const emergency =
     options.forceEmergencyForTest ||
-    (config.emergency.treatMalAsEmergency && evidence.osv.class === "malicious") ||
+    evidence.osv.class === "malicious" ||
     (config.emergency.treatKevAsEmergency && evidence.kev.listed === true) ||
     (evidence.epss.score !== null && evidence.epss.score >= config.emergency.epssThreshold) ||
     (evidence.ghsa.cvss !== null && evidence.ghsa.cvss >= config.emergency.minCvss) ||
@@ -75,7 +87,7 @@ export function assertEmergencyInvariant(
   config: RouteConfig = defaultRouteConfig,
 ) {
   const hasEmergencyReason =
-    (config.emergency.treatMalAsEmergency && evidence.osv.class === "malicious") ||
+    evidence.osv.class === "malicious" ||
     (config.emergency.treatKevAsEmergency && evidence.kev.listed === true) ||
     (evidence.epss.score !== null && evidence.epss.score >= config.emergency.epssThreshold) ||
     (evidence.ghsa.cvss !== null && evidence.ghsa.cvss >= config.emergency.minCvss) ||

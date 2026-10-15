@@ -155,6 +155,25 @@ describe("CIS §1.16 — no full-admin IAM policy", () => {
     expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
   });
 
+  it("fires when the full-admin policy has a singleton Statement", () => {
+    invokeResource(
+      cis_1_16_noFullAdminPolicy,
+      makeResourceArgs({
+        type: "aws:iam/policy:Policy",
+        urn: "x",
+        name: "singleton-full-admin",
+        props: {
+          policy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: { Effect: "Allow", Action: "*", Resource: "*" },
+          }),
+        },
+      }),
+      report,
+    );
+    expect(violations).toHaveLength(1);
+  });
+
   it("is silent on a scoped policy", () => {
     invokeResource(
       cis_1_16_noFullAdminPolicy,
@@ -215,6 +234,54 @@ describe("CIS §1.16 — no full-admin IAM policy", () => {
     );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
+  });
+
+  it.each([
+    [
+      "role managedPolicyArns",
+      "aws:iam/role:Role",
+      { managedPolicyArns: ["arn:aws:iam::aws:policy/AdministratorAccess"] },
+    ],
+    [
+      "exclusive role attachments",
+      "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive",
+      { roleName: "deploy", policyArns: ["arn:aws:iam::aws:policy/AdministratorAccess"] },
+    ],
+    [
+      "generic attachment",
+      "aws:iam/policyAttachment:PolicyAttachment",
+      { roles: ["deploy"], policyArn: "arn:aws:iam::aws:policy/AdministratorAccess" },
+    ],
+  ])("fires on AdministratorAccess through %s", (_label, type, props) => {
+    invokeResource(
+      cis_1_16_noFullAdminPolicy,
+      makeResourceArgs({ type, urn: "x", name: "admin", props }),
+      report,
+    );
+    expect(violations).toHaveLength(1);
+  });
+
+  it("fires on a full-admin document in Role.inlinePolicies", () => {
+    invokeResource(
+      cis_1_16_noFullAdminPolicy,
+      makeResourceArgs({
+        type: "aws:iam/role:Role",
+        urn: "x",
+        name: "inline-admin",
+        props: {
+          inlinePolicies: [
+            {
+              name: "admin",
+              policy: JSON.stringify({
+                Statement: { Effect: "Allow", Action: "*", Resource: "*" },
+              }),
+            },
+          ],
+        },
+      }),
+      report,
+    );
+    expect(violations).toHaveLength(1);
   });
 });
 

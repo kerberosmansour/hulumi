@@ -18,8 +18,12 @@ and `IfExists` string operators:
   `StringEqualsIfExists` are accepted only when every `sub` value is
   non-empty and contains no wildcard.
 
-This keeps a decoy condition operator from bypassing the mandatory hardening
-pack.
+Each GitHub-federated statement must contain exactly one supported equality
+restriction for `sub`. Missing conditions or claims, multiple attempted
+restrictions, unsupported operators, non-string values, malformed JSON, and
+invalid singleton/array statement structures fail closed. Singleton and array
+`Statement` forms receive the same checks. This keeps omission, type confusion,
+and decoy operators from bypassing the mandatory hardening pack.
 
 ## Expected Shape
 
@@ -27,3 +31,7 @@ Use exact equality for the repository, workflow, and environment axes. The
 matching positive component is
 [`GitHubAwsOidcDeploymentRole`](./github-aws-oidc-deployment-role.md), which
 renders the narrow AWS trust policy and usage block for GitHub Actions.
+
+`G_OIDC_1` validates the GitHub OIDC subject boundary. It does not replace
+`G_OIDC_2`, which correlates a trusted role with exact full-administrator
+authority in the same Pulumi stack.

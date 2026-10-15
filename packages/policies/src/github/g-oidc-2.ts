@@ -8,15 +8,19 @@
 // compromise. Motivated by a real downstream finding (a stale
 // legacy-repo OIDC role bound to cluster-admin).
 //
-// Stack-level: correlates an `aws:iam/role:Role` whose
-// `assumeRolePolicy` trusts `token.actions.githubusercontent.com` with
-// an `aws:eks/accessPolicyAssociation:AccessPolicyAssociation`
-// (cluster-admin) or an `aws:iam/rolePolicyAttachment:RolePolicyAttachment`
-// of `AdministratorAccess` that targets it — via Pulumi dependency edges,
-// with a value fallback for harnesses/stacks where edges are absent.
+// Stack-level: correlates an `aws:iam/role:Role` whose `assumeRolePolicy`
+// trusts `token.actions.githubusercontent.com` with cluster-scoped EKS admin,
+// AWS AdministratorAccess, and exact full-admin inline/customer-managed
+// policies through the bounded Pulumi IAM authority shapes documented in
+// docs/components/g-oidc-2.md.
 
 import type { PolicyResource, StackValidationPolicy } from "@pulumi/policy";
 
+import {
+  AWS_ADMINISTRATOR_ACCESS_ARN,
+  iamPolicyHasFullAdmin,
+  iamPolicyStatements,
+} from "../aws/iam-policy";
 import { federatedIsGithubOidc } from "./github-oidc-issuer";
 import { matchSuppression, type Suppression } from "./suppressions";
 
@@ -26,10 +30,13 @@ const AWS_IAM_ROLE_TYPE = "aws:iam/role:Role";
 const EKS_ACCESS_POLICY_ASSOCIATION_TYPE =
   "aws:eks/accessPolicyAssociation:AccessPolicyAssociation";
 const IAM_ROLE_POLICY_ATTACHMENT_TYPE = "aws:iam/rolePolicyAttachment:RolePolicyAttachment";
+const IAM_ROLE_POLICY_ATTACHMENTS_EXCLUSIVE_TYPE =
+  "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive";
+const IAM_POLICY_ATTACHMENT_TYPE = "aws:iam/policyAttachment:PolicyAttachment";
+const IAM_ROLE_POLICY_TYPE = "aws:iam/rolePolicy:RolePolicy";
+const IAM_POLICY_TYPE = "aws:iam/policy:Policy";
 
 const EKS_CLUSTER_ADMIN_POLICY_SUFFIX = "AmazonEKSClusterAdminPolicy";
-const ADMINISTRATOR_ACCESS_ARN = "arn:aws:iam::aws:policy/AdministratorAccess";
-
 function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
   if (!Array.isArray(raw)) return [];
@@ -43,24 +50,10 @@ function readSuppressions(config: Record<string, unknown> | undefined): Suppress
 /** True if an IAM trust policy (string or object) federates the GitHub
  * Actions OIDC issuer in any statement. */
 export function trustPolicyTrustsGithubOidc(assumeRolePolicy: unknown): boolean {
-  let parsed: Record<string, unknown> | undefined;
-  if (typeof assumeRolePolicy === "string") {
-    try {
-      parsed = JSON.parse(assumeRolePolicy) as Record<string, unknown>;
-    } catch {
-      return false;
-    }
-  } else if (assumeRolePolicy !== null && typeof assumeRolePolicy === "object") {
-    parsed = assumeRolePolicy as Record<string, unknown>;
-  } else {
-    return false;
-  }
-  const stmts = (parsed as { Statement?: unknown }).Statement;
-  if (!Array.isArray(stmts)) return false;
-  for (const stmt of stmts) {
-    if (typeof stmt !== "object" || stmt === null) continue;
-    const principal = (stmt as Record<string, unknown>).Principal as
-      Record<string, unknown> | undefined;
+  const statements = iamPolicyStatements(assumeRolePolicy);
+  if (!statements) return false;
+  for (const statement of statements) {
+    const principal = statement.Principal as Record<string, unknown> | undefined;
     if (!principal || principal.Federated === undefined) continue;
     if (federatedIsGithubOidc(principal.Federated)) return true;
   }
@@ -89,11 +82,32 @@ function linkedGithubOidcRole(
   const props = resource.props as Record<string, unknown>;
   for (const prop of propNames) {
     const v = props[prop];
-    if (typeof v === "string" && ghOidcRolesByValue.has(v)) {
-      return ghOidcRolesByValue.get(v);
+    const values = Array.isArray(v) ? v : [v];
+    for (const value of values) {
+      if (typeof value === "string" && ghOidcRolesByValue.has(value)) {
+        return ghOidcRolesByValue.get(value);
+      }
     }
   }
   return undefined;
+}
+
+function policyReferenceIsFullAdmin(
+  resource: PolicyResource,
+  propName: string,
+  fullAdminPolicyUrns: Set<string>,
+  fullAdminPolicyValues: Set<string>,
+): boolean {
+  for (const dep of resource.propertyDependencies?.[propName] ?? []) {
+    if (dep && fullAdminPolicyUrns.has(dep.urn)) return true;
+  }
+  const raw = (resource.props as Record<string, unknown>)[propName];
+  const values = Array.isArray(raw) ? raw : [raw];
+  return values.some(
+    (value) =>
+      value === AWS_ADMINISTRATOR_ACCESS_ARN ||
+      (typeof value === "string" && fullAdminPolicyValues.has(value)),
+  );
 }
 
 /**
@@ -103,7 +117,7 @@ function linkedGithubOidcRole(
 export const G_OIDC_2: StackValidationPolicy = {
   name: "G_OIDC_2",
   description:
-    "Reject binding cluster-scoped EKS admin (AmazonEKSClusterAdminPolicy, accessScope cluster) or AWS AdministratorAccess to an IAM role assumable via GitHub Actions OIDC. The blast radius of an OIDC role is set by what it can do, not only by who can assume it.",
+    "Reject cluster-scoped EKS admin, AWS AdministratorAccess, or an in-stack exact full-admin equivalent on an IAM role assumable via GitHub Actions OIDC. The blast radius of an OIDC role is set by what it can do, not only by who can assume it.",
   enforcementLevel: "mandatory",
   validateStack: (args, reportViolation) => {
     const suppressions = readSuppressions(
@@ -114,11 +128,13 @@ export const G_OIDC_2: StackValidationPolicy = {
 
     const ghOidcRoleUrns = new Set<string>();
     const ghOidcRolesByValue = new Map<string, string>(); // arn|name|id -> urn
+    const ghOidcRoles = new Map<string, PolicyResource>();
     for (const r of args.resources) {
       if (r.type !== AWS_IAM_ROLE_TYPE) continue;
       const props = r.props as Record<string, unknown>;
       if (!trustPolicyTrustsGithubOidc(props.assumeRolePolicy)) continue;
       ghOidcRoleUrns.add(r.urn);
+      ghOidcRoles.set(r.urn, r);
       for (const key of ["arn", "name", "id"]) {
         const v = props[key];
         if (typeof v === "string" && v.length > 0) ghOidcRolesByValue.set(v, r.urn);
@@ -128,6 +144,54 @@ export const G_OIDC_2: StackValidationPolicy = {
       }
     }
     if (ghOidcRoleUrns.size === 0) return;
+
+    const fullAdminPolicyUrns = new Set<string>();
+    const fullAdminPolicyValues = new Set<string>();
+    for (const resource of args.resources) {
+      if (resource.type !== IAM_POLICY_TYPE || !iamPolicyHasFullAdmin(resource.props.policy))
+        continue;
+      fullAdminPolicyUrns.add(resource.urn);
+      for (const key of ["arn", "id"]) {
+        const value = resource.props[key];
+        if (typeof value === "string" && value.length > 0) fullAdminPolicyValues.add(value);
+      }
+    }
+
+    const reported = new Set<string>();
+    const reportAdmin = (resource: PolicyResource, roleUrn: string, authority: string): void => {
+      const key = `${resource.urn}\u0000${roleUrn}\u0000${authority}`;
+      if (reported.has(key)) return;
+      reported.add(key);
+      reportViolation(
+        `G_OIDC_2: ${resource.urn} grants ${authority} to GitHub-OIDC-trusted IAM role ${roleUrn} — full account authority can be reached from the repository trust boundary. Attach a least-privilege policy or remove the OIDC trust. Docs: ${DOCS_URL}`,
+      );
+    };
+
+    for (const [roleUrn, role] of ghOidcRoles) {
+      if (
+        policyReferenceIsFullAdmin(
+          role,
+          "managedPolicyArns",
+          fullAdminPolicyUrns,
+          fullAdminPolicyValues,
+        )
+      ) {
+        reportAdmin(role, roleUrn, "AdministratorAccess or an exact full-admin managed policy");
+      }
+      const inlinePolicies = role.props.inlinePolicies;
+      if (
+        Array.isArray(inlinePolicies) &&
+        inlinePolicies.some(
+          (entry) =>
+            entry !== null &&
+            typeof entry === "object" &&
+            !Array.isArray(entry) &&
+            iamPolicyHasFullAdmin((entry as Record<string, unknown>).policy),
+        )
+      ) {
+        reportAdmin(role, roleUrn, "an exact full-admin inline policy");
+      }
+    }
 
     for (const r of args.resources) {
       const props = r.props as Record<string, unknown>;
@@ -148,14 +212,31 @@ export const G_OIDC_2: StackValidationPolicy = {
             );
           }
         }
-      } else if (r.type === IAM_ROLE_POLICY_ATTACHMENT_TYPE) {
-        if (String(props.policyArn ?? "") === ADMINISTRATOR_ACCESS_ARN) {
+      } else if (r.type === IAM_ROLE_POLICY_TYPE) {
+        if (iamPolicyHasFullAdmin(props.policy)) {
           const roleUrn = linkedGithubOidcRole(r, ["role"], ghOidcRoleUrns, ghOidcRolesByValue);
-          if (roleUrn) {
-            reportViolation(
-              `G_OIDC_2: RolePolicyAttachment ${r.urn} attaches AdministratorAccess to GitHub-OIDC-trusted IAM role ${roleUrn} — full account compromise from a repo push. Attach a least-privilege policy or remove the OIDC trust. Docs: ${DOCS_URL}`,
-            );
-          }
+          if (roleUrn) reportAdmin(r, roleUrn, "an exact full-admin inline policy");
+        }
+      } else if (r.type === IAM_ROLE_POLICY_ATTACHMENT_TYPE) {
+        if (
+          policyReferenceIsFullAdmin(r, "policyArn", fullAdminPolicyUrns, fullAdminPolicyValues)
+        ) {
+          const roleUrn = linkedGithubOidcRole(r, ["role"], ghOidcRoleUrns, ghOidcRolesByValue);
+          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
+        }
+      } else if (r.type === IAM_ROLE_POLICY_ATTACHMENTS_EXCLUSIVE_TYPE) {
+        if (
+          policyReferenceIsFullAdmin(r, "policyArns", fullAdminPolicyUrns, fullAdminPolicyValues)
+        ) {
+          const roleUrn = linkedGithubOidcRole(r, ["roleName"], ghOidcRoleUrns, ghOidcRolesByValue);
+          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
+        }
+      } else if (r.type === IAM_POLICY_ATTACHMENT_TYPE) {
+        if (
+          policyReferenceIsFullAdmin(r, "policyArn", fullAdminPolicyUrns, fullAdminPolicyValues)
+        ) {
+          const roleUrn = linkedGithubOidcRole(r, ["roles"], ghOidcRoleUrns, ghOidcRolesByValue);
+          if (roleUrn) reportAdmin(r, roleUrn, "AdministratorAccess or an exact full-admin policy");
         }
       }
     }

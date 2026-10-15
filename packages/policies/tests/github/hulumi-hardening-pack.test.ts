@@ -171,6 +171,35 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     violations = [];
   });
 
+  const githubStatement = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+    Effect: "Allow",
+    Principal: {
+      Federated: "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+    },
+    Action: "sts:AssumeRoleWithWebIdentity",
+    Condition: {
+      StringEquals: {
+        "token.actions.githubusercontent.com:sub": "repo:org/repo:environment:prod",
+      },
+    },
+    ...overrides,
+  });
+
+  const inspectAwsTrust = (assumeRolePolicy: unknown): string[] => {
+    const messages: string[] = [];
+    const args = makeResourceArgs({
+      type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
+      urn: "urn:pulumi:s::p::aws:iam/role:Role::structural-role",
+      name: "structural-role",
+      props: { assumeRolePolicy },
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      (message) => messages.push(message),
+    );
+    return messages;
+  };
+
   it("subClaimIsUnsafe returns true for wildcards and empty strings, false for safe shapes", () => {
     expect(subClaimIsUnsafe("repo:org/repo:*")).toBe(true);
     expect(subClaimIsUnsafe("*")).toBe(true);
@@ -215,6 +244,92 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/G_OIDC_1/);
     expect(violations[0]).toMatch(/StringLike/);
+  });
+
+  it("rejects a singleton GitHub OIDC Statement that uses StringLike", () => {
+    expect(
+      inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: githubStatement({
+          Condition: {
+            StringLike: { "token.actions.githubusercontent.com:sub": "repo:org/repo:*" },
+          },
+        }),
+      }),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ["missing Condition", undefined],
+    ["empty Condition", {}],
+    [
+      "missing sub claim",
+      { StringEquals: { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" } },
+    ],
+    [
+      "unsupported operator",
+      {
+        NumericEquals: {
+          "token.actions.githubusercontent.com:sub": "repo:org/repo:environment:prod",
+        },
+      },
+    ],
+    [
+      "fabricated StringEquals qualifier",
+      {
+        "Bogus:StringEquals": {
+          "token.actions.githubusercontent.com:sub": "repo:org/repo:environment:prod",
+        },
+      },
+    ],
+    ["non-string claim", { StringEquals: { "token.actions.githubusercontent.com:sub": 7 } }],
+    [
+      "mixed claim array",
+      {
+        StringEquals: {
+          "token.actions.githubusercontent.com:sub": ["repo:org/repo:environment:prod", 7],
+        },
+      },
+    ],
+    [
+      "duplicate restrictions",
+      {
+        StringEquals: {
+          "token.actions.githubusercontent.com:sub": "repo:org/repo:environment:prod",
+        },
+        "ForAnyValue:StringEquals": {
+          "token.actions.githubusercontent.com:sub": "repo:org/repo:ref:refs/heads/main",
+        },
+      },
+    ],
+  ])("fails closed when a GitHub OIDC statement has %s", (_label, Condition) => {
+    expect(
+      inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: [githubStatement({ Condition })],
+      }),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ["malformed JSON", "{"],
+    ["missing Statement", JSON.stringify({ Version: "2012-10-17" })],
+    ["invalid Statement scalar", JSON.stringify({ Version: "2012-10-17", Statement: 7 })],
+  ])("fails closed on an uninspectable IAM trust policy: %s", (_label, policy) => {
+    expect(inspectAwsTrust(policy)).toHaveLength(1);
+  });
+
+  it("does NOT require a GitHub sub condition on a parsed non-GitHub trust statement", () => {
+    expect(
+      inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: {
+          Effect: "Allow",
+          Principal: { Service: "ec2.amazonaws.com" },
+          Action: "sts:AssumeRole",
+        },
+      }),
+    ).toHaveLength(0);
   });
 
   it.each(["ForAnyValue:StringLike", "ForAllValues:StringLike", "StringLikeIfExists"])(

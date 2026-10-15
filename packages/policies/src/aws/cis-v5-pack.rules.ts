@@ -10,6 +10,7 @@
 import type { ResourceValidationPolicy } from "@pulumi/policy";
 
 import { isUrnChildOfComponent } from "../urn";
+import { containsAdministratorAccessArn, iamPolicyHasFullAdmin } from "./iam-policy";
 
 const CIS_DOCS = "https://www.cisecurity.org/benchmark/amazon_web_services";
 const HULUMI_SECURE_BUCKET_TYPE = "hulumi:baseline:aws:SecureBucket";
@@ -79,13 +80,16 @@ export const cis_1_16_noFullAdminPolicy: ResourceValidationPolicy = {
       "aws:iam/groupPolicy:GroupPolicy",
     ]);
     const props = args.props as Record<string, unknown>;
-    const policyArn = props.policyArn;
-    if (
-      (args.type === "aws:iam/rolePolicyAttachment:RolePolicyAttachment" ||
-        args.type === "aws:iam/userPolicyAttachment:UserPolicyAttachment" ||
-        args.type === "aws:iam/groupPolicyAttachment:GroupPolicyAttachment") &&
-      policyArn === "arn:aws:iam::aws:policy/AdministratorAccess"
-    ) {
+    const attachmentPolicyProps: Record<string, string> = {
+      "aws:iam/rolePolicyAttachment:RolePolicyAttachment": "policyArn",
+      "aws:iam/userPolicyAttachment:UserPolicyAttachment": "policyArn",
+      "aws:iam/groupPolicyAttachment:GroupPolicyAttachment": "policyArn",
+      "aws:iam/policyAttachment:PolicyAttachment": "policyArn",
+      "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive": "policyArns",
+      "aws:iam/role:Role": "managedPolicyArns",
+    };
+    const attachmentProp = attachmentPolicyProps[args.type];
+    if (attachmentProp && containsAdministratorAccessArn(props[attachmentProp])) {
       reportViolation(
         violation(
           "CIS-AWS-v5.0.0:1.16",
@@ -95,29 +99,26 @@ export const cis_1_16_noFullAdminPolicy: ResourceValidationPolicy = {
       );
       return;
     }
-    if (!POLICY_DOC_TYPES.has(args.type)) return;
-    const policyDoc = props.policy;
-    let parsed: unknown;
-    try {
-      parsed = typeof policyDoc === "string" ? JSON.parse(policyDoc) : policyDoc;
-    } catch {
-      return;
+
+    if (args.type === "aws:iam/role:Role" && Array.isArray(props.inlinePolicies)) {
+      const hasInlineAdmin = props.inlinePolicies.some((value) => {
+        if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+        return iamPolicyHasFullAdmin((value as Record<string, unknown>).policy);
+      });
+      if (hasInlineAdmin) {
+        reportViolation(
+          violation(
+            "CIS-AWS-v5.0.0:1.16",
+            args.name,
+            "role inlinePolicies contains an exact full-administrator grant",
+          ),
+        );
+        return;
+      }
     }
-    if (!parsed || typeof parsed !== "object") return;
-    const stmts = (parsed as Record<string, unknown>).Statement;
-    if (!Array.isArray(stmts)) return;
-    const hasFullAdmin = stmts.some((s: unknown) => {
-      if (!s || typeof s !== "object") return false;
-      const stmt = s as Record<string, unknown>;
-      const effect = stmt.Effect;
-      const action = stmt.Action;
-      const resource = stmt.Resource;
-      const wildcardAction = action === "*" || (Array.isArray(action) && action.includes("*"));
-      const wildcardResource =
-        resource === "*" || (Array.isArray(resource) && resource.includes("*"));
-      return effect === "Allow" && wildcardAction && wildcardResource;
-    });
-    if (hasFullAdmin) {
+
+    if (!POLICY_DOC_TYPES.has(args.type)) return;
+    if (iamPolicyHasFullAdmin(props.policy)) {
       reportViolation(
         violation(
           "CIS-AWS-v5.0.0:1.16",

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Reuse the same-run verified workspace build for CI tarball checks, removing
+  a duplicate build while retaining admission, required checks and
+  main-only attestation.
+
 - Add Guardian-derived `CodeBuildGitHubRunner` source construction and dedicated
   CrossGuard rules. Defaults use scoped log-only IAM, no VPC/privilege/cache/
   artifacts, explicit source-auth prerequisites and bounded resource settings.

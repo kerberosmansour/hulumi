@@ -377,3 +377,17 @@ Scenario cookbooks:
 - **Multi-region runs**: M3 ships single-region per matrix tier. Multi-region testing arrives with M5's SLSA release.
 - **`AccountFoundation` running across an AWS Organization**: `orgAccountIds` arg wires the Config aggregator + KMS deny-without-tag policy, but Hulumi v1 does not deploy across multiple accounts in one `pulumi up`. M5's SCP template documents the Org-wide story.
 - **Drift detection**: M4 ships `@hulumi/drift`; the weekly integration does not classify drift in M3.
+
+## CI build reuse
+
+The required workspace check builds, typechecks, tests, lints and formats the
+checkout before uploading the six package dist trees as `ci-verified-dist`.
+The separate read-only release-artifact job requires successful admission and
+workspace verification, restores only the artifact from its own workflow run,
+and packs the same checked-out source. It retains a frozen script-disabled installation for pnpm workspace-protocol
+resolution, but does not rebuild packages.
+Missing compiled output or an absent artifact fails the job. Artifacts expire
+after two days. Required check names and main-only tarball attestation remain.
+This removes one duplicate workspace build per CI run; no measured
+runner-time or cost reduction is claimed. Documentation-only runs still execute
+the full suite; no workflow path-filter bypass was added.

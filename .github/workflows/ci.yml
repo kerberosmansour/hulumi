@@ -51,6 +51,23 @@ jobs:
       - run: pnpm --filter @hulumi/k8s-baseline run test:integration:kind
       - run: pnpm --filter @hulumi/k8s-baseline run test:integration:eks
       - run: pnpm run format:check
+      - name: Stage the verified workspace build
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-verified-dist/packages
+          for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
+            test -d "packages/$pkg/dist"
+            mkdir -p ".ci-verified-dist/packages/$pkg"
+            cp -R "packages/$pkg/dist" ".ci-verified-dist/packages/$pkg/"
+          done
+      - name: Upload verified dist for this workflow run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-verified-dist
+          path: .ci-verified-dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 2
 
   baseline-test:
     name: "@hulumi/baseline unit tests (mocks only)"
@@ -134,8 +151,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Fail the existing required check when dependency admission fails
-        if: needs.dependency-admission.result != 'success'
+      - name: Require successful dependency admission and workspace verification
+        if: needs.dependency-admission.result != 'success' || needs.test.result != 'success'
         run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -145,13 +162,20 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm -r build
+      - name: Resolve workspace package links without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Restore verified dist from this workflow run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ci-verified-dist
+          path: .
       - name: Build tarballs (dry-run, no publish)
         run: |
+          set -euo pipefail
           mkdir -p .release-artifacts
           ABS_DEST="$(pwd)/.release-artifacts"
           for pkg in baseline policies drift k8s-baseline cloudflare-baseline platform-patterns; do
+            test -d "packages/$pkg/dist"
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/

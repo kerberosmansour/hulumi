@@ -32,6 +32,19 @@ class WorkflowAuthorityTests(unittest.TestCase):
         self.assertIn("include-hidden-files: true", block)
         self.assertIn("if-no-files-found: error", block)
 
+    def test_release_artifacts_require_successful_same_run_test_outputs(self):
+        source = (ROOT / ".github/workflows/ci.yml").read_text()
+        producer = source.split("  test:", 1)[1].split("  baseline-test:", 1)[0]
+        consumer = source.split("  release-artifacts-dry-run:", 1)[1].split("  attestation-dry-run:", 1)[0]
+        self.assertIn("needs.test.result != 'success'", consumer)
+        self.assertIn("name: ci-verified-dist", producer)
+        self.assertIn("name: ci-verified-dist", consumer)
+        self.assertIn("if-no-files-found: error", producer)
+        self.assertIn("pnpm install --frozen-lockfile --ignore-scripts", consumer)
+        for forbidden in ("run-id:", "github-token:", "repository:", "pnpm -r build"):
+            self.assertNotIn(forbidden, consumer)
+        self.assertLess(producer.index("pnpm -r --workspace-concurrency=1 test"), producer.index("name: ci-verified-dist"))
+
     def test_sca_has_bounded_daily_schedule(self):
         source = (ROOT / ".github/workflows/sca-emergency.yml").read_text()
         self.assertNotIn("*/15", source)

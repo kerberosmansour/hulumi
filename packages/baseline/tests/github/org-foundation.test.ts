@@ -214,6 +214,85 @@ describe("OrgFoundation — abuse case: custom OIDC template containing wildcard
       });
     }).toThrow(/empty|sub-claim/i);
   });
+
+  it.each(["repo", "job_workflow_ref", "environment"])(
+    "rejects a custom template missing the required %s identity axis",
+    (missingAxis) => {
+      const customTemplate = ["repo", "job_workflow_ref", "environment", "context"].filter(
+        (axis) => axis !== missingAxis,
+      );
+
+      let thrown: unknown;
+      try {
+        new OrgFoundation(`org-missing-${missingAxis}`, {
+          tier: "startup-hardened",
+          organization: SANDBOX_ORG,
+          billingEmail: TEST_BILLING,
+          oidcSubTemplate: { useDefault: false, customTemplate },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toMatch(/missing required/i);
+      expect((thrown as Error).message).toContain(missingAxis);
+    },
+  );
+
+  it.each([
+    {
+      name: "empty claim list",
+      customTemplate: [],
+      expected: /non-empty array/i,
+    },
+    {
+      name: "duplicate claim key",
+      customTemplate: ["repo", "job_workflow_ref", "environment", "repo"],
+      expected: /duplicate.*repo/i,
+    },
+    {
+      name: "punctuated claim key",
+      customTemplate: ["repo", "job_workflow_ref", "environment", "actor-id"],
+      expected: /actor-id.*alphanumeric|invalid claim key/i,
+    },
+    {
+      name: "whitespace claim key",
+      customTemplate: ["repo", "job_workflow_ref", "environment", "actor id"],
+      expected: /actor id.*alphanumeric|invalid claim key/i,
+    },
+    {
+      name: "non-string claim key",
+      customTemplate: ["repo", "job_workflow_ref", "environment", 42] as unknown as string[],
+      expected: /non-string|claim-key strings/i,
+    },
+  ])("rejects $name before registering the GitHub template", ({ customTemplate, expected }) => {
+    expect(() => {
+      new OrgFoundation("org-invalid-oidc-key", {
+        tier: "startup-hardened",
+        organization: SANDBOX_ORG,
+        billingEmail: TEST_BILLING,
+        oidcSubTemplate: { useDefault: false, customTemplate },
+      });
+    }).toThrow(expected);
+  });
+
+  it("accepts a safe custom superset and preserves the caller's claim-key order", async () => {
+    const customTemplate = ["repository_id", "environment", "repo", "job_workflow_ref", "context"];
+    const f = new OrgFoundation("org-safe-custom-oidc", {
+      tier: "startup-hardened",
+      organization: SANDBOX_ORG,
+      billingEmail: TEST_BILLING,
+      oidcSubTemplate: { useDefault: false, customTemplate },
+    });
+    await valueOf(f.organizationRulesetId);
+    await settlePulumi();
+
+    const oidc = find(
+      "github:index/actionsOrganizationOidcSubjectClaimCustomizationTemplate:ActionsOrganizationOidcSubjectClaimCustomizationTemplate",
+    );
+    expect(oidc).toBeDefined();
+    expect(oidc!.inputs.includeClaimKeys).toStrictEqual(customTemplate);
+  });
 });
 
 describe("OrgFoundation — abuse case: SHA-pin default on at startup-hardened", () => {

@@ -1,5 +1,5 @@
 // BDD scenarios for @hulumi/policies/github.HulumiGithubHardeningPack.
-// H1 (no raw github.Repository) + H2 (no wildcard OIDC template) + H3
+// H1 (no raw github.Repository) + H2 (bound OIDC subject identity) + H3
 // (= G_OIDC_1, AWS/Azure/GCP trust-policy guard).
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -97,7 +97,7 @@ describe("HulumiGithubHardeningPack H1 — blocks raw github.Repository (tm-hulu
   });
 });
 
-describe("HulumiGithubHardeningPack H2 — blocks wildcard OIDC template", () => {
+describe("HulumiGithubHardeningPack H2 — requires bound OIDC subject identity", () => {
   let violations: string[];
   const report = (msg: string): void => {
     violations.push(msg);
@@ -128,12 +128,29 @@ describe("HulumiGithubHardeningPack H2 — blocks wildcard OIDC template", () =>
     expect(violations[0]).toMatch(/UNC6426/);
   });
 
-  it("does NOT report when OIDC template is a child of OrgFoundation (parent already runtime-checked)", () => {
+  it("still reports an unsafe OIDC template when it claims OrgFoundation ancestry", () => {
     const args = makeResourceArgs({
       type: TEMPLATE_TYPE,
       urn: `urn:pulumi:s::p::hulumi:baseline:github:OrgFoundation$${TEMPLATE_TYPE}::sb-tmpl`,
       name: "sb-tmpl",
-      props: { includeClaimKeys: ["repo", "*"] }, // would fail H2 if checked, but child of OrgFoundation
+      props: { includeClaimKeys: ["repo", "*"] },
+    });
+    (
+      h2NoWildcardOidcTemplate.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H2/);
+  });
+
+  it("does NOT report when claim keys are the three-axis safe shape", () => {
+    const args = makeResourceArgs({
+      type: TEMPLATE_TYPE,
+      urn: `urn:pulumi:s::p::${TEMPLATE_TYPE}::safe-tmpl`,
+      name: "safe-tmpl",
+      props: { includeClaimKeys: ["repo", "context", "job_workflow_ref", "environment"] },
     });
     (
       h2NoWildcardOidcTemplate.validateResource as (
@@ -144,12 +161,98 @@ describe("HulumiGithubHardeningPack H2 — blocks wildcard OIDC template", () =>
     expect(violations).toEqual([]);
   });
 
-  it("does NOT report when claim keys are the three-axis safe shape", () => {
+  it.each(["repo", "job_workflow_ref", "environment"])(
+    "reports HULUMI-H2 when a template omits required %s identity",
+    (missingAxis) => {
+      const args = makeResourceArgs({
+        type: TEMPLATE_TYPE,
+        urn: `urn:pulumi:s::p::${TEMPLATE_TYPE}::missing-${missingAxis}`,
+        name: `missing-${missingAxis}`,
+        props: {
+          includeClaimKeys: ["repo", "job_workflow_ref", "environment", "context"].filter(
+            (axis) => axis !== missingAxis,
+          ),
+        },
+      });
+      (
+        h2NoWildcardOidcTemplate.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatch(/missing required/i);
+      expect(violations[0]).toContain(missingAxis);
+    },
+  );
+
+  it.each([
+    { name: "missing property", props: {} },
+    { name: "non-array property", props: { includeClaimKeys: "repo" } },
+    { name: "empty array", props: { includeClaimKeys: [] } },
+    {
+      name: "non-string entry",
+      props: { includeClaimKeys: ["repo", "job_workflow_ref", "environment", 42] },
+    },
+    {
+      name: "duplicate key",
+      props: { includeClaimKeys: ["repo", "job_workflow_ref", "environment", "repo"] },
+    },
+    {
+      name: "invalid key syntax",
+      props: { includeClaimKeys: ["repo", "job_workflow_ref", "environment", "actor-id"] },
+    },
+  ])("fails closed for $name", ({ name, props }) => {
     const args = makeResourceArgs({
       type: TEMPLATE_TYPE,
-      urn: `urn:pulumi:s::p::${TEMPLATE_TYPE}::safe-tmpl`,
-      name: "safe-tmpl",
-      props: { includeClaimKeys: ["repo", "context", "job_workflow_ref", "environment"] },
+      urn: `urn:pulumi:s::p::${TEMPLATE_TYPE}::${name.replaceAll(" ", "-")}`,
+      name,
+      props,
+    });
+    (
+      h2NoWildcardOidcTemplate.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/HULUMI-H2/);
+  });
+
+  it("accepts a safe custom superset without reordering its claim keys", () => {
+    const args = makeResourceArgs({
+      type: TEMPLATE_TYPE,
+      urn: `urn:pulumi:s::p::${TEMPLATE_TYPE}::safe-superset`,
+      name: "safe-superset",
+      props: {
+        includeClaimKeys: ["repository_id", "environment", "repo", "job_workflow_ref", "context"],
+      },
+    });
+    (
+      h2NoWildcardOidcTemplate.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toEqual([]);
+  });
+
+  it("preserves an exact scoped HULUMI-H2 suppression", () => {
+    const urn = `urn:pulumi:s::p::${TEMPLATE_TYPE}::legacy-template`;
+    const args = makeResourceArgs({
+      type: TEMPLATE_TYPE,
+      urn,
+      name: "legacy-template",
+      props: { includeClaimKeys: ["repo"] },
+      getConfig: (() => ({
+        suppressions: [
+          {
+            ruleId: "HULUMI-H2",
+            reason: "Time-bounded migration tracked in issue #N",
+            urnScope: urn,
+          },
+        ],
+      })) as ResourceValidationArgs["getConfig"],
     });
     (
       h2NoWildcardOidcTemplate.validateResource as (
@@ -365,7 +468,7 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
         report,
       );
       expect(violations).toHaveLength(1);
-      expect(violations[0]).toMatch(new RegExp(operator.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      expect(violations[0]).toContain(operator);
     },
   );
 

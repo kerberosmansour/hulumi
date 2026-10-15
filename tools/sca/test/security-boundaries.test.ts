@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { normalizeEvidence } from "../src/evidence/normalize.ts";
 import {
@@ -8,10 +9,20 @@ import {
 } from "../src/classify/route.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { scanProject } from "../src/cli/scan.ts";
+import { ensureScannerBinary, scanProject, verifyScannerBinary } from "../src/cli/scan.ts";
 import {
   classifyManifest,
   conventionsSchema,
@@ -191,5 +202,283 @@ test("real triage CLI fails closed on MAL with no fix and preserves scanner/stat
     await assert.rejects(access(join(root, "events.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+const scannerAssetName = (() => {
+  const key = `${process.platform}-${process.arch}`;
+  const names: Record<string, string> = {
+    "darwin-arm64": "osv-scanner_darwin_arm64",
+    "darwin-x64": "osv-scanner_darwin_amd64",
+    "linux-arm64": "osv-scanner_linux_arm64",
+    "linux-x64": "osv-scanner_linux_amd64",
+  };
+  const name = names[key];
+  if (name === undefined) throw new Error(`unsupported test platform: ${key}`);
+  return name;
+})();
+
+async function scannerSandbox() {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-hostile-repo-")));
+  const cache = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-external-cache-")));
+  return { root, cache };
+}
+
+async function writeLegacyRepositoryCache(root: string, target: string): Promise<void> {
+  const destination = join(root, ".cache/osv-scanner/v2.3.8", scannerAssetName);
+  await mkdir(join(root, ".cache/osv-scanner/v2.3.8"), { recursive: true });
+  await writeFile(destination, target, { mode: 0o755 });
+  await chmod(destination, 0o755);
+}
+
+async function writeExternalCandidate(cache: string, target: string): Promise<string> {
+  const directory = join(cache, "v2.7.0");
+  const destination = join(directory, scannerAssetName);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await writeFile(destination, target, { mode: 0o755 });
+  await chmod(destination, 0o755);
+  return destination;
+}
+
+test("wrong-digest cached scanner fails closed instead of executing repository content", async () => {
+  const { root, cache } = await scannerSandbox();
+  const oldPath = process.env.PATH;
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    process.env.PATH = "";
+    process.env.HULUMI_SCA_CACHE_DIR = cache;
+    delete process.env.OSV_SCANNER_BIN;
+    await writeLegacyRepositoryCache(root, "#!/bin/sh\nexit 0\n");
+    await writeExternalCandidate(cache, "#!/bin/sh\nexit 0\n");
+
+    await assert.rejects(ensureScannerBinary(root), /checksum|integrity/i);
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("scanner cache symlink fails closed before following its target", async () => {
+  const { root, cache } = await scannerSandbox();
+  const oldPath = process.env.PATH;
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    process.env.PATH = "";
+    process.env.HULUMI_SCA_CACHE_DIR = cache;
+    delete process.env.OSV_SCANNER_BIN;
+    const target = join(root, "attacker-scanner");
+    await writeFile(target, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+    const legacyDirectory = join(root, ".cache/osv-scanner/v2.3.8");
+    await mkdir(legacyDirectory, { recursive: true });
+    await symlink(target, join(legacyDirectory, scannerAssetName));
+    const externalDirectory = join(cache, "v2.7.0");
+    await mkdir(externalDirectory, { recursive: true, mode: 0o700 });
+    await symlink(target, join(externalDirectory, scannerAssetName));
+
+    await assert.rejects(ensureScannerBinary(root), /symbolic link|symlink/i);
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("scanner cache parent symlink is rejected before creating content through it", async () => {
+  const { root, cache } = await scannerSandbox();
+  const symlinkTarget = await realpath(await mkdtemp(join(tmpdir(), "hulumi-sca-link-target-")));
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    const linkedParent = join(cache, "linked-parent");
+    await symlink(symlinkTarget, linkedParent);
+    process.env.HULUMI_SCA_CACHE_DIR = join(linkedParent, "scanner-cache");
+    delete process.env.OSV_SCANNER_BIN;
+
+    await assert.rejects(ensureScannerBinary(root), /symbolic link|symlink/i);
+    await assert.rejects(access(join(symlinkTarget, "scanner-cache")));
+  } finally {
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+    await rm(symlinkTarget, { recursive: true, force: true });
+  }
+});
+
+test(
+  "unverified scanner on PATH is never invoked",
+  { skip: process.platform === "win32" },
+  async () => {
+    const { root, cache } = await scannerSandbox();
+    const pathDirectory = await mkdtemp(join(tmpdir(), "hulumi-sca-fake-path-"));
+    const fakeScanner = join(pathDirectory, "osv-scanner");
+    const marker = `${fakeScanner}.invoked`;
+    const oldPath = process.env.PATH;
+    const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+    const oldOverride = process.env.OSV_SCANNER_BIN;
+    try {
+      await writeFile(fakeScanner, '#!/bin/sh\ntouch "$0.invoked"\nexit 0\n', { mode: 0o755 });
+      await chmod(fakeScanner, 0o755);
+      process.env.PATH = pathDirectory;
+      process.env.HULUMI_SCA_CACHE_DIR = cache;
+      delete process.env.OSV_SCANNER_BIN;
+      await writeExternalCandidate(cache, "wrong digest");
+
+      await assert.rejects(ensureScannerBinary(root), /checksum|integrity/i);
+      await assert.rejects(access(marker));
+    } finally {
+      if (oldPath === undefined) delete process.env.PATH;
+      else process.env.PATH = oldPath;
+      if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+      else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+      if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+      else process.env.OSV_SCANNER_BIN = oldOverride;
+      await rm(root, { recursive: true, force: true });
+      await rm(cache, { recursive: true, force: true });
+      await rm(pathDirectory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("explicit scanner override must be an absolute pinned binary outside the repository", async () => {
+  const { root, cache } = await scannerSandbox();
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    process.env.HULUMI_SCA_CACHE_DIR = cache;
+    process.env.OSV_SCANNER_BIN = "relative/unverified-osv-scanner";
+    await assert.rejects(ensureScannerBinary(root), /absolute|checksum|integrity/i);
+  } finally {
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("explicit scanner override inside the scanned repository is rejected", async () => {
+  const { root, cache } = await scannerSandbox();
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    const repositoryBinary = join(root, scannerAssetName);
+    await writeFile(repositoryBinary, "repository controlled", { mode: 0o700 });
+    process.env.HULUMI_SCA_CACHE_DIR = cache;
+    process.env.OSV_SCANNER_BIN = repositoryBinary;
+    await assert.rejects(ensureScannerBinary(root), /outside.*repository|repository.*outside/i);
+  } finally {
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("scanner verification rehashes the executable after a successful check", async () => {
+  const { root, cache } = await scannerSandbox();
+  try {
+    const bytes = "synthetic admitted scanner";
+    const expected = createHash("sha256").update(bytes).digest("hex");
+    const candidate = await writeExternalCandidate(cache, bytes);
+
+    assert.equal(await verifyScannerBinary(candidate, expected, root, cache), candidate);
+    await writeFile(candidate, "mutated scanner bytes", { mode: 0o700 });
+    await assert.rejects(
+      verifyScannerBinary(candidate, expected, root, cache),
+      /checksum|integrity/i,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test(
+  "scanner verification rejects group or world-writable executables",
+  { skip: process.platform === "win32" },
+  async () => {
+    const { root, cache } = await scannerSandbox();
+    try {
+      const bytes = "synthetic admitted scanner";
+      const expected = createHash("sha256").update(bytes).digest("hex");
+      const candidate = await writeExternalCandidate(cache, bytes);
+      await chmod(candidate, 0o722);
+
+      await assert.rejects(
+        verifyScannerBinary(candidate, expected, root, cache),
+        /group\/world-writable|permissions/i,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(cache, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "existing cache directory with group or world access fails closed",
+  { skip: process.platform === "win32" },
+  async () => {
+    const { root, cache } = await scannerSandbox();
+    const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+    const oldOverride = process.env.OSV_SCANNER_BIN;
+    try {
+      await chmod(cache, 0o777);
+      process.env.HULUMI_SCA_CACHE_DIR = cache;
+      delete process.env.OSV_SCANNER_BIN;
+
+      await assert.rejects(ensureScannerBinary(root), /group or world access|permissions/i);
+    } finally {
+      if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+      else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+      if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+      else process.env.OSV_SCANNER_BIN = oldOverride;
+      await rm(root, { recursive: true, force: true });
+      await rm(cache, { recursive: true, force: true });
+    }
+  },
+);
+
+test("scanner cache root inside the scanned repository is rejected", async () => {
+  const { root, cache } = await scannerSandbox();
+  const oldPath = process.env.PATH;
+  const oldCache = process.env.HULUMI_SCA_CACHE_DIR;
+  const oldOverride = process.env.OSV_SCANNER_BIN;
+  try {
+    process.env.PATH = "";
+    process.env.HULUMI_SCA_CACHE_DIR = join(root, ".scanner-cache");
+    delete process.env.OSV_SCANNER_BIN;
+    await writeLegacyRepositoryCache(root, "#!/bin/sh\nexit 0\n");
+
+    await assert.rejects(ensureScannerBinary(root), /outside.*repository|repository.*outside/i);
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldCache === undefined) delete process.env.HULUMI_SCA_CACHE_DIR;
+    else process.env.HULUMI_SCA_CACHE_DIR = oldCache;
+    if (oldOverride === undefined) delete process.env.OSV_SCANNER_BIN;
+    else process.env.OSV_SCANNER_BIN = oldOverride;
+    await rm(root, { recursive: true, force: true });
+    await rm(cache, { recursive: true, force: true });
   }
 });

@@ -1,7 +1,7 @@
 // BDD scenarios for M4 Cloudflare hardening policy rules.
 
 import { describe, it, expect, beforeEach } from "vitest";
-import type { PolicyResource, ResourceValidationArgs, StackValidationArgs } from "@pulumi/policy";
+import type { PolicyResource, StackValidationArgs } from "@pulumi/policy";
 
 import {
   CF_DNS_1_RULE_ID,
@@ -11,20 +11,6 @@ import {
   cfDnssec1RequirePublicZoneDnssec,
   cfOrigin1RequireSecureOriginMode,
 } from "../../src/cloudflare";
-
-function makeResourceArgs(partial: Partial<ResourceValidationArgs>): ResourceValidationArgs {
-  return {
-    type: "",
-    props: {},
-    urn: "",
-    name: "",
-    opts: {} as ResourceValidationArgs["opts"],
-    isType: (() => false) as ResourceValidationArgs["isType"],
-    asType: ((): undefined => undefined) as ResourceValidationArgs["asType"],
-    getConfig: (() => ({})) as ResourceValidationArgs["getConfig"],
-    ...partial,
-  } as ResourceValidationArgs;
-}
 
 function makePolicyResource(partial: Partial<PolicyResource>): PolicyResource {
   return {
@@ -65,52 +51,129 @@ describe("HulumiCloudflareHardeningPack CF_DNS_1 — raw DNS-only app record rej
     violations = [];
   });
 
+  function validate(resources: PolicyResource[], config: Record<string, unknown> = {}): void {
+    (
+      cfDns1NoDnsOnlyPublicAppRecord.validateStack as (
+        a: StackValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(makeStackArgs(resources, config), report);
+  }
+
+  function acknowledgedParent(
+    props: Record<string, unknown> = {},
+    type = PUBLIC_HOSTNAME_TYPE,
+  ): PolicyResource {
+    return makePolicyResource({
+      type,
+      urn: `urn:pulumi:s::p::${type}::managed-app`,
+      name: "managed-app",
+      props: {
+        hostname: "app.example.com",
+        purpose: "public-app",
+        proxied: false,
+        acknowledgeDnsOnlyExposure: true,
+        dnsOnlyJustification: "Bounded migration with separately reviewed origin controls.",
+        ...props,
+      },
+    });
+  }
+
+  function managedDnsOnlyRecord(parent?: PolicyResource): PolicyResource {
+    return makePolicyResource({
+      type: DNS_RECORD_TYPE,
+      urn: `urn:pulumi:s::p::${PUBLIC_HOSTNAME_TYPE}$${DNS_RECORD_TYPE}::managed-app-record`,
+      name: "managed-app-record",
+      props: {
+        type: "CNAME",
+        name: "app.example.com",
+        content: "origin.example.com",
+        proxied: false,
+        tags: ["hulumi:purpose=public-app"],
+      },
+      ...(parent === undefined ? {} : { parent }),
+    });
+  }
+
   it("reports CF_DNS_1 when raw cloudflare.DnsRecord models a public app with proxied=false", () => {
-    const args = makeResourceArgs({
+    const record = makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::raw-app`,
       name: "raw-app",
       props: {
         type: "CNAME",
-        name: "app",
+        name: "app.example.com",
         content: "origin.example.com",
         proxied: false,
         tags: ["hulumi:purpose=public-app"],
       },
     });
-
-    (
-      cfDns1NoDnsOnlyPublicAppRecord.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    validate([record]);
 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toContain(CF_DNS_1_RULE_ID);
-    expect(violations[0]).toContain(args.urn);
+    expect(violations[0]).toContain(record.urn);
   });
 
-  it("does NOT report when the record is a child of PublicHostname", () => {
-    const args = makeResourceArgs({
+  it("does NOT report when the concrete PublicHostname parent records matching acknowledgement", () => {
+    const parent = acknowledgedParent();
+    const record = managedDnsOnlyRecord(parent);
+    validate([parent, record]);
+    expect(violations).toEqual([]);
+  });
+
+  it("reports when a PublicHostname type-chain record has no concrete parent", () => {
+    const record = managedDnsOnlyRecord();
+    validate([record]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("reports when the referenced parent is absent from the evaluated stack", () => {
+    const parent = acknowledgedParent();
+    const record = managedDnsOnlyRecord(parent);
+    validate([record]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("reports when parent evidence has the wrong type", () => {
+    const parent = acknowledgedParent({}, "hulumi:cloudflare:LookalikeHostname");
+    const record = managedDnsOnlyRecord(parent);
+    validate([parent, record]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it.each([
+    ["hostname mismatch", { hostname: "other.example.com" }],
+    ["non-public purpose", { purpose: "dns" }],
+    ["parent says proxied", { proxied: true }],
+    ["missing acknowledgement", { acknowledgeDnsOnlyExposure: false }],
+    ["blank justification", { dnsOnlyJustification: "   " }],
+  ])("reports when PublicHostname evidence has %s", (_label, override) => {
+    const parent = acknowledgedParent(override);
+    const record = managedDnsOnlyRecord(parent);
+    validate([parent, record]);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("does NOT report a proxied public application record", () => {
+    const record = makePolicyResource({
       type: DNS_RECORD_TYPE,
-      urn: `urn:pulumi:s::p::${PUBLIC_HOSTNAME_TYPE}$${DNS_RECORD_TYPE}::managed-app`,
-      name: "managed-app",
-      props: { type: "CNAME", name: "app", content: "target.example.com", proxied: false },
+      urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::proxied-app`,
+      name: "proxied-app",
+      props: {
+        type: "CNAME",
+        name: "app.example.com",
+        content: "origin.example.com",
+        proxied: true,
+        tags: ["hulumi:purpose=public-app"],
+      },
     });
-
-    (
-      cfDns1NoDnsOnlyPublicAppRecord.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
-
+    validate([record]);
     expect(violations).toEqual([]);
   });
 
   it("honors a scoped suppression with a non-empty justification", () => {
-    const args = makeResourceArgs({
+    const record = makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::legacy-app`,
       name: "legacy-app",
@@ -121,23 +184,16 @@ describe("HulumiCloudflareHardeningPack CF_DNS_1 — raw DNS-only app record rej
         proxied: false,
         tags: ["hulumi:purpose=public-app"],
       },
-      getConfig: (() => ({
-        suppressions: [
-          {
-            ruleId: CF_DNS_1_RULE_ID,
-            reason: "Legacy cutover window tracked in ticket EDGE-12.",
-            urnScope: "*",
-          },
-        ],
-      })) as ResourceValidationArgs["getConfig"],
     });
-
-    (
-      cfDns1NoDnsOnlyPublicAppRecord.validateResource as (
-        a: ResourceValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(args, report);
+    validate([record], {
+      suppressions: [
+        {
+          ruleId: CF_DNS_1_RULE_ID,
+          reason: "Legacy cutover window tracked in ticket EDGE-12.",
+          urnScope: record.urn,
+        },
+      ],
+    });
 
     expect(violations).toEqual([]);
   });
@@ -385,7 +441,7 @@ describe("HulumiCloudflareHardeningPack — forged-logical-name URN spoof", () =
     // Raw DNS record marked as a public application whose logical name
     // carries the PublicHostname type token. Type chain is just the raw
     // DnsRecord, NOT a child of any PublicHostname component.
-    const spoofedArgs = makeResourceArgs({
+    const spoofedRecord = makePolicyResource({
       type: DNS_RECORD_TYPE,
       urn: `urn:pulumi:s::p::${DNS_RECORD_TYPE}::${PUBLIC_HOSTNAME_TYPE}$app-record`,
       name: `${PUBLIC_HOSTNAME_TYPE}$app-record`,
@@ -399,11 +455,11 @@ describe("HulumiCloudflareHardeningPack — forged-logical-name URN spoof", () =
     });
 
     (
-      cfDns1NoDnsOnlyPublicAppRecord.validateResource as (
-        a: ResourceValidationArgs,
+      cfDns1NoDnsOnlyPublicAppRecord.validateStack as (
+        a: StackValidationArgs,
         r: (m: string) => void,
       ) => void
-    )(spoofedArgs, report);
+    )(makeStackArgs([spoofedRecord]), report);
 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toContain(CF_DNS_1_RULE_ID);

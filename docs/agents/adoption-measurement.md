@@ -41,15 +41,15 @@ raw owner dashboards or reports by default.
 
 ## What to measure
 
-| Signal                          | Collection                                                                                                       | Interpretation                                                                                             |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Registry downloads              | Snapshot script                                                                                                  | Activity includes CI, bots, mirrors, repeat installs and maintainer work; no identities or human/bot split |
-| GitHub views and clones         | Optional snapshot `--github`                                                                                     | Rolling 14-day provider counts; daily uniques must not be summed into unique people                        |
-| Context7 documentation requests | Optional snapshot `--context7`                                                                                   | Separate page, text, MCP and CLI request counts; aggregate agent-client breakdown where supplied           |
-| Context7 topics and countries   | Same API / owner dashboard                                                                                       | Lifetime distributions, not the requested 30-day daily window; request country is not user residence       |
-| Skill installs                  | Skills.sh page/API, recorded manually                                                                            | Installs through that service, not executions or successful outcomes; manual copies may be absent          |
-| Integration results             | [Optional feedback form](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml) | Self-selected and self-reported; distinguish success, partial, blocked and evaluation only                 |
-| External adoption               | Review public dependent manifests/examples                                                                       | Confirmed external usage evidence; private/production use may remain unknown                               |
+| Signal                          | Collection                                                                                                       | Interpretation                                                                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Registry downloads              | Snapshot script                                                                                                  | Activity includes CI, bots, mirrors, repeat installs and maintainer work; no identities or human/bot split                     |
+| GitHub views and clones         | Optional snapshot `--github`                                                                                     | Rolling 14-day provider counts; daily uniques must not be summed into unique people                                            |
+| Context7 documentation requests | Optional snapshot `--context7`                                                                                   | Separate page, text, MCP and CLI request counts; aggregate agent-client breakdown where supplied                               |
+| Context7 topics and countries   | Same API / owner dashboard                                                                                       | Lifetime distributions, not the requested 30-day daily window; request country is not user residence                           |
+| Skill installs                  | Skills.sh page/API, recorded manually                                                                            | Installs through that service, not executions or successful outcomes; manual copies may be absent                              |
+| Integration results             | [Optional feedback form](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml) | Self-selected and self-reported; distinguish success in Discussions from workaround, blocked, abandoned and unsuitable reports |
+| External adoption               | Review public dependent manifests/examples                                                                       | Confirmed external usage evidence; private/production use may remain unknown                                                   |
 
 Record source, observation time, reporting period and unavailable reasons. Separate
 maintainer tests from external adoption. Do not divide counts from different
@@ -58,8 +58,8 @@ activity; a before/after increase alone does not prove this documentation caused
 
 ## Feedback review
 
-The form requests package/version, task, discovery source, outcome and assistance
-category. Agent/model and public reproducer are optional. There are no required
+The form requests package/version, task, discovery source, outcome, expected/observed behavior, duplicate search, executed checks and consulted
+documentation. Assistance category and agent/model are optional. There are no required
 company/location/email fields. It is public and tied to the submitter's account.
 An agent may draft a sanitized report but needs explicit user permission to send it.
 Vulnerabilities use the existing private advisory route. Never collect raw prompts,
@@ -114,3 +114,12 @@ Sources: [Context7 metrics API](https://context7.com/docs/api-reference/metrics/
 [claiming ownership](https://context7.com/docs/howto/claiming-libraries),
 [Skills.sh metrics](https://www.skills.sh/docs/faq),
 [GitHub traffic](https://docs.github.com/en/rest/metrics/traffic).
+
+## Outcome quality and independent evaluation
+
+Use the [feedback policy](feedback.md) to route general success to Discussions and
+actionable gaps to deduplicated reports. Record workarounds, abandoned attempts and
+unsuitable tasks as well as successes. Measure actionable reports, duplicates,
+time to a reproducible test/fix, and whether the downstream consumer confirmed it.
+See [the evaluation protocol](evaluation.md): blind discovery and package-provided
+integration are separate experiments; neither is organic usage.

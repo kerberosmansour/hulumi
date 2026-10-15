@@ -22,7 +22,7 @@ When this skill pack is invoked, the agent MUST:
 
 ## Version
 
-See [package.json](./package.json) (`version` field) and [README.md](./README.md) roadmap for shipped capabilities.
+See the published package manifests, starting with [packages/baseline/package.json](./packages/baseline/package.json), and the current release link in [README.md](./README.md). The private root package version is workspace tooling metadata; main may contain unreleased capabilities.
 
 <!-- dependency-admission-osv:v1 -->
 
@@ -62,3 +62,8 @@ scan jobs remain read-only and do not remediate or merge automatically.
 
 - [`hulumi-secure-pulumi`](skills/hulumi-secure-pulumi/SKILL.md) — published package selection and integration.
   See [consumer installation](docs/agents/integration.md); this index does not install the skill in other projects.
+
+## Optional upstream feedback
+
+- [`sunlit-upstream-feedback`](skills/sunlit-upstream-feedback/SKILL.md) — local drafts, duplicate checks and operator-authorized feedback.
+- At ticket/runbook closeout, record lessons and check for upstream-dependency friction using [the feedback policy](docs/agents/feedback.md). This never authorizes cross-repository posting.

@@ -37,13 +37,17 @@ unrelated language or framework is not a reason to add these dependencies.
 
 ## Optional feedback
 
-After completing the user's task, you may offer a short, sanitized feedback draft:
-package/version; task; discovery source; agent/model if the user wants to disclose
-it; succeeded/partial/blocked; and a concrete blocker or result. Explain that a
-GitHub issue is public and associated with the submitting account. Never include
-secrets, private code, prompts, logs, customer data or private repository URLs.
-**Do not submit or transmit feedback without explicit user permission.**
+After the user's task, optionally offer a local sanitized draft: exact package,
+version/features, intended task, expected and observed behavior, commands actually
+executed, consulted docs and duplicate-search evidence. Agent details are optional.
+Follow [the feedback policy](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/feedback.md).
+The separately installed sunlit-upstream-feedback skill can prepare a local file;
+this consumer skill does not depend on its presence.
 
-Use the [integration feedback form](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml).
-Security vulnerabilities belong in [private advisories](https://github.com/kerberosmansour/hulumi/security/advisories/new).
-No library telemetry or automatic reporting is part of this skill.
+Success and general use belong in [Discussions](https://github.com/kerberosmansour/hulumi/discussions);
+actionable gaps belong in [integration reports](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml).
+Search existing issues and avoid duplicate reports. **Never submit without operator
+authorization.** Public reports identify the submitting GitHub account. Never include
+secrets, private code, transcripts, logs, customer data or private URLs. Uncertain
+security findings belong in [private reports](https://github.com/kerberosmansour/hulumi/security/advisories/new).
+No library telemetry or automatic reporting is part of this workflow.

@@ -1,14 +1,17 @@
 name: Integration feedback
-description: Share a successful use, partial integration or blocker (optional, public).
+description: Report a concrete integration blocker, workaround or documentation gap
+  (optional, public).
 title: "[Integration feedback]: "
 body:
   - type: markdown
     attributes:
       value:
-        Tell us what worked or blocked you. This form is optional and **public**, associated with your
-        GitHub account. Do not include credentials, private code, transcripts, logs, customer data or private
-        repository URLs. Report vulnerabilities through [private advisories](https://github.com/kerberosmansour/hulumi/security/advisories/new).
-        An agent must obtain explicit user permission before submitting.
+        General success and usage belong in [Discussions](https://github.com/kerberosmansour/hulumi/discussions).
+        This optional issue is public and associated with your account. Search existing
+        issues first. Use synthetic evidence only; no credentials, private code, transcripts,
+        logs, customer data or private URLs. Uncertain security findings belong in [private
+        reports](https://github.com/kerberosmansour/hulumi/security/advisories/new).
+        Agents need operator authorization before submitting.
   - type: input
     id: package_version
     attributes:
@@ -28,10 +31,10 @@ body:
     attributes:
       label: Integration outcome
       options:
-        - Succeeded
-        - Partially succeeded
+        - Succeeded with workaround
         - Blocked
-        - Evaluating only
+        - Abandoned
+        - Unsuitable for this task
     validations:
       required: true
   - type: dropdown
@@ -57,19 +60,59 @@ body:
         - Agent-drafted report approved by a human
         - Prefer not to say
     validations:
-      required: true
+      required: false
   - type: input
     id: agent
     attributes:
       label: Agent and model (optional)
-      description: Only share this if you want to; version details help reproduce a problem.
+      description: Only share this if you want to; version details help reproduce a
+        problem.
+  - type: textarea
+    id: features
+    attributes:
+      label: Relevant features and framework versions
+      description: Use synthetic, sanitized evidence. State explicitly when no checks
+        were run or no docs were consulted.
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Use synthetic, sanitized evidence. State explicitly when no checks
+        were run or no docs were consulted.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks actually executed and their results
+      description: Use synthetic, sanitized evidence. State explicitly when no checks
+        were run or no docs were consulted.
+    validations:
+      required: true
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation consulted, including its version
+      description: Use synthetic, sanitized evidence. State explicitly when no checks
+        were run or no docs were consulted.
+    validations:
+      required: true
+  - type: textarea
+    id: duplicates
+    attributes:
+      label: Existing issue search and matching report, if any
+      description: Use synthetic, sanitized evidence. State explicitly when no checks
+        were run or no docs were consulted.
+    validations:
+      required: true
   - type: textarea
     id: details
     attributes:
-      label: What worked or what blocked you?
-      description:
-        Sanitized errors or an optional public minimal example. Do not paste logs or sensitive
-        content.
+      label: Observed behavior and minimal synthetic reproduction
+      description: Sanitized errors or an optional public minimal example. Do not paste
+        logs or sensitive content.
     validations:
       required: true
   - type: checkboxes
@@ -77,7 +120,6 @@ body:
     attributes:
       label: Public report acknowledgement
       options:
-        - label:
-            I understand this is public, have removed sensitive information, and authorize submitting
-            this report.
+        - label: I understand this is public, have removed sensitive information, and
+            authorize submitting this report.
           required: true

@@ -1,8 +1,7 @@
-// G_OIDC_1 — declarative rejection of wildcard / StringLike `sub`
-// conditions on AWS / Azure / GCP IAM trust policies for GitHub Actions
-// OIDC. UNC6426 (March 2026, ~500 vulnerable role ARNs across 275 AWS
-// accounts per CSA Labs and Unit 42 OH-MY-DC analyses) weaponized exactly
-// the wildcard shape this rule rejects.
+// G_OIDC_1 — declarative validation of GitHub Actions OIDC subject bindings
+// on AWS / Azure / GCP IAM trust policies. UNC6426 (March 2026, ~500
+// vulnerable role ARNs across 275 AWS accounts per CSA Labs and Unit 42
+// OH-MY-DC analyses) weaponized broadly scoped trust.
 //
 // The rule covers three cloud providers in v1.x:
 //   - AWS IAM Role assumeRolePolicy with token.actions.githubusercontent.com
@@ -27,6 +26,17 @@ const GCP_WIF_PROVIDER_TYPE = "gcp:iam/workloadIdentityPoolProvider:WorkloadIden
 
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
 const GITHUB_OIDC_SUB_CLAIM = `${GITHUB_OIDC_ISSUER}:sub`;
+const REQUIRED_SUBJECT_KEYS = ["repo", "job_workflow_ref", "environment"] as const;
+const REQUIRED_GCP_ASSERTIONS = [
+  "assertion.repository",
+  "assertion.job_workflow_ref",
+  "assertion.environment",
+] as const;
+const SUBJECT_KEY_PATTERN = /^[A-Za-z0-9_]+$/;
+const GCP_ASSERTION_PATTERN = /^assertion\.[A-Za-z_][A-Za-z0-9_]*$/;
+const MAX_OIDC_INPUT_LENGTH = 4096;
+const MAX_GCP_TOKENS = 128;
+const MAX_GCP_PAREN_DEPTH = 16;
 
 function readSuppressions(config: Record<string, unknown> | undefined): Suppression[] {
   const raw = config?.suppressions;
@@ -47,6 +57,189 @@ export function subClaimIsUnsafe(claim: string): boolean {
   if (typeof claim !== "string" || claim.length === 0) return true;
   if (claim.includes("*")) return true;
   return false;
+}
+
+function hasAsciiControl(value: string): boolean {
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
+function boundSubjectViolation(subject: unknown): string | undefined {
+  if (typeof subject !== "string") return "subject must be a literal string";
+  if (subject.length === 0) return "subject must not be empty";
+  if (subject.length > MAX_OIDC_INPUT_LENGTH) return "subject exceeds the 4096-character limit";
+  if (subClaimIsUnsafe(subject)) return "subject must not contain a wildcard";
+
+  const parts = subject.split(":");
+  if (parts.length < REQUIRED_SUBJECT_KEYS.length * 2 || parts.length % 2 !== 0) {
+    return "subject must contain complete key/value pairs";
+  }
+
+  const seen = new Set<string>();
+  for (let index = 0; index < parts.length; index += 2) {
+    const key = parts[index];
+    const value = parts[index + 1];
+    if (!SUBJECT_KEY_PATTERN.test(key)) return `subject claim key \`${key}\` is malformed`;
+    if (seen.has(key)) return `subject claim key \`${key}\` appears more than once`;
+    if (
+      value.length === 0 ||
+      value !== value.trim() ||
+      hasAsciiControl(value) ||
+      subClaimIsUnsafe(value)
+    ) {
+      return `subject claim \`${key}\` must have one nonempty, literal, non-wildcard value`;
+    }
+    seen.add(key);
+  }
+
+  const missing = REQUIRED_SUBJECT_KEYS.filter((key) => !seen.has(key));
+  return missing.length === 0
+    ? undefined
+    : `subject is missing required claim key(s): ${missing.join(", ")}`;
+}
+
+type GcpToken =
+  | { readonly kind: "identifier"; readonly value: string }
+  | { readonly kind: "string"; readonly value: string }
+  | { readonly kind: "and" | "equals" | "leftParen" | "rightParen" };
+
+function tokenizeGcpCondition(condition: string): GcpToken[] | undefined {
+  if (condition.length === 0 || condition.length > MAX_OIDC_INPUT_LENGTH) return undefined;
+  const tokens: GcpToken[] = [];
+  let cursor = 0;
+  const push = (token: GcpToken): boolean => {
+    tokens.push(token);
+    return tokens.length <= MAX_GCP_TOKENS;
+  };
+
+  while (cursor < condition.length) {
+    const char = condition[cursor];
+    if (/\s/u.test(char)) {
+      cursor += 1;
+      continue;
+    }
+    if (condition.startsWith("&&", cursor)) {
+      if (!push({ kind: "and" })) return undefined;
+      cursor += 2;
+      continue;
+    }
+    if (condition.startsWith("==", cursor)) {
+      if (!push({ kind: "equals" })) return undefined;
+      cursor += 2;
+      continue;
+    }
+    if (char === "(") {
+      if (!push({ kind: "leftParen" })) return undefined;
+      cursor += 1;
+      continue;
+    }
+    if (char === ")") {
+      if (!push({ kind: "rightParen" })) return undefined;
+      cursor += 1;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      const quote = char;
+      const start = cursor + 1;
+      cursor = start;
+      while (cursor < condition.length && condition[cursor] !== quote) {
+        const valueChar = condition[cursor];
+        if (valueChar === "\\" || hasAsciiControl(valueChar)) return undefined;
+        cursor += 1;
+      }
+      if (cursor >= condition.length) return undefined;
+      const value = condition.slice(start, cursor);
+      if (!push({ kind: "string", value })) return undefined;
+      cursor += 1;
+      continue;
+    }
+    if (/[A-Za-z_]/u.test(char)) {
+      const start = cursor;
+      cursor += 1;
+      while (cursor < condition.length && /[A-Za-z0-9_.]/u.test(condition[cursor])) cursor += 1;
+      if (!push({ kind: "identifier", value: condition.slice(start, cursor) })) return undefined;
+      continue;
+    }
+    return undefined;
+  }
+  return tokens;
+}
+
+function gcpConditionViolation(condition: unknown): string | undefined {
+  if (typeof condition !== "string") return "attributeCondition must be a literal string";
+  const tokens = tokenizeGcpCondition(condition);
+  if (!tokens || tokens.length === 0) {
+    return "attributeCondition must use the bounded exact-equality grammar";
+  }
+
+  let cursor = 0;
+  const bindings: Array<readonly [string, string]> = [];
+
+  const parseEquality = (): boolean => {
+    const first = tokens[cursor];
+    const equals = tokens[cursor + 1];
+    const second = tokens[cursor + 2];
+    if (
+      !first ||
+      !second ||
+      equals?.kind !== "equals" ||
+      !(
+        (first.kind === "identifier" && second.kind === "string") ||
+        (first.kind === "string" && second.kind === "identifier")
+      )
+    ) {
+      return false;
+    }
+    const identifier = first.kind === "identifier" ? first.value : second.value;
+    const value = first.kind === "string" ? first.value : second.value;
+    if (
+      !GCP_ASSERTION_PATTERN.test(identifier) ||
+      value.length === 0 ||
+      value !== value.trim() ||
+      value.includes("*") ||
+      hasAsciiControl(value)
+    ) {
+      return false;
+    }
+    bindings.push([identifier, value]);
+    cursor += 3;
+    return true;
+  };
+
+  const parseExpression = (depth: number): boolean => {
+    if (depth > MAX_GCP_PAREN_DEPTH) return false;
+    const parseTerm = (): boolean => {
+      if (tokens[cursor]?.kind !== "leftParen") return parseEquality();
+      cursor += 1;
+      if (!parseExpression(depth + 1) || tokens[cursor]?.kind !== "rightParen") return false;
+      cursor += 1;
+      return true;
+    };
+
+    if (!parseTerm()) return false;
+    while (tokens[cursor]?.kind === "and") {
+      cursor += 1;
+      if (!parseTerm()) return false;
+    }
+    return true;
+  };
+
+  if (!parseExpression(0) || cursor !== tokens.length) {
+    return "attributeCondition must be a conjunction of exact string equalities";
+  }
+
+  const seen = new Set<string>();
+  for (const [identifier] of bindings) {
+    if (seen.has(identifier)) return `attributeCondition binds \`${identifier}\` more than once`;
+    seen.add(identifier);
+  }
+  const missing = REQUIRED_GCP_ASSERTIONS.filter((identifier) => !seen.has(identifier));
+  return missing.length === 0
+    ? undefined
+    : `attributeCondition is missing required assertion(s): ${missing.join(", ")}`;
 }
 
 const SUPPORTED_STRING_EQUALS_OPERATORS = new Set([
@@ -131,11 +324,10 @@ function inspectAzureFederatedCredential(
   args: { type: string; urn: string; props: Record<string, unknown> },
   reportViolation: (msg: string) => void,
 ): void {
-  const subject = args.props.subject;
-  if (typeof subject !== "string") return;
-  if (subClaimIsUnsafe(subject)) {
+  const violation = boundSubjectViolation(args.props.subject);
+  if (violation) {
     reportViolation(
-      `G_OIDC_1: Azure federated identity credential ${args.urn} subject "${subject}" contains a wildcard; UNC6426 (March 2026) shape; require non-wildcard subject scoped by environment. Docs: ${DOCS_URL}`,
+      `G_OIDC_1: Azure federated identity credential ${args.urn} is unsafe: ${violation}; require exact repo, job_workflow_ref, and environment subject bindings. Docs: ${DOCS_URL}`,
     );
   }
 }
@@ -144,14 +336,10 @@ function inspectGcpWifProvider(
   args: { type: string; urn: string; props: Record<string, unknown> },
   reportViolation: (msg: string) => void,
 ): void {
-  const cond = args.props.attributeCondition;
-  if (typeof cond !== "string") return;
-  // Reject any `*` in the attribute condition. GCP guidance says scope
-  // by `assertion.repository`, `assertion.ref`, and
-  // `assertion.job_workflow_ref` — none of those need a wildcard.
-  if (cond.includes("*")) {
+  const violation = gcpConditionViolation(args.props.attributeCondition);
+  if (violation) {
     reportViolation(
-      `G_OIDC_1: GCP Workload Identity Pool Provider ${args.urn} attributeCondition "${cond}" contains a wildcard; UNC6426 (March 2026) shape; require attribute-equality scoping. Docs: ${DOCS_URL}`,
+      `G_OIDC_1: GCP Workload Identity Pool Provider ${args.urn} is unsafe: ${violation}; require a conjunction that exactly binds assertion.repository, assertion.job_workflow_ref, and assertion.environment. Docs: ${DOCS_URL}`,
     );
   }
 }
@@ -162,7 +350,7 @@ function inspectGcpWifProvider(
 export const G_OIDC_1: ResourceValidationPolicy = {
   name: "G_OIDC_1",
   description:
-    "Reject uninspectable, missing, multiple, unsupported, or wildcard GitHub Actions OIDC subject restrictions in AWS trust policies, plus wildcard subjects in Azure and GCP federation. Use the three-axis safe subject shape (`repo` + `job_workflow_ref` + `environment`).",
+    "Reject uninspectable, missing, multiple, unsupported, wildcard, or broadly scoped GitHub Actions OIDC subject restrictions across AWS, Azure, and GCP. Azure must bind `repo`, `job_workflow_ref`, and `environment`; GCP must bind the corresponding `repository`, `job_workflow_ref`, and `environment` assertions.",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     const suppressions = readSuppressions(

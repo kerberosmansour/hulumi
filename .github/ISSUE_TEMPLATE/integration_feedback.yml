@@ -1,0 +1,83 @@
+name: Integration feedback
+description: Share a successful use, partial integration or blocker (optional, public).
+title: "[Integration feedback]: "
+body:
+  - type: markdown
+    attributes:
+      value:
+        Tell us what worked or blocked you. This form is optional and **public**, associated with your
+        GitHub account. Do not include credentials, private code, transcripts, logs, customer data or private
+        repository URLs. Report vulnerabilities through [private advisories](https://github.com/kerberosmansour/hulumi/security/advisories/new).
+        An agent must obtain explicit user permission before submitting.
+  - type: input
+    id: package_version
+    attributes:
+      label: Package and exact version
+      description: For example, @hulumi/baseline 3.0.0 or secure_data 0.4.0.
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+      description: A short, sanitized use case. No private project details.
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Integration outcome
+      options:
+        - Succeeded
+        - Partially succeeded
+        - Blocked
+        - Evaluating only
+    validations:
+      required: true
+  - type: dropdown
+    id: discovery
+    attributes:
+      label: How did you find the package?
+      options:
+        - Context7
+        - Installed agent skill
+        - npm or crates.io
+        - GitHub or web search
+        - Recommendation
+        - Other / unsure
+    validations:
+      required: true
+  - type: dropdown
+    id: assistance
+    attributes:
+      label: How was the work performed?
+      options:
+        - Human
+        - Agent-assisted
+        - Agent-drafted report approved by a human
+        - Prefer not to say
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and model (optional)
+      description: Only share this if you want to; version details help reproduce a problem.
+  - type: textarea
+    id: details
+    attributes:
+      label: What worked or what blocked you?
+      description:
+        Sanitized errors or an optional public minimal example. Do not paste logs or sensitive
+        content.
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Public report acknowledgement
+      options:
+        - label:
+            I understand this is public, have removed sensitive information, and authorize submitting
+            this report.
+          required: true

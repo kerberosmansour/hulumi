@@ -1,4 +1,5 @@
 import { createTrustedNodeLabelAwsAdapter } from "./trusted-node-label-controller-aws";
+import { createEksPodIdentityPatchTokenProvider } from "./trusted-node-label-controller-eks-auth";
 import { createTrustedNodeLabelKubernetesAdapter } from "./trusted-node-label-controller-kubernetes";
 import {
   runTrustedNodeLabelController,
@@ -230,7 +231,14 @@ export async function runTrustedNodeLabelControllerFromEnvironment(
   process.once("SIGTERM", onSignal);
   try {
     const aws = createTrustedNodeLabelAwsAdapter(config.aws);
-    const kubernetes = createTrustedNodeLabelKubernetesAdapter(config.kubernetes);
+    const patchTokenProvider = createEksPodIdentityPatchTokenProvider(
+      { clusterName: config.aws.clusterName, region: config.aws.awsRegion },
+      { environment: env },
+    );
+    const kubernetes = createTrustedNodeLabelKubernetesAdapter(
+      config.kubernetes,
+      patchTokenProvider,
+    );
     await runTrustedNodeLabelController(config.controller, { aws, kubernetes }, abort.signal);
   } finally {
     process.removeListener("SIGINT", onSignal);

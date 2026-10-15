@@ -57,6 +57,8 @@ export type KubernetesTransport = (
   request: KubernetesTransportRequest,
 ) => Promise<KubernetesTransportResponse>;
 
+export type KubernetesPatchTokenProvider = () => Promise<string>;
+
 export interface TrustedNodeLabelKubernetesConfig {
   readonly hostname: string;
   readonly port: number;
@@ -254,6 +256,7 @@ function isExactPatch(
 
 export function createTrustedNodeLabelKubernetesAdapter(
   config: TrustedNodeLabelKubernetesConfig,
+  patchTokenProvider: KubernetesPatchTokenProvider,
   transport: KubernetesTransport = defaultTransport,
   loadFile: (path: string) => Promise<Buffer> = readFile,
 ): TrustedNodeLabelKubernetesAdapter {
@@ -262,16 +265,40 @@ export function createTrustedNodeLabelKubernetesAdapter(
     path: string,
     body?: string,
   ): Promise<KubernetesTransportResponse> {
-    let token: Buffer;
     let ca: Buffer;
     try {
-      [token, ca] = await Promise.all([loadFile(config.tokenPath), loadFile(config.caPath)]);
+      ca = await loadFile(config.caPath);
     } catch (error) {
       throw new KubernetesAdapterError("kubernetes_transport_failed", undefined, error);
     }
-    const trimmedToken = token.toString("utf8").trim();
-    if (trimmedToken.length < 16 || trimmedToken.length > 16 * 1024 || ca.length === 0) {
+    if (ca.length === 0) {
       throw new KubernetesAdapterError("kubernetes_unauthorized");
+    }
+    let authorizationToken: string;
+    if (method === "PATCH") {
+      try {
+        authorizationToken = await patchTokenProvider();
+      } catch {
+        throw new KubernetesAdapterError("kubernetes_unauthorized");
+      }
+      if (
+        typeof authorizationToken !== "string" ||
+        authorizationToken.length > 4096 ||
+        !/^k8s-aws-v1\.[A-Za-z0-9_-]+$/u.test(authorizationToken)
+      ) {
+        throw new KubernetesAdapterError("kubernetes_unauthorized");
+      }
+    } else {
+      let token: Buffer;
+      try {
+        token = await loadFile(config.tokenPath);
+      } catch (error) {
+        throw new KubernetesAdapterError("kubernetes_transport_failed", undefined, error);
+      }
+      authorizationToken = token.toString("utf8").trim();
+      if (authorizationToken.length < 16 || authorizationToken.length > 16 * 1024) {
+        throw new KubernetesAdapterError("kubernetes_unauthorized");
+      }
     }
     try {
       return await transport({
@@ -282,7 +309,7 @@ export function createTrustedNodeLabelKubernetesAdapter(
         ca,
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${trimmedToken}`,
+          Authorization: `Bearer ${authorizationToken}`,
           ...(body === undefined
             ? {}
             : {

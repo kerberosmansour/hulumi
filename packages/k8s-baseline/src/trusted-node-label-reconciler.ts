@@ -203,6 +203,9 @@ export class EksTrustedNodeLabelReconciler
       "hulumi:cluster": args.clusterName,
       "hulumi:node-group": args.nodeGroupName,
     }));
+    const clusterArn = `arn:${partition}:eks:${args.awsRegion}:${args.awsAccountId}:cluster/${args.clusterName}`;
+    const patchGroup = `hulumi:trusted-node-label:${name}`;
+    const patchUsernamePrefix = `hulumi:trusted-node-label:${name}:`;
     const resourceLabels = {
       "app.kubernetes.io/name": name,
       "app.kubernetes.io/component": "trusted-node-label-reconciler",
@@ -221,6 +224,13 @@ export class EksTrustedNodeLabelReconciler
               Effect: "Allow",
               Principal: { Service: "pods.eks.amazonaws.com" },
               Action: ["sts:AssumeRole", "sts:TagSession"],
+              Condition: {
+                StringEquals: {
+                  "aws:RequestTag/eks-cluster-arn": clusterArn,
+                  "aws:RequestTag/kubernetes-namespace": args.namespace,
+                  "aws:RequestTag/kubernetes-service-account": validated.serviceAccountName,
+                },
+              },
             },
           ],
         }),
@@ -277,7 +287,21 @@ export class EksTrustedNodeLabelReconciler
       k8sOptions,
     );
 
-    new aws.eks.PodIdentityAssociation(
+    const accessEntry = new aws.eks.AccessEntry(
+      `${name}-patch-access`,
+      {
+        clusterName: args.clusterName,
+        principalArn: role.arn,
+        region: args.awsRegion,
+        type: "STANDARD",
+        kubernetesGroups: [patchGroup],
+        userName: `${patchUsernamePrefix}{{SessionName}}`,
+        tags: commonTags,
+      },
+      { ...childOptions, dependsOn: [role] },
+    );
+
+    const podIdentityAssociation = new aws.eks.PodIdentityAssociation(
       `${name}-pod-identity`,
       {
         clusterName: args.clusterName,
@@ -289,7 +313,7 @@ export class EksTrustedNodeLabelReconciler
       { ...childOptions, dependsOn: [rolePolicy, serviceAccount] },
     );
 
-    const clusterRole = new k8s.rbac.v1.ClusterRole(
+    const readClusterRole = new k8s.rbac.v1.ClusterRole(
       `${name}-node-role`,
       {
         metadata: { name: `${name}-node-label-reconciler`, labels: resourceLabels },
@@ -297,14 +321,14 @@ export class EksTrustedNodeLabelReconciler
           {
             apiGroups: [""],
             resources: ["nodes"],
-            verbs: ["get", "list", "patch"],
+            verbs: ["get", "list"],
           },
         ],
       },
       k8sOptions,
     );
 
-    new k8s.rbac.v1.ClusterRoleBinding(
+    const readClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding(
       `${name}-node-role-binding`,
       {
         metadata: { name: `${name}-node-label-reconciler`, labels: resourceLabels },
@@ -321,14 +345,49 @@ export class EksTrustedNodeLabelReconciler
           },
         ],
       },
-      { ...k8sOptions, dependsOn: [clusterRole, serviceAccount] },
+      { ...k8sOptions, dependsOn: [readClusterRole, serviceAccount] },
+    );
+
+    const patchClusterRole = new k8s.rbac.v1.ClusterRole(
+      `${name}-node-patch-role`,
+      {
+        metadata: { name: `${name}-node-label-mutator`, labels: resourceLabels },
+        rules: [
+          {
+            apiGroups: [""],
+            resources: ["nodes"],
+            verbs: ["patch"],
+          },
+        ],
+      },
+      k8sOptions,
+    );
+
+    const patchClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding(
+      `${name}-node-patch-role-binding`,
+      {
+        metadata: { name: `${name}-node-label-mutator`, labels: resourceLabels },
+        roleRef: {
+          apiGroup: "rbac.authorization.k8s.io",
+          kind: "ClusterRole",
+          name: `${name}-node-label-mutator`,
+        },
+        subjects: [
+          {
+            kind: "Group",
+            name: patchGroup,
+            apiGroup: "rbac.authorization.k8s.io",
+          },
+        ],
+      },
+      { ...k8sOptions, dependsOn: [patchClusterRole, accessEntry] },
     );
 
     const labelKey = JSON.stringify(args.protectedLabelKey);
     const labelValue = JSON.stringify(args.protectedLabelValue);
-    const controllerUsername = JSON.stringify(
-      `system:serviceaccount:${args.namespace}:${validated.serviceAccountName}`,
-    );
+    const controllerUsernamePrefix = JSON.stringify(patchUsernamePrefix);
+    const controllerGroup = JSON.stringify(patchGroup);
+    const controllerIdentity = `(request.userInfo.username.startsWith(${controllerUsernamePrefix}) && request.userInfo.groups.exists(group, group == ${controllerGroup}))`;
     const newHasLabel = `has(object.metadata.labels) && ${labelKey} in object.metadata.labels`;
     const oldHasLabel = `has(oldObject.metadata.labels) && ${labelKey} in oldObject.metadata.labels`;
     const labelUnchanged = `((${oldHasLabel}) == (${newHasLabel}) && (!(${oldHasLabel}) || object.metadata.labels[${labelKey}] == oldObject.metadata.labels[${labelKey}]))`;
@@ -350,7 +409,7 @@ export class EksTrustedNodeLabelReconciler
       .map(optionalEqual)
       .join(" && ");
     const noPiggyback = `object.metadata.name == oldObject.metadata.name && object.metadata.uid == oldObject.metadata.uid && object.metadata.resourceVersion == oldObject.metadata.resourceVersion && object.spec == oldObject.spec && object.status == oldObject.status && ${unchangedMetadata}`;
-    const updateRule = `request.operation != "UPDATE" || (request.userInfo.username == ${controllerUsername} ? (((${labelsAreExactAddition}) || (${labelsAreExactRemoval})) && (${noPiggyback})) : (${labelUnchanged}))`;
+    const updateRule = `request.operation != "UPDATE" || ((${controllerIdentity}) ? (((${labelsAreExactAddition}) || (${labelsAreExactRemoval})) && (${noPiggyback})) : (${labelUnchanged}))`;
     const admissionPolicyName = `${name}-protected-node-label`;
     const admissionPolicy = new k8s.admissionregistration.v1.ValidatingAdmissionPolicy(
       `${name}-protected-label-policy`,
@@ -498,7 +557,20 @@ export class EksTrustedNodeLabelReconciler
           },
         },
       },
-      { ...k8sOptions, dependsOn: [serviceAccount, clusterRole, admissionPolicy, rolePolicy] },
+      {
+        ...k8sOptions,
+        dependsOn: [
+          serviceAccount,
+          readClusterRole,
+          readClusterRoleBinding,
+          patchClusterRole,
+          patchClusterRoleBinding,
+          admissionPolicy,
+          rolePolicy,
+          accessEntry,
+          podIdentityAssociation,
+        ],
+      },
     );
 
     const alarmDimensions = {

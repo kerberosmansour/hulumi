@@ -49,6 +49,18 @@ export const PROTECTED_DEPENDENCIES = Object.freeze([
       "sha512-HzMpERTdEuAoKn042iwbkSs4hqW4u3ryLd5LLU/QDcgKZl4hIfZk2hQRrrcQ/P4isWfMDAi+LV/W2JZidiyB5w==",
   },
   {
+    name: "@aws-sdk/credential-provider-http",
+    version: "3.972.76",
+    integrity:
+      "sha512-pnKdh0Br7OJPj+7qKjzgTfDTFW0RhEMKXNDR2jv9CAM4oHuG/4z3hRh8KtutLfpmItuRtDbKBmwWkDqHwwAWXw==",
+  },
+  {
+    name: "@smithy/signature-v4",
+    version: "5.7.4",
+    integrity:
+      "sha512-tHy0K0VtqNd5Y7Y41h0a0Lhh0L1GzC08dTWg0F7vRJWFtTENg7IZikf3wQkanYIRdb7ngoIPMTmqgUi401fEeQ==",
+  },
+  {
     name: "@aws-sdk/client-cloudtrail",
     version: "3.1149.0",
     integrity:

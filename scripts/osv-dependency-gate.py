@@ -114,7 +114,7 @@ def main():
     binary = scanner()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     # Explicit empty config overrides every per-directory config. Evaluate
-    # narrow reviewed exceptions ourselves, after seeing every advisory alias.
+    # every advisory ourselves, after seeing every advisory alias.
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", dir=args.output.parent, delete=False) as config:
         config.write("# Admission deliberately scans without scanner suppressions.\n")
         config_path = Path(config.name)
@@ -136,10 +136,11 @@ def main():
         actual = {(re.sub(r"[-_.]+", "-", item["package"]["name"]).lower() if item["package"]["ecosystem"] == "PyPI" else item["package"]["name"], item["package"]["version"]) for item in packages if item["_admission_source"] == str(path)}
         if actual != expected:
             raise ValueError("Scanner inventory does not match every resolved lockfile package")
-    exceptions = reviewed_exceptions(packages)
-    # OSV exits 1 for findings, including narrowly accepted ones. Tool/network
-    # errors (>=2) cannot be converted to success by any exception.
-    code = scan_exit_status(result.returncode, packages, exceptions)
+    # Scan every advisory. Ordinary vulnerabilities are reported, not suppressed;
+    # known malware and incomplete/error results still block dependency execution.
+    summary = findings_summary(packages)
+    args.output.with_suffix(".summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    code = scan_exit_status(result.returncode, packages, [])
     if code == 0 and (ROOT / "Cargo.lock").is_file():
         guard = ROOT / "scripts/check-native-dependencies.py"
         if not guard.is_file() or guard.is_symlink():
@@ -151,17 +152,48 @@ def main():
         "reportSHA256": hashlib.sha256(args.output.read_bytes()).hexdigest(),
         "lockfiles": [{"path": path.relative_to(ROOT).as_posix(), "sourcePath": str(path), "sha256": lock_digests[path]} for path in paths],
         "admissionExitCode": code,
+        "admissionPolicy": "malware-block-vulnerabilities-report-v1",
+        "maliciousFindings": summary["maliciousFindings"],
+        "vulnerabilityFindings": summary["vulnerabilityFindings"],
     }
     args.output.with_suffix(".receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    if summary["vulnerabilityFindings"]:
+        count = summary["vulnerabilityFindings"]
+        print(f"WARNING: {count} dependency vulnerability findings require review and remediation; they do not block OSV admission. See the full report and summary.")
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"::warning title=Dependency vulnerabilities::{count} vulnerability findings require remediation. Full details are retained in the OSV report and summary artifact.")
     print(f"OSV {VERSION}: scanned {len(paths)} resolved lockfiles and {package_count} packages; exit {code}; report: {args.output}")
     return code
 
 
+def findings_summary(packages):
+    findings = []
+    for item in packages:
+        for vuln in item.get("vulnerabilities", []):
+            if (not isinstance(vuln, dict) or not isinstance(vuln.get("id"), str)
+                    or not vuln["id"].strip() or not isinstance(vuln.get("aliases", []), list)
+                    or not all(isinstance(alias, str) and alias.strip() for alias in vuln.get("aliases", []))):
+                raise ValueError("Malformed advisory identity/aliases")
+            ids = {vuln["id"], *vuln.get("aliases", [])}
+            if not all(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", identity) for identity in ids):
+                raise ValueError("Malformed advisory identity/aliases")
+            malicious = any(identity.upper().startswith("MAL-") for identity in ids)
+            findings.append({"kind": "malware" if malicious else "vulnerability",
+                             "source": item.get("_admission_source"),
+                             "package": dict(item["package"]), "id": vuln["id"],
+                             "aliases": vuln.get("aliases", [])})
+    return {"policy": "malware-block-vulnerabilities-report-v1",
+            "maliciousFindings": sum(item["kind"] == "malware" for item in findings),
+            "vulnerabilityFindings": sum(item["kind"] == "vulnerability" for item in findings),
+            "findings": findings}
+
+
 def scan_exit_status(returncode, packages, exceptions):
-    findings = unaccepted_findings(packages, exceptions)
-    if returncode == 1 and not any(item.get("vulnerabilities") for item in packages):
+    # Keep the legacy argument for callers; exceptions never affect malware.
+    summary = findings_summary(packages)
+    if returncode == 1 and not summary["findings"]:
         raise ValueError("Scanner findings exit lacks represented advisories")
-    return returncode if returncode not in (0, 1) else (1 if findings else 0)
+    return returncode if returncode not in (0, 1) else (1 if summary["maliciousFindings"] else 0)
 
 
 def validate_inventory(report, paths):

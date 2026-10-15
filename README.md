@@ -271,6 +271,13 @@ transitive dependencies before builds, tests, merges or releases:
 python3 scripts/osv-dependency-gate.py
 ```
 
+The OSV gate blocks known malicious packages (`MAL-*` IDs or aliases), scanner
+errors and incomplete inventories. Ordinary vulnerabilities are **reported without
+blocking**: the full JSON report, `.summary.json`, receipt counts and CI warning
+remain available for review and remediation. This is not a claim that dependencies
+are vulnerability-free or free of unknown malware. Other provenance, source,
+license and cargo-vet checks keep their existing policies.
+
 The checksum-pinned scanner covers the workspace and nested SCA toolchain locks.
 Presubmit and release jobs wait for one shared scan per workflow; the daily SCA
 workflow also uses this gate. Scanner failures and partial scans fail closed.

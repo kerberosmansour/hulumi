@@ -221,6 +221,273 @@
           "iam:PassedToService": "config.amazonaws.com"
         }
       }
+    },
+    {
+      "Sid": "EksQualificationReadinessAndEvidence",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DescribeAutoScalingGroups",
+        "cloudtrail:LookupEvents",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics",
+        "cloudwatch:ListTagsForResource",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeImages",
+        "ec2:DescribeInstanceTypes",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeLaunchTemplateVersions",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRegions",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeTags",
+        "ec2:DescribeVpcs",
+        "eks:DescribeAddon",
+        "eks:DescribeCluster",
+        "eks:DescribeNodegroup",
+        "eks:DescribePodIdentityAssociation",
+        "eks:DescribeUpdate",
+        "eks:ListAddons",
+        "eks:ListClusters",
+        "eks:ListNodegroups",
+        "eks:ListPodIdentityAssociations",
+        "eks:ListUpdates",
+        "iam:GetInstanceProfile",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags",
+        "iam:ListRoles",
+        "iam:SimulatePrincipalPolicy",
+        "sns:GetTopicAttributes",
+        "sns:ListTagsForResource",
+        "tag:GetResources"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EksQualificationNetworkCreate",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateInternetGateway",
+        "ec2:CreateLaunchTemplate",
+        "ec2:CreateRouteTable",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "ec2:CreateVpc"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:RequestTag/hulumi:qualification-id": "hulumi-nlr-*"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "<SANDBOX_REGION>"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationNetworkMutateTagged",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AssociateRouteTable",
+        "ec2:AttachInternetGateway",
+        "ec2:CreateLaunchTemplateVersion",
+        "ec2:CreateRoute",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ModifyVpcAttribute"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "ec2:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "<SANDBOX_REGION>"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationNetworkDelete",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteLaunchTemplate",
+        "ec2:DeleteRouteTable",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteVpc",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateRouteTable"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "ec2:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "<SANDBOX_REGION>"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationClusterCreate",
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateAddon",
+        "eks:CreateCluster",
+        "eks:CreateNodegroup",
+        "eks:CreatePodIdentityAssociation"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:RequestTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationClusterManageTagged",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DeleteAddon",
+        "eks:DeleteCluster",
+        "eks:DeleteNodegroup",
+        "eks:DeletePodIdentityAssociation",
+        "eks:TagResource",
+        "eks:UntagResource",
+        "eks:UpdateNodegroupConfig",
+        "eks:UpdateNodegroupVersion"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationIamRoleCreate",
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:RequestTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationIamRoleManageTagged",
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "iam:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationPassExactRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "eks.amazonaws.com",
+            "ec2.amazonaws.com",
+            "pods.eks.amazonaws.com"
+          ]
+        },
+        "StringLike": {
+          "iam:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationManagedPolicyAttachments",
+      "Effect": "Allow",
+      "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "iam:PolicyARN": [
+            "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy",
+            "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+            "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+            "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+          ]
+        },
+        "StringLike": {
+          "iam:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationMetricsAndAlarmCreate",
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricAlarm",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:RequestTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationMetricsAndAlarmDelete",
+      "Effect": "Allow",
+      "Action": "cloudwatch:DeleteAlarms",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationSnsTopicCreate",
+      "Effect": "Allow",
+      "Action": "sns:CreateTopic",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:RequestTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
+    },
+    {
+      "Sid": "EksQualificationSnsTopicManageTagged",
+      "Effect": "Allow",
+      "Action": [
+        "sns:DeleteTopic",
+        "sns:SetTopicAttributes",
+        "sns:TagResource",
+        "sns:UntagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:ResourceTag/hulumi:qualification-id": "hulumi-nlr-*"
+        }
+      }
     }
   ]
 }

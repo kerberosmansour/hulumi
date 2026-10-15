@@ -11,12 +11,14 @@ NodeRestriction-protected label after a managed Node replacement only when EKS,
 Auto Scaling, EC2 and the current Kubernetes Node agree on the node's identity,
 membership, location, instance type and taints.
 
-M2 ships the component and runtime source. It does not publish a controller
-image. Supply an image that contains this package's compiled `dist/` tree at
-`/app/dist` and runs on Node.js 22.12 or later. The component accepts only an
-immutable `@sha256` image reference. M3 will publish the supported image after
-registry provenance, image vulnerability scanning and isolated EKS qualification
-are complete.
+The component accepts only an immutable `@sha256` image reference. Hulumi's
+manual `trusted-node-label-image` workflow builds linux/amd64 and linux/arm64
+from the admitted Azure Linux Node 24 base, scans the complete OS package
+inventory and exact npm runtime SBOM with the checksum-pinned official OSV
+scanner, and publishes one provenance-attested public GHCR index. Use the exact
+digest in the workflow's `published-image.txt` evidence; do not convert it to a
+tag. The separate `eks-trusted-node-label-qualification` workflow must pass on
+that digest before a release claims live EKS recovery.
 
 ## Example
 
@@ -104,14 +106,17 @@ configured:
 - `ReconcileFailures`
 - `MissingTrustedLabel`
 
-Dimensions are only `ClusterName` and `NodeGroupName`. Live alarm delivery,
-rolling replacement and scale-from-zero recovery evidence are M3 gates.
+Dimensions are only `ClusterName` and `NodeGroupName`. The live qualification
+gates alarm resources, structured redaction, rolling replacement and
+scale-from-zero recovery, admission enforcement, Pod Identity, CloudTrail's
+controller-role call set and exact teardown.
 
 ## Current limits
 
 - Standard regional availability-zone provider IDs are supported. Local Zones
   and Wavelength are rejected until separately designed and qualified.
-- M2 has local adapter, Pulumi-resource and finite-state evidence. It makes no
-  live EKS, registry provenance or official image claim.
+- Repository checks do not establish a live EKS claim. Only the protected,
+  manually dispatched qualification workflow against an exact public digest
+  does so, and its independent cleanup and empty-inventory jobs must also pass.
 - The component does not create the namespace, SNS topic, cluster audit trail or
   controller image repository.

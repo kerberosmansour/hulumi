@@ -87,10 +87,14 @@ new EksTrustedNodeLabelReconciler("trusted-workers", {
 });
 ```
 
-M2 requires an operator-built, digest-pinned image containing the package's
-compiled `dist/` tree at `/app/dist`. See the
+Use only an exact digest emitted by the manually dispatched
+`trusted-node-label-image` workflow. It publishes a public multi-architecture
+GHCR image after official OSV scans of the complete OS inventory and embedded
+CycloneDX npm runtime graph, then binds the index to GitHub build provenance.
+The separate protected `eks-trusted-node-label-qualification` workflow must pass
+rolling replacement, scale-from-zero, admission, Pod Identity, telemetry and
+verified teardown checks for that digest before release. See the
 [component security contract](../../docs/components/eks-trusted-node-label-reconciler.md).
-The supported provenance-attested image and live EKS qualification follow in M3.
 
 ## Compatibility
 

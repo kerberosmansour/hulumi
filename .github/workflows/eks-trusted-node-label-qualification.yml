@@ -1,0 +1,284 @@
+# Manually qualifies one already-published controller digest in the isolated
+# AWS sandbox. Registry publication is a separate workflow and this workflow
+# never receives package-write authority.
+
+name: eks-trusted-node-label-qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      controller_image:
+        description: "Exact public GHCR controller image including @sha256 digest"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eks-trusted-node-label-qualification
+  cancel-in-progress: false
+
+jobs:
+  dependency-admission:
+    if: github.ref == 'refs/heads/main'
+    name: Dependency admission
+    uses: ./.github/workflows/osv-dependency-gate.yml
+    permissions:
+      contents: read
+
+  readiness:
+    if: github.ref == 'refs/heads/main'
+    name: Read-only sandbox readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: aws-weekly-integration
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      public_cidr: ${{ steps.preflight.outputs.public_cidr }}
+      stack_name: ${{ steps.preflight.outputs.stack_name }}
+    steps:
+      - name: Validate immutable input, backend and run-scoped names before OIDC
+        id: preflight
+        env:
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          CONTROLLER_IMAGE: ${{ inputs.controller_image }}
+          REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          ROLE_ARN: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          : "${ACCOUNT_ID:?AWS_SANDBOX_ACCOUNT_ID secret not set}"
+          : "${BACKEND_URL:?PULUMI_BACKEND_URL secret not set}"
+          : "${REGION:?AWS_SANDBOX_REGION variable not set}"
+          : "${ROLE_ARN:?AWS_SANDBOX_OIDC_ROLE_ARN secret not set}"
+          case "$CONTROLLER_IMAGE" in
+            ghcr.io/kerberosmansour/hulumi-trusted-node-label-reconciler@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "::error::controller_image must be the exact public Hulumi GHCR sha256 digest"; exit 1 ;;
+          esac
+          case "$BACKEND_URL" in
+            s3://hulumi-*"${ACCOUNT_ID}"\?region="${REGION}") ;;
+            *) echo "::error::PULUMI_BACKEND_URL must be an owned hulumi S3 backend in the exact sandbox region"; exit 1 ;;
+          esac
+          case "$ROLE_ARN" in
+            arn:aws:iam::"${ACCOUNT_ID}":role/*) ;;
+            *) echo "::error::OIDC role does not belong to the exact sandbox account"; exit 1 ;;
+          esac
+          public_ip="$(curl --fail --silent --show-error --max-time 10 https://checkip.amazonaws.com)"
+          if ! [[ "$public_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            echo "::error::Could not resolve a bounded GitHub-hosted runner IPv4 address"
+            exit 1
+          fi
+          stack_name="hulumi-nlr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "public_cidr=${public_ip}/32" >> "$GITHUB_OUTPUT"
+          echo "stack_name=$stack_name" >> "$GITHUB_OUTPUT"
+
+      - name: Prove the exact image is anonymously pullable before cloud identity
+        env:
+          CONTROLLER_IMAGE: ${{ inputs.controller_image }}
+        run: docker pull "$CONTROLLER_IMAGE"
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-nlr-readiness
+
+      - name: Verify identity, state ownership and effective lifecycle authority
+        env:
+          ACCOUNT_ID: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}
+          BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          ROLE_ARN: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          STACK_NAME: ${{ steps.preflight.outputs.stack_name }}
+        run: |
+          set -euo pipefail
+          actual_account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$actual_account" = "$ACCOUNT_ID"
+          bucket="$(node -e 'process.stdout.write(new URL(process.env.BACKEND_URL).hostname)')"
+          aws s3api head-bucket --bucket "$bucket" --expected-bucket-owner "$ACCOUNT_ID"
+          aws eks list-clusters --region "$REGION" --max-results 1 >/dev/null
+          aws ec2 describe-vpcs --region "$REGION" --max-results 5 >/dev/null
+          aws iam list-roles --max-items 1 >/dev/null
+          required_actions=(
+            autoscaling:DescribeAutoScalingGroups
+            cloudtrail:LookupEvents
+            cloudwatch:DeleteAlarms cloudwatch:DescribeAlarms cloudwatch:GetMetricData
+            cloudwatch:ListMetrics cloudwatch:ListTagsForResource cloudwatch:PutMetricAlarm
+            ec2:AssociateRouteTable ec2:AttachInternetGateway
+            ec2:CreateInternetGateway ec2:CreateLaunchTemplate ec2:CreateLaunchTemplateVersion
+            ec2:CreateRoute ec2:CreateRouteTable ec2:CreateSubnet ec2:CreateTags ec2:CreateVpc
+            ec2:DeleteInternetGateway ec2:DeleteLaunchTemplate ec2:DeleteRouteTable
+            ec2:DeleteSubnet ec2:DeleteVpc ec2:DescribeAddresses ec2:DescribeAvailabilityZones
+            ec2:DescribeImages ec2:DescribeInstances ec2:DescribeInternetGateways
+            ec2:DescribeLaunchTemplateVersions ec2:DescribeLaunchTemplates ec2:DescribeRouteTables
+            ec2:DescribeAccountAttributes ec2:DescribeInstanceTypes ec2:DescribeNetworkInterfaces
+            ec2:DescribeRegions ec2:DescribeSecurityGroups ec2:DescribeSubnets ec2:DescribeTags
+            ec2:DescribeVpcs ec2:DetachInternetGateway
+            ec2:DisassociateRouteTable ec2:ModifySubnetAttribute ec2:ModifyVpcAttribute
+            eks:CreateAddon eks:CreateCluster eks:CreateNodegroup eks:CreatePodIdentityAssociation
+            eks:DeleteAddon eks:DeleteCluster eks:DeleteNodegroup eks:DeletePodIdentityAssociation
+            eks:DescribeAddon eks:DescribeCluster eks:DescribeNodegroup eks:DescribePodIdentityAssociation
+            eks:ListAddons eks:ListNodegroups eks:ListPodIdentityAssociations eks:ListUpdates eks:DescribeUpdate eks:TagResource
+            eks:UntagResource eks:UpdateNodegroupConfig eks:UpdateNodegroupVersion
+            iam:AttachRolePolicy iam:CreateRole iam:DeleteRole iam:DeleteRolePolicy
+            iam:DetachRolePolicy iam:GetPolicy iam:GetPolicyVersion iam:GetRole iam:GetRolePolicy
+            iam:ListAttachedRolePolicies iam:ListInstanceProfilesForRole iam:ListRolePolicies iam:ListRoleTags iam:PassRole
+            iam:PutRolePolicy iam:SimulatePrincipalPolicy iam:TagRole iam:UntagRole
+            sns:CreateTopic sns:DeleteTopic sns:GetTopicAttributes sns:ListTagsForResource
+            sns:SetTopicAttributes sns:TagResource sns:UntagResource
+            tag:GetResources
+          )
+          context_entries=(
+            "ContextKeyName=aws:RequestTag/hulumi:qualification-id,ContextKeyValues=${STACK_NAME},ContextKeyType=string"
+            "ContextKeyName=aws:ResourceTag/hulumi:qualification-id,ContextKeyValues=${STACK_NAME},ContextKeyType=string"
+            "ContextKeyName=ec2:ResourceTag/hulumi:qualification-id,ContextKeyValues=${STACK_NAME},ContextKeyType=string"
+            "ContextKeyName=iam:ResourceTag/hulumi:qualification-id,ContextKeyValues=${STACK_NAME},ContextKeyType=string"
+            "ContextKeyName=aws:RequestedRegion,ContextKeyValues=${REGION},ContextKeyType=string"
+            "ContextKeyName=iam:PassedToService,ContextKeyValues=eks.amazonaws.com,ContextKeyType=string"
+            "ContextKeyName=iam:PolicyARN,ContextKeyValues=arn:aws:iam::aws:policy/AmazonEKSClusterPolicy,ContextKeyType=string"
+          )
+          # shellcheck disable=SC2016
+          aws iam simulate-principal-policy \
+            --policy-source-arn "$ROLE_ARN" \
+            --action-names "${required_actions[@]}" \
+            --context-entries "${context_entries[@]}" \
+            --query 'EvaluationResults[?EvalDecision!=`allowed`].[EvalActionName,EvalDecision]' \
+            --output json > "$RUNNER_TEMP/denied-actions.json"
+          test "$(node -e 'const x=require(process.argv[1]); process.stdout.write(String(x.length))' "$RUNNER_TEMP/denied-actions.json")" = "0"
+
+  provision:
+    needs: [dependency-admission, readiness]
+    if: github.ref == 'refs/heads/main'
+    name: Disposable EKS recovery qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment: aws-weekly-integration
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install admitted lock without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build admitted workspace
+        run: pnpm -r build
+      - name: Install exact checksum-verified Pulumi CLI without a remote script
+        run: bash examples/eks-trusted-node-label-reconciler-live/install-pulumi-cli.sh
+      - name: Verify required local CLIs before cloud mutation
+        run: |
+          pulumi version
+          aws --version
+          kubectl version --client
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-nlr-qualification
+      - name: Provision and exercise real recovery paths
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          HULUMI_CONTROLLER_IMAGE: ${{ inputs.controller_image }}
+          HULUMI_EKS_PUBLIC_CIDR: ${{ needs.readiness.outputs.public_cidr }}
+          HULUMI_EKS_STACK_NAME: ${{ needs.readiness.outputs.stack_name }}
+          HULUMI_INTEGRATION_EKS: "1"
+          HULUMI_QUALIFICATION_REPORT: ${{ runner.temp }}/hulumi-nlr-report.json
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}-${{ github.run_id }}
+        run: pnpm --filter @hulumi/k8s-baseline exec vitest run --config vitest.integration.config.ts tests/integration/eks/trusted-node-label-reconciler.eks.test.ts
+      - name: Upload redacted qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: eks-trusted-node-label-qualification
+          path: ${{ runner.temp }}/hulumi-nlr-report.json
+          if-no-files-found: error
+          retention-days: 30
+
+  cleanup:
+    needs: [dependency-admission, readiness, provision]
+    if: always() && needs.dependency-admission.result == 'success' && needs.readiness.result == 'success'
+    name: Exact independent destroy and stack removal
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: aws-weekly-integration
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @hulumi/k8s-baseline build
+      - run: bash examples/eks-trusted-node-label-reconciler-live/install-pulumi-cli.sh
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-nlr-cleanup
+      - name: Destroy only the exact run-scoped Pulumi stack
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          HULUMI_CONTROLLER_IMAGE: ${{ inputs.controller_image }}
+          HULUMI_EKS_PUBLIC_CIDR: ${{ needs.readiness.outputs.public_cidr }}
+          HULUMI_EKS_STACK_NAME: ${{ needs.readiness.outputs.stack_name }}
+          HULUMI_INTEGRATION_EKS: "1"
+          HULUMI_TEARDOWN_ONLY: "1"
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}-${{ github.run_id }}
+        run: pnpm --filter @hulumi/k8s-baseline exec vitest run --config vitest.integration.config.ts tests/integration/eks/trusted-node-label-reconciler.eks.test.ts
+
+  verify-cleanup:
+    needs: [dependency-admission, readiness, cleanup]
+    if: always() && needs.dependency-admission.result == 'success' && needs.readiness.result == 'success'
+    name: Prove exact inventory is empty
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: aws-weekly-integration
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: bash examples/eks-trusted-node-label-reconciler-live/install-pulumi-cli.sh
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+          role-session-name: hulumi-nlr-cleanup-verify
+      - name: Fail closed unless stack and exact tagged resource inventory are empty
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+          HULUMI_EKS_STACK_NAME: ${{ needs.readiness.outputs.stack_name }}
+          HULUMI_INTEGRATION_EKS: "1"
+          HULUMI_TEARDOWN_ONLY: "1"
+          HULUMI_VERIFY_TEARDOWN: "1"
+          PULUMI_BACKEND_URL: ${{ secrets.PULUMI_BACKEND_URL }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.AWS_SANDBOX_ACCOUNT_ID }}-${{ github.run_id }}
+        run: pnpm --filter @hulumi/k8s-baseline exec vitest run --config vitest.integration.config.ts tests/integration/eks/trusted-node-label-reconciler.eks.test.ts

@@ -14,8 +14,13 @@ export interface GitHubAppCredentialArgs {
   permissions: Record<string, GitHubAppPermission>;
   /** KMS alias for at-rest encryption of the SM secret. Required, no default. */
   kmsKeyAlias: pulumi.Input<string>;
+  /**
+   * Exact KMS key ARN for the broker's constrained decrypt permission. When
+   * omitted, the provider resolves `kmsKeyAlias` to its target key ARN.
+   */
+  kmsKeyArn?: pulumi.Input<string>;
   /** SM secret name. Default: `<componentName>-github-app`. Refused if contains `/` or `..`. */
   secretName?: string;
-  /** IAM principal that should get secretsmanager:GetSecretValue. Optional; consumer typically supplies the BuildKit IAM role ARN. */
+  /** IAM role principal that should be allowed to invoke the exact token broker. It never receives raw-secret access. */
   iamPrincipalArn?: pulumi.Input<string>;
 }

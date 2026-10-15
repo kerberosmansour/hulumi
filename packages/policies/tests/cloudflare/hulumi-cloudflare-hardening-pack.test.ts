@@ -191,6 +191,7 @@ describe("HulumiCloudflareHardeningPack CF_DNS_1 — raw DNS-only app record rej
           ruleId: CF_DNS_1_RULE_ID,
           reason: "Legacy cutover window tracked in ticket EDGE-12.",
           urnScope: record.urn,
+          expiresAt: "2999-01-01T00:00:00Z",
         },
       ],
     });
@@ -315,7 +316,8 @@ describe("HulumiCloudflareHardeningPack CF_DNSSEC_1 — public zone DNSSEC requi
           {
             ruleId: CF_DNSSEC_1_RULE_ID,
             reason: "Registrar DNSSEC DS record change is scheduled.",
-            urnScope: "*",
+            urnScope: zone.urn,
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       }),

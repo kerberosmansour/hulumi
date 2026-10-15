@@ -199,6 +199,7 @@ describe("Suppression with reason silences O-INSPECTOR-1", () => {
             ruleId: "HULUMI-O-INSPECTOR-1",
             urnScope: "urn:p::p::aws:inspector2/enabler:Enabler::sandbox",
             reason: "Sandbox account — Lambda not in use yet.",
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],

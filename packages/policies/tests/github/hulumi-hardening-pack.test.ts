@@ -82,7 +82,8 @@ describe("HulumiGithubHardeningPack H1 — blocks raw github.Repository (tm-hulu
           {
             ruleId: "HULUMI-H1",
             reason: "Legacy repo migration in progress; tracked in issue #N",
-            urnScope: "*",
+            urnScope: "urn:pulumi:s::p::github:index/repository:Repository::legacy-repo",
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],
@@ -250,6 +251,7 @@ describe("HulumiGithubHardeningPack H2 — requires bound OIDC subject identity"
             ruleId: "HULUMI-H2",
             reason: "Time-bounded migration tracked in issue #N",
             urnScope: urn,
+            expiresAt: "2999-01-01T00:00:00Z",
           },
         ],
       })) as ResourceValidationArgs["getConfig"],

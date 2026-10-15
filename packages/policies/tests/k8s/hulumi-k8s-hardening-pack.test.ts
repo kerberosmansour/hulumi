@@ -192,15 +192,28 @@ describe("Scenario: Host namespace rejected (HULUMI-K8S-WL-2)", () => {
   });
 });
 
-describe("Scenario: Latest image rejected (HULUMI-K8S-WL-3)", () => {
+describe("Scenario: only canonical image digests are accepted (HULUMI-K8S-WL-3)", () => {
+  const digest = "a".repeat(64);
+
   it.each([
     ["nginx:latest", true],
     ["nginx", true],
     ["nginx:edge", true],
     ["registry.example.com:5000/nginx", true], // colon is host:port, no tag
-    ["nginx:1.27.0", false],
-    ["nginx@sha256:abcdefabcdef", false],
-    ["registry.example.com:5000/nginx:1.27.0", false],
+    ["nginx:1.27.0", true],
+    ["nginx:stable", true],
+    [`nginx@sha256:${digest}`, false],
+    [`nginx:1.27.0@sha256:${digest}`, false],
+    [`registry.example.com:5000/team/nginx:1.27.0@sha256:${digest}`, false],
+    ["nginx@sha256:abcdefabcdef", true],
+    [`nginx@sha256:${"A".repeat(64)}`, true],
+    [`nginx@sha256:${"a".repeat(63)}`, true],
+    [`nginx@sha256:${"a".repeat(65)}`, true],
+    [`nginx@sha256:${digest}garbage`, true],
+    [`nginx@sha512:${"a".repeat(128)}`, true],
+    [`nginx@@sha256:${digest}`, true],
+    [`nginx @sha256:${digest}`, true],
+    [`nginx:1.27.0@sha256:${digest}:suffix`, true],
   ])("image %s mutable? %s", (image, expectViolation) => {
     const args = makeArgs({
       type: "kubernetes:apps/v1:Deployment",
@@ -217,6 +230,69 @@ describe("Scenario: Latest image rejected (HULUMI-K8S-WL-3)", () => {
       ) => void
     )(args, report);
     expect(violations.length > 0).toBe(expectViolation);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["non-string", { value: `nginx@sha256:${digest}` }],
+  ])("fails closed for a %s image input", (_label, image) => {
+    const args = makeArgs({
+      type: "kubernetes:core/v1:Pod",
+      urn: "urn:p::p::kubernetes:core/v1:Pod::uninspectable-image",
+      name: "uninspectable-image",
+      props: { spec: { containers: [{ name: "app", image }] } },
+    });
+    (
+      k8sWl3NoLatestImage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("applies the same digest requirement to init containers", () => {
+    const args = makeArgs({
+      type: "kubernetes:apps/v1:Deployment",
+      urn: "urn:p::p::kubernetes:apps/v1:Deployment::tagged-init",
+      name: "tagged-init",
+      props: {
+        spec: {
+          template: {
+            spec: {
+              containers: [{ name: "app", image: `app@sha256:${digest}` }],
+              initContainers: [{ name: "migration", image: "migration:1.2.3" }],
+            },
+          },
+        },
+      },
+    });
+    (
+      k8sWl3NoLatestImage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toEqual([expect.stringMatching(/migration.*sha-256 digest/i)]);
+  });
+
+  it("omits the image reference from a violation", () => {
+    const sensitiveReference = "registry.internal.example/private/service:customer-release";
+    const args = makeArgs({
+      type: "kubernetes:core/v1:Pod",
+      urn: "urn:p::p::kubernetes:core/v1:Pod::redacted-image",
+      name: "redacted-image",
+      props: { spec: { containers: [{ name: "service", image: sensitiveReference }] } },
+    });
+    (
+      k8sWl3NoLatestImage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/service.*sha-256 digest/i);
+    expect(violations[0]).not.toContain(sensitiveReference);
   });
 });
 

@@ -161,7 +161,8 @@ describe("E2E: k8s_pack_allows_hardened_stack on a Hulumi-shaped safe stack", ()
                 containers: [
                   {
                     name: "api",
-                    image: "ghcr.io/example/api@sha256:abcdefabcdef",
+                    image:
+                      "ghcr.io/example/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     securityContext: { privileged: false },
                     resources: {
                       requests: { cpu: "100m", memory: "128Mi" },

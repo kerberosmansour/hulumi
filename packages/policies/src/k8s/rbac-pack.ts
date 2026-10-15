@@ -1,6 +1,6 @@
 // HulumiK8sRbacPack — RBAC rule handlers. Targets escalation paths:
-//   K8S-RBAC-1  wildcard verbs (`verbs: ["*"]`) — mandatory
-//   K8S-RBAC-2  Secret list/watch — mandatory unless suppressed
+//   K8S-RBAC-1  wildcard and privilege-escalation verbs — mandatory
+//   K8S-RBAC-2  broad Secret reads — mandatory unless suppressed
 //   K8S-RBAC-3  cluster-admin binding — mandatory unless suppressed
 //
 // Inspects `Role`, `ClusterRole`, `RoleBinding`, and `ClusterRoleBinding`.
@@ -10,7 +10,8 @@ import type { ResourceValidationPolicy } from "@pulumi/policy";
 import type { PackMetadata } from "../metadata";
 import { matchSuppression, type Suppression } from "../aws/suppressions";
 
-const DOCS_BASE = "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/README.md";
+const DOCS_BASE =
+  "https://github.com/kerberosmansour/hulumi/blob/main/docs/components/k8s-rbac-policy-pack.md";
 
 const ROLE_TYPES = new Set([
   "kubernetes:rbac.authorization.k8s.io/v1:Role",
@@ -50,7 +51,7 @@ function readSuppressions(config: Record<string, unknown> | undefined): readonly
 export const k8sRbac1NoWildcardVerbs: ResourceValidationPolicy = {
   name: "HULUMI-K8S-RBAC-1-no-wildcard-verbs",
   description:
-    'RBAC rules with `verbs: ["*"]` grant unbounded permissions on the targeted resources, including escalation primitives (`bind`, `escalate`, `impersonate`). Mandatory violation; the typed escape hatch is a suppression with a reason.',
+    'RBAC rules with `verbs: ["*"]` or explicit privilege-escalation verbs (`bind`, `escalate`, `impersonate`) grant authority that can bypass intended RBAC boundaries. Mandatory violation; the typed escape hatch is a suppression with a reason.',
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     if (!ROLE_TYPES.has(args.type)) return;
@@ -61,10 +62,15 @@ export const k8sRbac1NoWildcardVerbs: ResourceValidationPolicy = {
     if (matchSuppression("HULUMI-K8S-RBAC-1", args.urn, suppressions).suppressed) return;
     for (const r of rules) {
       const verbs = r.verbs ?? [];
-      if (verbs.includes("*")) {
-        const resources = (r.resources ?? []).join(",") || "<unspecified>";
+      const authorityVerbs = verbs.filter((verb) =>
+        ["*", "bind", "escalate", "impersonate"].includes(verb),
+      );
+      if (authorityVerbs.length > 0) {
+        const authority = authorityVerbs
+          .map((verb) => (verb === "*" ? 'verbs:["*"]' : verb))
+          .join(", ");
         reportViolation(
-          `HULUMI-K8S-RBAC-1: ${args.urn} grants verbs:["*"] on resources [${resources}]. Wildcard verbs include privilege-escalation primitives. Docs: ${DOCS_BASE}`,
+          `HULUMI-K8S-RBAC-1: ${args.urn} grants RBAC authority verb(s): ${authority}. Remove wildcard, bind, escalate, and impersonate authority unless a reviewed suppression is required. Docs: ${DOCS_BASE}`,
         );
       }
     }
@@ -77,7 +83,7 @@ const SECRET_OVERREACH_VERBS = ["list", "watch", "*"];
 export const k8sRbac2NoSecretListWatch: ResourceValidationPolicy = {
   name: "HULUMI-K8S-RBAC-2-no-secret-list-watch",
   description:
-    "RBAC rules that grant `list` or `watch` on `secrets` enable an attacker who compromises a workload to read every Secret in scope. Hulumi rejects this by default; specific secrets should use `get` with `resourceNames` instead. Suppress with a reason for legitimate operators (e.g. external-secrets).",
+    "RBAC rules that grant `list`, `watch`, or wildcard access to core Secrets, or grant `get` without exact nonempty `resourceNames`, enable broad Secret reads. Hulumi rejects this by default; suppress with a reason for legitimate operators (e.g. external-secrets).",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     if (!ROLE_TYPES.has(args.type)) return;
@@ -96,9 +102,22 @@ export const k8sRbac2NoSecretListWatch: ResourceValidationPolicy = {
       if (!matchesSecrets) continue;
       const verbs = r.verbs ?? [];
       const overreach = verbs.filter((v) => SECRET_OVERREACH_VERBS.includes(v));
-      if (overreach.length > 0) {
+      const resourceNames = r.resourceNames;
+      const hasBoundedResourceNames =
+        Array.isArray(resourceNames) &&
+        resourceNames.length > 0 &&
+        resourceNames.every(
+          (name) =>
+            typeof name === "string" && name.length > 0 && name.trim() === name && name !== "*",
+        );
+      const unboundedGet = verbs.includes("get") && !hasBoundedResourceNames;
+      if (overreach.length > 0 || unboundedGet) {
+        const authority = [
+          ...overreach,
+          ...(unboundedGet ? ["get without exact resourceNames"] : []),
+        ];
         reportViolation(
-          `HULUMI-K8S-RBAC-2: ${args.urn} grants ${overreach.join(", ")} on secrets in core API group. Use \`get\` with explicit \`resourceNames\` instead. Docs: ${DOCS_BASE}`,
+          `HULUMI-K8S-RBAC-2: ${args.urn} grants broad Secret read authority (${authority.join(", ")}) in the core API group. Use \`get\` with a nonempty list of exact \`resourceNames\`. Docs: ${DOCS_BASE}`,
         );
       }
     }
@@ -133,7 +152,7 @@ export const hulumiK8sRbacPackMetadata: PackMetadata = {
   rules: [
     {
       id: "HULUMI-K8S-RBAC-1",
-      title: "No wildcard verbs in Role / ClusterRole",
+      title: "No wildcard or privilege-escalation verbs in Role / ClusterRole",
       description: k8sRbac1NoWildcardVerbs.description!,
       severity: "critical",
       enforcement: "mandatory",
@@ -142,7 +161,7 @@ export const hulumiK8sRbacPackMetadata: PackMetadata = {
     },
     {
       id: "HULUMI-K8S-RBAC-2",
-      title: "No `list` / `watch` on Secrets",
+      title: "No broad reads on Secrets",
       description: k8sRbac2NoSecretListWatch.description!,
       severity: "critical",
       enforcement: "mandatory",

@@ -62,6 +62,48 @@ describe("Scenario: RBAC wildcard rejected (HULUMI-K8S-RBAC-1)", () => {
     )(args, report);
     expect(violations).toHaveLength(0);
   });
+
+  it.each(["bind", "escalate", "impersonate"])(
+    "rejects the explicit privilege-escalation verb %s",
+    (verb) => {
+      const args = makeArgs({
+        type: "kubernetes:rbac.authorization.k8s.io/v1:ClusterRole",
+        urn: `urn:p::p::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::${verb}`,
+        name: verb,
+        props: {
+          rules: [
+            { apiGroups: ["rbac.authorization.k8s.io"], resources: ["roles"], verbs: [verb] },
+          ],
+        },
+      });
+      (
+        k8sRbac1NoWildcardVerbs.validateResource as (
+          a: ResourceValidationArgs,
+          r: (m: string) => void,
+        ) => void
+      )(args, report);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.toLowerCase()).toContain(verb);
+    },
+  );
+
+  it("rejects an escalation verb mixed with ordinary verbs", () => {
+    const args = makeArgs({
+      type: "kubernetes:rbac.authorization.k8s.io/v1:Role",
+      urn: "urn:p::p::kubernetes:rbac.authorization.k8s.io/v1:Role::mixed-impersonation",
+      name: "mixed-impersonation",
+      props: {
+        rules: [{ apiGroups: [""], resources: ["serviceaccounts"], verbs: ["get", "impersonate"] }],
+      },
+    });
+    (
+      k8sRbac1NoWildcardVerbs.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
 });
 
 describe("Scenario: Secret list/watch rejected (HULUMI-K8S-RBAC-2)", () => {
@@ -125,6 +167,58 @@ describe("Scenario: Secret list/watch rejected (HULUMI-K8S-RBAC-2)", () => {
       ) => void
     )(args, report);
     expect(violations).toHaveLength(0);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", []],
+    ["blank", [""]],
+    ["whitespace", ["   "]],
+    ["wildcard-like", ["*"]],
+    ["non-array", "my-app-creds"],
+  ])("rejects Secret get with %s resourceNames", (_label, resourceNames) => {
+    const args = makeArgs({
+      type: "kubernetes:rbac.authorization.k8s.io/v1:Role",
+      urn: "urn:p::p::kubernetes:rbac.authorization.k8s.io/v1:Role::unscoped-secret-get",
+      name: "unscoped-secret-get",
+      props: {
+        rules: [{ apiGroups: [""], resources: ["secrets"], verbs: ["get"], resourceNames }],
+      },
+    });
+    (
+      k8sRbac2NoSecretListWatch.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("does not copy invalid Secret names into the diagnostic", () => {
+    const sensitiveName = "  private-customer-credential  ";
+    const args = makeArgs({
+      type: "kubernetes:rbac.authorization.k8s.io/v1:ClusterRole",
+      urn: "urn:p::p::kubernetes:rbac.authorization.k8s.io/v1:ClusterRole::invalid-name-bound",
+      name: "invalid-name-bound",
+      props: {
+        rules: [
+          {
+            apiGroups: [""],
+            resources: ["secrets"],
+            verbs: ["get"],
+            resourceNames: [sensitiveName],
+          },
+        ],
+      },
+    });
+    (
+      k8sRbac2NoSecretListWatch.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).not.toContain(sensitiveName.trim());
   });
 
   it("suppression with reason silences for the external-secrets operator", () => {

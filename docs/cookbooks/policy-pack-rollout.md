@@ -106,7 +106,7 @@ Do this only if you're already applying the SCP template — otherwise expect dr
 Three additional CrossGuard packs ship in `@hulumi/policies` for K8s/EKS Pulumi programs (added in runbook `hulumi-operations-k8s-security` Milestone 3):
 
 - `@hulumi/policies/k8s/packs/hulumi-k8s-hardening` — workload + Service rules (`WL-1` privileged · `WL-2` host namespaces · `WL-3` mutable image tags · `WL-4` resources advisory · `SVC-1` public LoadBalancer needs justification).
-- `@hulumi/policies/k8s/packs/hulumi-k8s-rbac` — RBAC rules (`RBAC-1` wildcard verbs · `RBAC-2` Secret list/watch · `RBAC-3` cluster-admin binding).
+- `@hulumi/policies/k8s/packs/hulumi-k8s-rbac` — RBAC rules (`RBAC-1` wildcard and explicit `bind` / `escalate` / `impersonate` verbs · `RBAC-2` broad Secret reads · `RBAC-3` cluster-admin binding). See the [Kubernetes RBAC policy pack reference](../components/k8s-rbac-policy-pack.md).
 - `@hulumi/policies/k8s/packs/hulumi-eks-cluster` — EKS control-plane rules (`EKS-CL-1` public endpoint CIDR · `EKS-CL-2` audit logging required).
 
 ### Phased rollout pattern
@@ -114,6 +114,12 @@ Three additional CrossGuard packs ship in `@hulumi/policies` for K8s/EKS Pulumi 
 1. **Day 0** — point `PulumiPolicy.yaml` at `hulumi-k8s-hardening`. The four mandatory rules (WL-1, WL-2, WL-3, SVC-1) catch the highest-blast-radius shapes; `WL-4` is advisory by default and surfaces as a warning rather than a deploy-blocker.
 2. **Day 7** — add `hulumi-k8s-rbac`. RBAC violations often shake out platform-team tooling on the first preview; expect to add 1-3 suppressions for legitimate cluster operators (external-secrets, metrics-server) — each requires a written `reason` on the suppression entry.
 3. **Day 14** — add `hulumi-eks-cluster`. `EKS-CL-1` typically catches "we set `endpointPublicAccess: true` but forgot to restrict `publicAccessCidrs`"; `EKS-CL-2` catches "audit logs got disabled in a quick test and never re-enabled".
+
+Before promoting the RBAC pack, replace application `bind`, `escalate`, and
+`impersonate` grants with ordinary workload verbs. A Secret `get` grant must name
+at least one exact Secret in `resourceNames`; missing, empty, blank, wildcard, or
+scalar bounds are rejected. `list` and `watch` remain broad even when
+`resourceNames` is present.
 
 `@pulumi/policy` only allows one PolicyPack per process — load each pack with its own `--policy-pack` flag:
 

@@ -37,6 +37,7 @@ const POD_OWNING_TYPES = new Set([
 ]);
 
 const SERVICE_TYPE = "kubernetes:core/v1:Service";
+const CRONJOB_TYPE = "kubernetes:batch/v1:CronJob";
 
 interface PodSpecish {
   hostNetwork?: boolean;
@@ -54,14 +55,21 @@ interface ContainerSpec {
 }
 
 /**
- * Walk the props graph to find a PodSpec. Pod has it at `props.spec`;
- * controllers wrap it at `props.spec.template.spec`. Returns undefined for
- * resources that don't carry a PodSpec (Service, ConfigMap, etc.).
+ * Read the authoritative PodSpec path for each supported resource shape. Pod
+ * has it at `props.spec`, CronJob at
+ * `props.spec.jobTemplate.spec.template.spec`, and the remaining controllers
+ * at `props.spec.template.spec`. Returns undefined for resources that don't
+ * carry a PodSpec (Service, ConfigMap, etc.).
  */
 function extractPodSpec(type: string, props: Record<string, unknown>): PodSpecish | undefined {
   if (type === "kubernetes:core/v1:Pod") {
     const spec = (props.spec ?? {}) as PodSpecish;
     return spec;
+  }
+  if (type === CRONJOB_TYPE) {
+    const cronJobSpec = props.spec as
+      { jobTemplate?: { spec?: { template?: { spec?: PodSpecish } } } } | undefined;
+    return cronJobSpec?.jobTemplate?.spec?.template?.spec;
   }
   // Controllers wrap PodSpec at spec.template.spec.
   const ctrlSpec = props.spec as { template?: { spec?: PodSpecish } } | undefined;

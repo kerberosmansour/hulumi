@@ -117,6 +117,12 @@ Three additional CrossGuard packs ship in `@hulumi/policies` for K8s/EKS Pulumi 
 
 `@pulumi/policy` only allows one PolicyPack per process — load each pack with its own `--policy-pack` flag:
 
+WL-1 through WL-4 inspect Pod specs for Pods and the supported workload
+controllers. For CronJobs, inspection follows the Kubernetes-native
+`spec.jobTemplate.spec.template.spec` path, including both application and init
+containers. Upgrading from a version without this correction can surface
+existing CronJob violations during preview.
+
 ```bash
 pulumi preview \
   --policy-pack ./policies-hulumi \

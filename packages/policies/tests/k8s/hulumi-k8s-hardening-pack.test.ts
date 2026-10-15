@@ -273,6 +273,118 @@ describe("Scenario: Missing resources warned (HULUMI-K8S-WL-4)", () => {
   });
 });
 
+describe("Scenario: CronJob PodSpec uses the authoritative nested path", () => {
+  function cronJobArgs(podSpec: Record<string, unknown>): ResourceValidationArgs {
+    return makeArgs({
+      type: "kubernetes:batch/v1:CronJob",
+      urn: "urn:pulumi:s::p::kubernetes:batch/v1:CronJob::scheduled-security-task",
+      name: "scheduled-security-task",
+      props: {
+        spec: {
+          // A safe decoy at the generic controller path must not suppress
+          // inspection of the authoritative CronJob PodSpec below.
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: "decoy",
+                  image: "example.invalid/decoy:1.0.0",
+                  resources: {
+                    requests: { cpu: "10m" },
+                    limits: { cpu: "20m" },
+                  },
+                },
+              ],
+            },
+          },
+          jobTemplate: { spec: { template: { spec: podSpec } } },
+        },
+      },
+    });
+  }
+
+  it("WL-1 rejects a privileged application container", () => {
+    const args = cronJobArgs({
+      containers: [
+        {
+          name: "job",
+          image: "example.invalid/job:1.0.0",
+          securityContext: { privileged: true },
+        },
+      ],
+    });
+    (
+      k8sWl1NoPrivilegedContainer.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("WL-1 rejects a privileged init container", () => {
+    const args = cronJobArgs({
+      containers: [{ name: "job", image: "example.invalid/job:1.0.0" }],
+      initContainers: [
+        {
+          name: "setup",
+          image: "example.invalid/setup:1.0.0",
+          securityContext: { privileged: true },
+        },
+      ],
+    });
+    (
+      k8sWl1NoPrivilegedContainer.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
+  it.each(["hostNetwork", "hostPID", "hostIPC"])("WL-2 rejects %s", (field) => {
+    const args = cronJobArgs({
+      [field]: true,
+      containers: [{ name: "job", image: "example.invalid/job:1.0.0" }],
+    });
+    (
+      k8sWl2NoHostNamespace.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(1);
+  });
+
+  it("WL-3 rejects mutable application and init-container images", () => {
+    const args = cronJobArgs({
+      containers: [{ name: "job", image: "example.invalid/job:latest" }],
+      initContainers: [{ name: "setup", image: "example.invalid/setup" }],
+    });
+    (
+      k8sWl3NoLatestImage.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(2);
+  });
+
+  it("WL-4 reports missing resources for application and init containers", () => {
+    const args = cronJobArgs({
+      containers: [{ name: "job", image: "example.invalid/job:1.0.0" }],
+      initContainers: [{ name: "setup", image: "example.invalid/setup:1.0.0" }],
+    });
+    (
+      k8sWl4ResourcesRequired.validateResource as (
+        a: ResourceValidationArgs,
+        r: (m: string) => void,
+      ) => void
+    )(args, report);
+    expect(violations).toHaveLength(4);
+  });
+});
+
 describe("Scenario: Public LoadBalancer rejected (HULUMI-K8S-SVC-1)", () => {
   it("rejects type: LoadBalancer with no public-justification annotation", () => {
     const args = makeArgs({

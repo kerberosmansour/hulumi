@@ -1,0 +1,18 @@
+# Hulumi
+
+> Select and integrate published Hulumi hardened Pulumi TypeScript components for AWS, GitHub, Kubernetes, and Cloudflare.
+
+## Consumer documentation
+
+- [Integration guide](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/integration.md): skill installation, usage and optional feedback.
+- [Published 3.0.0 usage](https://github.com/kerberosmansour/hulumi/blob/main/skills/hulumi-secure-pulumi/references/usage.md): package selection, exact API references and limitations.
+- [Security reporting](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md): private disclosure route.
+
+## Packages
+
+- [@hulumi/baseline](https://www.npmjs.com/package/@hulumi/baseline)
+- [@hulumi/cloudflare-baseline](https://www.npmjs.com/package/@hulumi/cloudflare-baseline)
+- [@hulumi/drift](https://www.npmjs.com/package/@hulumi/drift)
+- [@hulumi/k8s-baseline](https://www.npmjs.com/package/@hulumi/k8s-baseline)
+- [@hulumi/platform-patterns](https://www.npmjs.com/package/@hulumi/platform-patterns)
+- [@hulumi/policies](https://www.npmjs.com/package/@hulumi/policies)

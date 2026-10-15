@@ -289,3 +289,10 @@ malware. [Agent rules](./AGENTS.md) apply to Codex and Claude.
 
 Source adds the Guardian-derived CodeBuild GitHub runner and dedicated CrossGuard
 pack. See [construction, authority and qualification limits](docs/components/codebuild-github-runner.md). No new dependencies or cloud deployment; not part of published3.0.0.
+
+## Coding agents and integration feedback
+
+Use the [hulumi-secure-pulumi](skills/hulumi-secure-pulumi/SKILL.md) skill for relevant tasks.
+See the [agent integration guide](docs/agents/integration.md) for installation,
+versioned examples and optional feedback. The [usage reference](skills/hulumi-secure-pulumi/references/usage.md)
+links each published package to its registry.

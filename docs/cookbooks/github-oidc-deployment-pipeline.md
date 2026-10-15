@@ -38,6 +38,13 @@ new GitHubAwsOidcDeploymentRole("prod-deploy", {
 
 Battle-test notes:
 
+- Keep `owner`, `repository`, environment name, and the repository portion of
+  `reusableWorkflowRef` identical across the two components. DEPLOY_GOV_1 checks
+  the generated environment's exact repository dependency and the child IAM
+  role's trust policy and tags; matching component names alone do not count.
+- Use environment subject mode for this protected-environment pattern. A
+  ref-mode role is a different authority contract and does not satisfy
+  DEPLOY_GOV_1.
 - Run `node scripts/workflow-governance-lint.mjs --repo-root <consumer-repo>`.
 - Verify the generated usage block uses a full-length action SHA.
 - Do not add `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` secrets.

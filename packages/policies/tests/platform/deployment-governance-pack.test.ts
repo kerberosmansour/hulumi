@@ -53,17 +53,137 @@ const GITHUB_ENVIRONMENT_TYPE = "github:index/repositoryEnvironment:RepositoryEn
 const GITHUB_SECRET_TYPE = "github:index/actionsSecret:ActionsSecret";
 const DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE = "hulumi:platform:DeploymentRepositoryFoundation";
 const GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE = "hulumi:platform:GitHubAwsOidcDeploymentRole";
+const AWS_IAM_ROLE_TYPE = "aws:iam/role:Role";
+
+const OWNER = "example-org";
+const REPOSITORY = "deploy-repo";
+const ENVIRONMENT = "prod";
+const AUDIENCE = "sts.amazonaws.com";
+const OIDC_PROVIDER_ARN =
+  "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com";
+const WORKFLOW_REF = `${OWNER}/${REPOSITORY}/.github/workflows/deploy.yml@refs/heads/main`;
+
+interface DeploymentTupleOverrides {
+  readonly environmentRepository?: string;
+  readonly environmentDependency?: PolicyResource | false;
+  readonly componentProps?: Record<string, unknown>;
+  readonly omitIamRole?: boolean;
+  readonly iamRoleName?: string;
+  readonly iamRoleUrn?: string;
+  readonly iamTrust?: unknown;
+  readonly iamTags?: Record<string, unknown>;
+}
+
+function trustPolicy(
+  overrides: {
+    owner?: string;
+    repository?: string;
+    environment?: string;
+    audience?: string;
+    providerArn?: string;
+    workflowRef?: string;
+    action?: string;
+    extraStatement?: boolean;
+  } = {},
+): string {
+  const owner = overrides.owner ?? OWNER;
+  const repository = overrides.repository ?? REPOSITORY;
+  const environment = overrides.environment ?? ENVIRONMENT;
+  const statement = {
+    Effect: "Allow",
+    Principal: { Federated: overrides.providerArn ?? OIDC_PROVIDER_ARN },
+    Action: overrides.action ?? "sts:AssumeRoleWithWebIdentity",
+    Condition: {
+      StringEquals: {
+        "token.actions.githubusercontent.com:aud": overrides.audience ?? AUDIENCE,
+        "token.actions.githubusercontent.com:sub": `repo:${owner}/${repository}:environment:${environment}`,
+        "token.actions.githubusercontent.com:job_workflow_ref":
+          overrides.workflowRef ?? WORKFLOW_REF,
+      },
+    },
+  };
+  return JSON.stringify({
+    Version: "2012-10-17",
+    Statement: overrides.extraStatement
+      ? [
+          statement,
+          {
+            Effect: "Allow",
+            Principal: { Federated: OIDC_PROVIDER_ARN },
+            Action: "sts:AssumeRoleWithWebIdentity",
+          },
+        ]
+      : [statement],
+  });
+}
+
+function deploymentTuple(overrides: DeploymentTupleOverrides = {}): PolicyResource[] {
+  const repo = makePolicyResource({
+    type: GITHUB_REPOSITORY_TYPE,
+    urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::${REPOSITORY}`,
+    name: REPOSITORY,
+    props: { name: REPOSITORY, topics: ["deployment"] },
+  });
+  const environmentDependency = overrides.environmentDependency ?? repo;
+  const environment = makePolicyResource({
+    type: GITHUB_ENVIRONMENT_TYPE,
+    urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::${REPOSITORY}-${ENVIRONMENT}`,
+    name: `${REPOSITORY}-${ENVIRONMENT}`,
+    props: {
+      repository: overrides.environmentRepository ?? REPOSITORY,
+      environment: ENVIRONMENT,
+      reviewers: [{ teams: [1234] }],
+      deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
+    },
+    propertyDependencies:
+      environmentDependency === false ? {} : { repository: [environmentDependency] },
+  });
+  const oidcComponent = makePolicyResource({
+    type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
+    urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::deploy-role`,
+    name: "deploy-role",
+    props: {
+      owner: OWNER,
+      repository: REPOSITORY,
+      environment: ENVIRONMENT,
+      reusableWorkflowRef: WORKFLOW_REF,
+      audience: AUDIENCE,
+      oidcProviderArn: OIDC_PROVIDER_ARN,
+      ...overrides.componentProps,
+    },
+  });
+  const iamRole = makePolicyResource({
+    type: AWS_IAM_ROLE_TYPE,
+    urn:
+      overrides.iamRoleUrn ??
+      `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}$${AWS_IAM_ROLE_TYPE}::deploy-role-role`,
+    name: overrides.iamRoleName ?? "deploy-role-role",
+    props: {
+      assumeRolePolicy: overrides.iamTrust ?? trustPolicy(),
+      tags: overrides.iamTags ?? {
+        "hulumi:component": "GitHubAwsOidcDeploymentRole",
+        "hulumi:github-repository": `${OWNER}/${REPOSITORY}`,
+        "hulumi:github-environment": ENVIRONMENT,
+      },
+    },
+  });
+  return overrides.omitIamRole
+    ? [repo, environment, oidcComponent]
+    : [repo, environment, oidcComponent, iamRole];
+}
+
+function runDeployGov1(resources: PolicyResource[]): string[] {
+  const violations: string[] = [];
+  (
+    deployGov1RequireProtectedEnvironment.validateStack as (
+      a: StackValidationArgs,
+      r: (m: string) => void,
+    ) => void
+  )(makeStackArgs(resources), (message) => violations.push(message));
+  return violations;
+}
 
 describe("HulumiDeploymentGovernancePack DEPLOY_GOV_1 — protected env required", () => {
-  let violations: string[];
-  const report = (msg: string): void => {
-    violations.push(msg);
-  };
-
-  beforeEach(() => {
-    violations = [];
-  });
-
   it("reports DEPLOY_GOV_1 when a deployment-capable repo has no protected environment", () => {
     const repo = makePolicyResource({
       type: GITHUB_REPOSITORY_TYPE,
@@ -76,190 +196,151 @@ describe("HulumiDeploymentGovernancePack DEPLOY_GOV_1 — protected env required
       },
     });
 
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo]), report);
+    const violations = runDeployGov1([repo]);
 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toContain(DEPLOY_GOV_1_RULE_ID);
     expect(violations[0]).toContain(repo.urn);
   });
 
-  it("does NOT report when the repo has a protected environment and OIDC role evidence", () => {
-    const repo = makePolicyResource({
-      type: GITHUB_REPOSITORY_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::deploy-repo`,
-      name: "deploy-repo",
-      props: { name: "deploy-repo", topics: ["deployment"] },
-    });
-    const env = makePolicyResource({
-      type: GITHUB_ENVIRONMENT_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::deploy-repo-prod`,
-      name: "deploy-repo-prod",
-      props: {
-        repository: "deploy-repo",
-        environment: "prod",
-        reviewers: [{ teams: [1234] }],
-        deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
-      },
-    });
-    const oidcRole = makePolicyResource({
-      type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::deploy-role`,
-      name: "deploy-role",
-      props: { repository: "deploy-repo", environment: "prod" },
-    });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo, env, oidcRole]), report);
-
-    expect(violations).toEqual([]);
+  it("does NOT report when one exact repository/environment/workflow/IAM tuple exists", () => {
+    expect(runDeployGov1(deploymentTuple())).toEqual([]);
   });
 
-  it("does NOT report for DeploymentRepositoryFoundation positive fixtures", () => {
+  it("rejects a matching environment value without an exact repository property dependency", () => {
+    expect(runDeployGov1(deploymentTuple({ environmentDependency: false }))).toHaveLength(1);
+  });
+
+  it("rejects an environment property dependency on a different repository", () => {
+    const decoy = makePolicyResource({
+      type: GITHUB_REPOSITORY_TYPE,
+      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::decoy`,
+      name: "decoy",
+      props: { name: "decoy" },
+    });
+    const resources = deploymentTuple({ environmentDependency: decoy });
+    expect(runDeployGov1([...resources, decoy])).toHaveLength(1);
+  });
+
+  it("rejects independently matching environment and component evidence", () => {
+    expect(
+      runDeployGov1(
+        deploymentTuple({
+          componentProps: { environment: "dev" },
+          iamTrust: trustPolicy({ environment: "dev" }),
+          iamTags: {
+            "hulumi:component": "GitHubAwsOidcDeploymentRole",
+            "hulumi:github-repository": `${OWNER}/${REPOSITORY}`,
+            "hulumi:github-environment": "dev",
+          },
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ["owner", { owner: "other-org" }],
+    ["repository", { repository: "other-repo" }],
+    ["audience", { audience: "example.invalid" }],
+    [
+      "workflow repository",
+      {
+        reusableWorkflowRef: `other-org/${REPOSITORY}/.github/workflows/deploy.yml@refs/heads/main`,
+      },
+    ],
+    [
+      "workflow wildcard",
+      { reusableWorkflowRef: `${OWNER}/${REPOSITORY}/.github/workflows/deploy.yml@refs/heads/*` },
+    ],
+    ["provider", { oidcProviderArn: `${OIDC_PROVIDER_ARN}.evil` }],
+    ["conflicting subject modes", { subjectMode: { kind: "environment", environment: "dev" } }],
+  ])("rejects forged component %s evidence", (_label, componentProps) => {
+    expect(runDeployGov1(deploymentTuple({ componentProps }))).toHaveLength(1);
+  });
+
+  it("rejects component evidence without a child IAM role", () => {
+    expect(runDeployGov1(deploymentTuple({ omitIamRole: true }))).toHaveLength(1);
+  });
+
+  it.each([
+    ["wrong deterministic name", { iamRoleName: "unrelated-role" }],
+    [
+      "no OIDC component ancestor",
+      { iamRoleUrn: `urn:pulumi:s::p::${AWS_IAM_ROLE_TYPE}::deploy-role-role` },
+    ],
+    [
+      "different stack",
+      {
+        iamRoleUrn:
+          `urn:pulumi:other::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}$` +
+          `${AWS_IAM_ROLE_TYPE}::deploy-role-role`,
+      },
+    ],
+  ])("rejects an IAM role with %s", (_label, overrides) => {
+    expect(runDeployGov1(deploymentTuple(overrides))).toHaveLength(1);
+  });
+
+  it.each([
+    ["malformed trust", "not-json", undefined],
+    ["wrong subject", trustPolicy({ environment: "dev" }), undefined],
+    [
+      "wrong workflow",
+      trustPolicy({ workflowRef: WORKFLOW_REF.replace("deploy.yml", "other.yml") }),
+      undefined,
+    ],
+    ["wrong audience", trustPolicy({ audience: "example.invalid" }), undefined],
+    ["wrong provider", trustPolicy({ providerArn: `${OIDC_PROVIDER_ARN}.evil` }), undefined],
+    ["wrong action", trustPolicy({ action: "sts:AssumeRole" }), undefined],
+    ["additional Allow statement", trustPolicy({ extraStatement: true }), undefined],
+    [
+      "wrong role tags",
+      trustPolicy(),
+      {
+        "hulumi:component": "GitHubAwsOidcDeploymentRole",
+        "hulumi:github-repository": `${OWNER}/${REPOSITORY}`,
+        "hulumi:github-environment": "dev",
+      },
+    ],
+  ])("rejects %s even when component props match", (_label, iamTrust, iamTags) => {
+    expect(
+      runDeployGov1(deploymentTuple({ iamTrust, ...(iamTags ? { iamTags } : {}) })),
+    ).toHaveLength(1);
+  });
+
+  it("rejects a ref-mode role as evidence for a protected environment", () => {
+    expect(
+      runDeployGov1(
+        deploymentTuple({
+          componentProps: {
+            environment: undefined,
+            subjectMode: { kind: "ref", ref: "refs/heads/main" },
+          },
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("rejects matching foundation presence without the exact environment and role tuple", () => {
+    const [repo] = deploymentTuple();
     const foundation = makePolicyResource({
       type: DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE,
-      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::deploy-repo`,
-      name: "deploy-repo",
-      props: { repositoryName: "deploy-repo" },
+      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::deploy-foundation`,
+      name: "deploy-foundation",
+      props: { owner: OWNER, name: REPOSITORY, environments: [] },
     });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([foundation]), report);
-
-    expect(violations).toEqual([]);
+    expect(runDeployGov1([repo, foundation])).toHaveLength(1);
   });
 
-  it("does NOT report when a deployment-capable repo has matching DeploymentRepositoryFoundation evidence", () => {
+  it("rejects component-child ancestry without the exact environment and role tuple", () => {
     const repo = makePolicyResource({
       type: GITHUB_REPOSITORY_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::deploy-repo`,
-      name: "deploy-repo",
-      props: { name: "deploy-repo", topics: ["deployment"] },
+      urn:
+        `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}$` +
+        `hulumi:baseline:github:SecureRepository$${GITHUB_REPOSITORY_TYPE}::${REPOSITORY}`,
+      name: REPOSITORY,
+      props: { name: REPOSITORY, topics: ["deployment"] },
     });
-    const foundation = makePolicyResource({
-      type: DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE,
-      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::deploy-repo-foundation`,
-      name: "deploy-repo-foundation",
-      props: { name: "deploy-repo" },
-    });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo, foundation]), report);
-
-    expect(violations).toEqual([]);
-  });
-
-  it("reports when only unrelated DeploymentRepositoryFoundation evidence exists", () => {
-    const repo = makePolicyResource({
-      type: GITHUB_REPOSITORY_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::victim-repo`,
-      name: "victim-repo",
-      props: { name: "victim-repo", topics: ["deployment"] },
-    });
-    const unrelatedFoundation = makePolicyResource({
-      type: DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE,
-      urn: `urn:pulumi:s::p::${DEPLOYMENT_REPOSITORY_FOUNDATION_TYPE}::victim-repo`,
-      name: "victim-repo",
-      props: { name: "safe-repo" },
-    });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo, unrelatedFoundation]), report);
-
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain(repo.urn);
-  });
-
-  it("does not treat unscoped OIDC role evidence as matching a deployment repository", () => {
-    const repo = makePolicyResource({
-      type: GITHUB_REPOSITORY_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::deploy-repo`,
-      name: "deploy-repo",
-      props: { name: "deploy-repo", topics: ["deployment"] },
-    });
-    const env = makePolicyResource({
-      type: GITHUB_ENVIRONMENT_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::deploy-repo-prod`,
-      name: "deploy-repo-prod",
-      props: {
-        repository: "deploy-repo",
-        environment: "prod",
-        reviewers: [{ teams: [1234] }],
-        deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
-      },
-    });
-    const unscopedOidcRole = makePolicyResource({
-      type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::generic-role`,
-      name: "generic-role",
-      props: { environment: "prod" },
-    });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo, env, unscopedOidcRole]), report);
-
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain(repo.urn);
-  });
-
-  it("does not treat a protected environment for another repository as matching by logical name", () => {
-    const repo = makePolicyResource({
-      type: GITHUB_REPOSITORY_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_REPOSITORY_TYPE}::victim-repo`,
-      name: "victim-repo",
-      props: { name: "victim-repo", topics: ["deployment"] },
-    });
-    const env = makePolicyResource({
-      type: GITHUB_ENVIRONMENT_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_ENVIRONMENT_TYPE}::victim-repo-prod`,
-      name: "victim-repo-prod",
-      props: {
-        repository: "safe-repo",
-        environment: "prod",
-        reviewers: [{ teams: [1234] }],
-        deploymentBranchPolicy: { protectedBranches: true, customBranchPolicies: false },
-      },
-    });
-    const oidcRole = makePolicyResource({
-      type: GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE,
-      urn: `urn:pulumi:s::p::${GITHUB_AWS_OIDC_DEPLOYMENT_ROLE_TYPE}::victim-role`,
-      name: "victim-role",
-      props: { repository: "victim-repo", environment: "prod" },
-    });
-
-    (
-      deployGov1RequireProtectedEnvironment.validateStack as (
-        a: StackValidationArgs,
-        r: (m: string) => void,
-      ) => void
-    )(makeStackArgs([repo, env, oidcRole]), report);
-
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain(repo.urn);
+    expect(runDeployGov1([repo])).toHaveLength(1);
   });
 });
 

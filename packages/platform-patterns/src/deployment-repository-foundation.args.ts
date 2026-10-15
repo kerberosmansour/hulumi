@@ -19,6 +19,11 @@ export interface DeploymentRepositoryFoundationArgs {
   readonly name: string;
   readonly owner: string;
   readonly visibility?: "private" | "internal";
-  readonly environments?: readonly DeploymentEnvironmentConfig[];
+  /**
+   * At least one unique environment is required. The component marks its
+   * repository as deployment-capable, so DEPLOY_GOV_1 can require the
+   * corresponding protected-environment and OIDC authority tuple.
+   */
+  readonly environments: readonly DeploymentEnvironmentConfig[];
   readonly provenance?: boolean;
 }

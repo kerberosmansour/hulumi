@@ -67,7 +67,7 @@ The `secret` field carries the HMAC key that `GithubWebhookFallbackAdapter` vali
 
 ## Pattern 1 — AWS Lambda + API Gateway
 
-Receiver implementation (Node.js 20):
+Receiver implementation (Node.js >=22.12.0):
 
 ```typescript
 import { GithubWebhookFallbackAdapter } from "@hulumi/drift";

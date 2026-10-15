@@ -20,7 +20,7 @@ pnpm add @hulumi/baseline @pulumi/aws @pulumi/pulumi
 pnpm add @pulumi/github
 ```
 
-`@hulumi/baseline@1.5.0` accepts any caret-compatible Pulumi SDK (`@pulumi/aws` in the `7.x` line, `@pulumi/pulumi` in the `3.x` line, `@pulumi/github` in the `6.x` line). The versions Hulumi is **tested against** are listed in this package's `peerDependencies` — that's the floor, not a ceiling. If you already have these SDKs installed at any compatible version, you don't need to change them. The 72h/24h cooling-off CI gate applies inside Hulumi when **we** bump our tested floor — see the project [SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
+`@hulumi/baseline@3.0.0` accepts any caret-compatible Pulumi SDK (`@pulumi/aws` in the `7.x` line, `@pulumi/pulumi` in the `3.x` line, `@pulumi/github` in the `6.x` line). The versions Hulumi is **tested against** are listed in this package's `peerDependencies` — that's the floor, not a ceiling. If you already have these SDKs installed at any compatible version, you don't need to change them. The 72h/24h cooling-off CI gate applies inside Hulumi when **we** bump our tested floor — see the project [SECURITY.md](https://github.com/kerberosmansour/hulumi/blob/main/SECURITY.md).
 
 ## Quick-start — `SecureBucket`
 
@@ -114,8 +114,8 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/baseline@1.5.0 --pack-destination .
-gh attestation verify ./hulumi-baseline-1.5.0.tgz \
+npm pack --ignore-scripts @hulumi/baseline@3.0.0 --pack-destination .
+gh attestation verify ./hulumi-baseline-3.0.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 
@@ -130,3 +130,14 @@ gh attestation verify ./hulumi-baseline-1.5.0.tgz \
 
 Apache-2.0 — see [LICENSE](./LICENSE) and the project-level
 [NOTICE](https://github.com/kerberosmansour/hulumi/blob/main/NOTICE).
+
+## Using this with a coding agent
+
+Use the [consumer integration guide](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/integration.md)
+and its published-version skill reference. Check prerequisites, dependency admission
+and the relevant success and failure-path tests before adopting this package.
+Feedback is optional: share general usage in [Discussions](https://github.com/kerberosmansour/hulumi/discussions),
+and use the [integration report](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml)
+for a concrete blocker or documentation gap. An agent must obtain operator permission
+before posting. Use [private security reporting](https://github.com/kerberosmansour/hulumi/security/advisories/new)
+for suspected vulnerabilities. Never share secrets, private code or transcripts.

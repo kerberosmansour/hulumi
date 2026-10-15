@@ -16,3 +16,8 @@
 - [@hulumi/k8s-baseline](https://www.npmjs.com/package/@hulumi/k8s-baseline)
 - [@hulumi/platform-patterns](https://www.npmjs.com/package/@hulumi/platform-patterns)
 - [@hulumi/policies](https://www.npmjs.com/package/@hulumi/policies)
+
+## Consumer tasks and optional feedback
+
+- [Task contracts](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/tasks.md): Five versioned integration tasks with boundaries and verification.
+- [Feedback policy](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/feedback.md): Local drafts, duplicate checks, consent and private security routing.

@@ -233,7 +233,7 @@ If you ever feel the urge to "just include the control text for clarity," don't.
 
 The skill is a set of `.mjs` scripts under `skills/hulumi-threat-model/scripts/` plus a frontmatter-bearing `SKILL.md`. Constraints:
 
-- **No runtime deps.** The skill installs by clone; users on any Node 20 machine should be able to run it without a build step or `tsx`. `.mjs` + JSDoc types is the canonical pattern.
+- **No runtime deps.** The skill installs by clone; users on a supported Node.js >=22.12.0 machine should be able to run it without a build step or `tsx`. `.mjs` + JSDoc types is the canonical pattern.
 - **Output schema is locked.** The frontmatter shape (`name`, `scenario`, `generated_at`, `citations[]`) and the section list (`Scenario`, `Actors`, `Assets`, `Threats (STRIDE)`, `Control Citations`, `Recommended Hulumi Components`, `Open Questions`) are asserted by `tests/schema.test.ts`. Adding a field is a versioned change.
 - **Scenario JSONs are data.** Per-milestone passes flip "v0.x+" forward references to "Shipped in M<N>" once a component lands. The script and template stay untouched.
 

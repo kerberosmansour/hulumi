@@ -13,7 +13,7 @@ Hulumi-for-GitHub for the first time.
   Read & Write, `Metadata` → Read. Note the App ID + installation ID; download
   the PEM private key.
 - `pulumi` CLI logged into your stack backend.
-- Node 20 LTS + pnpm 9.
+- Node.js >=22.12.0 + pnpm 9.12.0, matching the workspace manifests.
 
 ## Running
 

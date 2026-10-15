@@ -17,7 +17,9 @@
     "adoption-measurement.md",
     "SECURITY.md",
     "MAINTAINERS.md",
-    "THREAT_MODEL.md"
+    "THREAT_MODEL.md",
+    "evaluation.md",
+    "distribution.md"
   ],
   "rules": [
     "Use APIs from the documented published version; check versioned references before upgrading.",

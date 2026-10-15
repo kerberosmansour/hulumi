@@ -7,7 +7,7 @@ Current coordinated release: **3.0.0**. Requires Node.js >=22.12.0. Read the [se
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![npm @hulumi/baseline](https://img.shields.io/npm/v/@hulumi/baseline.svg)](https://www.npmjs.com/package/@hulumi/baseline)
 
-> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. v1.5.4.
+> Hardened-by-default AWS, GitHub, Kubernetes, and Cloudflare edge infrastructure-as-code for [Pulumi](https://www.pulumi.com/). Apache-2.0. See the current release and migration link above.
 
 ## Table of contents
 
@@ -17,7 +17,7 @@ Current coordinated release: **3.0.0**. Requires Node.js >=22.12.0. Read the [se
   - [Project goals](#project-goals)
   - [Non-goals](#non-goals)
 - [Quick start](#quick-start)
-- [What's in the box](#whats-in-the-box-v154)
+- [What's in the box](#whats-in-the-box)
 - [Canonical install](#canonical-install)
   - [Pulumi packages (npm)](#pulumi-packages-npm)
   - [Claude Code skill (`/hulumi-threat-model`)](#claude-code-skill-hulumi-threat-model)
@@ -100,7 +100,7 @@ To threat-model **before** writing IaC, install the Claude Code skill (see [Cano
 /hulumi-threat-model aws-multi-account-baseline
 ```
 
-## What's in the box (v1.5.4)
+## What's in the box
 
 The six package links below open their published npm pages, which link back to this repository.
 

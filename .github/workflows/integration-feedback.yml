@@ -1,0 +1,86 @@
+name: Integration feedback completeness
+on:
+  issues:
+    types: [opened, edited]
+permissions: {}
+concurrency:
+  group: integration-feedback-${{ github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  completeness:
+    if: startsWith(github.event.issue.title, '[Integration feedback]:')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check report shape without executing or publishing its contents
+        shell: bash
+        run: |
+          python3 - <<'PY_CHECK'
+          # feedback-check:start
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import sys
+
+          REQUIRED = (
+              "Package and exact version", "What were you trying to do?", "Integration outcome",
+              "How did you find the package?", "Expected behavior", "Checks actually executed and their results",
+              "Documentation consulted, including its version", "Existing issue search and matching report, if any",
+              "Observed behavior and minimal synthetic reproduction", "Public report acknowledgement",
+          )
+          ACK = "- [x] I understand this is public, have removed sensitive information, and authorize submitting this report."
+
+          def result(message, failed):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+                  output.write(message + "\n")
+              if failed:
+                  print("::warning::Integration report needs maintainer review; see the fixed-field summary.")
+              return int(failed)
+
+          def main():
+              try:
+                  with open(os.environ["GITHUB_EVENT_PATH"], "rb") as source:
+                      raw = source.read(102401)
+                  if len(raw) > 102400:
+                      raise ValueError("Event too large")
+                  event = json.loads(raw)
+                  issue = event["issue"]
+                  if not isinstance(issue["title"], str):
+                      raise ValueError("Invalid title")
+                  if not issue["title"].startswith("[Integration feedback]:"):
+                      return 0
+                  body = issue["body"]
+                  if not isinstance(body, str):
+                      raise ValueError("Invalid body")
+              except (KeyError, TypeError, ValueError, OSError, RecursionError):
+                  return result("Report could not be checked within the input bounds. Review privately; no report content is echoed.", True)
+              secret = re.compile(
+                  r"SUNLIT_TEST_SECRET|\bgh[pousr]_[A-Za-z0-9_]{20,}|\bgithub_pat_[A-Za-z0-9_]+|"
+                  r"\bctx7sk[A-Za-z0-9_-]*|\b(?:AKIA|ASIA)[A-Z0-9]{16}|"
+                  r"-----BEGIN [A-Z ]*PRIVATE KEY-----|authorization\s*:\s*bearer\s+\S+|"
+                  r"\b(?:password|passwd|api[_-]?key|access[_-]?token|client[_-]?secret)\s*[:=]\s*\S+",
+                  re.IGNORECASE,
+              )
+              if secret.search(body):
+                  return result("Potential sensitive content requires private review. Do not quote it in comments or logs. This check cannot undo public disclosure.", True)
+              sections = {}
+              parts = re.split(r"(?m)^### ([^\r\n]+)\r?\n", body)
+              for name, value in zip(parts[1::2], parts[2::2]):
+                  sections.setdefault(name.strip(), []).append(value.strip())
+              missing = []
+              for name in REQUIRED:
+                  values = sections.get(name, [])
+                  if len(values) != 1 or not values[0] or values[0] == "_No response_":
+                      missing.append(name)
+              acknowledgements = sections.get(REQUIRED[-1], [])
+              if len(acknowledgements) == 1 and ACK.lower() not in [line.strip().lower() for line in acknowledgements[0].splitlines()]:
+                  if REQUIRED[-1] not in missing:
+                      missing.append(REQUIRED[-1])
+              if missing:
+                  return result("Missing, duplicate or incomplete fields:\n" + "\n".join("- " + name for name in missing), True)
+              return result("Required report sections are complete. This does not verify accuracy, disclosure safety or operator authorization; maintainer review is still required.", False)
+
+          sys.exit(main())
+          # feedback-check:end
+          PY_CHECK

@@ -172,8 +172,8 @@ from the reusable `sign-and-publish.yml` release lane. Verify before
 installing:
 
 ```bash
-pnpm pack @hulumi/platform-patterns@1.5.0 --pack-destination .
-gh attestation verify ./hulumi-platform-patterns-1.5.0.tgz \
+npm pack --ignore-scripts @hulumi/platform-patterns@3.0.0 --pack-destination .
+gh attestation verify ./hulumi-platform-patterns-3.0.0.tgz \
   --repo kerberosmansour/hulumi
 ```
 
@@ -182,3 +182,14 @@ gh attestation verify ./hulumi-platform-patterns-1.5.0.tgz \
 Guardian-derived ephemeral project/webhook construction with an own-log-only
 default role, explicit VPC/privilege opt-ins and bounded configured resources.
 Read [operator prerequisites and qualification limits](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/codebuild-github-runner.md). Not in published3.0.0; live cloud qualification remains separate.
+
+## Using this with a coding agent
+
+Use the [consumer integration guide](https://github.com/kerberosmansour/hulumi/blob/main/docs/agents/integration.md)
+and its published-version skill reference. Check prerequisites, dependency admission
+and the relevant success and failure-path tests before adopting this package.
+Feedback is optional: share general usage in [Discussions](https://github.com/kerberosmansour/hulumi/discussions),
+and use the [integration report](https://github.com/kerberosmansour/hulumi/issues/new?template=integration_feedback.yml)
+for a concrete blocker or documentation gap. An agent must obtain operator permission
+before posting. Use [private security reporting](https://github.com/kerberosmansour/hulumi/security/advisories/new)
+for suspected vulnerabilities. Never share secrets, private code or transcripts.

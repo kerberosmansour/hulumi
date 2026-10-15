@@ -49,9 +49,53 @@ describe("SecureIamDeploymentRole", () => {
     const statement = (trust.Statement as Array<Record<string, unknown>>)[0];
     const condition = statement.Condition as Record<string, Record<string, string>>;
     expect(condition.StringEquals["token.actions.githubusercontent.com:sub"]).toBe(
-      "repo:kerberosmansour/hulumi:environment:prod",
+      "repo:kerberosmansour/hulumi:environment:prod:job_workflow_ref:kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
+    );
+    expect(condition.StringEquals).not.toHaveProperty(
+      "token.actions.githubusercontent.com:job_workflow_ref",
     );
     expect(JSON.stringify(trust)).not.toContain("*");
+  });
+
+  it("requires an exact reusable workflow before registering child resources", () => {
+    expect(
+      () =>
+        new SecureIamDeploymentRole("deploy-no-workflow", {
+          tier: "sandbox",
+          owner: "kerberosmansour",
+          repository: "hulumi",
+          roleName: "hulumi-deploy",
+          oidcProviderArn: OIDC_PROVIDER_ARN,
+          audience: "sts.amazonaws.com",
+          subjectMode: { kind: "ref", ref: "refs/heads/main" },
+        }),
+    ).toThrow(/reusableWorkflowRef is required/i);
+    expect(
+      registrations.filter((registration) => !registration.type.startsWith("hulumi:")),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "kerberosmansour/hulumi/deploy.yml@refs/heads/main",
+    "kerberosmansour/hulumi/.github/workflows/deploy.yml@main",
+    "kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main@refs/heads/main",
+  ])("rejects malformed reusable workflow ref %s", (reusableWorkflowRef) => {
+    expect(
+      () =>
+        new SecureIamDeploymentRole("deploy-malformed-workflow", {
+          tier: "sandbox",
+          owner: "kerberosmansour",
+          repository: "hulumi",
+          roleName: "hulumi-deploy",
+          oidcProviderArn: OIDC_PROVIDER_ARN,
+          audience: "sts.amazonaws.com",
+          subjectMode: { kind: "environment", environment: "prod" },
+          reusableWorkflowRef,
+        }),
+    ).toThrow(/reusableWorkflowRef must name one/i);
+    expect(
+      registrations.filter((registration) => !registration.type.startsWith("hulumi:")),
+    ).toEqual([]);
   });
 
   it("rejects wildcard OIDC subject axes", () => {
@@ -95,6 +139,8 @@ describe("SecureIamDeploymentRole", () => {
           oidcProviderArn: OIDC_PROVIDER_ARN,
           audience: "sts.amazonaws.com",
           subjectMode: { kind: "ref", ref: "refs/heads/main" },
+          reusableWorkflowRef:
+            "kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
           inlinePolicies: Array.from(
             { length: MAX_SECURE_IAM_INLINE_POLICIES + 1 },
             (_, index) => ({

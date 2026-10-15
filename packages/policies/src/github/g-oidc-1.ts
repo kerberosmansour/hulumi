@@ -27,6 +27,7 @@ const GCP_WIF_PROVIDER_TYPE = "gcp:iam/workloadIdentityPoolProvider:WorkloadIden
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
 const GITHUB_OIDC_SUB_CLAIM = `${GITHUB_OIDC_ISSUER}:sub`;
 const REQUIRED_SUBJECT_KEYS = ["repo", "job_workflow_ref", "environment"] as const;
+const REQUIRED_AWS_SUBJECT_KEYS = ["repo", "job_workflow_ref"] as const;
 const REQUIRED_GCP_ASSERTIONS = [
   "assertion.repository",
   "assertion.job_workflow_ref",
@@ -67,38 +68,95 @@ function hasAsciiControl(value: string): boolean {
   return false;
 }
 
-function boundSubjectViolation(subject: unknown): string | undefined {
-  if (typeof subject !== "string") return "subject must be a literal string";
-  if (subject.length === 0) return "subject must not be empty";
-  if (subject.length > MAX_OIDC_INPUT_LENGTH) return "subject exceeds the 4096-character limit";
-  if (subClaimIsUnsafe(subject)) return "subject must not contain a wildcard";
+type ParsedSubject =
+  { readonly claims: ReadonlyMap<string, string> } | { readonly violation: string };
+
+function parseSubject(subject: unknown): ParsedSubject {
+  if (typeof subject !== "string") return { violation: "subject must be a literal string" };
+  if (subject.length === 0) return { violation: "subject must not be empty" };
+  if (subject.length > MAX_OIDC_INPUT_LENGTH) {
+    return { violation: "subject exceeds the 4096-character limit" };
+  }
+  if (subClaimIsUnsafe(subject)) return { violation: "subject must not contain a wildcard" };
 
   const parts = subject.split(":");
-  if (parts.length < REQUIRED_SUBJECT_KEYS.length * 2 || parts.length % 2 !== 0) {
-    return "subject must contain complete key/value pairs";
+  if (parts.length < 2 || parts.length % 2 !== 0) {
+    return { violation: "subject must contain complete key/value pairs" };
   }
 
-  const seen = new Set<string>();
+  const claims = new Map<string, string>();
   for (let index = 0; index < parts.length; index += 2) {
     const key = parts[index];
     const value = parts[index + 1];
-    if (!SUBJECT_KEY_PATTERN.test(key)) return `subject claim key \`${key}\` is malformed`;
-    if (seen.has(key)) return `subject claim key \`${key}\` appears more than once`;
+    if (!SUBJECT_KEY_PATTERN.test(key)) {
+      return { violation: `subject claim key \`${key}\` is malformed` };
+    }
+    if (claims.has(key)) {
+      return { violation: `subject claim key \`${key}\` appears more than once` };
+    }
     if (
       value.length === 0 ||
       value !== value.trim() ||
       hasAsciiControl(value) ||
       subClaimIsUnsafe(value)
     ) {
-      return `subject claim \`${key}\` must have one nonempty, literal, non-wildcard value`;
+      return {
+        violation: `subject claim \`${key}\` must have one nonempty, literal, non-wildcard value`,
+      };
     }
-    seen.add(key);
+    claims.set(key, value);
   }
 
-  const missing = REQUIRED_SUBJECT_KEYS.filter((key) => !seen.has(key));
+  return { claims };
+}
+
+function boundSubjectViolation(subject: unknown): string | undefined {
+  const parsed = parseSubject(subject);
+  if ("violation" in parsed) return parsed.violation;
+
+  const missing = REQUIRED_SUBJECT_KEYS.filter((key) => !parsed.claims.has(key));
   return missing.length === 0
     ? undefined
     : `subject is missing required claim key(s): ${missing.join(", ")}`;
+}
+
+function awsSubjectViolation(subject: unknown): string | undefined {
+  const parsed = parseSubject(subject);
+  if ("violation" in parsed) return parsed.violation;
+
+  const missing = REQUIRED_AWS_SUBJECT_KEYS.filter((key) => !parsed.claims.has(key));
+  if (missing.length > 0) {
+    return `subject is missing required claim key(s): ${missing.join(", ")}`;
+  }
+
+  const contexts = ["environment", "ref"].filter((key) => parsed.claims.has(key));
+  if (contexts.length !== 1) {
+    return "subject must contain exactly one context claim: environment or ref";
+  }
+
+  const repository = parsed.claims.get("repo")!;
+  if (!/^[^/:\s]+\/[^/:\s]+$/u.test(repository)) {
+    return "subject claim `repo` must be one exact OWNER/REPOSITORY value";
+  }
+
+  const workflow = parsed.claims.get("job_workflow_ref")!;
+  if (
+    !/^[^/:\s]+\/[^/:\s]+\/\.github\/workflows\/[^@:\s]+@refs\/(?:heads|tags)\/[^@:*?\s]+$/u.test(
+      workflow,
+    )
+  ) {
+    return "subject claim `job_workflow_ref` must name one workflow file at an exact branch or tag ref";
+  }
+
+  const ref = parsed.claims.get("ref");
+  if (
+    ref !== undefined &&
+    (!ref.startsWith("refs/") || ref === "pull_request" || ref === "pull_request_target")
+  ) {
+    return "subject claim `ref` must be one exact refs/* value and must not be a pull-request context";
+  }
+
+  return undefined;
 }
 
 type GcpToken =
@@ -242,18 +300,11 @@ function gcpConditionViolation(condition: unknown): string | undefined {
     : `attributeCondition is missing required assertion(s): ${missing.join(", ")}`;
 }
 
-const SUPPORTED_STRING_EQUALS_OPERATORS = new Set([
-  "StringEquals",
-  "ForAnyValue:StringEquals",
-  "ForAllValues:StringEquals",
-  "StringEqualsIfExists",
-]);
-
 /**
  * Normalize a JSON-string-or-object AWS trust policy. Every statement for the
- * exact GitHub OIDC issuer must carry one supported StringEquals-family `sub`
- * restriction whose values are nonempty, strings, and wildcard-free. A policy
- * whose structure cannot be inspected fails closed.
+ * exact GitHub OIDC issuer must carry one scalar `StringEquals` custom `sub`
+ * restriction that binds repository, reusable workflow, and one execution
+ * context. A policy whose structure cannot be inspected fails closed.
  */
 function inspectAwsIamTrustPolicy(
   args: { type: string; urn: string; props: Record<string, unknown> },
@@ -300,20 +351,24 @@ function inspectAwsIamTrustPolicy(
     }
 
     const [{ operator, value }] = restrictions;
-    if (!SUPPORTED_STRING_EQUALS_OPERATORS.has(operator)) {
+    if (operator !== "StringEquals") {
       reportViolation(
-        `G_OIDC_1: AWS IAM role ${args.urn} uses unsupported ${operator} on \`${GITHUB_OIDC_SUB_CLAIM}\` — use StringEquals with the three-axis sub claim. Docs: ${DOCS_URL}`,
+        `G_OIDC_1: AWS IAM role ${args.urn} uses unsupported ${operator} on \`${GITHUB_OIDC_SUB_CLAIM}\` — use one scalar StringEquals custom subject. Docs: ${DOCS_URL}`,
       );
       return;
     }
 
-    const claims = Array.isArray(value) ? value : [value];
-    if (
-      claims.length === 0 ||
-      claims.some((claim) => typeof claim !== "string" || subClaimIsUnsafe(claim))
-    ) {
+    if (typeof value !== "string") {
       reportViolation(
-        `G_OIDC_1: AWS IAM role ${args.urn} ${operator} \`${GITHUB_OIDC_SUB_CLAIM}\` must contain only nonempty, non-wildcard strings; UNC6426 (March 2026) weaponized broader subjects. Docs: ${DOCS_URL}`,
+        `G_OIDC_1: AWS IAM role ${args.urn} StringEquals \`${GITHUB_OIDC_SUB_CLAIM}\` must contain one literal string, not alternatives. Docs: ${DOCS_URL}`,
+      );
+      return;
+    }
+
+    const violation = awsSubjectViolation(value);
+    if (violation) {
+      reportViolation(
+        `G_OIDC_1: AWS IAM role ${args.urn} GitHub OIDC subject is unsafe: ${violation}; require exact repo, job_workflow_ref, and one environment/ref context binding. Docs: ${DOCS_URL}`,
       );
       return;
     }
@@ -350,7 +405,7 @@ function inspectGcpWifProvider(
 export const G_OIDC_1: ResourceValidationPolicy = {
   name: "G_OIDC_1",
   description:
-    "Reject uninspectable, missing, multiple, unsupported, wildcard, or broadly scoped GitHub Actions OIDC subject restrictions across AWS, Azure, and GCP. Azure must bind `repo`, `job_workflow_ref`, and `environment`; GCP must bind the corresponding `repository`, `job_workflow_ref`, and `environment` assertions.",
+    "Reject uninspectable, missing, multiple, optional, set-qualified, wildcard, or broadly scoped GitHub Actions OIDC subject restrictions across AWS, Azure, and GCP. AWS must use one scalar StringEquals custom subject binding `repo`, `job_workflow_ref`, and exactly one `environment` or `ref`; Azure and GCP retain their three-axis environment profiles.",
   enforcementLevel: "mandatory",
   validateResource: (args, reportViolation) => {
     const suppressions = readSuppressions(

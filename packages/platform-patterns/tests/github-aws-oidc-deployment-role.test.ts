@@ -35,10 +35,12 @@ describe("GitHubAwsOidcDeploymentRole", () => {
     };
     expect(trust.Statement[0]?.Condition.StringEquals).toMatchObject({
       "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub": "repo:kerberosmansour/hulumi:environment:prod",
-      "token.actions.githubusercontent.com:job_workflow_ref":
-        "kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
+      "token.actions.githubusercontent.com:sub":
+        "repo:kerberosmansour/hulumi:environment:prod:job_workflow_ref:kerberosmansour/hulumi/.github/workflows/deploy.yml@refs/heads/main",
     });
+    expect(trust.Statement[0]?.Condition.StringEquals).not.toHaveProperty(
+      "token.actions.githubusercontent.com:job_workflow_ref",
+    );
     expect(registrations.map((r) => r.type)).toContain(
       "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
     );
@@ -47,7 +49,7 @@ describe("GitHubAwsOidcDeploymentRole", () => {
     );
   });
 
-  it("ref subjectMode renders an exact StringEquals ref subject (no environment)", async () => {
+  it("ref subjectMode renders one custom StringEquals subject with the workflow", async () => {
     new GitHubAwsOidcDeploymentRole("deploy", {
       tier: "startup-hardened",
       owner: "kerberosmansour",
@@ -56,6 +58,8 @@ describe("GitHubAwsOidcDeploymentRole", () => {
       roleName: "sg-workloads-deploy",
       oidcProviderArn:
         "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+      reusableWorkflowRef:
+        "kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@refs/heads/main",
       subjectMode: { kind: "ref", ref: "refs/heads/main" },
     });
     await settlePulumi();
@@ -64,15 +68,14 @@ describe("GitHubAwsOidcDeploymentRole", () => {
     };
     const se = trust.Statement[0]?.Condition.StringEquals ?? {};
     expect(se["token.actions.githubusercontent.com:sub"]).toBe(
-      "repo:kerberosmansour/sunlit-guardian:ref:refs/heads/main",
+      "repo:kerberosmansour/sunlit-guardian:ref:refs/heads/main:job_workflow_ref:kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@refs/heads/main",
     );
     expect(se["token.actions.githubusercontent.com:aud"]).toBe("sts.amazonaws.com");
-    // No environment scoping, no job_workflow_ref unless provided.
     expect(Object.keys(se)).not.toContain("token.actions.githubusercontent.com:job_workflow_ref");
     expect(trust.Statement[0]?.Condition.StringLike).toBeUndefined();
   });
 
-  it("ref subjectMode still pins job_workflow_ref when reusableWorkflowRef is given", async () => {
+  it("ref subjectMode embeds job_workflow_ref in the AWS-supported sub claim", async () => {
     new GitHubAwsOidcDeploymentRole("deploy", {
       tier: "startup-hardened",
       owner: "kerberosmansour",
@@ -91,11 +94,52 @@ describe("GitHubAwsOidcDeploymentRole", () => {
     };
     const se = trust.Statement[0]?.Condition.StringEquals ?? {};
     expect(se["token.actions.githubusercontent.com:sub"]).toBe(
-      "repo:kerberosmansour/sunlit-guardian:ref:refs/tags/v1.4.2",
+      "repo:kerberosmansour/sunlit-guardian:ref:refs/tags/v1.4.2:job_workflow_ref:kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@refs/heads/main",
     );
-    expect(se["token.actions.githubusercontent.com:job_workflow_ref"]).toBe(
-      "kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@refs/heads/main",
-    );
+    expect(Object.keys(se)).not.toContain("token.actions.githubusercontent.com:job_workflow_ref");
+  });
+
+  it("rejects a missing reusable workflow before provider registration", () => {
+    expect(
+      () =>
+        new GitHubAwsOidcDeploymentRole("no-workflow", {
+          tier: "startup-hardened",
+          owner: "kerberosmansour",
+          repository: "sunlit-guardian",
+          audience: "sts.amazonaws.com",
+          roleName: "sg-workloads-deploy",
+          oidcProviderArn:
+            "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+          subjectMode: { kind: "ref", ref: "refs/heads/main" },
+        }),
+    ).toThrow(/reusableWorkflowRef is required/i);
+    expect(
+      registrations.filter((registration) => !registration.type.startsWith("hulumi:")),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "kerberosmansour/sunlit-guardian/deploy.yml@refs/heads/main",
+    "kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@main",
+    "kerberosmansour/sunlit-guardian/.github/workflows/deploy.yml@refs/heads/main@refs/heads/main",
+  ])("rejects malformed reusable workflow ref %s", (reusableWorkflowRef) => {
+    expect(
+      () =>
+        new GitHubAwsOidcDeploymentRole("bad-workflow", {
+          tier: "startup-hardened",
+          owner: "kerberosmansour",
+          repository: "sunlit-guardian",
+          audience: "sts.amazonaws.com",
+          roleName: "sg-workloads-deploy",
+          oidcProviderArn:
+            "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+          subjectMode: { kind: "environment", environment: "prod" },
+          reusableWorkflowRef,
+        }),
+    ).toThrow(/reusableWorkflowRef must name one/i);
+    expect(
+      registrations.filter((registration) => !registration.type.startsWith("hulumi:")),
+    ).toEqual([]);
   });
 
   it("rejects a wildcard ref, a pull_request subject, and a non-refs/* ref", () => {

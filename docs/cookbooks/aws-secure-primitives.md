@@ -21,6 +21,8 @@ Use this when an existing stack has hand-written IAM roles, Secrets Manager reso
 1. Replace GitHub deployment roles with `SecureIamDeploymentRole`.
    - Use `subjectMode: { kind: "environment", environment }` when protected GitHub Environments are available.
    - Use `subjectMode: { kind: "ref", ref: "refs/heads/main" }` only for trusted branch/tag subjects.
+   - Set `reusableWorkflowRef` to one workflow file at an exact `@refs/*` ref for either mode.
+   - Configure the repository OIDC template with `include_claim_keys: ["repo", "context", "job_workflow_ref"]`; the workflow binding is embedded in AWS's supported `sub` key.
    - Do not use `StringLike`, wildcard refs, or `pull_request` subjects.
 
 2. Replace workload service roles with `SecureWorkloadRole`.
@@ -56,7 +58,7 @@ Use this when an existing stack has hand-written IAM roles, Secrets Manager reso
 
 **Permission boundary missing** means the primitive is in `startup-hardened` tier. Add `permissionBoundaryArn` or use `sandbox` for ephemeral experiments.
 
-**Wildcard OIDC rejected** means a subject axis contains `*` or a `pull_request` shape. Use a protected environment or exact `refs/*` subject.
+**OIDC subject rejected** means an axis is missing or contains a wildcard or pull-request shape. Use a protected environment or exact `refs/*` subject, one exact reusable workflow, and the documented repository subject template.
 
 **Secret policy rejected** means the resource policy grants `Principal: "*"` or `Resource: "*"`. Scope the principal and resource explicitly.
 

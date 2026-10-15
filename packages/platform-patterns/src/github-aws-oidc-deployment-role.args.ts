@@ -29,9 +29,10 @@ export interface GitHubAwsOidcDeploymentRoleArgs {
    */
   readonly environment?: string;
   /**
-   * `job_workflow_ref` pin. Required for `environment` mode (must name a
-   * workflow file and use an exact `@refs/` ref). Optional for `ref`
-   * mode — when present it is still pinned into the trust condition.
+   * `job_workflow_ref` pin. Required at runtime for every subject mode,
+   * must name a workflow file, and must use an exact `@refs/` ref. It is
+   * embedded into the customized `sub` because AWS does not expose it as
+   * an independent OIDC condition key.
    */
   readonly reusableWorkflowRef?: string;
   readonly audience: string;

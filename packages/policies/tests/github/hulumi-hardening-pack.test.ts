@@ -265,6 +265,10 @@ describe("HulumiGithubHardeningPack H2 — requires bound OIDC subject identity"
 });
 
 describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () => {
+  const safeEnvironmentSubject =
+    "repo:org/repo:environment:prod:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main";
+  const safeRefSubject =
+    "repo:org/repo:ref:refs/heads/main:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main";
   let violations: string[];
   const report = (msg: string): void => {
     violations.push(msg);
@@ -282,7 +286,7 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     Action: "sts:AssumeRoleWithWebIdentity",
     Condition: {
       StringEquals: {
-        "token.actions.githubusercontent.com:sub": "repo:org/repo:environment:prod",
+        "token.actions.githubusercontent.com:sub": safeEnvironmentSubject,
       },
     },
     ...overrides,
@@ -312,6 +316,76 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
         "repo:org/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main:environment:prod",
       ),
     ).toBe(false);
+  });
+
+  it.each([
+    ["branch-only", "repo:org/repo:ref:refs/heads/main"],
+    ["environment-only", "repo:org/repo:environment:prod"],
+    [
+      "workflow without a context",
+      "repo:org/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main",
+    ],
+    ["both environment and ref contexts", `${safeEnvironmentSubject}:ref:refs/heads/main`],
+    [
+      "pull-request ref context",
+      "repo:org/repo:ref:pull_request:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main",
+    ],
+    [
+      "non-refs ref context",
+      "repo:org/repo:ref:main:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main",
+    ],
+    [
+      "malformed workflow path",
+      "repo:org/repo:environment:prod:job_workflow_ref:org/repo/deploy.yml@refs/heads/main",
+    ],
+  ])("rejects AWS IAM trust with %s subject", (_label, subject) => {
+    expect(
+      inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: [
+          githubStatement({
+            Condition: {
+              StringEquals: { "token.actions.githubusercontent.com:sub": subject },
+            },
+          }),
+        ],
+      }),
+    ).toHaveLength(1);
+  });
+
+  it.each(["ForAnyValue:StringEquals", "ForAllValues:StringEquals", "StringEqualsIfExists"])(
+    "rejects exact three-axis AWS subject under %s",
+    (operator) => {
+      const messages = inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: [
+          githubStatement({
+            Condition: {
+              [operator]: { "token.actions.githubusercontent.com:sub": safeEnvironmentSubject },
+            },
+          }),
+        ],
+      });
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toContain(operator);
+    },
+  );
+
+  it("rejects alternative AWS subjects in a StringEquals array", () => {
+    expect(
+      inspectAwsTrust({
+        Version: "2012-10-17",
+        Statement: [
+          githubStatement({
+            Condition: {
+              StringEquals: {
+                "token.actions.githubusercontent.com:sub": [safeEnvironmentSubject, safeRefSubject],
+              },
+            },
+          }),
+        ],
+      }),
+    ).toHaveLength(1);
   });
 
   it("rejects AWS IAM trust policy with StringLike on the GitHub sub axis", () => {
@@ -612,39 +686,41 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     expect(violations[0]).toMatch(/ForAnyValue:StringEquals/);
   });
 
-  it("does NOT report on AWS IAM trust policy with StringEquals + safe three-axis sub", () => {
-    const args = makeResourceArgs({
-      type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
-      urn: "urn:pulumi:s::p::aws:iam/role:Role::safe-role",
-      name: "safe-role",
-      props: {
-        assumeRolePolicy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Principal: {
-                Federated:
-                  "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
-              },
-              Action: "sts:AssumeRoleWithWebIdentity",
-              Condition: {
-                StringEquals: {
-                  "token.actions.githubusercontent.com:sub":
-                    "repo:org/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main:environment:prod",
+  it.each([safeEnvironmentSubject, safeRefSubject])(
+    "does NOT report on AWS IAM trust policy with one safe three-axis sub: %s",
+    (subject) => {
+      const args = makeResourceArgs({
+        type: G_OIDC_1_AWS_IAM_ROLE_TYPE,
+        urn: "urn:pulumi:s::p::aws:iam/role:Role::safe-role",
+        name: "safe-role",
+        props: {
+          assumeRolePolicy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: {
+                  Federated:
+                    "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com",
+                },
+                Action: "sts:AssumeRoleWithWebIdentity",
+                Condition: {
+                  StringEquals: {
+                    "token.actions.githubusercontent.com:sub": subject,
+                  },
                 },
               },
-            },
-          ],
-        }),
-      },
-    });
-    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
-      args,
-      report,
-    );
-    expect(violations).toEqual([]);
-  });
+            ],
+          }),
+        },
+      });
+      (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+        args,
+        report,
+      );
+      expect(violations).toEqual([]);
+    },
+  );
 
   it("rejects Azure federated credential with wildcard subject", () => {
     const args = makeResourceArgs({

@@ -36,6 +36,23 @@ new GitHubAwsOidcDeploymentRole("prod-deploy", {
 });
 ```
 
+Configure the repository's GitHub Actions OIDC subject customization with the
+matching template:
+
+```json
+{
+  "use_default": false,
+  "include_claim_keys": ["repo", "context", "job_workflow_ref"]
+}
+```
+
+For an existing deployment role, update AWS to the customized subject first,
+then apply the repository template. This creates a fail-closed interval. If the
+deployment cannot tolerate that interval, create a separately named parallel
+role, apply the template, verify the new path, and retire the old role. Do not
+place default and customized subjects in one array because each value is an
+alternative authority.
+
 Battle-test notes:
 
 - Keep `owner`, `repository`, environment name, and the repository portion of
@@ -45,6 +62,8 @@ Battle-test notes:
 - Use environment subject mode for this protected-environment pattern. A
   ref-mode role is a different authority contract and does not satisfy
   DEPLOY_GOV_1.
+- Confirm the generated IAM condition contains only `aud` and one customized
+  scalar `sub`; AWS does not expose `job_workflow_ref` as a standalone key.
 - Run `node scripts/workflow-governance-lint.mjs --repo-root <consumer-repo>`.
 - Verify the generated usage block uses a full-length action SHA.
 - Do not add `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` secrets.

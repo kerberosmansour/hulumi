@@ -1,38 +1,42 @@
 ---
 title: GitHubAppCredential
-description: Provisions an AWS Secrets Manager container + scoped IAM read policy for a GitHub App's credential. Ships populate-github-app-secret.sh + mint-github-app-token.sh in the npm tarball for build-time use under BuildKit's --mount=type=secret pattern.
+description: Provisions a KMS-encrypted GitHub App secret and a private, scope-enforcing Lambda token broker. Runtime callers can invoke the broker but cannot read or export the App private key.
 ---
 
 # `GitHubAppCredential`
 
-`@hulumi/k8s-baseline.GitHubAppCredential` — provisions:
+`@hulumi/k8s-baseline.GitHubAppCredential` provisions:
 
 1. An `aws.secretsmanager.Secret` encrypted with the consumer-supplied `kmsKeyAlias`.
-2. An `aws.iam.Policy` with `secretsmanager:GetSecretValue` + `secretsmanager:DescribeSecret` scoped to **the single SM ARN** (never `*`).
-3. (Optional) An `aws.iam.RolePolicyAttachment` linking the policy to a supplied principal ARN.
+2. A private Lambda broker with an explicit execution role. Only this role can read the exact secret, decrypt it through Secrets Manager with the exact KMS key and secret encryption context, and write to its exact log group.
+3. An `aws.iam.Policy` that grants only `lambda:InvokeFunction` on the exact broker function.
+4. An optional `aws.iam.RolePolicyAttachment` that links the invoke-only policy to a supplied runtime role.
 
-The component canonicalizes `repos` and `permissions`, stores their SHA-256 digest in the
-`hulumi:github-app-scope-sha256` secret tag, and exposes the same non-secret value as
-`scopeDigest`. The tag binds the reviewed Pulumi declaration to secret population and every
-token request. Changing scope updates the tag; token minting then fails closed until the secret
-is populated again with the new matching scope.
+The runtime role never receives `secretsmanager:GetSecretValue` or `kms:Decrypt`. A compromised build cannot export the private key, sign an App JWT, or bypass the component's repository and permission policy.
 
-The component does **not** mint tokens. Tokens are minted at build time, inside `docker build`, via the BuildKit secret-mount pattern. The package ships two user-facing executable scripts at `node_modules/@hulumi/k8s-baseline/scripts/`:
+The component canonicalizes `repos` and `permissions`, stores their SHA-256 digest in the `hulumi:github-app-scope-sha256` secret tag, and serializes the same bounded scope into the broker. The out-of-band population helper requires this digest before writing. On every invocation, the broker validates the caller's target before secret retrieval, validates the stored scope and digest before signing, requests exactly one repository and the configured non-empty permissions, and verifies GitHub's returned repositories and permissions before returning a token.
 
-- **`populate-github-app-secret.sh <SECRET_ID> <APP_ID> <PEM_PATH> <REPOS_JSON> <PERMISSIONS_JSON>`** — consumer runs once out-of-band to populate the SM secret with the GitHub App's `app_id`, private-key PEM, and explicit component-matching scope. It verifies the canonical scope digest against the component-owned secret tag before writing. It uses `set -euo pipefail`, keeps the PEM out of process arguments, and scrubs its private temporary file on exit.
-- **`mint-github-app-token.sh <SECRET_ID> <REPO_OWNER> <REPO_NAME>`** — CI step. Reads the SM secret, verifies the tag, stored digest, scope, and requested target before private-key use, signs a JWT with RS256, discovers the installation ID, and exchanges it for a one-hour token. Every request names exactly one repository and carries the bound, non-empty permission map. It prints the token to **stdout only** and never echoes the PEM, JWT, or token to stderr.
+## Inputs and outputs
 
-## Scope and migration
+- `repos`: non-empty `owner/name` allowlist. `['*']` permits selecting any installed repository while each minted token remains restricted to one requested repository.
+- `permissions`: non-empty GitHub App permission map using `read`, `write`, or `admin` values.
+- `kmsKeyAlias`: required customer-managed KMS alias used by Secrets Manager.
+- `kmsKeyArn`: optional exact key ARN for the broker policy. When omitted, Pulumi resolves `kmsKeyAlias` to its target key ARN.
+- `secretName`: optional Secrets Manager name.
+- `iamPrincipalArn`: optional runtime role that receives the invoke-only policy.
+- `secretArn`: operator-facing secret container ARN. Do not grant it to runtime callers.
+- `brokerFunctionArn` / `brokerFunctionName`: broker targets for IAM and the mint helper.
+- `iamInvokePolicyArn`: invoke-only runtime policy.
+- `iamReadPolicyArn`: deprecated compatibility alias for `iamInvokePolicyArn`; it no longer grants secret access.
+- `scopeDigest`: non-secret canonical scope digest.
 
-Repository entries use `owner/name`. A single `"*"` entry allows the helper to target any
-repository in the installation, but the minted token is still narrowed to the one requested
-repository. Permissions use GitHub App permission names with `read`, `write`, or `admin` values.
-The component rejects duplicate or mixed-wildcard repositories, malformed names, empty scope,
-more than 500 repositories, more than 100 permissions, or a canonical scope above 16 KiB. The
-helpers reject a complete secret value above 64 KiB.
+The component rejects duplicate or mixed-wildcard repositories, malformed names, empty scope, more than 500 repositories, more than 100 permissions, or a canonical scope above 16 KiB. The broker also limits secret and provider response sizes, uses a 10-second HTTP timeout, accepts JSON responses only, and emits bounded reason-only failures.
 
-The former three-argument population command is intentionally unsupported because it stored
-wildcard repositories and an empty permission map. Pass the exact values used by the component:
+## Populate and mint
+
+The package ships two executable scripts in `node_modules/@hulumi/k8s-baseline/scripts/`.
+
+Populate once through a trusted operator path:
 
 ```bash
 node_modules/@hulumi/k8s-baseline/scripts/populate-github-app-secret.sh \
@@ -43,19 +47,28 @@ node_modules/@hulumi/k8s-baseline/scripts/populate-github-app-secret.sh \
   '{"contents":"read"}'
 ```
 
-The operator needs `secretsmanager:DescribeSecret` and `secretsmanager:PutSecretValue` to
-populate the secret. The runtime IAM policy created by this component grants only
-`GetSecretValue` and `DescribeSecret` on the single secret ARN; it does not grant tag mutation.
-Keep broader tag-management authority away from the minting principal because the scope binding
-depends on the IaC-owned tag.
+The operator needs `secretsmanager:DescribeSecret`, `secretsmanager:PutSecretValue`, and the KMS permissions required to write the encrypted secret. The helper validates the component-owned scope tag before writing and scrubs its private temporary file.
 
-Both helpers use the official `https://api.github.com` endpoint, require TLS 1.2 or newer, and
-send `X-GitHub-Api-Version: 2026-03-10`. A missing or mismatched tag, malformed stored scope,
-disallowed target, signing error, or API error produces a bounded reason-only security event and
-no token.
+Mint through the broker from CI:
 
-Both scripts ship in the npm tarball via `package.json`'s `files: ["scripts/"]` discipline. Verified by an integration test that runs `npm pack && tar tf` and asserts the two scripts are present.
+```bash
+node_modules/@hulumi/k8s-baseline/scripts/mint-github-app-token.sh \
+  "$BROKER_FUNCTION_NAME" \
+  example \
+  private-dependency
+```
 
-Source: [packages/k8s-baseline/src/github-app-credential.ts](../../packages/k8s-baseline/src/github-app-credential.ts) + [packages/k8s-baseline/scripts/](../../packages/k8s-baseline/scripts/).
+The helper invokes Lambda with `{owner, repository}`, refuses Lambda function errors or malformed/oversized responses, prints only the validated installation token to stdout, and scrubs its response file. It does not call Secrets Manager, OpenSSL, or GitHub.
 
-Provider references: [GitHub installation access tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app), [GitHub Apps REST API](https://docs.github.com/en/rest/apps/apps), and [AWS Secrets Manager tags](https://docs.aws.amazon.com/secretsmanager/latest/userguide/managing-secrets_tagging.html).
+### Migration from the direct-read policy
+
+1. Deploy the updated component and attach `iamInvokePolicyArn` to the runtime role. Existing `iamPrincipalArn` users receive this attachment automatically.
+2. Replace the mint helper's first argument: use `brokerFunctionName` or `brokerFunctionArn` instead of `secretArn`.
+3. Remove every independently managed runtime permission for `secretsmanager:GetSecretValue`, `secretsmanager:DescribeSecret`, `kms:Decrypt`, and secret-tag mutation. The component cannot revoke authority granted elsewhere.
+4. Keep secret population in a separate trusted operator role. Runtime jobs need only `lambda:InvokeFunction` on the broker ARN.
+
+Both broker calls use fixed `https://api.github.com` endpoints, redirect refusal, a 10-second timeout, and `X-GitHub-Api-Version: 2026-03-10`. The broker never logs the private key, App JWT, authorization header, or installation token.
+
+Source: [packages/k8s-baseline/src/github-app-credential.ts](../../packages/k8s-baseline/src/github-app-credential.ts) and [packages/k8s-baseline/scripts/](../../packages/k8s-baseline/scripts/).
+
+Provider references: [GitHub installation token endpoint](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app), [AWS Secrets Manager `GetSecretValue`](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html), [AWS Lambda execution roles](https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html), and [Pulumi `CallbackFunction`](https://www.pulumi.com/registry/packages/aws/api-docs/lambda/callbackfunction/).

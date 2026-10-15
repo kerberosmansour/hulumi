@@ -42,3 +42,42 @@ Skipped: no UI surface.
 ## Critique decision
 
 M1 remains one bounded defensive milestone. The user's standing instruction authorizes execution. The 12-file allow-list does not overlap the active trusted-node controller task, provider behavior was checked against official GitHub and AWS documentation, and implementation may proceed BDD-first with no new dependency.
+
+## M2 critique — private-key isolation
+
+Date: 2026-10-15
+Trigger: merged-main Codex Security finding `csf_7b681c175edc7c44f60bd797` proved that M1's helper checks are bypassable by any runtime principal that can read the raw App key.
+
+### CEO pass
+
+| id | persona | category | finding | concrete scenario | recommendation | resolution |
+| --- | --- | --- | --- | --- | --- | --- |
+| M2-C1 | CEO | reduce-scope | A general credential service or App lifecycle redesign would delay closure of one concrete high-severity bypass. | The team builds rotation, registration, or a public token API while the runtime role still exports the key. | Build one private Lambda broker owned by this component and retain out-of-band population. | accepted |
+
+### Engineering-lead pass
+
+| id | persona | category | finding | concrete scenario | recommendation | resolution |
+| --- | --- | --- | --- | --- | --- | --- |
+| M2-E1 | engineering lead | ask | CallbackFunction can attach broad default policies if no role is supplied. | A narrow secret boundary is replaced by a broker with broad AWS authority. | Supply an explicit Lambda trust role and exact inline secret/log permissions; assert no managed policy attachment. | accepted; BDD-M2-2 |
+| M2-E1a | engineering lead | auto-fix | A customer-managed Secrets Manager key requires `kms:Decrypt`; omitting it produces a broker that cannot read its secret. | Deployment succeeds but every mint fails with `AccessDeniedException`. | Resolve the alias to its exact key ARN (or accept an explicit ARN) and constrain decrypt with `kms:ViaService` plus this secret's encryption context. | applied to BDD-M2-2 |
+| M2-E2 | engineering lead | ask | Broker code is hard to test if validation and provider calls are inseparable. | Unit tests only inspect strings and never prove failure order. | Export a bounded handler factory whose injected secret reader, signer, clock, and HTTP client record side effects. The deployed callback closes over fixed production adapters. | accepted |
+| M2-E3 | engineering lead | auto-fix | A token request can be narrow while the response is unexpectedly broader. | Provider behavior or a request defect returns multiple repositories or different permissions. | Check response `repositories` and `permissions` exactly before returning the token. | applied to BDD-M2-5/6 |
+| M2-E4 | engineering lead | ask | Replacing `iamReadPolicyArn` can break consumers. | A stack reads the existing output during a security upgrade. | Keep it as a deprecated alias to the invoke-only policy and add clearly named broker/invoke outputs. | accepted |
+
+### Security pass
+
+| id | persona | category | finding | concrete scenario | recommendation | resolution |
+| --- | --- | --- | --- | --- | --- | --- |
+| M2-S1 | security | ask | **High — CWE-269.** The runtime principal can export the key and bypass every helper check. | Compromised build code calls Secrets Manager directly, signs an App JWT, and mints an installation-wide token. | Remove all runtime secret-read authority; broker alone owns the key and enforces every request. | accepted; primary repair |
+| M2-S2 | security | ask | Input validation after secret retrieval unnecessarily exposes key material to abusive requests. | Invalid or unallowed targets repeatedly cause private-key loads. | Validate event shape and the component-bound allowlist before reading the secret; validate stored scope before signing. | accepted; BDD-M2-3/4 |
+| M2-S3 | security | auto-fix | Unbounded provider bodies and hanging requests create a memory/duration exhaustion path. | GitHub or an intermediary returns a large body or never completes. | Enforce AbortSignal timeout and bounded body reads for both calls. | applied to contract |
+| M2-S4 | security | ask | Errors can disclose authorization headers, JWTs, keys, or returned tokens. | SDK/fetch error objects are logged wholesale by the function runtime. | Catch internally, emit only enumerated reason codes, and never interpolate provider error objects. | accepted; BDD-M2-8 |
+| M2-S5 | security | ask | Wildcard repository configuration can still tempt an installation-wide token request. | `repos: ["*"]` is treated as permission to omit the request's repository list. | Wildcard controls target eligibility only; every GitHub request and response must still bind exactly one repository. | accepted |
+
+### Design pass
+
+Skipped: no UI or public HTTP surface.
+
+### Critique decision
+
+M2 is bounded to the same 12 exact files, adds no dependency, and directly removes the raw-key bypass. Official GitHub documentation confirms narrowed request and response fields; official AWS guidance supports a custom least-privilege execution role; Pulumi's CallbackFunction docs justify making that role explicit. The user's standing autonomous instruction confirms execution, and implementation may proceed BDD-first.

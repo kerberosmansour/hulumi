@@ -17,6 +17,8 @@ components, published package versions or cloud authority.
 - Structural workflow governance for quoted/flow YAML with fail-closed
   duplicate/alias/merge handling and owner-bearing CODEOWNERS checks.
 - No-follow, contained and atomic threat-model output generation.
+- Cooling-off CI now waits for OSV admission and uses a frozen,
+  lifecycle-disabled root-tooling install before structural parsing.
 - Updated security, contributor, architecture, FAQ, component and skill
   documentation.
 

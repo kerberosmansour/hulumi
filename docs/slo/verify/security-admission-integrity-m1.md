@@ -35,8 +35,9 @@ Exact-head GitHub CI and Codex Security validation remain merge gates.
 | Focused Vitest | pass | 4 files, 73 tests passed; 2 pre-existing live-registry tests skipped unless `HULUMI_NETWORK_TESTS=1`. |
 | Full workspace tests | pass | `pnpm -r --stream test` completed successfully after the required build. |
 | Build/typecheck/lint/format | pass | Full workspace build, typecheck and lint passed; repository format and license-boundary checks passed. |
+| Cold CI parser bootstrap | pass | A clean detached checkout completed `pnpm --filter hulumi install --frozen-lockfile --ignore-scripts` only after OSV admission, then the structural cooling-off check passed against the base lock. |
 | Semgrep | pass | Semgrep OSS 1.156.0 ran 210 applicable rules over 9 changed source/test files with zero findings. JSON SHA-256 `e8dba08a131b94a4d3cd6495ec35b15e4ebe57b1f76117c8e83a1d33115afe9f`. |
-| Secret-pattern scan | pass | 1,356 added diff lines contained no AWS access key, GitHub token, Slack token or private-key header pattern. |
+| Secret-pattern scan | pass | The full pull-request diff contained no AWS access key, GitHub token, Slack token or private-key header pattern. |
 | DAST | N/A | These are offline repository controls and a local file generator; no HTTP service or route is introduced. |
 
 ## Environment

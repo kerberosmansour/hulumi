@@ -943,6 +943,23 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
       propertyDependencies: bucketPropertyDependencies(bucket, "bucket", "policy"),
     }),
   ];
+  const withMutatedTlsStatement = (
+    bucket: PolicyResource,
+    mutate: (statement: Record<string, unknown>) => void,
+  ): PolicyResource[] => {
+    const siblings = hardenedSiblings(bucket);
+    const policy = siblings[4];
+    const props = (policy.props ?? {}) as Record<string, unknown>;
+    const document = JSON.parse(String(props.policy)) as {
+      Statement: Record<string, unknown>[];
+    };
+    mutate(document.Statement[0]);
+    siblings[4] = {
+      ...policy,
+      props: { ...props, policy: JSON.stringify(document) },
+    };
+    return siblings;
+  };
   const runH5 = (resources: PolicyResource[], config: Record<string, unknown> = {}): void =>
     (
       h5SecureBucketExemptionRequiresHardening.validateStack as (
@@ -967,6 +984,98 @@ describe("HulumiHardeningPack H5 — SecureBucket H1 exemption must be backed by
     const bucket = exemptedBucket();
     runH5([bucket, ...hardenedSiblings(bucket)]);
     expect(violations).toHaveLength(0);
+  });
+
+  it("accepts the canonical TLS deny when s3:* is expressed as a singleton action array", () => {
+    const bucket = exemptedBucket();
+    const siblings = withMutatedTlsStatement(bucket, (statement) => {
+      statement.Action = ["s3:*"];
+    });
+
+    runH5([bucket, ...siblings]);
+
+    expect(violations).toHaveLength(0);
+  });
+
+  it.each([
+    [
+      "a specific principal",
+      (statement: Record<string, unknown>) => {
+        statement.Principal = { AWS: "arn:aws:iam::111122223333:root" };
+      },
+    ],
+    [
+      "NotPrincipal",
+      (statement: Record<string, unknown>) => {
+        statement.NotPrincipal = { AWS: "arn:aws:iam::111122223333:root" };
+      },
+    ],
+    [
+      "a specific action",
+      (statement: Record<string, unknown>) => {
+        statement.Action = "s3:GetObject";
+      },
+    ],
+    [
+      "NotAction",
+      (statement: Record<string, unknown>) => {
+        statement.NotAction = "s3:GetObject";
+      },
+    ],
+    [
+      "NotResource",
+      (statement: Record<string, unknown>) => {
+        statement.NotResource = "arn:aws:s3:::unrelated/*";
+      },
+    ],
+    [
+      "an extra condition operator",
+      (statement: Record<string, unknown>) => {
+        statement.Condition = {
+          Bool: { "aws:SecureTransport": "false" },
+          StringEquals: { "aws:PrincipalAccount": "111122223333" },
+        };
+      },
+    ],
+    [
+      "an extra Bool condition",
+      (statement: Record<string, unknown>) => {
+        statement.Condition = {
+          Bool: {
+            "aws:SecureTransport": "false",
+            "aws:PrincipalIsAWSService": "false",
+          },
+        };
+      },
+    ],
+    [
+      "an unknown statement key",
+      (statement: Record<string, unknown>) => {
+        statement.UnknownConstraint = "narrower-than-canonical";
+      },
+    ],
+  ])("rejects an apparent TLS deny containing %s", (_label, mutate) => {
+    const bucket = exemptedBucket();
+    const siblings = withMutatedTlsStatement(bucket, mutate);
+
+    runH5([bucket, ...siblings]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+  });
+
+  it("rejects a TLS deny missing either exact bucket target without copying policy contents", () => {
+    const bucket = exemptedBucket();
+    const secretMarker = "should-never-appear-in-diagnostics";
+    const siblings = withMutatedTlsStatement(bucket, (statement) => {
+      statement.Resource = [`arn:aws:s3:::sb-bucket/${secretMarker}`];
+    });
+
+    runH5([bucket, ...siblings]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/TLS-only bucket policy/);
+    expect(violations[0]).not.toContain(secretMarker);
   });
 
   it("reports only the specific missing control when hardening is partial (SSE present but AES256, not KMS)", () => {

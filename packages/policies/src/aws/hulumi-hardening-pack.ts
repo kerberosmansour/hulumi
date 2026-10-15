@@ -636,6 +636,47 @@ function bucketControlTargetsBucket(control: PolicyResource, bucket: PolicyResou
   return target === physicalIdentity;
 }
 
+const TLS_DENY_STATEMENT_KEYS = new Set([
+  "Sid",
+  "Effect",
+  "Principal",
+  "Action",
+  "Resource",
+  "Condition",
+]);
+
+function isExactPublicTlsDeny(
+  statement: Record<string, unknown> | undefined,
+  bucketArn: string,
+): boolean {
+  if (statement === undefined) return false;
+  if (Object.keys(statement).some((key) => !TLS_DENY_STATEMENT_KEYS.has(key))) return false;
+  if (statement.Effect !== "Deny" || statement.Principal !== "*") return false;
+
+  const actions = statement.Action;
+  if (
+    actions !== "s3:*" &&
+    !(Array.isArray(actions) && actions.length === 1 && actions[0] === "s3:*")
+  ) {
+    return false;
+  }
+
+  const condition = asRecord(statement.Condition);
+  if (condition === undefined) return false;
+  const conditionKeys = Object.keys(condition);
+  if (conditionKeys.length !== 1 || conditionKeys[0] !== "Bool") return false;
+  const boolCondition = asRecord(condition.Bool);
+  if (boolCondition === undefined) return false;
+  const boolKeys = Object.keys(boolCondition);
+  if (boolKeys.length !== 1 || boolKeys[0] !== "aws:SecureTransport") return false;
+  const secureTransport = boolCondition["aws:SecureTransport"];
+  if (!(secureTransport === "false" || secureTransport === false)) return false;
+
+  const resources = statement.Resource;
+  const resourceList: unknown[] = Array.isArray(resources) ? resources : [resources];
+  return resourceList.includes(bucketArn) && resourceList.includes(`${bucketArn}/*`);
+}
+
 function isTlsOnlyPolicyForBucket(policy: PolicyResource, bucket: PolicyResource): boolean {
   if (!bucketControlTargetsBucket(policy, bucket)) return false;
   if (!propertyDependsOnBucket(policy, "policy", bucket)) return false;
@@ -652,19 +693,12 @@ function isTlsOnlyPolicyForBucket(policy: PolicyResource, bucket: PolicyResource
   }
   const statements = asRecord(doc)?.Statement;
   const list = Array.isArray(statements) ? statements : [];
-  // The Resource block on the relevant Deny statement must cover both the
-  // bucket ARN and the object ARN of the exempted bucket — otherwise the
-  // policy can name a Deny on a *different* bucket and still pass.
-  return list.some((raw) => {
-    const stmt = asRecord(raw);
-    if (stmt?.Effect !== "Deny") return false;
-    const secureTransport = asRecord(asRecord(stmt.Condition)?.Bool)?.["aws:SecureTransport"];
-    if (!(secureTransport === "false" || secureTransport === false)) return false;
-    const resources: unknown = stmt.Resource;
-    const resourceList: unknown[] = Array.isArray(resources) ? resources : [resources];
-    const bucketArn = `arn:aws:s3:::${physicalIdentity}`;
-    return resourceList.includes(bucketArn) && resourceList.includes(`${bucketArn}/*`);
-  });
+  const bucketArn = `arn:aws:s3:::${physicalIdentity}`;
+  // H5 accepts only the exact public, all-S3 deny shape emitted by
+  // SecureBucket. Complement operators, specific authority, unknown fields,
+  // and additional conditions can narrow a statement while retaining the
+  // previously recognized SecureTransport and Resource fields.
+  return list.some((raw) => isExactPublicTlsDeny(asRecord(raw), bucketArn));
 }
 
 // H5 — defense in depth for the H1 SecureBucket exemption.

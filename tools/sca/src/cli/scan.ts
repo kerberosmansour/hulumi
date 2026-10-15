@@ -2,33 +2,55 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { constants } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { scopeFileSchema } from "../scope/policy";
 
-const OSV_VERSION = "v2.3.8";
-const OSV_COMMIT = "408fcd6f8707999a29e7ba45e15809764cf24f67";
+const OSV_VERSION = "v2.7.0";
+const OSV_COMMIT = "bfe2f84abd2f09fe0b83ba7f6dad40d296762f40";
 const OSV_RELEASE_BASE = `https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}`;
+const MAX_SCANNER_BYTES = 64 * 1024 * 1024;
 
 const scannerAssets = {
   "darwin-arm64": {
     name: "osv-scanner_darwin_arm64",
-    sha256: "a8cd6507b06239f463a7642430cfd2d154882f150f6e30cdc0653e28dfc34216",
+    sha256: "d4926ef8da134332543be276dff157e4c170f99ad91fc48e89448a8816bdf70b",
   },
   "darwin-x64": {
     name: "osv-scanner_darwin_amd64",
-    sha256: "b8a80a9f14ca4c0cd0fc2d351b28f740da9e6a5b18385ac9f9d083360b5b504e",
+    sha256: "e82c5df7ab0a42dff29a1cd0660711447b56b4c0483ff66ad8634df10fd81a45",
   },
   "linux-arm64": {
     name: "osv-scanner_linux_arm64",
-    sha256: "8158b18edd2d03b1a30d905ca91b032bc62262167be8f206c27114f08823e27c",
+    sha256: "4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7",
   },
   "linux-x64": {
     name: "osv-scanner_linux_amd64",
-    sha256: "bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc",
+    sha256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b",
+  },
+  "win32-arm64": {
+    name: "osv-scanner_windows_arm64.exe",
+    sha256: "3e630381c1f1fd3c9c4d447e6ff2ef6c737083371722773db8337eead0f97962",
+  },
+  "win32-x64": {
+    name: "osv-scanner_windows_amd64.exe",
+    sha256: "9964ed64ec9a387391eb4cc006ad5c531154821aef29b793e02c448de4686438",
   },
 } as const;
 
@@ -497,48 +519,258 @@ async function readPinnedVersion(rootDir: string, entry: ScanLockfile): Promise<
 }
 
 export async function ensureScannerBinary(rootDir: string): Promise<string> {
-  if (process.env.OSV_SCANNER_BIN) {
-    return process.env.OSV_SCANNER_BIN;
-  }
-
-  if (await commandWorks("osv-scanner")) {
-    return "osv-scanner";
-  }
-
   const assetKey = `${process.platform}-${process.arch}` as keyof typeof scannerAssets;
   const asset = scannerAssets[assetKey];
   if (asset === undefined) {
     throw new Error(`unsupported OSV-Scanner platform: ${assetKey}`);
   }
 
-  const destination = join(rootDir, ".cache/osv-scanner", OSV_VERSION, asset.name);
-  if (await exists(destination)) {
-    return destination;
+  const configuredBinary = process.env.OSV_SCANNER_BIN?.trim();
+  if (configuredBinary) {
+    if (!isAbsolute(configuredBinary)) {
+      throw new Error("OSV_SCANNER_BIN must be an absolute path to the pinned OSV-Scanner asset");
+    }
+    return await verifyScannerBinary(configuredBinary, asset.sha256, rootDir);
+  }
+
+  const configuredCache = process.env.HULUMI_SCA_CACHE_DIR?.trim();
+  const cacheRoot = configuredCache || join(homedir(), ".cache", "hulumi", "osv-scanner");
+  if (!isAbsolute(cacheRoot)) {
+    throw new Error("HULUMI_SCA_CACHE_DIR must be an absolute path outside the scanned repository");
+  }
+  await assertOutsideRepository(cacheRoot, rootDir, "OSV scanner cache root");
+
+  const versionDirectory = join(cacheRoot, OSV_VERSION);
+  await ensurePrivateCacheDirectory(cacheRoot);
+  await ensurePrivateCacheDirectory(versionDirectory);
+  await assertOutsideRepository(await realpath(cacheRoot), rootDir, "OSV scanner cache root");
+
+  const destination = join(versionDirectory, asset.name);
+  if (await pathExistsWithoutFollowingLinks(destination)) {
+    return await verifyScannerBinary(destination, asset.sha256, rootDir, cacheRoot);
   }
 
   const response = await fetch(`${OSV_RELEASE_BASE}/${asset.name}`);
   if (!response.ok) {
     throw new Error(`failed to download OSV-Scanner ${OSV_VERSION}: HTTP ${response.status}`);
   }
-  const bytes = Buffer.from(await response.arrayBuffer());
+  if (new URL(response.url).protocol !== "https:") {
+    throw new Error(`refusing non-HTTPS OSV-Scanner response for ${OSV_VERSION}`);
+  }
+  const responseHost = new URL(response.url).hostname;
+  if (responseHost !== "github.com" && !responseHost.endsWith(".githubusercontent.com")) {
+    throw new Error(`refusing unexpected OSV-Scanner download host: ${responseHost}`);
+  }
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength);
+    if (!Number.isSafeInteger(parsedLength) || parsedLength < 0) {
+      throw new Error("OSV-Scanner asset returned an invalid Content-Length");
+    }
+    if (parsedLength > MAX_SCANNER_BYTES) {
+      throw new Error(`OSV-Scanner asset exceeds ${MAX_SCANNER_BYTES} byte limit`);
+    }
+  }
+  const bytes = await readBoundedResponse(response, MAX_SCANNER_BYTES);
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (digest !== asset.sha256) {
     throw new Error(`OSV-Scanner SHA-256 mismatch: expected ${asset.sha256}, got ${digest}`);
   }
 
-  await mkdir(dirname(destination), { recursive: true });
-  await writeFile(destination, bytes);
-  await chmod(destination, 0o755);
-  return destination;
+  const stagingDirectory = await mkdtemp(join(versionDirectory, ".download-"));
+  const staged = join(stagingDirectory, asset.name);
+  try {
+    await chmod(stagingDirectory, 0o700);
+    await writeFile(staged, bytes, { flag: "wx", mode: 0o700 });
+    await chmod(staged, 0o700);
+    await verifyScannerBinary(staged, asset.sha256, rootDir, cacheRoot);
+
+    if (await pathExistsWithoutFollowingLinks(destination)) {
+      throw new Error("OSV-Scanner cache destination appeared during download; refusing overwrite");
+    }
+    await rename(staged, destination);
+    await chmod(destination, 0o700);
+    return await verifyScannerBinary(destination, asset.sha256, rootDir, cacheRoot);
+  } finally {
+    await rm(stagingDirectory, { recursive: true, force: true });
+  }
 }
 
-async function commandWorks(command: string): Promise<boolean> {
-  try {
-    const result = await runProcess(command, ["--version"], process.cwd());
-    return result.code === 0;
-  } catch {
-    return false;
+export async function verifyScannerBinary(
+  candidate: string,
+  expectedSha256: string,
+  rootDir: string,
+  trustedCacheRoot?: string,
+): Promise<string> {
+  if (!/^[0-9a-f]{64}$/.test(expectedSha256)) {
+    throw new Error("OSV-Scanner expected SHA-256 must be 64 lowercase hexadecimal characters");
   }
+  if (!isAbsolute(candidate)) {
+    throw new Error("OSV-Scanner binary must be an absolute path");
+  }
+  const absoluteCandidate = resolve(candidate);
+  await assertOutsideRepository(absoluteCandidate, rootDir, "OSV-Scanner binary");
+  await assertNoSymlinkComponents(absoluteCandidate);
+
+  const canonicalCandidate = await realpath(absoluteCandidate);
+  await assertOutsideRepository(canonicalCandidate, rootDir, "OSV-Scanner binary");
+  if (trustedCacheRoot !== undefined) {
+    const canonicalCache = await realpath(trustedCacheRoot);
+    if (!isPathWithin(canonicalCache, canonicalCandidate)) {
+      throw new Error("OSV-Scanner cache binary escaped its trusted cache root");
+    }
+  }
+
+  const noFollow = "O_NOFOLLOW" in constants ? constants.O_NOFOLLOW : 0;
+  const handle = await open(canonicalCandidate, constants.O_RDONLY | noFollow);
+  try {
+    const before = await handle.stat();
+    if (!before.isFile()) {
+      throw new Error("OSV-Scanner integrity check requires a regular file");
+    }
+    if (before.size <= 0 || before.size > MAX_SCANNER_BYTES) {
+      throw new Error(`OSV-Scanner integrity check rejected size ${before.size}`);
+    }
+    if (typeof process.getuid === "function" && before.uid !== process.getuid()) {
+      throw new Error("OSV-Scanner integrity check rejected a file owned by another user");
+    }
+    if (process.platform !== "win32") {
+      if ((before.mode & 0o111) === 0) {
+        throw new Error("OSV-Scanner integrity check requires an executable file");
+      }
+      if ((before.mode & 0o022) !== 0) {
+        throw new Error("OSV-Scanner integrity check rejected group/world-writable permissions");
+      }
+    }
+
+    const bytes = Buffer.alloc(before.size);
+    let offset = 0;
+    while (offset < before.size) {
+      const { bytesRead } = await handle.read(bytes, offset, before.size - offset, offset);
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    const trailing = Buffer.alloc(1);
+    const { bytesRead: trailingBytes } = await handle.read(trailing, 0, 1, before.size);
+    const after = await handle.stat();
+    if (offset !== before.size || trailingBytes !== 0 || after.size !== before.size) {
+      throw new Error("OSV-Scanner integrity check detected a concurrent file change");
+    }
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (digest !== expectedSha256) {
+      throw new Error(
+        `OSV-Scanner checksum integrity mismatch: expected ${expectedSha256}, got ${digest}`,
+      );
+    }
+  } finally {
+    await handle.close();
+  }
+  return canonicalCandidate;
+}
+
+async function ensurePrivateCacheDirectory(directory: string): Promise<void> {
+  await assertExistingComponentsAreNotSymlinks(directory);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await assertNoSymlinkComponents(directory);
+  const metadata = await lstat(directory);
+  if (!metadata.isDirectory()) {
+    throw new Error("OSV-Scanner cache path is not a directory");
+  }
+  if (typeof process.getuid === "function" && metadata.uid !== process.getuid()) {
+    throw new Error("OSV-Scanner cache directory is owned by another user");
+  }
+  if (process.platform !== "win32" && (metadata.mode & 0o077) !== 0) {
+    throw new Error("OSV-Scanner cache directory must not grant group or world access");
+  }
+}
+
+async function assertExistingComponentsAreNotSymlinks(path: string): Promise<void> {
+  const absolute = resolve(path);
+  const root = parse(absolute).root;
+  const components = relative(root, absolute).split(sep).filter(Boolean);
+  let cursor = root;
+  for (const component of components) {
+    cursor = join(cursor, component);
+    try {
+      const metadata = await lstat(cursor);
+      if (metadata.isSymbolicLink()) {
+        throw new Error(`OSV-Scanner path contains a symbolic link: ${cursor}`);
+      }
+    } catch (error) {
+      if (isMissingFileError(error)) return;
+      throw error;
+    }
+  }
+}
+
+async function assertNoSymlinkComponents(path: string): Promise<void> {
+  const absolute = resolve(path);
+  const root = parse(absolute).root;
+  const components = relative(root, absolute).split(sep).filter(Boolean);
+  let cursor = root;
+  for (const component of components) {
+    cursor = join(cursor, component);
+    const metadata = await lstat(cursor);
+    if (metadata.isSymbolicLink()) {
+      throw new Error(`OSV-Scanner path contains a symbolic link: ${cursor}`);
+    }
+  }
+}
+
+async function assertOutsideRepository(
+  candidate: string,
+  rootDir: string,
+  label: string,
+): Promise<void> {
+  const absoluteRoot = resolve(rootDir);
+  const canonicalRoot = await realpath(absoluteRoot);
+  const absoluteCandidate = resolve(candidate);
+  if (
+    isPathWithin(absoluteRoot, absoluteCandidate) ||
+    isPathWithin(canonicalRoot, absoluteCandidate)
+  ) {
+    throw new Error(`${label} must be outside the scanned repository`);
+  }
+}
+
+function isPathWithin(parent: string, child: string): boolean {
+  const relation = relative(parent, child);
+  return (
+    relation === "" ||
+    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation))
+  );
+}
+
+async function pathExistsWithoutFollowingLinks(path: string): Promise<boolean> {
+  try {
+    await lstat(path);
+    return true;
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function readBoundedResponse(response: Response, maximumBytes: number): Promise<Buffer> {
+  if (response.body === null) {
+    throw new Error("OSV-Scanner download returned an empty response body");
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = response.body.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maximumBytes) {
+      await reader.cancel();
+      throw new Error(`OSV-Scanner asset exceeds ${maximumBytes} byte limit`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks, size);
 }
 
 async function runProcess(command: string, args: string[], cwd: string) {

@@ -661,6 +661,59 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     expect(violations[0]).toMatch(/Azure|federated/);
   });
 
+  it.each([
+    ["missing subject", {}],
+    ["non-string subject", { subject: 7 }],
+    ["empty subject", { subject: "" }],
+    ["repo only", { subject: "repo:org/repo" }],
+    ["missing workflow", { subject: "repo:org/repo:environment:prod" }],
+    [
+      "missing environment",
+      {
+        subject:
+          "repo:org/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main",
+      },
+    ],
+    [
+      "duplicate repo",
+      {
+        subject:
+          "repo:org/repo:repo:other/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main:environment:prod",
+      },
+    ],
+    ["odd key/value shape", { subject: "repo:org/repo:job_workflow_ref" }],
+  ])("fails closed on Azure federated credential with %s", (_label, props) => {
+    const args = makeResourceArgs({
+      type: G_OIDC_1_AZURE_FEDERATED_CRED_TYPE,
+      urn: `urn:pulumi:s::p::${G_OIDC_1_AZURE_FEDERATED_CRED_TYPE}::azure-cred`,
+      name: "azure-cred",
+      props,
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/Azure|subject/);
+  });
+
+  it("accepts an Azure subject with the three required axes and a safe extra claim", () => {
+    const args = makeResourceArgs({
+      type: G_OIDC_1_AZURE_FEDERATED_CRED_TYPE,
+      urn: `urn:pulumi:s::p::${G_OIDC_1_AZURE_FEDERATED_CRED_TYPE}::azure-cred`,
+      name: "azure-cred",
+      props: {
+        subject:
+          "repository_id:123456:repo:org/repo:job_workflow_ref:org/repo/.github/workflows/deploy.yml@refs/heads/main:environment:prod",
+      },
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
+    expect(violations).toEqual([]);
+  });
+
   it("rejects GCP Workload Identity Pool Provider with wildcard attributeCondition", () => {
     const args = makeResourceArgs({
       type: G_OIDC_1_GCP_WIF_PROVIDER_TYPE,
@@ -674,6 +727,85 @@ describe("G_OIDC_1 / HULUMI-H3 — wildcard rejection across AWS/Azure/GCP", () 
     );
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/GCP|Workload/);
+  });
+
+  it.each([
+    ["missing condition", {}],
+    ["non-string condition", { attributeCondition: 7 }],
+    ["empty condition", { attributeCondition: "" }],
+    ["constant true", { attributeCondition: "true" }],
+    ["repository only", { attributeCondition: "assertion.repository == 'org/repo'" }],
+    [
+      "missing workflow",
+      {
+        attributeCondition: "assertion.repository == 'org/repo' && assertion.environment == 'prod'",
+      },
+    ],
+    [
+      "missing environment",
+      {
+        attributeCondition:
+          "assertion.repository == 'org/repo' && assertion.job_workflow_ref == 'org/repo/.github/workflows/deploy.yml@refs/heads/main'",
+      },
+    ],
+    [
+      "disjunction",
+      {
+        attributeCondition:
+          "assertion.repository == 'org/repo' || assertion.job_workflow_ref == 'org/repo/.github/workflows/deploy.yml@refs/heads/main' || assertion.environment == 'prod'",
+      },
+    ],
+    [
+      "tautological suffix",
+      {
+        attributeCondition:
+          "assertion.repository == 'org/repo' && assertion.job_workflow_ref == 'org/repo/.github/workflows/deploy.yml@refs/heads/main' && assertion.environment == 'prod' || true",
+      },
+    ],
+    [
+      "function call",
+      {
+        attributeCondition:
+          "assertion.repository.startsWith('org/') && assertion.job_workflow_ref == 'org/repo/.github/workflows/deploy.yml@refs/heads/main' && assertion.environment == 'prod'",
+      },
+    ],
+    [
+      "duplicate repository binding",
+      {
+        attributeCondition:
+          "assertion.repository == 'org/repo' && assertion.repository == 'other/repo' && assertion.job_workflow_ref == 'org/repo/.github/workflows/deploy.yml@refs/heads/main' && assertion.environment == 'prod'",
+      },
+    ],
+  ])("fails closed on GCP Workload Identity Pool Provider with %s", (_label, props) => {
+    const args = makeResourceArgs({
+      type: G_OIDC_1_GCP_WIF_PROVIDER_TYPE,
+      urn: `urn:pulumi:s::p::${G_OIDC_1_GCP_WIF_PROVIDER_TYPE}::gcp-wif`,
+      name: "gcp-wif",
+      props,
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatch(/GCP|attributeCondition/);
+  });
+
+  it("accepts a parenthesized GCP conjunction with required and safe extra exact bindings", () => {
+    const args = makeResourceArgs({
+      type: G_OIDC_1_GCP_WIF_PROVIDER_TYPE,
+      urn: `urn:pulumi:s::p::${G_OIDC_1_GCP_WIF_PROVIDER_TYPE}::gcp-wif`,
+      name: "gcp-wif",
+      props: {
+        attributeCondition:
+          "(assertion.repository == 'org/repo' && 'org/repo/.github/workflows/deploy.yml@refs/heads/main' == assertion.job_workflow_ref) && (assertion.environment == \"prod\" && assertion.repository_id == '123456')",
+      },
+    });
+    (G_OIDC_1.validateResource as (a: ResourceValidationArgs, r: (m: string) => void) => void)(
+      args,
+      report,
+    );
+    expect(violations).toEqual([]);
   });
 
   it("h3NoWildcardTrustPolicy is the same rule under the H3 alias", () => {

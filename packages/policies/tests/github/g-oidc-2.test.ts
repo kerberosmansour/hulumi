@@ -9,6 +9,7 @@ import {
   h4NoClusterAdminViaGithubOidc,
   hulumiHardeningPackGithubMetadata,
 } from "../../src/github";
+import { containsAdministratorAccessArn } from "../../src/aws/iam-policy";
 
 const GH_OIDC_TRUST = JSON.stringify({
   Version: "2012-10-17",
@@ -77,6 +78,12 @@ const FULL_ADMIN_POLICY = JSON.stringify({
   Statement: { Effect: "Allow", Action: "*", Resource: "*" },
 });
 
+const NONCOMMERCIAL_AWS_PARTITIONS = ["aws-us-gov", "aws-cn"] as const;
+
+function administratorAccessArn(partition: string): string {
+  return `arn:${partition}:iam::aws:policy/AdministratorAccess`;
+}
+
 describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () => {
   let violations: string[];
   beforeEach(() => {
@@ -127,6 +134,67 @@ describe("G_OIDC_2 — cluster-admin / AdministratorAccess via GitHub OIDC", () 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatch(/AdministratorAccess/);
   });
+
+  it("recognizes the exact AWS managed AdministratorAccess ARN in every documented partition", () => {
+    for (const partition of ["aws", ...NONCOMMERCIAL_AWS_PARTITIONS]) {
+      expect(containsAdministratorAccessArn(administratorAccessArn(partition))).toBe(true);
+      expect(
+        containsAdministratorAccessArn([
+          "arn:aws:iam::aws:policy/ReadOnlyAccess",
+          administratorAccessArn(partition),
+        ]),
+      ).toBe(true);
+    }
+  });
+
+  it("does not broaden exact AdministratorAccess ARN matching", () => {
+    for (const value of [
+      "arn:aws-iso:iam::aws:policy/AdministratorAccess",
+      "arn:aws:iam::111122223333:policy/AdministratorAccess",
+      "arn:aws:iam::aws:policy/AdministratorAccessExtra",
+      "prefix:arn:aws:iam::aws:policy/AdministratorAccess",
+      " arn:aws:iam::aws:policy/AdministratorAccess",
+      "arn:aws:iam::aws:policy/administratoraccess",
+      "arn:aws:iam::aws:policy/ReadOnlyAccess",
+      42,
+      null,
+    ]) {
+      expect(containsAdministratorAccessArn(value)).toBe(false);
+    }
+    expect(containsAdministratorAccessArn([42, null, "not-an-arn"])).toBe(false);
+  });
+
+  it.each(NONCOMMERCIAL_AWS_PARTITIONS)(
+    "flags %s AdministratorAccess through every supported managed-policy attachment shape",
+    (partition) => {
+      const policyArn = administratorAccessArn(partition);
+      const directRole = res({
+        ...ghRole,
+        props: { ...ghRole.props, managedPolicyArns: [policyArn] },
+      });
+      const roleAttachment = res({
+        type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+        urn: `urn:pulumi:s::p::aws:iam/rolePolicyAttachment:RolePolicyAttachment::${partition}`,
+        props: { policyArn },
+        propertyDependencies: { role: [ghRole] },
+      });
+      const exclusive = res({
+        type: "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive",
+        urn: `urn:pulumi:s::p::aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive::${partition}`,
+        props: { roleName: "gh-deploy", policyArns: [policyArn] },
+      });
+      const generic = res({
+        type: "aws:iam/policyAttachment:PolicyAttachment",
+        urn: `urn:pulumi:s::p::aws:iam/policyAttachment:PolicyAttachment::${partition}`,
+        props: { roles: ["gh-deploy"], policyArn },
+      });
+
+      expect(run(makeStackArgs([directRole]))).toHaveLength(1);
+      for (const attachment of [roleAttachment, exclusive, generic]) {
+        expect(run(makeStackArgs([ghRole, attachment]))).toHaveLength(1);
+      }
+    },
+  );
 
   it("classifies a GitHub OIDC role whose trust policy has a singleton Statement", () => {
     const singletonRole = res({

@@ -1,5 +1,11 @@
 export const AWS_ADMINISTRATOR_ACCESS_ARN = "arn:aws:iam::aws:policy/AdministratorAccess";
 
+const AWS_ADMINISTRATOR_ACCESS_ARNS = new Set([
+  AWS_ADMINISTRATOR_ACCESS_ARN,
+  "arn:aws-us-gov:iam::aws:policy/AdministratorAccess",
+  "arn:aws-cn:iam::aws:policy/AdministratorAccess",
+]);
+
 export type IamPolicyStatement = Record<string, unknown>;
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -57,7 +63,8 @@ export function iamPolicyHasFullAdmin(policy: unknown): boolean {
 
 export function containsAdministratorAccessArn(value: unknown): boolean {
   return (
-    value === AWS_ADMINISTRATOR_ACCESS_ARN ||
-    (Array.isArray(value) && value.some((entry) => entry === AWS_ADMINISTRATOR_ACCESS_ARN))
+    (typeof value === "string" && AWS_ADMINISTRATOR_ACCESS_ARNS.has(value)) ||
+    (Array.isArray(value) &&
+      value.some((entry) => typeof entry === "string" && AWS_ADMINISTRATOR_ACCESS_ARNS.has(entry)))
   );
 }

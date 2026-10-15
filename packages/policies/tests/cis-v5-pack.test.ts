@@ -236,6 +236,55 @@ describe("CIS §1.16 — no full-admin IAM policy", () => {
     expect(violations[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
   });
 
+  it.each(["aws-us-gov", "aws-cn"])(
+    "fires on %s AdministratorAccess through every supported attachment shape",
+    (partition) => {
+      const policyArn = `arn:${partition}:iam::aws:policy/AdministratorAccess`;
+      const cases: Array<{ type: string; props: Record<string, unknown> }> = [
+        {
+          type: "aws:iam/rolePolicyAttachment:RolePolicyAttachment",
+          props: { role: "deploy", policyArn },
+        },
+        {
+          type: "aws:iam/userPolicyAttachment:UserPolicyAttachment",
+          props: { user: "operator", policyArn },
+        },
+        {
+          type: "aws:iam/groupPolicyAttachment:GroupPolicyAttachment",
+          props: { group: "operators", policyArn },
+        },
+        {
+          type: "aws:iam/policyAttachment:PolicyAttachment",
+          props: { roles: ["deploy"], policyArn },
+        },
+        {
+          type: "aws:iam/rolePolicyAttachmentsExclusive:RolePolicyAttachmentsExclusive",
+          props: { roleName: "deploy", policyArns: [policyArn] },
+        },
+        {
+          type: "aws:iam/role:Role",
+          props: { managedPolicyArns: [policyArn] },
+        },
+      ];
+
+      for (const [index, entry] of cases.entries()) {
+        const result: string[] = [];
+        invokeResource(
+          cis_1_16_noFullAdminPolicy,
+          makeResourceArgs({
+            type: entry.type,
+            urn: `urn:pulumi:s::p::${entry.type}::${partition}-${index}`,
+            name: `${partition}-${index}`,
+            props: entry.props,
+          }),
+          (message) => result.push(message),
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatch(/CIS-AWS-v5\.0\.0:1\.16/);
+      }
+    },
+  );
+
   it.each([
     [
       "role managedPolicyArns",

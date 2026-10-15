@@ -17,7 +17,7 @@
 import type { PolicyResource, StackValidationPolicy } from "@pulumi/policy";
 
 import {
-  AWS_ADMINISTRATOR_ACCESS_ARN,
+  containsAdministratorAccessArn,
   iamPolicyHasFullAdmin,
   iamPolicyStatements,
 } from "../aws/iam-policy";
@@ -102,12 +102,9 @@ function policyReferenceIsFullAdmin(
     if (dep && fullAdminPolicyUrns.has(dep.urn)) return true;
   }
   const raw = (resource.props as Record<string, unknown>)[propName];
+  if (containsAdministratorAccessArn(raw)) return true;
   const values = Array.isArray(raw) ? raw : [raw];
-  return values.some(
-    (value) =>
-      value === AWS_ADMINISTRATOR_ACCESS_ARN ||
-      (typeof value === "string" && fullAdminPolicyValues.has(value)),
-  );
+  return values.some((value) => typeof value === "string" && fullAdminPolicyValues.has(value));
 }
 
 /**

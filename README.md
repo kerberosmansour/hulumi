@@ -290,6 +290,16 @@ malware. [Agent rules](./AGENTS.md) apply to Codex and Claude.
 Source adds the Guardian-derived CodeBuild GitHub runner and dedicated CrossGuard
 pack. See [construction, authority and qualification limits](docs/components/codebuild-github-runner.md). No new dependencies or cloud deployment; not part of published3.0.0.
 
+### Unreleased ECR pull-through cache
+
+`@hulumi/platform-patterns` source adds `EcrPullThroughCache`: one fixed-upstream
+cache rule plus a matching AES-256, mutable-tag repository template with bounded
+untagged cleanup. It validates the selected provider and credential ARN against
+an exact target account/region and creates no IAM policy or secret. It is cache
+transport, not signature or attestation verification. See the
+[component contract](docs/components/ecr-pull-through-cache.md). No new
+dependencies or cloud deployment; not part of published 3.0.0.
+
 ## Coding agents and integration feedback
 
 Use the [hulumi-secure-pulumi](skills/hulumi-secure-pulumi/SKILL.md) skill for relevant tasks.

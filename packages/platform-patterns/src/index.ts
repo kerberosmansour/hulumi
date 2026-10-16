@@ -26,3 +26,9 @@ export type * from "./workload-capability-issuer-boundary.outputs";
 export * from "./codebuild-github-runner";
 export type * from "./codebuild-github-runner.args";
 export type * from "./codebuild-github-runner.outputs";
+export {
+  ECR_PULL_THROUGH_CACHE_COMPONENT_TYPE,
+  EcrPullThroughCache,
+} from "./ecr-pull-through-cache";
+export type * from "./ecr-pull-through-cache.args";
+export type * from "./ecr-pull-through-cache.outputs";

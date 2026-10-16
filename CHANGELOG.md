@@ -39,6 +39,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local constructor-to-policy evidence does not qualify live webhook/runner
   lifecycle. Preserve external dependency identities and existing APIs/versions.
 
+- Add unreleased `EcrPullThroughCache` source construction with a closed set of
+  AWS-supported upstreams, exact commercial account/region and Secrets Manager
+  authority checks, and one matching repository creation template.
+- Force AES-256, mutable cached tags and bounded untagged-image cleanup. Reject
+  `ROOT`, arbitrary URLs, direct `dhi.io`, cross-context credentials and
+  unsupported partitions before ECR child registration.
+- Document that pull-through caching does not verify signatures, attestations or
+  vulnerability policy, may serve stale cached content after refresh failures,
+  and needs separate live AWS qualification. No dependency or version changes.
+
 ### Dependencies
 
 - Update the private threat-model skill’s Node 20 types to 20.19.43 after script-disabled resolution, full archive/signature/provenance review and official OSV admission. Runtime packages and transitive versions are unchanged.

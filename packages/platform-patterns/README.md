@@ -15,6 +15,7 @@ The package currently includes:
 - `PulumiStateBackendFoundation`
 - `RunnerGovernanceFoundation`
 - `BrokeredAuroraPostgresBoundary`
+- `EcrPullThroughCache` (unreleased source)
 
 ```ts
 import * as pulumi from "@pulumi/pulumi";
@@ -26,6 +27,7 @@ import {
   PulumiStateBackendFoundation,
   RunnerGovernanceFoundation,
   BrokeredAuroraPostgresBoundary,
+  EcrPullThroughCache,
 } from "@hulumi/platform-patterns";
 
 new CloudflareOriginIngress("edge", {
@@ -104,6 +106,14 @@ new RunnerGovernanceFoundation("runners", {
     },
   ],
 });
+
+new EcrPullThroughCache("public-base-images", {
+  tier: "startup-hardened",
+  registryId: "123456789012",
+  region: "eu-west-2",
+  repositoryPrefix: "trusted-base",
+  upstream: { registry: "ecr-public" },
+});
 ```
 
 The deployment role requires the repository OIDC subject template
@@ -151,6 +161,7 @@ import {
   PulumiStateBackendFoundation,
   RunnerGovernanceFoundation,
   BrokeredAuroraPostgresBoundary,
+  EcrPullThroughCache,
 } from "@hulumi/platform-patterns";
 ```
 
@@ -163,6 +174,7 @@ import {
 - `PulumiStateBackendFoundation` emits backend posture resources and evidence; it does not migrate existing Pulumi stack state automatically.
 - `RunnerGovernanceFoundation` is a governance contract and validator descriptor; use the workflow linter and live validator to compare workflows and repo settings against it.
 - `BrokeredAuroraPostgresBoundary` is infrastructure only. Its `infrastructure-only-unconfigured` rotation posture must not be treated as live rotation or tenant-isolation evidence.
+- `EcrPullThroughCache` accepts only fixed AWS-supported upstreams and does not verify image signatures, attestations, provenance or vulnerability policy. Use digest pinning and independent verification.
 - Real provider testing is opt-in: `pnpm --filter @hulumi/platform-patterns test:integration` skips unless the documented GitHub and AWS edge integration env vars are set.
 
 ## Verifying SLSA Attestations
@@ -182,3 +194,12 @@ gh attestation verify ./hulumi-platform-patterns-1.5.0.tgz \
 Guardian-derived ephemeral project/webhook construction with an own-log-only
 default role, explicit VPC/privilege opt-ins and bounded configured resources.
 Read [operator prerequisites and qualification limits](https://github.com/kerberosmansour/hulumi/blob/main/docs/components/codebuild-github-runner.md). Not in published3.0.0; live cloud qualification remains separate.
+
+## Unreleased EcrPullThroughCache
+
+Source now includes a bounded ECR pull-through-cache rule and matching repository
+template with fixed upstream mappings, exact provider/credential context checks,
+AES-256, mutable cached tags and bounded untagged cleanup. It creates no secret,
+IAM policy or signature verifier. Read the
+[authority and supply-chain limits](../../docs/components/ecr-pull-through-cache.md).
+It is not in published 3.0.0; live cloud qualification and release remain separate.

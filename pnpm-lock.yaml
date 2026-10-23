@@ -366,8 +366,8 @@ importers:
         specifier: 3.1149.0
         version: 3.1149.0
       p-timeout:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 8.0.0
+        version: 8.0.0
       simple-git:
         specifier: 4.0.2
         version: 4.0.2
@@ -996,12 +996,14 @@ packages:
   '@opentelemetry/sdk-trace-base@2.12.0':
     resolution: {integrity: sha512-JOERgZCxRM06FEJ5kEWxlSRChah6MmXDx3KwCruqEv/iEyLkTokCSemf2y1w8oIHtfrr8EVTpzebq/31vn2Cpg==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-node@2.12.0':
     resolution: {integrity: sha512-9DufH1IlmQMoKAfot5y/FhTP1RnmhLb5K6eKmJO/bvzPjYwPAazoiAUbTZFdPbqxOXN0FEbhZx/e6SB1Og4jmg==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
@@ -2034,9 +2036,9 @@ packages:
     resolution: {integrity: sha512-6Lh3jQPLthYujSrlw6ccWXBGZTkoTCz27Hd92g79LH/kjAbgoEu0t442cCCNbegPSJsA0lwDX8z0bcKtkpA32g==}
     engines: {node: '>=18'}
 
-  p-timeout@7.0.2:
-    resolution: {integrity: sha512-prbX4Z3YszrFNgH+MW5Zoeq3baXrMtP/MQnFeET90UB/GtGcGDQ5Usg9OCy6ETjTTntOw1SL2z9fMPUppN3Guw==}
-    engines: {node: '>=20'}
+  p-timeout@8.0.0:
+    resolution: {integrity: sha512-IHjMTvwSvMPKVfGAVTRxI+Ea6Vu5soB0oaC3fuEc58EI01T36AiVclDTTYoHBO8M1gjxqAvgkRLm33TGUCzEDw==}
+    engines: {node: '>=22'}
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
@@ -4288,7 +4290,7 @@ snapshots:
 
   p-map@7.1.1: {}
 
-  p-timeout@7.0.2: {}
+  p-timeout@8.0.0: {}
 
   package-json-from-dist@1.0.1: {}
 

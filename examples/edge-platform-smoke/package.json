@@ -12,10 +12,10 @@
     "@hulumi/cloudflare-baseline": "workspace:*",
     "@hulumi/platform-patterns": "workspace:*",
     "@hulumi/policies": "workspace:*",
-    "@pulumi/aws": "7.50.0",
-    "@pulumi/cloudflare": "6.22.0",
+    "@pulumi/aws": "7.51.1",
+    "@pulumi/cloudflare": "6.22.1",
     "@pulumi/github": "6.15.0",
-    "@pulumi/pulumi": "3.268.0"
+    "@pulumi/pulumi": "3.270.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

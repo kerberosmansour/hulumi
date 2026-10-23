@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@hulumi/k8s-baseline": "workspace:*",
-    "@pulumi/aws": "7.50.0",
+    "@pulumi/aws": "7.51.1",
     "@pulumi/kubernetes": "4.34.2",
-    "@pulumi/pulumi": "3.268.0"
+    "@pulumi/pulumi": "3.270.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

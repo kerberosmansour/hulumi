@@ -176,7 +176,7 @@ jobs:
       - name: Resolve workspace package links without lifecycle scripts
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Restore verified dist from this workflow run
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ci-verified-dist
           path: .
@@ -209,7 +209,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ci-release-tarballs
           include-hidden-files: true

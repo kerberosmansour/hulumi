@@ -61,7 +61,7 @@ jobs:
             cp -R "packages/$pkg/dist" ".ci-verified-dist/packages/$pkg/"
           done
       - name: Upload verified dist for this workflow run
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ci-verified-dist
           path: .ci-verified-dist/
@@ -190,7 +190,7 @@ jobs:
             (cd "packages/$pkg" && pnpm pack --pack-destination "$ABS_DEST")
           done
           ls -la .release-artifacts/
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ci-release-tarballs
           include-hidden-files: true

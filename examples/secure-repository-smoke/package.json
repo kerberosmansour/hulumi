@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@hulumi/baseline": "workspace:*",
-    "@pulumi/github": "6.15.0",
-    "@pulumi/pulumi": "3.268.0"
+    "@pulumi/github": "6.15.1",
+    "@pulumi/pulumi": "3.273.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
